@@ -2,6 +2,12 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { Timestamp } from 'firebase/firestore';
 
 
+// Cart item type
+export interface CartItem {
+  experienceId: string;
+  quantity: number;
+}
+
 // User types
 export interface User {
   id: string;
@@ -11,6 +17,7 @@ export interface User {
   createdAt: Date;
   profile?: UserProfile;
   wishlist: Experience[];
+  cart?: CartItem[];
 }
 
 // User Profile types
@@ -98,6 +105,8 @@ export interface ExperienceGift {
   completedAt?: Date;
   claimCode: string;
   partnerId?: string;
+  paymentIntentId?: string;
+  updatedAt?: Date;
 }
 
 export interface Goal {
@@ -235,7 +244,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Roadmap: { goal: Goal };
   Goals: undefined;
-  ExperienceCheckout: { experience: Experience };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[] };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
   Completion: { goal: Goal; experienceGift: ExperienceGift };
@@ -246,15 +255,19 @@ export type RootStackParamList = {
   AddFriend: undefined;
   FriendProfile: { userId: string };
   FriendsList: undefined;
+  Cart: undefined;
   PurchasedGifts: undefined;
   Confirmation: { experienceGift: ExperienceGift };
+  ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
 };
 
 export type GiverStackParamList = {
   CategorySelection: undefined;
   ExperienceDetails: { experience: Experience };
-  ExperienceCheckout: { experience: Experience };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[] };
   Confirmation: { experienceGift: ExperienceGift };
+  Cart: undefined;
+  ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
 };
 
 export type RecipientStackParamList = {

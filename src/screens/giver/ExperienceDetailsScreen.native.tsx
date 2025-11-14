@@ -56,7 +56,7 @@ export default function ExperienceDetailsScreen() {
 
     try {
       // 1️⃣ Create PaymentIntent
-      const createIntent = httpsCallable(functions, 'stripeCreatePaymentIntentTest');
+      const createIntent = httpsCallable(functions, 'stripeCreatePaymentIntent_Test');
       const { data }: any = await createIntent({
         amount: experience.price,
         experienceId: experience.id,

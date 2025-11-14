@@ -16,12 +16,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { loadStripe } from "@stripe/stripe-js";
-import { ChevronLeft, MapPin, Clock } from "lucide-react-native";
+import { ChevronLeft, MapPin, Clock, ShoppingCart } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import { userService } from "../../services/userService";
+import { CartItem } from "../../types";
 
 import {
   GiverStackParamList,
@@ -75,6 +77,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const auth = getAuth();
   const user = auth.currentUser;
 
@@ -136,6 +140,92 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     }
   };
 
+  const handleAddToCart = async () => {
+    if (!user) {
+      Alert.alert("Please log in to add items to cart.");
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      const cartItem: CartItem = {
+        experienceId: experience.id,
+        quantity,
+      };
+
+      // Update in Firestore
+      await userService.addToCart(user.uid, cartItem);
+
+      // Update in context
+      dispatch({ type: "ADD_TO_CART", payload: cartItem });
+
+      Alert.alert("Success", `Added ${quantity} item(s) to cart!`);
+    } catch (error: any) {
+      console.error("Error adding to cart:", error);
+      Alert.alert("Error", error.message || "Failed to add item to cart.");
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!user) {
+      Alert.alert("Please log in to purchase items.");
+      return;
+    }
+
+    try {
+      // Add current item to cart first
+      const cartItem: CartItem = {
+        experienceId: experience.id,
+        quantity,
+      };
+
+      // Update in Firestore
+      await userService.addToCart(user.uid, cartItem);
+
+      // Update in context
+      dispatch({ type: "ADD_TO_CART", payload: cartItem });
+
+      // Navigate to checkout with all cart items
+      const updatedUser = await userService.getUserById(user.uid);
+      if (updatedUser && updatedUser.cart) {
+        //  navigation.navigate("ExperienceCheckout", { cartItems: updatedUser.cart });
+        navigation.navigate("Cart");
+      } else {
+        // navigation.navigate("ExperienceCheckout", { cartItems: [cartItem] });
+        navigation.navigate("Cart");
+      }
+    } catch (error: any) {
+      console.error("Error adding to cart:", error);
+      Alert.alert("Error", error.message || "Failed to add item to cart.");
+    }
+  };
+
+  const decreaseQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
+  };
+
+  const increaseQuantity = () => {
+    if (quantity < 10) {
+      setQuantity(quantity + 1);
+    }
+  };
+
+  // Calculate cart item count
+  const cartItemCount = state.user?.cart?.reduce((total, item) => total + item.quantity, 0) || 0;
+
+  const handleCartPress = () => {
+    if (cartItemCount > 0 && state.user?.cart) {
+      // navigation.navigate("ExperienceCheckout", { cartItems: state.user.cart });
+      navigation.navigate("Cart");
+    } else {
+      Alert.alert("Cart Empty", "Your cart is empty. Add items to cart first.");
+    }
+  };
+
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
@@ -153,16 +243,31 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             >
               <ChevronLeft color="#fff" size={24} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={toggleWishlist}
-              style={styles.heartButtonHero}
-            >
-              {isWishlisted ? (
-                <Heart fill="#ef4444" color="#ef4444" size={24} />
-              ) : (
-                <Heart color="#fff" size={24} />
-              )}
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                onPress={handleCartPress}
+                style={styles.cartButtonHero}
+              >
+                <ShoppingCart color="#fff" size={24} />
+                {cartItemCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>
+                      {cartItemCount > 9 ? "9+" : cartItemCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={toggleWishlist}
+                style={styles.heartButtonHero}
+              >
+                {isWishlisted ? (
+                  <Heart fill="#ef4444" color="#ef4444" size={24} />
+                ) : (
+                  <Heart color="#fff" size={24} />
+                )}
+              </TouchableOpacity>
+            </View>
 
           </LinearGradient>
 
@@ -284,12 +389,46 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
       {/* Fixed Bottom CTA */}
       <View style={styles.bottomCTA}>
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={() => navigation.navigate("ExperienceCheckout", { experience })}
-        >
-          <Text style={styles.ctaButtonText}>Continue to Checkout</Text>
-        </TouchableOpacity>
+        {/* Quantity Selector */}
+        <View style={styles.quantityContainer}>
+          <Text style={styles.quantityLabel}>Quantity:</Text>
+          <View style={styles.quantityControls}>
+            <TouchableOpacity
+              style={[styles.quantityButton, quantity === 1 && styles.quantityButtonDisabled]}
+              onPress={decreaseQuantity}
+              disabled={quantity === 1}
+            >
+              <Text style={[styles.quantityButtonText, quantity === 1 && styles.quantityButtonTextDisabled]}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.quantityValue}>{quantity}</Text>
+            <TouchableOpacity
+              style={[styles.quantityButton, quantity === 10 && styles.quantityButtonDisabled]}
+              onPress={increaseQuantity}
+              disabled={quantity === 10}
+            >
+              <Text style={[styles.quantityButtonText, quantity === 10 && styles.quantityButtonTextDisabled]}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.addToCartButton, isAddingToCart && styles.buttonDisabled]}
+            onPress={handleAddToCart}
+            disabled={isAddingToCart}
+          >
+            <Text style={styles.addToCartButtonText}>
+              {isAddingToCart ? "Adding..." : "Add to Cart"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buyNowButton}
+            onPress={handleBuyNow}
+          >
+            <Text style={styles.buyNowButtonText}>Buy Now</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Zoomable Image Modal */}
@@ -408,17 +547,49 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
-  heartButtonHero: {
+  headerButtons: {
     position: "absolute",
     top: Platform.OS === "ios" ? 50 : 40,
     right: 20,
+    flexDirection: "row",
+    gap: 12,
+    zIndex: 20,
+  },
+  cartButtonHero: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 20,
+    position: "relative",
+  },
+  heartButtonHero: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   quickInfoItem: {
     flexDirection: "row",
@@ -517,16 +688,82 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  ctaButton: {
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  quantityLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  quantityButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  quantityButtonDisabled: {
+    opacity: 0.5,
+  },
+  quantityButtonText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#8b5cf6",
+  },
+  quantityButtonTextDisabled: {
+    color: "#9ca3af",
+  },
+  quantityValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    minWidth: 30,
+    textAlign: "center",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  addToCartButton: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#8b5cf6",
+  },
+  addToCartButtonText: {
+    color: "#8b5cf6",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  buyNowButton: {
+    flex: 1,
     backgroundColor: "#8b5cf6",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
-  ctaButtonText: {
+  buyNowButtonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   loadingContainer: {
     flex: 1,

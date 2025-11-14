@@ -30,7 +30,7 @@ interface DetailedGoalCardProps {
   onFinish?: (goal: Goal) => void;
 }
 
-const DEBUG_ALLOW_MULTIPLE_PER_DAY = false;
+const DEBUG_ALLOW_MULTIPLE_PER_DAY = true;
 const TIMER_STORAGE_KEY = 'goal_timer_state_';
 
 function isoDay(d: Date) {
@@ -491,7 +491,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
 
   // ========= Other Computations =========
   const canFinish =
-    timeElapsed >= (goal.targetHours || 0) * 3600 + (goal.targetMinutes || 0) * 60;
+    timeElapsed >= 2;//(goal.targetHours || 0) * 3600 + (goal.targetMinutes || 0) * 60;
 
   const weekDates = useMemo(() => {
     const start = currentGoal.weekStartAt ? new Date(currentGoal.weekStartAt) : new Date();

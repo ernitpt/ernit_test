@@ -15,6 +15,7 @@ import CategorySelectionScreen from '../screens/giver/CategorySelectionScreen';
 import ExperienceDetailsScreen from '../screens/giver/ExperienceDetailsScreen.web';
 import ExperienceCheckoutScreen from '../screens/giver/ExperienceCheckoutScreen';
 import ConfirmationScreen from '../screens/giver/ConfirmationScreen';
+import ConfirmationMultipleScreen from '../screens/giver/ConfirmationMultipleScreen';
 import CouponEntryScreen from '../screens/recipient/CouponEntryScreen';
 import GoalSettingScreen from '../screens/recipient/GoalSettingScreen';
 import RoadmapScreen from '../screens/recipient/RoadmapScreen';
@@ -22,6 +23,7 @@ import CompletionScreen from '../screens/recipient/CompletionScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import GoalDetailScreen from '../screens/GoalDetailScreen';
+import CartScreen from '../screens/giver/CartScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import AddFriendScreen from '../screens/AddFriendScreen';
 import FriendProfileScreen from '../screens/FriendProfileScreen';
@@ -44,6 +46,7 @@ const GiverNavigator = () => {
       <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
       <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
       <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
+      <GiverStack.Screen name="Cart" component={CartScreen} />
       <GiverStack.Screen name="Confirmation" component={ConfirmationScreen} />
     </GiverStack.Navigator>
   );
@@ -96,6 +99,7 @@ const AppNavigator = () => {
                 userType: 'giver',
                 createdAt: new Date(),
                 wishlist: [],
+                cart: [],
               },
             });
           }
@@ -145,10 +149,12 @@ const AppNavigator = () => {
           <>
             <RootStack.Screen name="GiverFlow" component={GiverNavigator} />
             <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
-            {/* <RootStack.Screen name="Main" component={CategorySelectionScreen} /> */}
+            <RootStack.Screen name="Confirmation" component={ConfirmationScreen} />
+            <RootStack.Screen name="ConfirmationMultiple" component={ConfirmationMultipleScreen} />
             <RootStack.Screen name="Profile" component={UserProfileScreen} />
             <RootStack.Screen name="Goals" component={GoalsScreen} />
             <RootStack.Screen name="GoalDetail" component={GoalDetailScreen} />
+            <RootStack.Screen name="Cart" component={CartScreen} />
             <RootStack.Screen name="Roadmap" component={RoadmapScreen} />
             <RootStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
             <RootStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />

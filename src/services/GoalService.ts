@@ -1,4 +1,3 @@
-// services/GoalService.ts
 import { db } from './firebase';
 import {
   collection,
@@ -52,6 +51,7 @@ function normalizeGoal(g: any): Goal {
     currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
     sessionsPerWeek: typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1,
     isCompleted: !!g.isCompleted,
+    isWeekCompleted: !!g.isWeekCompleted, // new flag
     updatedAt: toJSDate(g.updatedAt) ?? new Date(),
   } as Goal;
 }
@@ -76,7 +76,6 @@ export class GoalService {
   private goalsCollection = collection(db, 'goals');
 
   // ===== Debug switch =====
-  // Production default = false (one session per day).
   private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = false;
   setDebug(allowMultiplePerDay: boolean) {
     this.DEBUG_ALLOW_MULTIPLE_PER_DAY = allowMultiplePerDay;
@@ -121,32 +120,29 @@ export class GoalService {
   }
 
   async appendHint(goalId: string, hintObj: { session: number; hint: string; date: number }) {
-  const goalRef = doc(db, 'goals', goalId);
-  await updateDoc(goalRef, {
-    hints: arrayUnion(hintObj),
-    updatedAt: serverTimestamp(),
-  });
-}
+    const goalRef = doc(db, 'goals', goalId);
+    await updateDoc(goalRef, {
+      hints: arrayUnion(hintObj),
+      updatedAt: serverTimestamp(),
+    });
+  }
 
-  /** Overall progress (weeks) */
   getOverallProgress(goal: Goal): number {
     if (!goal.targetCount) return 0;
     return Math.min(100, Math.round((goal.currentCount / goal.targetCount) * 100));
   }
 
-  /** This-week progress (sessions vs sessionsPerWeek) */
   getWeeklyProgress(goal: Goal): number {
     const denom = goal.sessionsPerWeek || 1;
     return Math.min(100, Math.round((goal.weeklyCount / denom) * 100));
   }
 
-  /** Update fields */
   async updateGoal(goalId: string, updates: Partial<Goal>) {
     const ref = doc(db, 'goals', goalId);
     await updateDoc(ref, { ...updates, updatedAt: serverTimestamp() } as any);
   }
 
-    // ✅ Get coupon code for a goal
+  // ✅ Get coupon code for a goal
   async getCouponCode(goalId: string): Promise<string | null> {
     try {
       const goalRef = doc(db, 'goals', goalId);
@@ -179,30 +175,30 @@ export class GoalService {
     }
   }
 
-
-  /** Sweep expired anchored weeks (penalty + advance) */
+  /** Handle expired or completed weeks */
   private applyExpiredWeeksSweep(goal: Goal): Goal {
     let g = normalizeGoal(goal);
     if (!g.weekStartAt) return g;
 
     let anchor = new Date(g.weekStartAt);
-    if (!isValidDate(anchor)) {
-      anchor = new Date();
+    const now = new Date();
+
+    // If 7+ days have passed since the week started
+    if (now >= addDaysSafe(anchor, 7)) {
+      // Only count completed weeks toward progress
+      if (g.isWeekCompleted || g.weeklyCount >= g.sessionsPerWeek) {
+        g.currentCount += 1;
+      }
+
+      // Advance to next week window
+      anchor = addDaysSafe(anchor, 7);
+      g.weekStartAt = anchor;
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
-      return { ...g, weekStartAt: anchor };
+      g.isWeekCompleted = false;
     }
 
-    const now = new Date();
-    while (now >= addDaysSafe(anchor, 7)) {
-      if (g.weeklyCount < g.sessionsPerWeek) {
-        g.currentCount = Math.max(0, g.currentCount - 1); // penalty
-      }
-      anchor = addDaysSafe(anchor, 7);
-      g.weeklyCount = 0;
-      g.weeklyLogDates = [];
-    }
-    return { ...g, weekStartAt: anchor };
+    return g;
   }
 
   /** Increment a session for the current anchored week */
@@ -213,47 +209,51 @@ export class GoalService {
 
     let g = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    // first session ever → anchor now
+    // If it's the user's first session
     if (!g.weekStartAt) {
       g.weekStartAt = new Date();
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
     }
 
-    // sweep expired weeks
+    // Sweep expired weeks
     g = this.applyExpiredWeeksSweep(g);
 
     const todayIso = isoDateOnly(new Date());
 
-    // prevent duplicate day logs unless debugging
+    // Prevent multiple sessions same day (unless debug)
     if (!this.DEBUG_ALLOW_MULTIPLE_PER_DAY && g.weeklyLogDates.includes(todayIso)) {
       return { ...g };
     }
 
-    // add a session
+    // Prevent extra sessions if week already completed
+    if (g.weeklyCount >= g.sessionsPerWeek) {
+      throw new Error("Week already completed. Wait until next week to continue!");
+    }
+
+    // Add new session
     g.weeklyCount += 1;
     if (!g.weeklyLogDates.includes(todayIso)) {
       g.weeklyLogDates = [...g.weeklyLogDates, todayIso];
     }
 
-    // weekly target hit → complete week
+    // If weekly goal reached → mark as completed but don't roll yet
     if (g.weeklyCount >= g.sessionsPerWeek) {
-      g.currentCount += 1;
-      g.weeklyCount = 0;
-      g.weeklyLogDates = [];
-      g.weekStartAt = addDaysSafe(g.weekStartAt, 7);
+      g.isWeekCompleted = true;
+
+      // If it's the final week
+      if (g.currentCount + 1 >= g.targetCount) {
+        g.isCompleted = true;
+      }
     }
 
-    if (g.currentCount >= g.targetCount) {
-      g.isCompleted = true;
-    }
-
+    // Persist updates
     await updateDoc(ref, {
       weeklyCount: g.weeklyCount,
       weeklyLogDates: g.weeklyLogDates,
-      currentCount: g.currentCount,
-      weekStartAt: g.weekStartAt || null,
+      isWeekCompleted: g.isWeekCompleted || false,
       isCompleted: !!g.isCompleted,
+      weekStartAt: g.weekStartAt,
       updatedAt: serverTimestamp(),
     } as any);
 
@@ -263,5 +263,3 @@ export class GoalService {
 
 export const goalService = new GoalService();
 (goalService as any).appendHint = goalService.appendHint.bind(goalService);
-// Enable debug in dev if you like:
-// goalService.setDebug(__DEV__); 

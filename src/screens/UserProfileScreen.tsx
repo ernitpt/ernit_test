@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Edit2, Users, Award, Gift } from 'lucide-react-native';
+import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { Goal, UserProfile, Experience, User, RootStackParamList } from '../types';
@@ -25,8 +25,10 @@ import { userService } from '../services/userService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { notificationService } from '../services/NotificationService';
 import MainScreen from './MainScreen';
-import { storage } from '../services/firebase';
+import { storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -230,16 +232,58 @@ const UserProfileScreen: React.FC = () => {
     );
   };
 
+  const handleRemoveFromWishlist = async (experienceId: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      Alert.alert('Please log in to manage wishlist.');
+      return;
+    }
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
+      
+      // Update local state
+      setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
+      
+      // Update context if needed
+      if (state.user) {
+        // Filter based on Experience type having an id property
+        const updatedWishlist = (state.user.wishlist || []).filter(
+          (exp) => typeof exp === 'string'
+            ? exp !== experienceId
+            : exp.id !== experienceId
+        );
+        dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
+      }
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
+      Alert.alert('Error', 'Failed to remove item from wishlist. Please try again.');
+    }
+  };
+
   const ExperienceCard: React.FC<{ experience: Experience }> = ({ experience }) => {
     const handlePress = () => {
       navigation.navigate('ExperienceDetails', { experience });
     };
+    
     const experienceImage = Array.isArray(experience.imageUrl)
       ? experience.imageUrl[0]
       : experience.imageUrl;
     return (
       <TouchableOpacity activeOpacity={0.8} style={styles.experienceCard} onPress={handlePress}>
-        <Image source={{ uri: experienceImage }} style={styles.experienceImage} resizeMode="cover" />
+        <View style={styles.experienceImageContainer}>
+          <Image source={{ uri: experienceImage }} style={styles.experienceImage} resizeMode="cover" />
+          <TouchableOpacity
+            onPress={() => handleRemoveFromWishlist(experience.id)}
+            style={styles.wishlistHeartButton}
+            activeOpacity={0.8}
+          >
+            <Heart fill="#ef4444" color="#ef4444" size={22} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.experienceContent}>
           <Text style={styles.experienceTitle} numberOfLines={1}>
             {experience.title}
@@ -287,7 +331,7 @@ const UserProfileScreen: React.FC = () => {
             ) : (
               <View style={styles.placeholderImage}>
                 <Text style={styles.placeholderText}>
-                  {userProfile?.name?.[0]?.toUpperCase() || 'U'}
+                  {state.user?.displayName?.[0]?.toUpperCase() || 'U'}
                 </Text>
               </View>
             )}
@@ -564,7 +608,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  experienceImageContainer: {
+    position: 'relative',
+  },
   experienceImage: { width: '100%', height: 140, backgroundColor: '#e5e7eb' },
+  wishlistHeartButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 6,
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   experienceContent: { padding: 16 },
   experienceTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
   experienceDescription: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 8 },

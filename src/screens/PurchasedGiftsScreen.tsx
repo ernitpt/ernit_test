@@ -5,6 +5,7 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -55,59 +56,54 @@ const PurchasedGiftsScreen = () => {
   };
 
   const GiftItem = ({ item }: { item: ExperienceGift }) => {
-    const [claimedByName, setClaimedByName] = useState<string | null>(null);
-    const [loadingName, setLoadingName] = useState(false);
+  const navigation = useNavigation<PurchasedGiftsNavigationProp>();
+  const [claimedByName, setClaimedByName] = useState<string | null>(null);
+  const [loadingName, setLoadingName] = useState(false);
+  const [experience, setExperience] = useState<any>(null);
 
-    useEffect(() => {
-      const fetchClaimerName = async () => {
-        if (item.status !== 'claimed') return;
+  useEffect(() => {
+    const fetchClaimerName = async () => {
+      if (item.status !== 'claimed') return;
+      setLoadingName(true);
+      try {
+        const q = query(collection(db, 'goals'), where('experienceGiftId', '==', item.id));
+        const snap = await getDocs(q);
 
-        try {
-          console.log(`🔍 Looking up goal for gift ${item.id}...`);
-          const q = query(
-            collection(db, 'goals'),
-            where('experienceGiftId', '==', item.id)
-          );
-          const snap = await getDocs(q);
-
-          if (snap.empty) {
-            console.log(`⚠️ No goal found for gift ${item.id}`);
-            return;
-          }
-
-          const goalDoc = snap.docs[0];
-          const goalData = goalDoc.data();
-          console.log(`📘 Goal found:`, goalData);
-
+        if (!snap.empty) {
+          const goalData = snap.docs[0].data();
           if (goalData.userId) {
             const name = await userService.getUserName(goalData.userId);
-            console.log(`✅ Claimer name:`, name);
             setClaimedByName(name);
-          } else {
-            console.log(`⚠️ Goal missing userId for gift ${item.id}`);
           }
-        } catch (err) {
-          console.error(`❌ Error fetching claimer for gift ${item.id}:`, err);
         }
-      };
+      } catch (err) {
+        console.error(`❌ Error fetching claimer for gift ${item.id}:`, err);
+      } finally {
+        setLoadingName(false);
+      }
+    };
 
-      fetchClaimerName();
-    }, [item.status, item.id]);
-    const [experience, setExperience] = useState<any>(null);
-    
-    useEffect(() => {
-      const fetchExperience = async () => {
-        try {
-          const exp = await experienceService.getExperienceById(item.experienceId);
-          setExperience(exp);
-        } catch (error) {
-          console.error("Error fetching experience:", error);
-        }
-      };
-      fetchExperience();
-    }, [item.experienceId]);
+    fetchClaimerName();
+  }, [item.status, item.id]);
 
-    return (
+  useEffect(() => {
+    const fetchExperience = async () => {
+      try {
+        const exp = await experienceService.getExperienceById(item.experienceId);
+        setExperience(exp);
+      } catch (error) {
+        console.error("Error fetching experience:", error);
+      }
+    };
+    fetchExperience();
+  }, [item.experienceId]);
+
+  const handlePress = () => {
+    navigation.navigate("Confirmation", { experienceGift: item });
+  };
+
+  return (
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
       <View style={styles.card}>
         <View style={styles.cardRow}>
           <Text style={styles.title}>
@@ -116,9 +112,7 @@ const PurchasedGiftsScreen = () => {
           <Text
             style={[
               styles.status,
-              item.status === 'claimed'
-                ? styles.statusClaimed
-                : styles.statusPending,
+              item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
             ]}
           >
             {item.status ? item.status.toUpperCase() : 'PENDING'}
@@ -140,8 +134,9 @@ const PurchasedGiftsScreen = () => {
 
         <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
       </View>
-    );
-  };
+    </TouchableOpacity>
+  );
+};
 
   const headerColors = ['#462088ff', '#235c9eff'] as const;
 

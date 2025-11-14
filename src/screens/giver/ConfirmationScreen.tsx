@@ -82,7 +82,7 @@ const ConfirmationScreen = () => {
         message: `
         Hey! Got you an Ernit experience. A little boost for your goals.
 
-        Sign up and use this code at https://ernit-nine.vercel.app to set up your goals. Once you complete your goals, you'll see what I got you 😎
+        Sign up and use code ${experienceGift.claimCode} at https://ernit.app to set up your goals. Once you complete your goals, you'll see what I got you 😎
 
         Earn it. Unlock it. Enjoy it 💙
         `

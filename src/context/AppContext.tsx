@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { User, ExperienceGift, Goal, Hint } from '../types';
+import { User, ExperienceGift, Goal, Hint, CartItem } from '../types';
 
 interface GoalTimerState {
   startedAt: number;
@@ -29,6 +29,7 @@ type AppAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'UPDATE_GOAL_PROGRESS'; payload: { goalId: string; currentCount: number } }
+  | { type: 'SET_CART'; payload: CartItem[] }
   | {
       type: 'UPDATE_GOAL_WEEKLY';
       payload: {
@@ -41,6 +42,10 @@ type AppAction =
     }
   | { type: 'START_GOAL_TIMER'; payload: { goalId: string; startedAt: number; elapsedBeforePause?: number } }
   | { type: 'CLEAR_GOAL_TIMER'; payload: { goalId: string } }
+  | { type: 'ADD_TO_CART'; payload: CartItem }
+  | { type: 'REMOVE_FROM_CART'; payload: { experienceId: string } }
+  | { type: 'UPDATE_CART_ITEM'; payload: { experienceId: string; quantity: number } }
+  | { type: 'CLEAR_CART' }
   | { type: 'RESET_STATE' };
 
 // Initial state
@@ -132,6 +137,91 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       };
     }
 
+    case 'ADD_TO_CART': {
+      if (!state.user) return state;
+      const existingCart = state.user.cart || [];
+      const existingItemIndex = existingCart.findIndex(
+        (item) => item.experienceId === action.payload.experienceId
+      );
+
+      let newCart: CartItem[];
+      if (existingItemIndex >= 0) {
+        // Update quantity if item already exists
+        newCart = existingCart.map((item, index) =>
+          index === existingItemIndex
+            ? { ...item, quantity: item.quantity + action.payload.quantity }
+            : item
+        );
+      } else {
+        // Add new item
+        newCart = [...existingCart, action.payload];
+      }
+
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          cart: newCart,
+        },
+      };
+    }
+
+    case 'REMOVE_FROM_CART': {
+      if (!state.user) return state;
+      const existingCart = state.user.cart || [];
+      const newCart = existingCart.filter(
+        (item) => item.experienceId !== action.payload.experienceId
+      );
+
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          cart: newCart,
+        },
+      };
+    }
+
+    case 'UPDATE_CART_ITEM': {
+      if (!state.user) return state;
+      const existingCart = state.user.cart || [];
+      const newCart = existingCart.map((item) =>
+        item.experienceId === action.payload.experienceId
+          ? { ...item, quantity: action.payload.quantity }
+          : item
+      );
+
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          cart: newCart,
+        },
+      };
+    }
+
+    case 'CLEAR_CART': {
+      if (!state.user) return state;
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          cart: [],
+        },
+      };
+    }
+    
+    case "SET_CART": {
+      if (!state.user) return state;
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          cart: action.payload,
+        },
+      };
+    }
+    
     case 'RESET_STATE':
       return initialState;
 

@@ -18,9 +18,10 @@ import MainScreen from '../MainScreen'; // Assuming this path is correct
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase'; // Assuming this path is correct
-import { Heart } from 'lucide-react-native';
+import { Heart, ShoppingCart } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
+import { useApp } from '../../context/AppContext';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -36,6 +37,7 @@ type Experience = {
 type GiverStackParamList = {
   CategorySelection: undefined;
   ExperienceDetails: { experience: Experience };
+  ExperienceCheckout: { experience?: Experience; cartItems?: any[] };
 };
 // End of mock types
 
@@ -142,6 +144,7 @@ const CategoryCarousel = ({
 
 const CategorySelectionScreen = () => {
   const navigation = useNavigation<GiverNavigationProp>();
+  const { state } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
@@ -149,6 +152,18 @@ const CategorySelectionScreen = () => {
 
   const auth = getAuth();
   const user = auth.currentUser;
+
+  // Calculate cart item count
+  const cartItemCount = state.user?.cart?.reduce((total, item) => total + item.quantity, 0) || 0;
+
+  const handleCartPress = () => {
+    if (cartItemCount > 0 && state.user?.cart) {
+      navigation.navigate('Cart' as any);
+      // navigation.navigate('ExperienceCheckout', { cartItems: state.user.cart });
+    } else {
+      Alert.alert('Cart Empty', 'Your cart is empty. Add items to cart first.');
+    }
+  };
 
   // Load experiences from Firestore
   useEffect(() => {
@@ -261,8 +276,25 @@ const CategorySelectionScreen = () => {
               > */}
       <LinearGradient colors={headerColors} style={styles.gradientHeader}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Find an Experience</Text>
-          <Text style={styles.headerSubtitle}>Select a gift they'll never forget</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Find an Experience</Text>
+              <Text style={styles.headerSubtitle}>Select a gift they'll never forget</Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleCartPress}
+              style={styles.cartButton}
+            >
+              <ShoppingCart color="#fff" size={24} />
+              {cartItemCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartItemCount > 9 ? "9+" : cartItemCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.searchBar}>
             <Text style={styles.searchIcon}>🔍</Text>
@@ -315,6 +347,16 @@ const styles = StyleSheet.create({
     // paddingTop: 16,
     paddingBottom: 10,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   headerTitle: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -324,7 +366,34 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 15,
     color: '#e0e7ff',
-    marginBottom: 12,
+  },
+  cartButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   searchBar: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',

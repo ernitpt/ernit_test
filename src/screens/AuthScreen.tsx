@@ -153,6 +153,7 @@ const AuthScreen = () => {
           userType: 'giver',
           createdAt: new Date(),
           wishlist: [],
+          cart: [],
         });
       }
 
@@ -166,6 +167,7 @@ const AuthScreen = () => {
           userType: 'giver',
           createdAt: new Date(),
           wishlist: [],
+          cart: [],
         },
       });
 

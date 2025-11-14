@@ -73,3 +73,12 @@ node_modules/
 app.json
 
 serviceAccountKey.json
+
+# Build outputs
+dist/
+functions/lib/
+functions/dist/
+
+# Expo cache (can be regenerated)
+.expo/
+functions/.expo/
