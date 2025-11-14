@@ -82,3 +82,5 @@ functions/dist/
 # Expo cache (can be regenerated)
 .expo/
 functions/.expo/
+
+.dist
