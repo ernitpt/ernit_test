@@ -1,11 +1,10 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
-import * as admin from "firebase-admin";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 
-const db = admin.firestore();
+// const db = admin.firestore();
 
 export const updatePaymentIntentMetadata_Test = onRequest(
   {

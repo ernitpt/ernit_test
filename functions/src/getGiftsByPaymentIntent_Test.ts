@@ -1,10 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
+import { db } from './index'; 
 
-const db = admin.firestore();
+// const db = admin.firestore();
 
-
-export const getGiftsByPaymentIntent = onRequest(
+export const getGiftsByPaymentIntent_Test = onRequest(
     {
       region: "europe-west1",
     },

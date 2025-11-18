@@ -1,15 +1,13 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
-import * as admin from "firebase-admin";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const db = admin.firestore();
+// if (!admin.apps.length) {
+//   admin.initializeApp();
+// }
+// const db = admin.firestore();
 
 // ========== CREATE PAYMENT INTENT WITH CART ==========
 export const stripeCreatePaymentIntent_Test = onRequest(

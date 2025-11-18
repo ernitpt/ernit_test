@@ -40,6 +40,8 @@ function normalizeGoal(g: any): Goal {
   const startDate = toJSDate(g.startDate) ?? new Date();
   const endDate = toJSDate(g.endDate) ?? addDaysSafe(startDate, 7);
   const weekStartAt = toJSDate(g.weekStartAt);
+  const approvalRequestedAt = toJSDate(g.approvalRequestedAt);
+  const approvalDeadline = toJSDate(g.approvalDeadline);
 
   return {
     ...g,
@@ -53,6 +55,17 @@ function normalizeGoal(g: any): Goal {
     isCompleted: !!g.isCompleted,
     isWeekCompleted: !!g.isWeekCompleted, // new flag
     updatedAt: toJSDate(g.updatedAt) ?? new Date(),
+    // Approval fields
+    approvalStatus: g.approvalStatus || 'pending',
+    initialTargetCount: typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
+    initialSessionsPerWeek: typeof g.initialSessionsPerWeek === 'number' ? g.initialSessionsPerWeek : g.sessionsPerWeek,
+    suggestedTargetCount: typeof g.suggestedTargetCount === 'number' ? g.suggestedTargetCount : null,
+    suggestedSessionsPerWeek: typeof g.suggestedSessionsPerWeek === 'number' ? g.suggestedSessionsPerWeek : null,
+    approvalRequestedAt: approvalRequestedAt ?? null,
+    approvalDeadline: approvalDeadline ?? null,
+    giverMessage: g.giverMessage || null,
+    receiverMessage: g.receiverMessage || null,
+    giverActionTaken: !!g.giverActionTaken,
   } as Goal;
 }
 
@@ -258,6 +271,106 @@ export class GoalService {
     } as any);
 
     return { ...(g as any) } as Goal;
+  }
+
+  /** Approve a goal */
+  async approveGoal(goalId: string, message?: string): Promise<Goal> {
+    const ref = doc(db, 'goals', goalId);
+    const updates: any = {
+      approvalStatus: 'approved',
+      giverMessage: message || '',
+      giverActionTaken: true,
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, updates);
+    const snap = await getDoc(ref);
+    return normalizeGoal({ id: snap.id, ...snap.data() });
+  }
+
+  /** Suggest a goal change */
+  async suggestGoalChange(
+    goalId: string,
+    suggestedTargetCount: number,
+    suggestedSessionsPerWeek: number,
+    message?: string
+  ): Promise<Goal> {
+    const ref = doc(db, 'goals', goalId);
+    const updates: any = {
+      approvalStatus: 'suggested_change',
+      suggestedTargetCount,
+      suggestedSessionsPerWeek,
+      giverMessage: message || '',
+      giverActionTaken: true,
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, updates);
+    const snap = await getDoc(ref);
+    return normalizeGoal({ id: snap.id, ...snap.data() });
+  }
+
+  /** Receiver responds to suggestion - accepts or changes goal */
+  async respondToGoalSuggestion(
+    goalId: string,
+    newTargetCount: number,
+    newSessionsPerWeek: number,
+    message?: string
+  ): Promise<Goal> {
+    const ref = doc(db, 'goals', goalId);
+    const goalSnap = await getDoc(ref);
+    if (!goalSnap.exists()) throw new Error('Goal not found');
+    const currentGoal = normalizeGoal({ id: goalSnap.id, ...goalSnap.data() });
+
+    // Ensure new goal is not less than initial
+    const minTargetCount = currentGoal.initialTargetCount || currentGoal.targetCount;
+    const minSessionsPerWeek = currentGoal.initialSessionsPerWeek || currentGoal.sessionsPerWeek;
+
+    if (newTargetCount < minTargetCount || newSessionsPerWeek < minSessionsPerWeek) {
+      throw new Error('New goal cannot be less than the original goal');
+    }
+
+    // Update goal with new values
+    const now = new Date();
+    const durationInDays = newTargetCount * 7;
+    // Ensure startDate is a Date object
+    const startDate = toJSDate(currentGoal.startDate) || new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + durationInDays);
+
+    const updates: any = {
+      approvalStatus: 'approved',
+      targetCount: newTargetCount,
+      sessionsPerWeek: newSessionsPerWeek,
+      duration: durationInDays,
+      endDate,
+      receiverMessage: message || '',
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(ref, updates);
+    const snap = await getDoc(ref);
+    return normalizeGoal({ id: snap.id, ...snap.data() });
+  }
+
+  /** Auto-approve goal if deadline passed */
+  async checkAndAutoApprove(goalId: string): Promise<Goal | null> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.approvalStatus === 'pending' && goal.approvalDeadline) {
+      const now = new Date();
+      if (now >= goal.approvalDeadline && !goal.giverActionTaken) {
+        // Auto-approve
+        await updateDoc(ref, {
+          approvalStatus: 'approved',
+          giverActionTaken: true,
+          updatedAt: serverTimestamp(),
+        } as any);
+        const updatedSnap = await getDoc(ref);
+        return normalizeGoal({ id: updatedSnap.id, ...updatedSnap.data() });
+      }
+    }
+    return null;
   }
 }
 

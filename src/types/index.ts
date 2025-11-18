@@ -150,6 +150,17 @@ export interface Goal {
     hint: string;
     date: number; // timestamp
   }[];
+  // Goal approval fields
+  approvalStatus?: 'pending' | 'approved' | 'suggested_change';
+  initialTargetCount?: number; // Original goal weeks
+  initialSessionsPerWeek?: number; // Original sessions per week
+  suggestedTargetCount?: number; // Giver's suggested weeks
+  suggestedSessionsPerWeek?: number; // Giver's suggested sessions per week
+  approvalRequestedAt?: Date;
+  approvalDeadline?: Date; // 24h from request
+  giverMessage?: string; // Message from giver when approving/suggesting
+  receiverMessage?: string; // Message from receiver when responding
+  giverActionTaken?: boolean; // Ensure giver can only act once
 }
 
 
@@ -206,9 +217,10 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response';
   read: boolean;
   createdAt:  Date | Timestamp;
+  clearable?: boolean; // Whether notification can be cleared (default true)
   data?: {
     giftId?: string;
     goalId?: string;
@@ -219,6 +231,13 @@ export interface Notification {
     senderName?: string;
     senderProfileImageUrl?: string;
     senderCountry?: string;
+    // Approval-related fields
+    initialTargetCount?: number;
+    initialSessionsPerWeek?: number;
+    suggestedTargetCount?: number;
+    suggestedSessionsPerWeek?: number;
+    giverMessage?: string;
+    receiverMessage?: string;
   };
 }
 

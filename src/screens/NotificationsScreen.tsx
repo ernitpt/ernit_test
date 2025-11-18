@@ -14,10 +14,13 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { notificationService } from '../services/NotificationService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
+import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
 import { RootStackParamList, Notification } from '../types';
 import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
+import GoalApprovalNotification from '../components/GoalApprovalNotification';
+import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -63,7 +66,6 @@ const NotificationsScreen = () => {
 
   const handlePress = async (n: Notification) => {
     await notificationService.markAsRead(n.id!);
-
 
     if (n.type === 'gift_received') {
       try {
@@ -120,6 +122,15 @@ const NotificationsScreen = () => {
   };
 
 
+  const handleApprovalActionTaken = () => {
+    // Refresh notifications after approval action
+    if (userId) {
+      notificationService.listenToUserNotifications(userId, (notifications) => {
+        setNotifications(notifications);
+      });
+    }
+  };
+
   const renderItem = ({ item }: { item: Notification }) => {
     // Handle friend request notifications specially
     if (item.type === 'friend_request') {
@@ -127,6 +138,26 @@ const NotificationsScreen = () => {
         <FriendRequestNotification
           notification={item}
           onRequestHandled={handleFriendRequestHandled}
+        />
+      );
+    }
+
+    // Handle goal approval request notifications
+    if (item.type === 'goal_approval_request') {
+      return (
+        <GoalApprovalNotification
+          notification={item}
+          onActionTaken={handleApprovalActionTaken}
+        />
+      );
+    }
+
+    // Handle goal change suggestion notifications
+    if (item.type === 'goal_change_suggested') {
+      return (
+        <GoalChangeSuggestionNotification
+          notification={item}
+          onActionTaken={handleApprovalActionTaken}
         />
       );
     }
@@ -196,12 +227,14 @@ const NotificationsScreen = () => {
         </TouchableOpacity>
 
 
-        <TouchableOpacity
-          style={styles.clearNotificationButton}
-          onPress={() => handleClearNotification(item.id!)}
-        >
-          <Text style={styles.clearNotificationText}>×</Text>
-        </TouchableOpacity>
+        {item.clearable !== false && (
+          <TouchableOpacity
+            style={styles.clearNotificationButton}
+            onPress={() => handleClearNotification(item.id!)}
+          >
+            <Text style={styles.clearNotificationText}>×</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };

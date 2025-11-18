@@ -71,7 +71,21 @@ const GoalsScreen: React.FC =  () => {
     if (!userId) return;
 
     setLoading(true);
-    const unsubscribe = goalService.listenToUserGoals(userId, (goals) => {
+    const unsubscribe = goalService.listenToUserGoals(userId, async (goals) => {
+      // Check for pending goals that need auto-approval
+      for (const goal of goals) {
+        if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
+          const now = new Date();
+          if (now >= goal.approvalDeadline) {
+            try {
+              await goalService.checkAndAutoApprove(goal.id);
+            } catch (error) {
+              console.error('Error auto-approving goal:', error);
+            }
+          }
+        }
+      }
+
       const activeGoals = goals.filter(
         (g) => !g.isCompleted && g.currentCount < g.targetCount
       );

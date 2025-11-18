@@ -141,6 +141,10 @@ const GoalSettingScreen = () => {
       const durationInDays = totalWeeks * 7;
       const endDate = new Date(now);
       endDate.setDate(now.getDate() + durationInDays);
+      
+      // Set approval deadline to 24 hours from now
+      const approvalDeadline = new Date(now);
+      approvalDeadline.setHours(approvalDeadline.getHours() + 24);
 
       const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
         userId: state.user?.id || 'recipient',
@@ -166,23 +170,34 @@ const GoalSettingScreen = () => {
         createdAt: now,
         weeklyLogDates: [],
         empoweredBy: experienceGift.giverId,
+        // Approval fields
+        approvalStatus: 'pending',
+        initialTargetCount: totalWeeks,
+        initialSessionsPerWeek: sessionsPerWeekNum,
+        approvalRequestedAt: now,
+        approvalDeadline,
+        giverActionTaken: false,
       };
 
       const goal = await goalService.createGoal(goalData as Goal);
       const recipientName = await userService.getUserName(goalData.userId);
 
+      // Create non-clearable notification for giver
       await notificationService.createNotification(
-        goalData.empoweredBy,
-        'goal_set',
-        `🎯 ${recipientName} set a new goal for ${experience.title}`,
-        `${recipientName} set the following goal: ${goalData.description}`,
+        goalData.empoweredBy! || '',
+        'goal_approval_request',
+        `🎯 ${recipientName} set a goal for ${experience.title}`,
+        `Goal: ${totalWeeks} weeks, ${sessionsPerWeekNum} sessions per week`,
         {
           giftId: goalData.experienceGiftId,
           goalId: goal.id,
           giverId: goalData.empoweredBy,
           recipientId: goalData.userId,
           experienceTitle: experience.title,
-        }
+          initialTargetCount: totalWeeks,
+          initialSessionsPerWeek: sessionsPerWeekNum,
+        },
+        false // Not clearable
       );
 
       await updateGiftStatus(experienceGift.id);

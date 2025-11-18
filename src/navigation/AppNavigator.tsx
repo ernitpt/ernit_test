@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
@@ -133,7 +133,20 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      onReady={() => {
+        // Ensure title is set to "Ernit" when navigation is ready
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+          document.title = 'Ernit';
+        }
+      }}
+      onStateChange={() => {
+        // Reset title to "Ernit" on every navigation state change
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+          document.title = 'Ernit';
+        }
+      }}
+    >
       <RootStack.Navigator
         screenOptions={{
           headerShown: false,

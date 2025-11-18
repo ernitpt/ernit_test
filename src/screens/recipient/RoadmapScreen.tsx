@@ -11,6 +11,9 @@ import { db } from '../../services/firebase';
 import type { RecipientStackParamList, Goal } from '../../types';
 import MainScreen from '../MainScreen';
 import DetailedGoalCard from './DetailedGoalCard';
+import GoalChangeSuggestionModal from '../../components/GoalChangeSuggestionModal';
+import { goalService } from '../../services/GoalService';
+import { notificationService } from '../../services/NotificationService';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 
@@ -23,9 +26,18 @@ const RoadmapScreen = () => {
   // 🔹 Keep goal synced with Firestore
   useEffect(() => {
     const ref = doc(db, 'goals', goal.id);
-    const unsub = onSnapshot(ref, (snap) => {
+    const unsub = onSnapshot(ref, async (snap) => {
       if (snap.exists()) {
-        setCurrentGoal(snap.data() as Goal);
+        const updatedGoal = snap.data() as Goal;
+        setCurrentGoal(updatedGoal);
+        
+        // Check for auto-approval
+        if (updatedGoal.approvalStatus === 'pending' && updatedGoal.approvalDeadline) {
+          const now = new Date();
+          if (now >= updatedGoal.approvalDeadline && !updatedGoal.giverActionTaken) {
+            await goalService.checkAndAutoApprove(goal.id);
+          }
+        }
       }
     });
     return () => unsub();
@@ -243,6 +255,19 @@ hintText: {
   fontSize: 15,
   color: '#374151',
   fontStyle: 'italic',
+},
+approvalBanner: {
+  backgroundColor: '#fef3c7',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 16,
+  borderLeftWidth: 4,
+  borderLeftColor: '#f59e0b',
+},
+approvalBannerText: {
+  fontSize: 14,
+  color: '#78350f',
+  lineHeight: 20,
 },
 });
 

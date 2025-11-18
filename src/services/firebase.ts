@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-const db = getFirestore(app);
+const db = getFirestore(app, 'ernitclone');
 const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 

@@ -43,7 +43,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/icon.png",
+      "favicon": "./src/assets/favicon.png",
       "name": "Ernit",
       "shortName": "Ernit",
       "themeColor": "#ffffff",

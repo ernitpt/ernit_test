@@ -263,6 +263,29 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     const goalId = currentGoal.id;
     if (!goalId) return;
 
+    // Check approval status and prevent cheating
+    if (currentGoal.approvalStatus === 'pending') {
+      const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
+      
+      // Special case: 1 day and 1 session per week goals cannot be completed until approved
+      if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
+        Alert.alert(
+          'Goal Not Approved',
+          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
+        );
+        return;
+      }
+      
+      // For other goals: Allow first session, but prevent subsequent sessions if not approved
+      if (sessionsDoneBeforeFinish >= 1) {
+        Alert.alert(
+          'Goal Not Approved',
+          'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'
+        );
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -348,11 +371,28 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
   };
   
     const handleStart = async () => {
+      console.log(currentGoal.approvalStatus, currentGoal.targetCount, currentGoal.sessionsPerWeek, currentGoal.weeklyCount);
+
       if (isTimerRunning || loading) return;
   
       const goalId = currentGoal.id;
       if (!goalId) return;
-  
+      // Prevent starting session for 1 day/1 week goals when approval is pending
+      if (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
+        Alert.alert(
+          'Goal Not Approved',
+          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
+        );
+        return;
+      }
+      // Prevent starting session for 1 day/1 week goals when approval is pending
+      if (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount >= 1 && currentGoal.weeklyCount === 1) {
+        Alert.alert(
+          'Goal Not Approved',
+          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
+        );
+        return;
+      }
       setLoading(true);
       const now = Date.now();
       setStartTime(now);
@@ -516,6 +556,11 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
   const todayIso = isoDay(new Date());
   const alreadyLoggedToday = loggedSet.has(todayIso);
 
+  // Calculate total sessions done
+  const totalSessionsDone = useMemo(() => {
+    return (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
+  }, [currentGoal.currentCount, currentGoal.sessionsPerWeek, currentGoal.weeklyLogDates]);
+
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const handlePress = async (g: Goal) => {
@@ -612,7 +657,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
           {!isTimerRunning ? (
             currentGoal.isWeekCompleted && !currentGoal.isCompleted ? (
               <View style={styles.weekCompleteBox}>
-                <Text style={styles.weekCompleteText}>🎉 You’ve completed this week!</Text>
+                <Text style={styles.weekCompleteText}>🎉 You've completed this week!</Text>
                 <Text style={styles.weekCompleteSub}>
                   Next week starts on {formatNextWeekDay(currentGoal.weekStartAt)} 💪
                 </Text>
@@ -623,14 +668,42 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                 <Text style={styles.disabledStartText}>Come back tomorrow for more 💪</Text>
               </View>
             ) : (
-              <TouchableOpacity
-                style={styles.startButton}
-                onPress={handleStart}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
-              </TouchableOpacity>
+              <>
+                {/* Approval Status Message - Show only once above start button when pending and no sessions done */}
+                {currentGoal.approvalStatus === 'pending' && totalSessionsDone === 0 && (
+                  <View style={styles.approvalMessageBox}>
+                    <Text style={styles.approvalMessageText}>
+                      {currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1
+                        ? 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
+                        : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'}
+                    </Text>
+                  </View>
+                )}
+                {/* Approval Status Message - Show only once above start button when pending and no sessions done */}
+                {currentGoal.approvalStatus === 'pending' && totalSessionsDone === 1 && (
+                  <View style={[styles.approvalMessageBox , { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
+                    <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
+                    🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).
+                    </Text>
+                  </View>
+                )}
+                {/* Disable start button for 1 day/1 week goals when approval is pending */}
+                {(currentGoal.approvalStatus === 'pending' && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) 
+                || (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount >= 1 && currentGoal.weeklyCount === 1) ? (
+                  <View style={styles.disabledStartContainer}>
+                    <Text style={styles.disabledStartText}>Waiting for approval</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.startButton}
+                    onPress={handleStart}
+                    disabled={loading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )
           ) : (
             <View style={styles.timerContainer}>
@@ -849,6 +922,19 @@ const styles = StyleSheet.create({
   confirmButton: { backgroundColor: '#7c3aed' },
   cancelText: { color: '#374151', fontWeight: '600', fontSize: 15 },
   confirmText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  approvalMessageBox: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f59e0b',
+  },
+  approvalMessageText: {
+    fontSize: 13,
+    color: '#78350f',
+    lineHeight: 18,
+  },
 });
 
 export default DetailedGoalCard;

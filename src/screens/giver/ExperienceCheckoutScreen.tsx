@@ -74,7 +74,7 @@ const removeStorageItem = async (key: string) => {
 const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGift[]> => {
   try {
     const response = await fetch(
-      `https://europe-west1-ernit-3fc0b.cloudfunctions.net/getGiftsByPaymentIntent?paymentIntentId=${paymentIntentId}`
+      `https://europe-west1-ernit-3fc0b.cloudfunctions.net/getGiftsByPaymentIntent_Test?paymentIntentId=${paymentIntentId}`
     );
     if (!response.ok) return [];
 
