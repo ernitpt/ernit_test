@@ -294,6 +294,14 @@ export class GoalService {
     suggestedSessionsPerWeek: number,
     message?: string
   ): Promise<Goal> {
+    // Validate maximum limits: 5 weeks and 7 sessions per week
+    if (suggestedTargetCount > 5) {
+      throw new Error('The maximum duration is 5 weeks.');
+    }
+    if (suggestedSessionsPerWeek > 7) {
+      throw new Error('The maximum is 7 sessions per week.');
+    }
+
     const ref = doc(db, 'goals', goalId);
     const updates: any = {
       approvalStatus: 'suggested_change',
@@ -326,6 +334,14 @@ export class GoalService {
 
     if (newTargetCount < minTargetCount || newSessionsPerWeek < minSessionsPerWeek) {
       throw new Error('New goal cannot be less than the original goal');
+    }
+
+    // Validate maximum limits: 5 weeks and 7 sessions per week
+    if (newTargetCount > 5) {
+      throw new Error('The maximum duration is 5 weeks.');
+    }
+    if (newSessionsPerWeek > 7) {
+      throw new Error('The maximum is 7 sessions per week.');
     }
 
     // Update goal with new values

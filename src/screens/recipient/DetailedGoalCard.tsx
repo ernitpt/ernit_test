@@ -66,6 +66,11 @@ function formatNextWeekDay(weekStartAt?: Date | null) {
   return next.toLocaleDateString('en-US', { dateStyle: 'short' });
 }
 
+/** Check if a goal is locked (pending approval or has a suggested change) */
+function isGoalLocked(goal: Goal): boolean {
+  return goal.approvalStatus === 'pending' || goal.approvalStatus === 'suggested_change';
+}
+
 const COLORS = {
   purple: '#7C3AED',
   purpleDark: '#6D28D9',
@@ -264,24 +269,24 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     if (!goalId) return;
 
     // Check approval status and prevent cheating
-    if (currentGoal.approvalStatus === 'pending') {
+    if (isGoalLocked(currentGoal)) {
       const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
       
       // Special case: 1 day and 1 session per week goals cannot be completed until approved
       if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
-        Alert.alert(
-          'Goal Not Approved',
-          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
-        );
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before continuing.'
+          : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
+        Alert.alert('Goal Not Approved', message);
         return;
       }
       
       // For other goals: Allow first session, but prevent subsequent sessions if not approved
       if (sessionsDoneBeforeFinish >= 1) {
-        Alert.alert(
-          'Goal Not Approved',
-          'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'
-        );
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.'
+          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
+        Alert.alert('Goal Not Approved', message);
         return;
       }
     }
@@ -377,20 +382,20 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
   
       const goalId = currentGoal.id;
       if (!goalId) return;
-      // Prevent starting session for 1 day/1 week goals when approval is pending
-      if (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
-        Alert.alert(
-          'Goal Not Approved',
-          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
-        );
+      // Prevent starting session for 1 day/1 week goals when approval is pending or suggested change
+      if (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting a session.'
+          : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
+        Alert.alert('Goal Not Approved', message);
         return;
       }
-      // Prevent starting session for 1 day/1 week goals when approval is pending
-      if (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount >= 1 && currentGoal.weeklyCount === 1) {
-        Alert.alert(
-          'Goal Not Approved',
-          'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
-        );
+      // Prevent starting session when goal is locked and weekly count is already 1
+      if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting another session.'
+          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
+        Alert.alert('Goal Not Approved', message);
         return;
       }
       setLoading(true);
@@ -480,6 +485,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
         setPendingHint(timerState.pendingHint || null);
         const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
         setTimeElapsed(elapsed);
+
       }
     } catch (error) {
       console.error('Error loading timer state:', error);
@@ -561,8 +567,19 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
     return (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
   }, [currentGoal.currentCount, currentGoal.sessionsPerWeek, currentGoal.weeklyLogDates]);
 
-  const formatTime = (s: number) =>
-    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const formatTime = (s: number) => {
+    // If less than 1 hour, use MM:SS format
+    if (s < 3600) {
+      const minutes = Math.floor(s / 60);
+      const seconds = s % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    // If 1 hour or more, use H:MM:SS format (no leading zero on hours)
+    const hours = Math.floor(s / 3600);
+    const minutes = Math.floor((s % 3600) / 60);
+    const seconds = s % 60;
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
   const handlePress = async (g: Goal) => {
     // @ts-ignore
     navigation.navigate('Roadmap', { goal: g });
@@ -669,27 +686,31 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
               </View>
             ) : (
               <>
-                {/* Approval Status Message - Show only once above start button when pending and no sessions done */}
-                {currentGoal.approvalStatus === 'pending' && totalSessionsDone === 0 && (
+                {/* Approval Status Message - Show only once above start button when locked and no sessions done */}
+                {isGoalLocked(currentGoal) && totalSessionsDone === 0 && (
                   <View style={styles.approvalMessageBox}>
                     <Text style={styles.approvalMessageText}>
-                      {currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1
+                      {currentGoal.approvalStatus === 'suggested_change'
+                        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications.'
+                        : currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1
                         ? 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
                         : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'}
                     </Text>
                   </View>
                 )}
-                {/* Approval Status Message - Show only once above start button when pending and no sessions done */}
-                {currentGoal.approvalStatus === 'pending' && totalSessionsDone === 1 && (
+                {/* Approval Status Message - Show only once above start button when locked and one session done */}
+                {isGoalLocked(currentGoal) && totalSessionsDone === 1 && (
                   <View style={[styles.approvalMessageBox , { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
                     <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
-                    🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).
+                    {currentGoal.approvalStatus === 'suggested_change'
+                      ? '🎉 Congrats on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.'
+                      : '🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).'}
                     </Text>
                   </View>
                 )}
-                {/* Disable start button for 1 day/1 week goals when approval is pending */}
-                {(currentGoal.approvalStatus === 'pending' && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) 
-                || (currentGoal.approvalStatus === 'pending' && currentGoal.targetCount >= 1 && currentGoal.weeklyCount === 1) ? (
+                {/* Disable start button for 1 day/1 week goals when approval is pending or suggested change */}
+                {(isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) 
+                || (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) ? (
                   <View style={styles.disabledStartContainer}>
                     <Text style={styles.disabledStartText}>Waiting for approval</Text>
                   </View>

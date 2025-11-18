@@ -114,8 +114,18 @@ const GoalSettingScreen = () => {
       return;
     }
     
-    if (showDurationWarning || showSessionsWarning || showTimeWarning) {
-      Alert.alert('Error', 'Please adjust the values to fit the allowed limits.');
+    // Validate limits: 5 weeks max, 7 sessions/week max
+    const totalWeeks = durationUnit === 'weeks' ? durationNum : durationNum * 4;
+    if (totalWeeks > 5) {
+      Alert.alert('Error', 'The maximum duration is 5 weeks.');
+      return;
+    }
+    if (sessionsPerWeekNum > 7) {
+      Alert.alert('Error', 'The maximum is 7 sessions per week.');
+      return;
+    }
+    if (showTimeWarning) {
+      Alert.alert('Error', 'Each session cannot exceed 3 hours.');
       return;
     }
 
@@ -342,8 +352,17 @@ const GoalSettingScreen = () => {
                   const num = parseInt(clean || '0');
                   setDuration(clean);
 
-                  if (durationUnit === 'weeks' && num > 2) {
+                  if (durationUnit === 'weeks' && num > 5) {
                     setShowDurationWarning(true);
+                  } else if (durationUnit === 'months') {
+                    // Convert months to weeks: 1 month = 4 weeks, so 5 weeks = 1.25 months
+                    // But we'll allow months, just warn if it exceeds 5 weeks equivalent
+                    const weeksEquivalent = num * 4;
+                    if (weeksEquivalent > 5) {
+                      setShowDurationWarning(true);
+                    } else {
+                      setShowDurationWarning(false);
+                    }
                   } else {
                     setShowDurationWarning(false);
                   }
@@ -355,15 +374,19 @@ const GoalSettingScreen = () => {
               <Picker
                 selectedValue={durationUnit}
                 onValueChange={(v) => {
-                  if (v === 'months') {
-                    Alert.alert(
-                      'Limit Reached',
-                      'In this first version, goals can only be set up to 2 weeks.'
-                    );
-                    setDurationUnit('weeks');
+                  setDurationUnit(v);
+                  // Re-check warning when switching units
+                  const num = parseInt(duration || '0');
+                  if (v === 'weeks' && num > 5) {
                     setShowDurationWarning(true);
+                  } else if (v === 'months') {
+                    const weeksEquivalent = num * 4;
+                    if (weeksEquivalent > 5) {
+                      setShowDurationWarning(true);
+                    } else {
+                      setShowDurationWarning(false);
+                    }
                   } else {
-                    setDurationUnit(v);
                     setShowDurationWarning(false);
                   }
                 }}
@@ -377,7 +400,7 @@ const GoalSettingScreen = () => {
 
           {showDurationWarning && (
             <Text style={styles.limitedNotice}>
-              For now, the maximum duration is <Text style={{ fontWeight: 'bold' }}>2 weeks</Text>.
+              The maximum duration is <Text style={{ fontWeight: 'bold' }}>5 weeks</Text>.
             </Text>
           )}
         </View>

@@ -31,11 +31,13 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   const suggestedWeeks = goal?.suggestedTargetCount || goal?.targetCount || 0;
   const suggestedSessions = goal?.suggestedSessionsPerWeek || goal?.sessionsPerWeek || 0;
 
-  // Calculate min and max values
+  // Calculate min values (30% above initial, same as before)
   const minWeeks = Math.ceil(initialWeeks + (suggestedWeeks - initialWeeks) * 0.3);
-  const maxWeeks = suggestedWeeks || initialWeeks;
   const minSessions = Math.ceil(initialSessions + (suggestedSessions - initialSessions) * 0.3);
-  const maxSessions = suggestedSessions || initialSessions;
+  
+  // Max values: 5 weeks and 7 sessions per week (logical limits)
+  const maxWeeks = 5;
+  const maxSessions = 7;
 
   const [selectedWeeks, setSelectedWeeks] = useState(suggestedWeeks || initialWeeks || 0);
   const [selectedSessions, setSelectedSessions] = useState(suggestedSessions || initialSessions || 0);
@@ -92,6 +94,16 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   const handleAccept = async () => {
     if (!goal || !goal.id) {
       setError('Goal information is missing. Please try again.');
+      return;
+    }
+    
+    // Validate limits
+    if (selectedWeeks > 5) {
+      setError('The maximum duration is 5 weeks.');
+      return;
+    }
+    if (selectedSessions > 7) {
+      setError('The maximum is 7 sessions per week.');
       return;
     }
     
@@ -176,7 +188,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
             
             <View style={styles.rangeInfo}>
               <Text style={styles.rangeText}>
-                Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
+                Range: {minWeeks}-{maxWeeks} weeks (max 5), {minSessions}-{maxSessions} sessions/week (max 7)
               </Text>
             </View>
 
