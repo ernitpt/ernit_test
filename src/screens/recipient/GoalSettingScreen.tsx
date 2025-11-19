@@ -447,7 +447,6 @@ const GoalSettingScreen = () => {
             <View style={{ flex: 1 }}>
               <TextInput
                 style={[styles.input, showTimeWarning && { borderColor: '#d48a1b' }]}
-                placeholder="1"
                 value={hours}
                 onChangeText={(t) => {
                   const clean = sanitizeNumericInput(t);
@@ -470,7 +469,6 @@ const GoalSettingScreen = () => {
             <View style={{ flex: 1 }}>
               <TextInput
                 style={styles.input}
-                placeholder="0"
                 value={minutes}
                 onChangeText={(t) => {
                   const clean = sanitizeNumericInput(t);

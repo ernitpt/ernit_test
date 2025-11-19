@@ -20,6 +20,9 @@ import { friendService } from '../services/FriendService';
 import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
+import { experienceGiftService } from '../services/ExperienceGiftService';
+import { experienceService } from '../services/ExperienceService';
+import { partnerService } from '../services/PartnerService';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -125,82 +128,179 @@ const FriendProfileScreen: React.FC = () => {
     }
   };
 
-  const handleSendFriendRequest = async () => {
-    if (!currentUserId || !userProfile) {
-      console.log('no profile');
-      return;
-    }
-
-    try {
-      setIsActionLoading(true);
-      await friendService.sendFriendRequest(
-        currentUserId,
-        currentUserName,
-        userId,
-        userProfile.name,
-        state.user?.profile?.country,
-        currentUserProfileImageUrl
-      );
-      setHasPendingRequest(true);
-      Alert.alert('Success', `Friend request sent to ${userProfile.name}!`);
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      Alert.alert('Error', 'Failed to send friend request.');
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleRemoveFriend = () => {
-    openRemovePopup();
-  };
-
-  const confirmRemoveFriend = async () => {
-    if (!currentUserId || !userProfile) return;
-    try {
-      setIsActionLoading(true);
-      await friendService.removeFriend(currentUserId, userId);
-      setIsFriend(false);
-      closeRemovePopup();
-    } catch (error) {
-      console.error('Error removing friend:', error);
-      closeRemovePopup();
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
+  // ------------------------------------------------------------------
+  // NEW GOAL CARD (from UserProfileScreen) — nondisabled touch
+  // ------------------------------------------------------------------
   const GoalCard = ({ goal }: { goal: Goal }) => {
     const [giverName, setGiverName] = useState<string | null>(null);
 
     useEffect(() => {
-      if (goal.empoweredBy)
+      if (goal.empoweredBy) {
         userService.getUserName(goal.empoweredBy).then(setGiverName);
+      }
     }, [goal.empoweredBy]);
 
-    const weekPct = goalService.getWeeklyProgress(goal);
+    // Sessions this week
+    const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
+    const weeklyTotal = Math.max(1, goal.sessionsPerWeek || 1);
+
+    // Weeks completed
+    const finishedThisWeek = goal.weeklyCount >= goal.sessionsPerWeek;
+    const totalWeeks = goal.targetCount || 1;
+    const base = goal.currentCount || 0;
+    const completedWeeks = goal.isCompleted
+      ? totalWeeks
+      : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
+
+    const CapsuleMini = ({ filled }: { filled: boolean }) => (
+      <View
+        style={{
+          flex: 1,
+          height: 8,
+          borderRadius: 50,
+          backgroundColor: filled ? "#7c3aed" : "#e5e7eb",
+          marginHorizontal: 2,
+        }}
+      />
+    );
 
     return (
       <View style={styles.goalCard}>
         <Text style={styles.goalTitle}>{goal.title}</Text>
-        {giverName && <Text style={styles.goalMeta}>⚡ Empowered by {giverName}</Text>}
-        {activeTab === 'goals' && (
-          <>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${weekPct}%` }]} />
-            </View>
-            <Text style={styles.goalMeta}>
-              This week: {goal.weeklyCount}/{goal.sessionsPerWeek}
-            </Text>
-          </>
+
+        {giverName && (
+          <Text style={styles.goalMeta}>⚡ Empowered by {giverName}</Text>
         )}
+
+        {/* Sessions this week */}
+        <View style={{ marginTop: 12 }}>
+          <View style={styles.progressHeaderRow}>
+            <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
+            <Text style={styles.progressHeaderValue}>
+              {weeklyFilled}/{weeklyTotal}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: "row" }}>
+            {Array.from({ length: weeklyTotal }).map((_, i) => (
+              <CapsuleMini key={i} filled={i < weeklyFilled} />
+            ))}
+          </View>
+        </View>
+
+        {/* Weeks completed */}
+        <View style={{ marginTop: 14 }}>
+          <View style={styles.progressHeaderRow}>
+            <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
+            <Text style={styles.progressHeaderValue}>
+              {completedWeeks}/{totalWeeks}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: "row" }}>
+            {Array.from({ length: totalWeeks }).map((_, i) => (
+              <CapsuleMini key={i} filled={i < completedWeeks} />
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  };
+  
+    const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+    const [experience, setExperience] = useState<Experience | null>(null);
+    const [partnerName, setPartnerName] = useState<string>("Partner");
+    const [gift, setGift] = useState<any>(null);
+    const [loadingCard, setLoadingCard] = useState<boolean>(true);
+
+    useEffect(() => {
+      const loadAchievementData = async () => {
+        try {
+          if (!goal.experienceGiftId) return;
+
+          const giftData = await experienceGiftService.getExperienceGiftById(
+            goal.experienceGiftId
+          );
+          setGift(giftData);
+
+          const exp = await experienceService.getExperienceById(
+            giftData.experienceId
+          );
+          setExperience(exp || null);
+
+          const partnerId = giftData.partnerId || exp?.partnerId;
+          if (partnerId) {
+            const partner = await partnerService.getPartnerById(partnerId);
+            if (partner?.name) setPartnerName(partner.name);
+          }
+        } catch (err) {
+          console.error("Error loading achievement data:", err);
+        } finally {
+          setLoadingCard(false);
+        }
+      };
+
+      loadAchievementData();
+    }, [goal.experienceGiftId]);
+
+    const weeks = goal.targetCount || 0;
+    const sessions =
+      (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
+
+    const cover =
+      experience?.coverImageUrl ||
+      (experience?.imageUrl && experience.imageUrl.length > 0
+        ? experience.imageUrl[0]
+        : undefined);
+
+    return (
+      <View style={styles.achievementCard}>
+        {/* Square photo */}
+        {cover ? (
+          <Image source={{ uri: cover }} style={styles.achievementImage} />
+        ) : (
+          <View
+            style={[
+              styles.achievementImage,
+              styles.achievementImagePlaceholder,
+            ]}
+          >
+            <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
+          </View>
+        )}
+
+        <View style={styles.achievementContent}>
+          {loadingCard ? (
+            <Text style={styles.achievementLoadingText}>Loading...</Text>
+          ) : (
+            <>
+              <Text style={styles.achievementTitle} numberOfLines={1}>
+                🎁 {experience?.title || "Experience unlocked"}
+              </Text>
+
+              <Text style={styles.achievementPartner} numberOfLines={1}>
+                👤 {partnerName}
+              </Text>
+
+              <Text style={styles.achievementGoal} numberOfLines={2}>
+                Goal: {goal.title}
+              </Text>
+
+              <Text style={styles.achievementMeta}>
+                {sessions} sessions completed • {weeks} weeks
+              </Text>
+            </>
+          )}
+        </View>
       </View>
     );
   };
 
+  // Wishlist card unchanged
   const ExperienceCard = ({ experience }: { experience: Experience }) => {
     const handlePress = () =>
       navigation.navigate('ExperienceDetails', { experience });
+
     const experienceImage = Array.isArray(experience.imageUrl)
       ? experience.imageUrl[0]
       : experience.imageUrl;
@@ -250,8 +350,11 @@ const FriendProfileScreen: React.FC = () => {
     return data.map((item: any) =>
       activeTab === 'wishlist' ? (
         <ExperienceCard key={item.id} experience={item} />
-      ) : (
+      ) : activeTab === 'goals' ? (
         <GoalCard key={item.id} goal={item} />
+      ) : (
+        // Achievements not clickable (unchanged)
+        <AchievementCard  key={item.id} goal={item} />
       )
     );
   };
@@ -292,7 +395,7 @@ const FriendProfileScreen: React.FC = () => {
           ) : (
             <View style={styles.placeholderImage}>
               <Text style={styles.placeholderText}>
-                {userName?.[0]?.toUpperCase() || 'U'}
+                {userName?.[0]?.toUpperCase() || "U"}
               </Text>
             </View>
           )}
@@ -322,29 +425,44 @@ const FriendProfileScreen: React.FC = () => {
           <View style={styles.friendButtonContainer}>
             {isFriend ? (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: '#f8d6d6ff' }]}
-                onPress={handleRemoveFriend}
+                style={[styles.friendButton, { backgroundColor: "#f8d6d6" }]}
+                onPress={openRemovePopup}
                 disabled={isActionLoading}
               >
-                <UserMinus color="#9e2c2cff" size={16} />
-                <Text style={[styles.friendButtonText, { color: '#9e2c2cff' }]}>
-                  {isActionLoading ? 'Removing...' : 'Remove'}
+                <UserMinus color="#9e2c2c" size={16} />
+                <Text style={[styles.friendButtonText, { color: "#9e2c2c" }]}>
+                  {isActionLoading ? "Removing..." : "Remove"}
                 </Text>
               </TouchableOpacity>
             ) : hasPendingRequest ? (
-              <View style={[styles.friendButton, { backgroundColor: '#f59e0b' }]}>
+              <View style={[styles.friendButton, { backgroundColor: "#f59e0b" }]}>
                 <Clock color="#fff" size={16} />
                 <Text style={styles.friendButtonText}>Sent</Text>
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: '#8b5cf6' }]}
-                onPress={handleSendFriendRequest}
+                style={[styles.friendButton, { backgroundColor: "#8b5cf6" }]}
+                onPress={async () => {
+                  setIsActionLoading(true);
+                  try {
+                    await friendService.sendFriendRequest(
+                      currentUserId!,
+                      currentUserName,
+                      userId,
+                      userProfile?.name,
+                      state.user?.profile?.country,
+                      currentUserProfileImageUrl
+                    );
+                    setHasPendingRequest(true);
+                  } finally {
+                    setIsActionLoading(false);
+                  }
+                }}
                 disabled={isActionLoading}
               >
                 <UserPlus color="#fff" size={16} />
                 <Text style={styles.friendButtonText}>
-                  {isActionLoading ? 'Sending...' : 'Add'}
+                  {isActionLoading ? "Sending..." : "Add"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -354,9 +472,9 @@ const FriendProfileScreen: React.FC = () => {
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           {[
-            { key: 'goals', label: 'Goals' },
-            { key: 'achievements', label: 'Achievements' },
-            { key: 'wishlist', label: 'Wishlist' },
+            { key: "goals", label: "Goals" },
+            { key: "achievements", label: "Achievements" },
+            { key: "wishlist", label: "Wishlist" },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -398,7 +516,7 @@ const FriendProfileScreen: React.FC = () => {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* 💬 Remove confirmation popup */}
+      {/* Remove Friend Popup */}
       {showRemovePopup && (
         <Animated.View
           style={[
@@ -409,7 +527,8 @@ const FriendProfileScreen: React.FC = () => {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Remove Friend?</Text>
             <Text style={styles.modalSubtitle}>
-              Are you sure you want to remove {userProfile?.name || 'this user'} from your friends list?
+              Are you sure you want to remove{" "}
+              {userProfile?.name || "this user"} from your friends list?
             </Text>
 
             <View style={styles.modalButtons}>
@@ -422,7 +541,16 @@ const FriendProfileScreen: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={confirmRemoveFriend}
+                onPress={async () => {
+                  setIsActionLoading(true);
+                  try {
+                    await friendService.removeFriend(currentUserId!, userId);
+                    setIsFriend(false);
+                  } finally {
+                    setIsActionLoading(false);
+                    closeRemovePopup();
+                  }
+                }}
                 style={[styles.modalButton, styles.confirmButton]}
                 activeOpacity={0.8}
               >
@@ -438,6 +566,8 @@ const FriendProfileScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
+  
+  // HEADER
   header: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 40,
@@ -456,6 +586,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // HERO
   heroSection: {
     backgroundColor: '#fff',
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
@@ -496,10 +628,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     lineHeight: 22,
   },
+
+  // STATS
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 20 },
   statItem: { alignItems: 'center' },
   statNumber: { fontSize: 24, fontWeight: '700', color: '#8b5cf6', marginBottom: 4 },
   statLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+
+  // Friend buttons
   friendButtonContainer: { flexDirection: 'row', justifyContent: 'center' },
   friendButton: {
     flexDirection: 'row',
@@ -510,6 +646,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   friendButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+
+  // TABS
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
@@ -526,29 +664,32 @@ const styles = StyleSheet.create({
   tabButtonActive: { backgroundColor: '#8b5cf6' },
   tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   tabTextActive: { color: '#fff' },
+
+  // NEW GOAL CARD STYLES (copied from user profile)
   goalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 20,
     marginTop: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
-  goalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  goalMeta: { fontSize: 14, color: '#6b7280', marginTop: 4 },
-  progressBar: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 999,
-    marginTop: 12,
-    marginBottom: 8,
+  goalTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 4 },
+  goalMeta: { fontSize: 14, color: "#6b7280", marginTop: 4 },
+
+  progressHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
   },
-  progressFill: { height: 6, backgroundColor: '#8b5cf6', borderRadius: 999 },
+  progressHeaderLabel: { fontSize: 13, color: "#6b7280" },
+  progressHeaderValue: { fontSize: 13, color: "#111827", fontWeight: "600" },
+
+  // Wishlist card
   experienceCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -571,23 +712,72 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   experiencePrice: { fontSize: 18, fontWeight: '700', color: '#8b5cf6' },
+
   emptyStateText: {
     textAlign: 'center',
     marginTop: 40,
     color: '#9ca3af',
     fontSize: 16,
   },
+    // ACHIEVEMENT CARD (copied from UserProfileScreen)
+    achievementCard: {
+      backgroundColor: "#fff",
+      borderRadius: 16,
+      marginHorizontal: 20,
+      marginTop: 12,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    achievementImage: {
+      width: "100%",
+      height: 140,
+      backgroundColor: "#e5e7eb",
+    },
+    achievementImagePlaceholder: {
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    achievementImagePlaceholderText: {
+      fontSize: 40,
+      opacity: 0.5,
+    },
+    achievementContent: {
+      padding: 16,
+    },
+    achievementLoadingText: {
+      fontSize: 14,
+      color: "#9ca3af",
+    },
+    achievementTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    achievementPartner: {
+      fontSize: 14,
+      color: "#6b7280",
+      marginBottom: 4,
+    },
+    achievementGoal: {
+      fontSize: 14,
+      color: "#6b7280",
+      marginBottom: 6,
+    },
+    achievementMeta: {
+      fontSize: 14,
+      color: "#6b7280",
+    },
+  
+  // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, fontSize: 16, color: '#6b7280' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { fontSize: 18, color: '#ef4444', marginBottom: 16 },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#8b5cf6',
-    borderRadius: 8,
-  },
-  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+
+  // Popup overlay
   modalOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
