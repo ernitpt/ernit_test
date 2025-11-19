@@ -24,6 +24,9 @@ import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firest
 import { db } from "../../services/firebase";
 import { userService } from "../../services/userService";
 import { CartItem } from "../../types";
+import { useAuthGuard } from "../../hooks/useAuthGuard";
+import LoginPrompt from "../../components/LoginPrompt";
+import { cartService } from "../../services/CartService";
 
 import {
   GiverStackParamList,
@@ -81,6 +84,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const auth = getAuth();
   const user = auth.currentUser;
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   const images = Array.isArray(experience.imageUrl) ? experience.imageUrl : [experience.imageUrl];
 
@@ -119,11 +123,11 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     : "";
 
   const toggleWishlist = async () => {
-    if (!user) {
-      Alert.alert("Please log in to use wishlist.");
+    if (!requireAuth("Please log in to add items to your wishlist.")) {
       return;
     }
 
+    if (!user) return; // Safety check
     const userRef = doc(db, "users", user.uid);
     const newValue = !isWishlisted;
 
@@ -141,11 +145,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   };
 
   const handleAddToCart = async () => {
-    if (!user) {
-      Alert.alert("Please log in to add items to cart.");
-      return;
-    }
-
     setIsAddingToCart(true);
     try {
       const cartItem: CartItem = {
@@ -153,11 +152,14 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         quantity,
       };
 
-      // Update in Firestore
-      await userService.addToCart(user.uid, cartItem);
-
-      // Update in context
+      // Update in context (works for both authenticated and guest users)
       dispatch({ type: "ADD_TO_CART", payload: cartItem });
+
+      // If authenticated, also update in Firestore
+      if (user && state.user) {
+        await userService.addToCart(user.uid, cartItem);
+      }
+      // Guest cart is saved automatically via useEffect in CartScreen
 
       Alert.alert("Success", `Added ${quantity} item(s) to cart!`);
     } catch (error: any) {
@@ -169,37 +171,28 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   };
 
   const handleBuyNow = async () => {
-    if (!user) {
-      Alert.alert("Please log in to purchase items.");
-      return;
-    }
+    // Add current item to cart first
+    const cartItem: CartItem = {
+      experienceId: experience.id,
+      quantity,
+    };
 
-    try {
-      // Add current item to cart first
-      const cartItem: CartItem = {
-        experienceId: experience.id,
-        quantity,
-      };
+    // Update in context
+    dispatch({ type: "ADD_TO_CART", payload: cartItem });
 
-      // Update in Firestore
-      await userService.addToCart(user.uid, cartItem);
-
-      // Update in context
-      dispatch({ type: "ADD_TO_CART", payload: cartItem });
-
-      // Navigate to checkout with all cart items
-      const updatedUser = await userService.getUserById(user.uid);
-      if (updatedUser && updatedUser.cart) {
-        //  navigation.navigate("ExperienceCheckout", { cartItems: updatedUser.cart });
-        navigation.navigate("Cart");
-      } else {
-        // navigation.navigate("ExperienceCheckout", { cartItems: [cartItem] });
-        navigation.navigate("Cart");
+    // If authenticated, also update in Firestore
+    if (user && state.user) {
+      try {
+        await userService.addToCart(user.uid, cartItem);
+      } catch (error: any) {
+        console.error("Error adding to cart:", error);
+        Alert.alert("Error", error.message || "Failed to add item to cart.");
+        return;
       }
-    } catch (error: any) {
-      console.error("Error adding to cart:", error);
-      Alert.alert("Error", error.message || "Failed to add item to cart.");
     }
+
+    // Navigate to cart (will require auth at checkout)
+    navigation.navigate("Cart");
   };
 
   const decreaseQuantity = () => {
@@ -214,12 +207,26 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     }
   };
 
-  // Calculate cart item count
-  const cartItemCount = state.user?.cart?.reduce((total, item) => total + item.quantity, 0) || 0;
+  // Calculate cart item count (from user cart or guest cart)
+  const currentCart = state.user?.cart || state.guestCart || [];
+  const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
+  
+  // Save guest cart to local storage whenever it changes
+  // Use a ref to track previous cart to avoid unnecessary saves
+  const prevCartRef = useRef<string>('');
+  useEffect(() => {
+    if (!state.user && state.guestCart) {
+      const cartString = JSON.stringify(state.guestCart);
+      // Only save if cart actually changed
+      if (cartString !== prevCartRef.current) {
+        prevCartRef.current = cartString;
+        cartService.saveGuestCart(state.guestCart);
+      }
+    }
+  }, [state.guestCart, state.user]);
 
   const handleCartPress = () => {
-    if (cartItemCount > 0 && state.user?.cart) {
-      // navigation.navigate("ExperienceCheckout", { cartItems: state.user.cart });
+    if (cartItemCount > 0 && currentCart.length > 0) {
       navigation.navigate("Cart");
     } else {
       Alert.alert("Cart Empty", "Your cart is empty. Add items to cart first.");
@@ -435,6 +442,11 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       {selectedImage && (
         <ZoomableImage uri={selectedImage} onClose={() => setSelectedImage(null)} />
       )}
+      <LoginPrompt
+        visible={showLoginPrompt}
+        onClose={closeLoginPrompt}
+        message={loginMessage}
+      />
     </MainScreen>
   );
 }

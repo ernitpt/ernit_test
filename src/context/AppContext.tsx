@@ -10,6 +10,7 @@ interface GoalTimerState {
 // State interface
 interface AppState {
   user: User | null;
+  guestCart?: CartItem[]; // Cart for unauthenticated users
   currentExperienceGift: ExperienceGift | null;
   currentGoal: Goal | null;
   hints: Hint[];
@@ -51,6 +52,7 @@ type AppAction =
 // Initial state
 const initialState: AppState = {
   user: null,
+  guestCart: [],
   currentExperienceGift: null,
   currentGoal: null,
   hints: [],
@@ -63,7 +65,12 @@ const initialState: AppState = {
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
     case 'SET_USER':
-      return { ...state, user: action.payload };
+      return { 
+        ...state, 
+        user: action.payload,
+        // Clear guest cart when user logs in (it will be merged)
+        guestCart: action.payload ? undefined : state.guestCart,
+      };
 
     case 'SET_EXPERIENCE_GIFT':
       return { ...state, currentExperienceGift: action.payload };
@@ -138,8 +145,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     }
 
     case 'ADD_TO_CART': {
-      if (!state.user) return state;
-      const existingCart = state.user.cart || [];
+      // Get current cart (user cart or guest cart)
+      const existingCart = state.user?.cart || state.guestCart || [];
       const existingItemIndex = existingCart.findIndex(
         (item) => item.experienceId === action.payload.experienceId
       );
@@ -157,68 +164,140 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         newCart = [...existingCart, action.payload];
       }
 
+      // If user is logged in, update user cart
+      if (state.user) {
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            cart: newCart,
+          },
+        };
+      }
+      
+      // For guest users, store cart in state and save to local storage immediately
+      // Save synchronously for web, async for native
+      if (typeof window !== 'undefined') {
+        // Web: save immediately
+        try {
+          localStorage.setItem('guest_cart', JSON.stringify(newCart));
+        } catch (error) {
+          console.error('Error saving guest cart:', error);
+        }
+      } else {
+        // Native: will be saved by useEffect in components
+      }
+      
       return {
         ...state,
-        user: {
-          ...state.user,
-          cart: newCart,
-        },
+        guestCart: newCart,
       };
     }
 
     case 'REMOVE_FROM_CART': {
-      if (!state.user) return state;
-      const existingCart = state.user.cart || [];
+      const existingCart = state.user?.cart || state.guestCart || [];
       const newCart = existingCart.filter(
         (item) => item.experienceId !== action.payload.experienceId
       );
 
+      if (state.user) {
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            cart: newCart,
+          },
+        };
+      }
+      
+      // Save guest cart immediately for web
+      if (!state.user && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('guest_cart', JSON.stringify(newCart));
+        } catch (error) {
+          console.error('Error saving guest cart:', error);
+        }
+      }
+      
       return {
         ...state,
-        user: {
-          ...state.user,
-          cart: newCart,
-        },
+        guestCart: newCart,
       };
     }
 
     case 'UPDATE_CART_ITEM': {
-      if (!state.user) return state;
-      const existingCart = state.user.cart || [];
+      const existingCart = state.user?.cart || state.guestCart || [];
       const newCart = existingCart.map((item) =>
         item.experienceId === action.payload.experienceId
           ? { ...item, quantity: action.payload.quantity }
           : item
       );
 
+      if (state.user) {
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            cart: newCart,
+          },
+        };
+      }
+      
+      // Save guest cart immediately for web
+      if (!state.user && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('guest_cart', JSON.stringify(newCart));
+        } catch (error) {
+          console.error('Error saving guest cart:', error);
+        }
+      }
+      
       return {
         ...state,
-        user: {
-          ...state.user,
-          cart: newCart,
-        },
+        guestCart: newCart,
       };
     }
 
     case 'CLEAR_CART': {
-      if (!state.user) return state;
+      if (state.user) {
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            cart: [],
+          },
+        };
+      }
+      
       return {
         ...state,
-        user: {
-          ...state.user,
-          cart: [],
-        },
+        guestCart: [],
       };
     }
     
     case "SET_CART": {
-      if (!state.user) return state;
+      if (state.user) {
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            cart: action.payload,
+          },
+        };
+      }
+      
+      // Save guest cart immediately for web
+      if (!state.user && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('guest_cart', JSON.stringify(action.payload));
+        } catch (error) {
+          console.error('Error saving guest cart:', error);
+        }
+      }
+      
       return {
         ...state,
-        user: {
-          ...state.user,
-          cart: action.payload,
-        },
+        guestCart: action.payload,
       };
     }
     
@@ -238,7 +317,10 @@ const AppContext = createContext<{
 
 // Provider component
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  console.log('[AppProvider] Initializing context...');
   const [state, dispatch] = useReducer(appReducer, initialState);
+  
+  console.log('[AppProvider] Initial state:', { hasUser: !!state?.user, guestCartLength: state?.guestCart?.length || 0 });
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useState, useRef } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
 import { ActivityIndicator, View, Platform } from 'react-native';
@@ -7,8 +7,14 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
 import { userService } from '../services/userService';
+import { cartService } from '../services/CartService';
+import ProtectedRoute from '../components/ProtectedRoute';
+import { useAuthGuard } from '../hooks/useAuthGuard';
+import LoginPrompt from '../components/LoginPrompt';
+import { setNavigationRef } from '../context/AuthGuardContext';
+import { AuthGuardProvider } from '../context/AuthGuardContext';
 
-// Import screens (we'll create these next)
+// Screens
 import LandingScreen from '../screens/LandingScreen';
 import AuthScreen from '../screens/AuthScreen';
 import CategorySelectionScreen from '../screens/giver/CategorySelectionScreen';
@@ -34,96 +40,325 @@ const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
 const GiverStack = createNativeStackNavigator<GiverStackParamList>() as any;
 const RecipientStack = createNativeStackNavigator<RecipientStackParamList>() as any;
 
-// Giver Flow Navigator
-const GiverNavigator = () => {
+const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
+  'GiverFlow',
+  'Confirmation',
+  'ConfirmationMultiple',
+  'Profile',
+  'Goals',
+  'GoalDetail',
+  'Roadmap',
+  'ExperienceCheckout',
+  'RecipientFlow',
+  'Completion',
+  'Notification',
+  'AddFriend',
+  'FriendProfile',
+  'FriendsList',
+  'PurchasedGifts',
+];
+
+// Giver
+const GiverNavigator = () => (
+  <GiverStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+    <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
+    <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
+    <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
+    <GiverStack.Screen name="Cart" component={CartScreen} />
+    <GiverStack.Screen name="Confirmation" component={ConfirmationScreen} />
+  </GiverStack.Navigator>
+);
+
+// Recipient
+const RecipientNavigator = () => (
+  <RecipientStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+    <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
+    <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
+    <RecipientStack.Screen name="Roadmap" component={RoadmapScreen} />
+    <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
+    <RecipientStack.Screen name="Completion" component={CompletionScreen} />
+  </RecipientStack.Navigator>
+);
+
+// -------------------------------------------------------------------
+// MAIN APP NAVIGATOR
+// -------------------------------------------------------------------
+
+// Inner component that uses useAuthGuard - must be inside AuthGuardProvider
+const AppNavigatorContent = () => {
+  const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+
+  // Set navigation ref for AuthGuardContext
+  useEffect(() => {
+    if (navigationRef.current) {
+      setNavigationRef(navigationRef.current);
+    }
+    return () => {
+      setNavigationRef(null);
+    };
+  }, []);
+
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   return (
-    <GiverStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
+    <NavigationContainer 
+      ref={(ref) => {
+        navigationRef.current = ref;
+        if (ref) {
+          setNavigationRef(ref);
+        }
+      }}
+      onStateChange={(navState) => {
+        // Only update document title, no navigation blocking
+        if (Platform.OS === 'web') document.title = 'Ernit';
       }}
     >
-      <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
-      <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
-      <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
-      <GiverStack.Screen name="Cart" component={CartScreen} />
-      <GiverStack.Screen name="Confirmation" component={ConfirmationScreen} />
-    </GiverStack.Navigator>
+        <RootStack.Navigator
+          initialRouteName="CategorySelection"
+          screenOptions={{ headerShown: false, animation: 'none' }}
+        >
+
+        {/* PUBLIC ROUTES */}
+        <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
+        <RootStack.Screen name="Landing" component={LandingScreen} />
+        <RootStack.Screen name="Auth" component={AuthScreen} />
+        <RootStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
+        <RootStack.Screen name="Cart" component={CartScreen} />
+
+        {/* PROTECTED ROUTES */}
+        <RootStack.Screen name="GiverFlow">
+          {(props) => (
+            <ProtectedRoute>
+              <GiverNavigator {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="RecipientFlow">
+          {(props) => (
+            <ProtectedRoute>
+              <RecipientNavigator {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Profile">
+          {(props) => (
+            <ProtectedRoute>
+              <UserProfileScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Goals">
+          {(props) => (
+            <ProtectedRoute>
+              <GoalsScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="GoalDetail">
+          {(props) => (
+            <ProtectedRoute>
+              <GoalDetailScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Roadmap">
+          {(props) => (
+            <ProtectedRoute>
+              <RoadmapScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="ExperienceCheckout">
+          {(props) => (
+            <ProtectedRoute>
+              <ExperienceCheckoutScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Confirmation">
+          {(props) => (
+            <ProtectedRoute>
+              <ConfirmationScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="ConfirmationMultiple">
+          {(props) => (
+            <ProtectedRoute>
+              <ConfirmationMultipleScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Completion">
+          {(props) => (
+            <ProtectedRoute>
+              <CompletionScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Notification">
+          {(props) => (
+            <ProtectedRoute>
+              <NotificationsScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="AddFriend">
+          {(props) => (
+            <ProtectedRoute>
+              <AddFriendScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="FriendProfile">
+          {(props) => (
+            <ProtectedRoute>
+              <FriendProfileScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="FriendsList">
+          {(props) => (
+            <ProtectedRoute>
+              <FriendsListScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="PurchasedGifts">
+          {(props) => (
+            <ProtectedRoute>
+              <PurchasedGiftsScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="GoalSetting">
+          {(props) => (
+            <ProtectedRoute>
+              <GoalSettingScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        {/* 🔥 LOGIN PROMPT MODAL SHOULD BE LAST */}
+        <RootStack.Screen
+          name="LoginPromptModal"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        >
+          {() => (
+            <LoginPrompt
+              visible={showLoginPrompt}
+              onClose={closeLoginPrompt}
+              message={loginMessage}
+            />
+          )}
+        </RootStack.Screen>
+
+        </RootStack.Navigator>
+    </NavigationContainer>
   );
 };
 
-// Recipient Flow Navigator
-const RecipientNavigator = () => {
-  return (
-    <RecipientStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-      }}
-    >
-      <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
-      <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
-      <RecipientStack.Screen name="Roadmap" component={RoadmapScreen} />
-      <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
-      <RecipientStack.Screen name="Completion" component={CompletionScreen} />
-    </RecipientStack.Navigator>
-  );
-};
-
-// Main App Navigator
+// Main AppNavigator component - wraps content with AuthGuardProvider
 const AppNavigator = () => {
   const { state, dispatch } = useApp();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  // -----------------------------
+  // Restore Authentication
+  // -----------------------------
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
-          const persistedUser = await userService.getUserById(firebaseUser.uid);
+          const guestCart = await cartService.getGuestCart();
+          const persisted = await userService.getUserById(firebaseUser.uid);
 
-          if (!isMounted) {
-            return;
-          }
+          if (!mounted) return;
 
-          if (persistedUser) {
-            dispatch({ type: 'SET_USER', payload: persistedUser });
-          } else {
+          if (persisted) {
+            const mergedCart = cartService.mergeCarts(guestCart, persisted.cart || []);
+
+            if (mergedCart.length !== persisted.cart?.length) {
+              await userService.updateCart(firebaseUser.uid, mergedCart);
+            }
+
             dispatch({
               type: 'SET_USER',
-              payload: {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                displayName: firebaseUser.displayName || undefined,
-                userType: 'giver',
-                createdAt: new Date(),
-                wishlist: [],
-                cart: [],
-              },
+              payload: { ...persisted, cart: mergedCart },
             });
+
+            await cartService.clearGuestCart();
+          } else {
+            const newUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || undefined,
+              userType: 'giver' as const,
+              createdAt: new Date(),
+              wishlist: [],
+              cart: guestCart,
+            };
+
+            await userService.createUserProfile(newUser);
+            dispatch({ type: 'SET_USER', payload: newUser });
+
+            await cartService.clearGuestCart();
           }
-        } else if (isMounted) {
-          dispatch({ type: 'SET_USER', payload: null });
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error('Failed to restore user session', error);
+        } else if (mounted) {
           dispatch({ type: 'SET_USER', payload: null });
         }
       } finally {
-        if (isMounted) {
-          setIsCheckingAuth(false);
-        }
+        if (mounted) setIsCheckingAuth(false);
       }
     });
 
     return () => {
-      isMounted = false;
-      unsubscribe();
+      mounted = false;
+      unsub();
     };
   }, [dispatch]);
 
+  // -----------------------------
+  // Load guest cart AFTER auth resolved
+  // -----------------------------
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
+    (async () => {
+      if (!state.user) {
+        const guestCart = await cartService.getGuestCart();
+        if (guestCart.length > 0) {
+          dispatch({ type: 'SET_CART', payload: guestCart });
+        }
+      }
+    })();
+  }, [isCheckingAuth, state.user]);
+
+  // -----------------------------
+  // Show loading screen while checking auth
+  // -----------------------------
   if (isCheckingAuth) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -132,56 +367,13 @@ const AppNavigator = () => {
     );
   }
 
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   return (
-    <NavigationContainer
-      onReady={() => {
-        // Ensure title is set to "Ernit" when navigation is ready
-        if (Platform.OS === 'web' && typeof document !== 'undefined') {
-          document.title = 'Ernit';
-        }
-      }}
-      onStateChange={() => {
-        // Reset title to "Ernit" on every navigation state change
-        if (Platform.OS === 'web' && typeof document !== 'undefined') {
-          document.title = 'Ernit';
-        }
-      }}
-    >
-      <RootStack.Navigator
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-        }}
-      >
-        {!state.user ? (
-          <>
-            <RootStack.Screen name="Landing" component={LandingScreen} />
-            <RootStack.Screen name="Auth" component={AuthScreen} />
-          </>
-        ) : (
-          <>
-            <RootStack.Screen name="GiverFlow" component={GiverNavigator} />
-            <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
-            <RootStack.Screen name="Confirmation" component={ConfirmationScreen} />
-            <RootStack.Screen name="ConfirmationMultiple" component={ConfirmationMultipleScreen} />
-            <RootStack.Screen name="Profile" component={UserProfileScreen} />
-            <RootStack.Screen name="Goals" component={GoalsScreen} />
-            <RootStack.Screen name="GoalDetail" component={GoalDetailScreen} />
-            <RootStack.Screen name="Cart" component={CartScreen} />
-            <RootStack.Screen name="Roadmap" component={RoadmapScreen} />
-            <RootStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
-            <RootStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
-            <RootStack.Screen name="RecipientFlow" component={RecipientNavigator} />
-            <RootStack.Screen name="Completion" component={CompletionScreen} />
-            <RootStack.Screen name="Notification" component={NotificationsScreen} />
-            <RootStack.Screen name="AddFriend" component={AddFriendScreen} />
-            <RootStack.Screen name="FriendProfile" component={FriendProfileScreen} />
-            <RootStack.Screen name="FriendsList" component={FriendsListScreen} />
-            <RootStack.Screen name="PurchasedGifts" component={PurchasedGiftsScreen} />
-          </>
-        )}
-      </RootStack.Navigator>
-    </NavigationContainer>
+    <AuthGuardProvider>
+      <AppNavigatorContent />
+    </AuthGuardProvider>
   );
 };
 

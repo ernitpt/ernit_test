@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { Heart, ShoppingCart } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useApp } from '../../context/AppContext';
+import { cartService } from '../../services/CartService';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -143,8 +144,10 @@ const CategoryCarousel = ({
 );
 
 const CategorySelectionScreen = () => {
+  console.log('[CategorySelectionScreen] Rendering...');
   const navigation = useNavigation<GiverNavigationProp>();
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
+  console.log('[CategorySelectionScreen] State loaded:', { hasUser: !!state?.user, hasState: !!state });
   const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
@@ -153,13 +156,40 @@ const CategorySelectionScreen = () => {
   const auth = getAuth();
   const user = auth.currentUser;
 
-  // Calculate cart item count
-  const cartItemCount = state.user?.cart?.reduce((total, item) => total + item.quantity, 0) || 0;
+  // Calculate cart item count (from user cart or guest cart)
+  const currentCart = state.user?.cart || state.guestCart || [];
+  const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
+  
+  // Save guest cart to local storage whenever it changes
+  // Use a ref to track previous cart to avoid unnecessary saves
+  const prevCartRef = useRef<string>('');
+  useEffect(() => {
+    if (!state.user && state.guestCart) {
+      const cartString = JSON.stringify(state.guestCart);
+      // Only save if cart actually changed
+      if (cartString !== prevCartRef.current) {
+        prevCartRef.current = cartString;
+        cartService.saveGuestCart(state.guestCart);
+      }
+    }
+  }, [state.guestCart, state.user]);
+  
+  // Load guest cart from storage on mount if not authenticated
+  useEffect(() => {
+    const loadGuestCart = async () => {
+      if (!state.user) {
+        const guestCart = await cartService.getGuestCart();
+        if (guestCart.length > 0) {
+          dispatch({ type: 'SET_CART', payload: guestCart });
+        }
+      }
+    };
+    loadGuestCart();
+  }, []);
 
   const handleCartPress = () => {
-    if (cartItemCount > 0 && state.user?.cart) {
+    if (cartItemCount > 0 && currentCart.length > 0) {
       navigation.navigate('Cart' as any);
-      // navigation.navigate('ExperienceCheckout', { cartItems: state.user.cart });
     } else {
       Alert.alert('Cart Empty', 'Your cart is empty. Add items to cart first.');
     }
@@ -220,7 +250,7 @@ const CategorySelectionScreen = () => {
   );
 
   const toggleWishlist = async (experienceId: string) => {
-    if (!user) {
+    if (!user || !state.user) {
       Alert.alert('Please log in to use wishlist.');
       return;
     }

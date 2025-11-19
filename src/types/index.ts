@@ -257,7 +257,7 @@ export interface Hint {
 // Navigation types
 export type RootStackParamList = {
   Landing: undefined;
-  Auth: { mode?: 'signin' | 'signup' };
+  Auth: { mode?: 'signin' | 'signup'; fromModal?: boolean };
   CategorySelection: undefined;
   // Main: undefined;
   Profile: undefined;

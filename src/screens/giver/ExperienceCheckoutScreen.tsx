@@ -31,6 +31,8 @@ import {
 import { stripeService } from "../../services/stripeService";
 import { experienceService } from "../../services/ExperienceService";
 import { useApp } from "../../context/AppContext";
+import { useAuthGuard } from "../../hooks/useAuthGuard";
+import LoginPrompt from "../../components/LoginPrompt";
 import MainScreen from "../MainScreen";
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
@@ -434,8 +436,16 @@ const ExperienceCheckoutScreen: React.FC = () => {
   const route = useRoute();
   const navigation = useNavigation<NavigationProp>();
   const { state } = useApp();
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   const { cartItems } = route.params as { cartItems: CartItem[] };
+  
+  // Require authentication for checkout
+  useEffect(() => {
+    if (!state.user) {
+      requireAuth("Please log in to proceed to checkout.");
+    }
+  }, [state.user, requireAuth]);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -511,6 +521,22 @@ const ExperienceCheckoutScreen: React.FC = () => {
 
     init();
   }, [cartItems, navigation, state.user]);
+
+  if (!state.user) {
+    return (
+      <MainScreen activeRoute="Home">
+        <LoginPrompt
+          visible={showLoginPrompt}
+          onClose={() => {
+            // Simply close the modal - no navigation
+            // User stays on the same page they were on
+            closeLoginPrompt();
+          }}
+          message={loginMessage}
+        />
+      </MainScreen>
+    );
+  }
 
   if (loading) {
     return (

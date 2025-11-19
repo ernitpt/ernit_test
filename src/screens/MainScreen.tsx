@@ -3,6 +3,8 @@ import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
+import LoginPrompt from '../components/LoginPrompt';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 
 type MainScreenProps = {
   children: React.ReactNode;
@@ -10,13 +12,14 @@ type MainScreenProps = {
 };
 
 /**
- * Main layout wrapper for all screens.
- * - Keeps content full height
- * - Avoids double top padding
- * - Keeps bottom safe area for footer
+ * Enhanced MainScreen wrapper
+ * - Universal guarded navigation for footer
+ * - Shows login popup overlay when protected routes are accessed
+ * - Compatible with your existing FooterNavigation and SideMenu
  */
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
+  const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   const handleMenuPress = () => setSideMenuVisible(true);
   const handleCloseSideMenu = () => setSideMenuVisible(false);
@@ -26,8 +29,18 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
       {/* Main Content */}
       <View style={styles.content}>{children}</View>
 
-      {/* Footer Navigation */}
-      <FooterNavigation activeRoute={activeRoute} onMenuPress={handleMenuPress} />
+      {/* Login Prompt Popup - shown when protected route is accessed without auth */}
+      <LoginPrompt
+        visible={showLoginPrompt}
+        onClose={closeLoginPrompt}
+        message={loginMessage}
+      />
+
+      {/* Footer Navigation with guarded navigation */}
+      <FooterNavigation
+        activeRoute={activeRoute}
+        onMenuPress={handleMenuPress}
+      />
 
       {/* Side Menu */}
       <SideMenu visible={sideMenuVisible} onClose={handleCloseSideMenu} />
@@ -38,7 +51,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb', // consistent app background
+    backgroundColor: '#f9fafb',
   },
   content: {
     flex: 1,

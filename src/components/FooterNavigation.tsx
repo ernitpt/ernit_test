@@ -7,9 +7,12 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import type { RootStackParamList } from '../types';
 
 import HomeIcon from '../assets/icons/home.svg';
 import HomeIconActive from '../assets/icons/HomeActive';
@@ -20,22 +23,17 @@ import GoalsIconActive from '../assets/icons/GoalsActive';
 import ProfileIcon from '../assets/icons/profile.svg';
 import ProfileIconActive from '../assets/icons/ProfileActive';
 import MenuIcon from '../assets/icons/sidemenu.svg';
+
 import { notificationService } from '../services/NotificationService';
 import { useApp } from '../context/AppContext';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 
-type RootStackParamList = {
-  GiverFlow: { screen: string };
-  Goals: undefined;
-  Notification: undefined;
-  Profile: undefined;
-};
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type FooterNavigationProps = {
   activeRoute: 'Home' | 'Goals' | 'Profile' | 'Notification' | 'Settings';
   onMenuPress: () => void;
 };
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const FooterNavigation: React.FC<FooterNavigationProps> = ({
   activeRoute,
@@ -46,6 +44,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   const {
     state: { user },
   } = useApp();
+  const { requireAuth } = useAuthGuard();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -64,13 +63,25 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   }, [user?.id]);
 
   const handleNavigation = (route: string) => {
+    // Home is always accessible
     if (route === 'Home') {
-      navigation.navigate('GiverFlow', { screen: 'CategorySelection' });
+      navigation.navigate('CategorySelection');
       return;
     }
-    if (route === 'Goals') navigation.navigate('Goals');
-    if (route === 'Notification') navigation.navigate('Notification');
-    if (route === 'Profile') navigation.navigate('Profile');
+    
+    // Protected routes - check authentication BEFORE navigating
+    if (route === 'Goals' || route === 'Notification' || route === 'Profile') {
+      // Require authentication - this will show popup if not authenticated
+      // and return false to block navigation. Pass route name for post-auth navigation.
+      if (!requireAuth('Please log in to access this feature.', route as keyof RootStackParamList)) {
+        return; // Don't navigate - popup is shown
+      }
+      
+      // User is authenticated - navigate normally
+      if (route === 'Goals') navigation.navigate('Goals');
+      if (route === 'Notification') navigation.navigate('Notification');
+      if (route === 'Profile') navigation.navigate('Profile');
+    }
   };
 
   const NavButton: React.FC<{
@@ -150,7 +161,6 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
             },
           ]}
         >
-          {/* 👇 FIX: wrap icon in overflow-visible container */}
           <View style={styles.iconWrapper}>
             <Animated.View style={{ transform: [{ rotate: iconRotate }] }}>
               <SelectedIcon width={26} height={26} />
@@ -272,10 +282,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     minWidth: 64,
     position: 'relative',
-    overflow: 'visible', // ✅ allow icon gradient edges
+    overflow: 'visible',
   },
   iconWrapper: {
-    overflow: 'visible', // ✅ critical fix for SVGs disappearing
+    overflow: 'visible',
     alignItems: 'center',
     justifyContent: 'center',
   },

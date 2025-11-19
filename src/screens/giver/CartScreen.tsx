@@ -14,6 +14,9 @@ import { Plus, Minus, X, ShoppingBag, ArrowRight } from "lucide-react-native";
 import { useApp } from "../../context/AppContext";
 import { userService } from "../../services/userService";
 import { experienceService } from "../../services/ExperienceService";
+import { cartService } from "../../services/CartService";
+import { useAuthGuard } from "../../hooks/useAuthGuard";
+import LoginPrompt from "../../components/LoginPrompt";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GiverStackParamList, Experience, CartItem } from "../../types";
 import { useNavigation } from "@react-navigation/native";
@@ -24,6 +27,7 @@ type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 export default function CartScreen() {
   const { state, dispatch } = useApp();
   const navigation = useNavigation<NavProp>();
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,28 +35,58 @@ export default function CartScreen() {
   
   // Track loaded experience IDs to prevent unnecessary reloads
   const loadedExperienceIds = useRef<string[]>([]);
+  
+  // Get cart from user or guest cart
+  const currentCart = state.user?.cart || state.guestCart || [];
 
   useEffect(() => {
     loadItems();
   }, []); // Only load once on mount
 
+  // Load guest cart from storage on mount if not authenticated
+  useEffect(() => {
+    const loadGuestCart = async () => {
+      if (!state.user) {
+        const guestCart = await cartService.getGuestCart();
+        if (guestCart.length > 0) {
+          dispatch({ type: 'SET_CART', payload: guestCart });
+        }
+      }
+    };
+    loadGuestCart();
+  }, []);
+
   // Watch for cart changes (additions/removals only, not quantity updates)
   useEffect(() => {
-    const currentIds = (state.user?.cart || []).map(item => item.experienceId).sort().join(',');
+    const currentIds = currentCart.map(item => item.experienceId).sort().join(',');
     const loadedIds = loadedExperienceIds.current.sort().join(',');
     
     // Only reload if the cart items changed (not just quantities)
     if (currentIds !== loadedIds && !loading) {
       loadItems();
     }
-  }, [state.user?.cart?.length]); // Only depend on cart length, not the entire cart
+  }, [currentCart.length]); // Only depend on cart length, not the entire cart
+
+  // Save guest cart to local storage whenever it changes
+  // Use a ref to track previous cart to avoid unnecessary saves
+  const prevCartRef = useRef<string>('');
+  useEffect(() => {
+    if (!state.user && state.guestCart) {
+      const cartString = JSON.stringify(state.guestCart);
+      // Only save if cart actually changed
+      if (cartString !== prevCartRef.current) {
+        prevCartRef.current = cartString;
+        cartService.saveGuestCart(state.guestCart);
+      }
+    }
+  }, [state.guestCart, state.user]);
 
   const loadItems = async () => {
     setLoading(true);
     const list: Experience[] = [];
     const ids: string[] = [];
     
-    for (const item of state.user?.cart || []) {
+    for (const item of currentCart) {
       ids.push(item.experienceId);
       const exp = await experienceService.getExperienceById(item.experienceId);
       if (exp) list.push(exp);
@@ -64,8 +98,6 @@ export default function CartScreen() {
   };
 
   const updateQuantity = async (experienceId: string, newQty: number) => {
-    if (!state.user) return;
-
     if (newQty < 1) {
       return removeItem(experienceId);
     }
@@ -78,17 +110,19 @@ export default function CartScreen() {
     setUpdatingItems(prev => new Set(prev).add(experienceId));
 
     try {
-      const updated = state.user.cart?.map((item) =>
+      const updated = currentCart.map((item) =>
         item.experienceId === experienceId
           ? { ...item, quantity: newQty }
           : item
-      ) || [];
+      );
 
       // Update context immediately for instant UI feedback
       dispatch({ type: "SET_CART", payload: updated });
       
-      // Update database in background
-      await userService.updateCart(state.user.id, updated);
+      // Update database in background if authenticated
+      if (state.user) {
+        await userService.updateCart(state.user.id, updated);
+      }
     } catch (error) {
       console.error("Error updating quantity:", error);
       Alert.alert("Error", "Failed to update quantity. Please try again.");
@@ -103,15 +137,13 @@ export default function CartScreen() {
   };
 
   const removeItem = async (experienceId: string) => {
-    if (!state.user) return;
-
     // Mark as updating
     setUpdatingItems(prev => new Set(prev).add(experienceId));
 
     try {
-      const updated = state.user.cart?.filter(
+      const updated = currentCart.filter(
         (item) => item.experienceId !== experienceId
-      ) || [];
+      );
 
       // Update context immediately
       dispatch({ type: "SET_CART", payload: updated });
@@ -120,8 +152,10 @@ export default function CartScreen() {
       setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
       loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
       
-      // Update database in background
-      await userService.removeFromCart(state.user.id, experienceId);
+      // Update database in background if authenticated
+      if (state.user) {
+        await userService.removeFromCart(state.user.id, experienceId);
+      }
     } catch (error) {
       console.error("Error removing item:", error);
       Alert.alert("Error", "Failed to remove item. Please try again.");
@@ -136,20 +170,27 @@ export default function CartScreen() {
     }
   };
 
-  const total = state.user?.cart?.reduce((sum, item) => {
+  const total = currentCart.reduce((sum, item) => {
     const exp = cartExperiences.find((e) => e.id === item.experienceId);
     return exp ? sum + exp.price * item.quantity : sum;
-  }, 0) || 0;
+  }, 0);
 
-  const cartItemCount = state.user?.cart?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const cartItemCount = currentCart.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   const proceedToCheckout = () => {
-    if (!state.user?.cart || state.user.cart.length === 0) {
+    if (!currentCart || currentCart.length === 0) {
       Alert.alert("Empty Cart", "Your cart is empty. Add items to cart first.");
       return;
     }
+    
+    // Require authentication to proceed to checkout
+    // Pass route name and params for post-auth navigation
+    if (!requireAuth("Please log in to proceed to checkout.", "ExperienceCheckout", { cartItems: currentCart })) {
+      return;
+    }
+    
     navigation.navigate("ExperienceCheckout", {
-      cartItems: state.user.cart,
+      cartItems: currentCart,
     });
   };
 
@@ -171,10 +212,15 @@ export default function CartScreen() {
     );
   }
 
-  const isEmpty = !state.user?.cart || state.user.cart.length === 0;
+  const isEmpty = !currentCart || currentCart.length === 0;
 
   return (
     <MainScreen activeRoute="Home">
+      <LoginPrompt
+        visible={showLoginPrompt}
+        onClose={closeLoginPrompt}
+        message={loginMessage}
+      />
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your Cart</Text>
@@ -208,7 +254,7 @@ export default function CartScreen() {
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {state.user?.cart?.map((item) => {
+              {currentCart.map((item) => {
                 const exp = cartExperiences.find(
                   (e) => e.id === item.experienceId
                 );

@@ -233,16 +233,13 @@ const UserProfileScreen: React.FC = () => {
   };
 
   const handleRemoveFromWishlist = async (experienceId: string) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    
-    if (!user) {
+    if (!state.user) {
       Alert.alert('Please log in to manage wishlist.');
       return;
     }
 
     try {
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', state.user.id);
       await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
       
       // Update local state

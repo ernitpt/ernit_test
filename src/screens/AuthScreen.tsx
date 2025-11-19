@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
+  Animated,
+  StyleSheet,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { ChevronLeft } from 'lucide-react-native';
 import { auth } from '../services/firebase';
 import {
   createUserWithEmailAndPassword,
@@ -22,13 +26,16 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithCredential,
+  fetchSignInMethodsForEmail,
 } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
+import { useAuthGuard } from '../context/AuthGuardContext';
 import { userService } from '../services/userService';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { Check } from 'lucide-react-native';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -39,9 +46,127 @@ const AuthScreen = () => {
   const navigation = useNavigation<AuthScreenNavigationProp>();
   const route = useRoute();
   const { dispatch } = useApp();
+  const { handleAuthSuccess } = useAuthGuard();
 
-  const routeParams = route.params as { mode?: 'signin' | 'signup' };
+  const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Success animation
+  const successScaleAnim = useRef(new Animated.Value(0)).current;
+  const successOpacityAnim = useRef(new Animated.Value(0)).current;
+  
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('CategorySelection');
+    }
+  };
+
+  // Animated gradient for background
+  const gradientAnim = useRef(new Animated.Value(0)).current;
+  
+  // Button glow animation - pulsing effect
+  const buttonGlowAnim = useRef(new Animated.Value(0)).current;
+  
+  // Button press animation
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+  
+  // Card glow animation
+  const cardGlowAnim = useRef(new Animated.Value(0)).current;
+  
+  // Button gradient animation - shifts colors
+  const buttonGradientAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    // Animate background gradient
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientAnim, {
+          toValue: 1,
+          duration: 15000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(gradientAnim, {
+          toValue: 0,
+          duration: 15000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+    
+    // Animate button glow - slower, more dramatic pulse
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(buttonGlowAnim, {
+          toValue: 1,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(buttonGlowAnim, {
+          toValue: 0,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+    
+    // Animate card glow
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(cardGlowAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardGlowAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+    
+    // Animate button gradient colors
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(buttonGradientAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(buttonGradientAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Button press animation handler
+  const handleButtonPressIn = () => {
+    Animated.parallel([
+      Animated.spring(buttonScaleAnim, {
+        toValue: 0.96,
+        useNativeDriver: true,
+        friction: 5,
+        tension: 100,
+      }),
+    ]).start();
+  };
+
+  const handleButtonPressOut = () => {
+    Animated.parallel([
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        friction: 5,
+        tension: 100,
+      }),
+    ]).start();
+  };
 
   // Form state
   const [email, setEmail] = useState('');
@@ -51,15 +176,27 @@ const AuthScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Password validation state
+  const [passwordChecks, setPasswordChecks] = useState({
+    minLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+  
+  // Email validation state
+  const [emailError, setEmailError] = useState('');
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   const redirectUri = "https://auth.expo.io/@ernit/ernit";
-  // const redirectUri = makeRedirectUri()
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: "806487127981-ob9oap6pvjhpm4leik8qjt8e994jeckt.apps.googleusercontent.com",
     redirectUri,
   });
-  // ✅ Handle Google login (sign in or sign up automatically)
+  
   useEffect(() => {
     if (response?.type === 'success') {
       setIsLoading(true);
@@ -94,12 +231,31 @@ const AuthScreen = () => {
             },
           });
 
+          // Show success animation
+          setShowSuccess(true);
+          Animated.parallel([
+            Animated.spring(successScaleAnim, {
+              toValue: 1,
+              friction: 5,
+              tension: 40,
+              useNativeDriver: true,
+            }),
+            Animated.timing(successOpacityAnim, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start();
+
+          // After success animation, navigate to pending route or default
+          setTimeout(() => {
+            handleAuthSuccess();
+          }, 1500);
+
         })
         .catch((error) => {
           console.error('Google Sign-In Error:', error);
           Alert.alert('Google Sign-In Failed', 'Unable to sign in with Google. Please try again.');
-        })
-        .finally(() => {
           setIsLoading(false);
         });
     } else if (response?.type === 'error') {
@@ -107,30 +263,109 @@ const AuthScreen = () => {
     }
   }, [response]);
 
-  // --- Email/password logic ---
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password: string) => password.length >= 6;
+  
+  const sanitizeInput = (input: string) => {
+    return input.trim().replace(/[<>]/g, '');
+  };
+  
+  const validatePasswordStrength = (pwd: string) => {
+    const checks = {
+      minLength: pwd.length >= 8,
+      hasUpperCase: /[A-Z]/.test(pwd),
+      hasLowerCase: /[a-z]/.test(pwd),
+      hasNumber: /[0-9]/.test(pwd),
+      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+    };
+    setPasswordChecks(checks);
+    return Object.values(checks).every(check => check === true);
+  };
+  
+  const isPasswordValid = () => {
+    return Object.values(passwordChecks).every(check => check === true);
+  };
+  
+  const checkEmailExists = async (emailToCheck: string) => {
+    if (!validateEmail(emailToCheck)) {
+      setEmailError('');
+      return false;
+    }
+    
+    setIsCheckingEmail(true);
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, emailToCheck);
+      if (methods.length > 0) {
+        setEmailError('Email already in use');
+        setIsCheckingEmail(false);
+        return true;
+      }
+      setEmailError('');
+      setIsCheckingEmail(false);
+      return false;
+    } catch (error: any) {
+      if (error.code !== 'auth/email-already-in-use') {
+        setEmailError('');
+      }
+      setIsCheckingEmail(false);
+      return false;
+    }
+  };
+  
+  const handleEmailChange = async (text: string) => {
+    const sanitized = sanitizeInput(text);
+    setEmail(sanitized);
+    
+    if (sanitized && !isLogin) {
+      await checkEmailExists(sanitized);
+    } else {
+      setEmailError('');
+    }
+  };
+  
+  const handlePasswordChange = (text: string) => {
+    const sanitized = sanitizeInput(text);
+    setPassword(sanitized);
+    if (!isLogin) {
+      validatePasswordStrength(sanitized);
+    }
+  };
+  
+  const handleDisplayNameChange = (text: string) => {
+    const sanitized = sanitizeInput(text);
+    setDisplayName(sanitized);
+  };
 
   const handleAuth = async () => {
-    if (!email || !password) {
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPassword = sanitizeInput(password);
+    const sanitizedDisplayName = sanitizeInput(displayName);
+    const sanitizedConfirmPassword = sanitizeInput(confirmPassword);
+    
+    if (!sanitizedEmail || !sanitizedPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    if (!validateEmail(email)) {
+    if (!validateEmail(sanitizedEmail)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-    if (!validatePassword(password)) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
+    
     if (!isLogin) {
-      if (!displayName.trim()) {
+      if (!sanitizedDisplayName.trim()) {
         Alert.alert('Error', 'Please enter your name');
         return;
       }
-      if (password !== confirmPassword) {
+      if (!isPasswordValid()) {
+        Alert.alert('Error', 'Password does not meet security requirements');
+        return;
+      }
+      if (sanitizedPassword !== sanitizedConfirmPassword) {
         Alert.alert('Error', 'Passwords do not match');
+        return;
+      }
+      const emailExists = await checkEmailExists(sanitizedEmail);
+      if (emailExists) {
+        Alert.alert('Error', 'Email already in use');
         return;
       }
     }
@@ -141,15 +376,15 @@ const AuthScreen = () => {
     try {
       let userCredential;
       if (isLogin) {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
       } else {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: displayName.trim() });
+        userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
+        await updateProfile(userCredential.user, { displayName: sanitizedDisplayName.trim() });
 
         await userService.createUserProfile({
           id: userCredential.user.uid,
           email: userCredential.user.email || '',
-          displayName: userCredential.user.displayName || displayName.trim(),
+          displayName: userCredential.user.displayName || sanitizedDisplayName.trim() || '',
           userType: 'giver',
           createdAt: new Date(),
           wishlist: [],
@@ -163,13 +398,34 @@ const AuthScreen = () => {
         payload: {
           id: user.uid,
           email: user.email || '',
-          displayName: user.displayName || displayName.trim() || undefined,
+          displayName: user.displayName || sanitizedDisplayName.trim() || undefined,
           userType: 'giver',
           createdAt: new Date(),
           wishlist: [],
           cart: [],
         },
       });
+
+      // Show success animation
+      setShowSuccess(true);
+      Animated.parallel([
+        Animated.spring(successScaleAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(successOpacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // After success animation, navigate to pending route or default
+      setTimeout(() => {
+        handleAuthSuccess();
+      }, 1500); // Show success for 1.5 seconds
 
     } catch (error: any) {
       let errorMessage = 'An unexpected error occurred. Please try again.';
@@ -195,8 +451,10 @@ const AuthScreen = () => {
       }
       Alert.alert(isLogin ? 'Sign In Failed' : 'Sign Up Failed', errorMessage);
     } finally {
-      setIsLoading(false);
-      dispatch({ type: 'SET_LOADING', payload: false });
+      if (!showSuccess) {
+        setIsLoading(false);
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
     }
   };
 
@@ -217,24 +475,101 @@ const AuthScreen = () => {
     }
   };
 
+  const isButtonDisabled = isLoading || (!isLogin && (!isPasswordValid() || !!emailError || !displayName.trim() || password !== confirmPassword));
+
+  // Interpolate glow scale and opacity for more dramatic effect
+  const glowScale = buttonGlowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.01],
+  });
+
+  const glowOpacity = buttonGlowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.4, 0.9],
+  });
+
+  const cardGlowOpacity = cardGlowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.15, 0.35],
+  });
 
   return (
-    <LinearGradient colors={['#7C3AED', '#3B82F6']} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
+      {/* Base gradient */}
+      <LinearGradient 
+        colors={['#7C3AED', '#3B82F6']} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      
+      {/* Animated overlay gradient */}
+      <Animated.View 
+        style={{ 
+          flex: 1, 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0,
+          opacity: gradientAnim,
+        }}
+      >
+        <LinearGradient 
+          colors={['#9333EA', '#2563EB', '#3B82F6']} 
+          start={{ x: 0, y: 0 }} 
+          end={{ x: 1, y: 1 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+      
+      <SafeAreaView style={{ flex: 1, zIndex: 1, backgroundColor: 'transparent' }}>
         <StatusBar style="light" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
+            contentContainerStyle={{ flexGrow: 1, paddingVertical: 40 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+            {/* Back Button */}
+            <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, left: 20, zIndex: 10 }}>
+              <TouchableOpacity
+                onPress={handleBack}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+                activeOpacity={0.7}
+              >
+                <ChevronLeft color="white" size={24} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 60 }}>
               
-              {/* Header */}
-              <View style={{ marginBottom: 48, alignItems: 'center' }}>
+              {/* Logo */}
+              <View style={{ marginBottom: 40, alignItems: 'center' }}>
+                <Image
+                  source={require('../assets/icon.png')}
+                  style={{
+                    width: 120,
+                    height: 120,
+                    marginBottom: 24,
+                  }}
+                  resizeMode="contain"
+                />
                 <Text style={{ fontSize: 48, fontWeight: 'bold', color: 'white', textAlign: 'center', marginBottom: 16 }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
@@ -243,201 +578,357 @@ const AuthScreen = () => {
                 </Text>
               </View>
 
-              {/* Form */}
-              <View style={{ width: '100%', maxWidth: 400 }}>
-                {!isLogin && (
+              {/* Form - Wrapped in card with animated glow */}
+              <View style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
+                {/* Animated glow background for card */}
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    top: -10,
+                    left: -10,
+                    right: -10,
+                    bottom: -10,
+                    borderRadius: 34,
+                    opacity: cardGlowOpacity,
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#7C3AED', '#3B82F6', '#9333EA']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ flex: 1, borderRadius: 34 }}
+                  />
+                </Animated.View>
+
+                <View style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: 24,
+                  padding: 24,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 12,
+                  elevation: 8,
+                }}>
+                  {!isLogin && (
+                    <View style={{ marginBottom: 20 }}>
+                      <TextInput
+                        style={{
+                          backgroundColor: '#F9FAFB',
+                          borderRadius: 12,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
+                          fontSize: 16,
+                          borderWidth: 1,
+                          borderColor: '#E5E7EB',
+                        }}
+                        placeholder="Username"
+                        placeholderTextColor="#9CA3AF"
+                        value={displayName}
+                        onChangeText={handleDisplayNameChange}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  )}
+
                   <View style={{ marginBottom: 20 }}>
                     <TextInput
                       style={{
-                        backgroundColor: 'white',
-                        borderRadius: 16,
-                        paddingHorizontal: 20,
-                        paddingVertical: 16,
+                        backgroundColor: '#F9FAFB',
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
                         fontSize: 16,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 8,
-                        elevation: 3,
+                        borderWidth: 1,
+                        borderColor: emailError ? '#EF4444' : '#E5E7EB',
                       }}
-                      placeholder="Full name"
+                      placeholder="Email address"
                       placeholderTextColor="#9CA3AF"
-                      value={displayName}
-                      onChangeText={setDisplayName}
-                      autoCapitalize="words"
+                      value={email}
+                      onChangeText={handleEmailChange}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                     />
+                    {emailError && (
+                      <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                        {emailError}
+                      </Text>
+                    )}
+                    {isCheckingEmail && (
+                      <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                        Checking email...
+                      </Text>
+                    )}
                   </View>
-                )}
 
-                <View style={{ marginBottom: 20 }}>
-                  <TextInput
-                    style={{
-                      backgroundColor: 'white',
-                      borderRadius: 16,
-                      paddingHorizontal: 20,
-                      paddingVertical: 16,
-                      fontSize: 16,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 8,
-                      elevation: 3,
-                    }}
-                    placeholder="Email address"
-                    placeholderTextColor="#9CA3AF"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-
-      <View style={{ marginBottom: 16 }}>
-        <View style={{ position: 'relative' }}>
-          <TextInput
-            style={{
-              backgroundColor: 'white',
-              borderRadius: 16,
-              paddingHorizontal: 20,
-              paddingVertical: 16,
-              paddingRight: 80,
-              fontSize: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 3,
-            }}
-            placeholder="Password"
-            placeholderTextColor="#9CA3AF"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -10 }] }}
-          >
-            <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>
-              {showPassword ? 'Hide' : 'Show'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 🔹 Forgot Password button */}
-        {isLogin && (
-          <TouchableOpacity onPress={handlePasswordReset} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
-            <Text style={{ color: '#E9D5FF', fontSize: 14, fontWeight: '500' }}>Forgot password?</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-                {!isLogin && (
-                  <View style={{ marginBottom: 32 }}>
+                  <View style={{ marginBottom: 16 }}>
                     <View style={{ position: 'relative' }}>
                       <TextInput
                         style={{
-                          backgroundColor: 'white',
-                          borderRadius: 16,
-                          paddingHorizontal: 20,
-                          paddingVertical: 16,
+                          backgroundColor: '#F9FAFB',
+                          borderRadius: 12,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
                           paddingRight: 80,
                           fontSize: 16,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.1,
-                          shadowRadius: 8,
-                          elevation: 3,
+                          borderWidth: 1,
+                          borderColor: '#E5E7EB',
                         }}
-                        placeholder="Confirm password"
+                        placeholder="Password"
                         placeholderTextColor="#9CA3AF"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry={!showConfirmPassword}
+                        value={password}
+                        onChangeText={handlePasswordChange}
+                        secureTextEntry={!showPassword}
                       />
                       <TouchableOpacity
-                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onPress={() => setShowPassword(!showPassword)}
                         style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -10 }] }}
                       >
                         <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>
-                          {showConfirmPassword ? 'Hide' : 'Show'}
+                          {showPassword ? 'Hide' : 'Show'}
                         </Text>
                       </TouchableOpacity>
                     </View>
+
+                    {!isLogin && password.length > 0 && (
+                      <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+                          Password Requirements:
+                        </Text>
+                        <View style={{ gap: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, marginRight: 8 }}>
+                              {passwordChecks.minLength ? '✔' : '✖'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: passwordChecks.minLength ? '#10B981' : '#6B7280' }}>
+                              At least 8 characters
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, marginRight: 8 }}>
+                              {passwordChecks.hasUpperCase ? '✔' : '✖'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasUpperCase ? '#10B981' : '#6B7280' }}>
+                              One uppercase letter
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, marginRight: 8 }}>
+                              {passwordChecks.hasLowerCase ? '✔' : '✖'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasLowerCase ? '#10B981' : '#6B7280' }}>
+                              One lowercase letter
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, marginRight: 8 }}>
+                              {passwordChecks.hasNumber ? '✔' : '✖'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasNumber ? '#10B981' : '#6B7280' }}>
+                              One number
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, marginRight: 8 }}>
+                              {passwordChecks.hasSpecialChar ? '✔' : '✖'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasSpecialChar ? '#10B981' : '#6B7280' }}>
+                              One special character
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {isLogin && (
+                      <TouchableOpacity onPress={handlePasswordReset} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+                        <Text style={{ color: '#7C3AED', fontSize: 14, fontWeight: '500' }}>Forgot password?</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                )}
 
-                {/* Email Sign-In / Sign-Up Button */}
-                <TouchableOpacity
-                  onPress={handleAuth}
-                  disabled={isLoading}
-                  style={{
-                    backgroundColor: isLoading ? '#D1D5DB' : 'white',
-                    borderRadius: 16,
-                    paddingVertical: 20,
-                    marginBottom: 16,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 5,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 'bold',
-                      color: isLoading ? '#6B7280' : '#7C3AED',
-                      textAlign: 'center',
+                  {!isLogin && (
+                    <View style={{ marginBottom: 20 }}>
+                      <View style={{ position: 'relative' }}>
+                        <TextInput
+                          style={{
+                            backgroundColor: '#F9FAFB',
+                            borderRadius: 12,
+                            paddingHorizontal: 16,
+                            paddingVertical: 14,
+                            paddingRight: 80,
+                            fontSize: 16,
+                            borderWidth: 1,
+                            borderColor: confirmPassword && password !== confirmPassword ? '#EF4444' : '#E5E7EB',
+                          }}
+                          placeholder="Confirm password"
+                          placeholderTextColor="#9CA3AF"
+                          value={confirmPassword}
+                          onChangeText={(text) => {
+                            const sanitized = sanitizeInput(text);
+                            setConfirmPassword(sanitized);
+                          }}
+                          secureTextEntry={!showConfirmPassword}
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                          style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -10 }] }}
+                        >
+                          <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>
+                            {showConfirmPassword ? 'Hide' : 'Show'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {confirmPassword && password !== confirmPassword && (
+                        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                          Passwords do not match
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Glowing Animated Button */}
+                  <Animated.View 
+                    style={{ 
+                      marginBottom: 16,
+                      transform: [{ scale: buttonScaleAnim }],
                     }}
                   >
-                    {isLoading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={{ position: 'relative' }}>
+                      {/* Outer glow layers - multiple for more depth */}
+                      {!isButtonDisabled && (
+                        <>
+                          {/* Outermost glow */}
+                          <Animated.View
+                            style={{
+                              position: 'absolute',
+                              top: -12,
+                              left: -12,
+                              right: -12,
+                              bottom: -12,
+                              borderRadius: 24,
+                              opacity: glowOpacity,
+                              transform: [{ scale: glowScale }],
+                            }}
+                          >
+                            <LinearGradient
+                              colors={['rgba(124, 58, 237, 0.5)', 'rgba(59, 130, 246, 0.5)', 'rgba(147, 51, 234, 0.5)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{ flex: 1, borderRadius: 24 }}
+                            />
+                          </Animated.View>
+                          
+                          {/* Middle glow */}
+                          <Animated.View
+                            style={{
+                              position: 'absolute',
+                              top: -6,
+                              left: -6,
+                              right: -6,
+                              bottom: -6,
+                              borderRadius: 18,
+                              opacity: buttonGlowAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.6, 1],
+                              }),
+                            }}
+                          >
+                            <LinearGradient
+                              colors={['rgba(124, 58, 237, 0.8)', 'rgba(147, 51, 234, 0.8)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={{ flex: 1, borderRadius: 18 }}
+                            />
+                          </Animated.View>
+                        </>
+                      )}
 
-                {/* ✅ Continue with Google Button */}
-                {/* <TouchableOpacity
-                  onPress={() => promptAsync()}
-                  disabled={!request || isLoading}
-                  style={{
-                    backgroundColor: '#4285F4',
-                    borderRadius: 16,
-                    paddingVertical: 16,
-                    marginBottom: 24,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 5,
-                    opacity: isLoading ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 'bold',
-                      color: 'white',
-                      textAlign: 'center',
-                    }}
+                      {/* Actual button with animated gradient */}
+                      <TouchableOpacity
+                        onPress={handleAuth}
+                        onPressIn={handleButtonPressIn}
+                        onPressOut={handleButtonPressOut}
+                        disabled={isButtonDisabled}
+                        activeOpacity={0.9}
+                      >
+                        <LinearGradient
+                          colors={isButtonDisabled ? ['#D1D5DB', '#D1D5DB'] : ['#7C3AED', '#9333EA', '#7C3AED']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={{
+                            borderRadius: 12,
+                            paddingVertical: 16,
+                            shadowColor: isButtonDisabled ? '#000' : '#7C3AED',
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: isButtonDisabled ? 0.1 : 0.5,
+                            shadowRadius: 16,
+                            elevation: isButtonDisabled ? 2 : 12,
+                          }}
+                        >
+                          {showSuccess ? (
+                            <Animated.View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                opacity: successOpacityAnim,
+                                transform: [{ scale: successScaleAnim }],
+                              }}
+                            >
+                              <Check color="white" size={20} strokeWidth={3} />
+                              <Text
+                                style={{
+                                  fontSize: 18,
+                                  fontWeight: 'bold',
+                                  color: 'white',
+                                  textAlign: 'center',
+                                  letterSpacing: 0.5,
+                                }}
+                              >
+                                Success!
+                              </Text>
+                            </Animated.View>
+                          ) : (
+                            <Text
+                              style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: isButtonDisabled ? '#6B7280' : 'white',
+                                textAlign: 'center',
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              {isLoading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
+                            </Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+
+                  {/* Toggle between Sign In / Sign Up */}
+                  <TouchableOpacity 
+                    onPress={() => setIsLogin(!isLogin)} 
+                    style={{ alignItems: 'center' }}
                   >
-                    Continue with Google
-                  </Text>
-                </TouchableOpacity> */}
-
-                {/* Toggle between Sign In / Sign Up */}
-                <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, color: 'white', fontWeight: '600' }}>
-                    {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-                  </Text>
-                </TouchableOpacity>
+                    <Text style={{ fontSize: 16, color: '#7C3AED', fontWeight: '600' }}>
+                      {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  animatedGradientWeb: {},
+});
 
 export default AuthScreen;

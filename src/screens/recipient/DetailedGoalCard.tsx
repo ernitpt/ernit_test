@@ -355,7 +355,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         await notificationService.createNotification(
           updated.empoweredBy,
           'goal_progress',
-          `✅ ${recipientName} made progress on their goal`,
+          `✅ ${recipientName} made progress!`,
           `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}
 Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
           {

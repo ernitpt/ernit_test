@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppProvider } from './src/context/AppContext';
+import { AuthGuardProvider } from './src/context/AuthGuardContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
@@ -7,7 +8,10 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 export default function App() {
+  console.log('[App] Component mounting...');
+  
   useEffect(() => {
+    console.log('[App] useEffect running...');
     // Load Ionicons font on web
     Font.loadAsync(Ionicons.font);
     
@@ -47,6 +51,8 @@ export default function App() {
     }
   }, []);
 
+  console.log('[App] Rendering AppProvider and AppNavigator');
+  
   return (  
       <AppProvider>
         <AppNavigator />
