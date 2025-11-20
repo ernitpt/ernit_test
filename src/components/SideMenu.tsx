@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { getAuth, signOut } from 'firebase/auth';
+import { useApp } from '../context/AppContext';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 
 import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
+import LogoutConfirmation from './LogoutConfirmation';
+import LoginPrompt from './LoginPrompt';
 
 type SideMenuProps = {
   visible: boolean;
@@ -31,8 +35,13 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const navigation = useNavigation<NavigationProp>();
+  const { state } = useApp();
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  
+  const isAuthenticated = !!state.user;
 
   useEffect(() => {
     if (visible) {
@@ -65,30 +74,48 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   }, [visible]);
 
   const handleMenuPress = async (action: string) => {
-    onClose();
-
     switch (action) {
       case 'Redeem Coupon':
+        onClose();
         navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
         break;
 
       case 'Purchased Gifts':
+        onClose();
         navigation.navigate('PurchasedGifts');
         break;
 
       case 'Logout':
-        try {
-          const auth = getAuth();
-          await signOut(auth);
-        } catch (error) {
-          console.error('Logout failed:', error);
-          Alert.alert('Error', 'Failed to log out. Please try again.');
+        if (isAuthenticated) {
+          // Show confirmation popup immediately - don't close side menu yet
+          setShowLogoutConfirmation(true);
+        } else {
+          // User not authenticated - show login prompt
+          requireAuth('Please log in to access your account.');
         }
         break;
 
       default:
+        onClose();
         console.log(`${action} pressed`);
     }
+  };
+
+  const handleLogoutConfirm = async () => {
+    // Close side menu when confirming logout
+    onClose();
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirmation(false);
+    // Keep side menu open when canceling
   };
 
   // 🔹 Reusable menu item
@@ -110,60 +137,76 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     </TouchableOpacity>
   );
 
-  if (!visible) return null;
-
   return (
-    <View style={styles.container}>
-      {/* Overlay */}
-      <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
-      </TouchableWithoutFeedback>
+    <>
+      {visible && (
+        <View style={styles.container}>
+          {/* Overlay */}
+          <TouchableWithoutFeedback onPress={onClose}>
+            <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
+          </TouchableWithoutFeedback>
 
-      {/* Sliding panel */}
-      <Animated.View
-        style={[styles.menuPanel, { transform: [{ translateX: slideAnim }] }]}
-      >
-        <SafeAreaView style={styles.menuContent}>
-          {/* Header */}
-          <View style={styles.menuHeader}>
-            <Text style={styles.menuHeaderTitle}>Menu</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Sliding panel */}
+          <Animated.View
+            style={[styles.menuPanel, { transform: [{ translateX: slideAnim }] }]}
+          >
+            <SafeAreaView style={styles.menuContent}>
+              {/* Header */}
+              <View style={styles.menuHeader}>
+                <Text style={styles.menuHeaderTitle}>Menu</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>×</Text>
+                </TouchableOpacity>
+              </View>
 
-          {/* Menu list */}
-          <View style={styles.menuItemsContainer}>
-            {/* <MenuItem
-              Icon={SettingsIcon}
-              title="Settings"
-              onPress={() => handleMenuPress('Settings')}
-            /> */}
-            <MenuItem
-              Icon={RedeemIcon}
-              title="Redeem Coupon"
-              onPress={() => handleMenuPress('Redeem Coupon')}
-            />
-            <MenuItem
-              Icon={PurchaseIcon}
-              title="Purchased Gifts"
-              onPress={() => handleMenuPress('Purchased Gifts')}
-            />
-            <MenuItem
-              Icon={LogoutIcon}
-              title="Logout"
-              onPress={() => handleMenuPress('Logout')}
-              isLast
-            />
-          </View>
+              {/* Menu list */}
+              <View style={styles.menuItemsContainer}>
+                {/* <MenuItem
+                  Icon={SettingsIcon}
+                  title="Settings"
+                  onPress={() => handleMenuPress('Settings')}
+                /> */}
+                <MenuItem
+                  Icon={RedeemIcon}
+                  title="Redeem Coupon"
+                  onPress={() => handleMenuPress('Redeem Coupon')}
+                />
+                <MenuItem
+                  Icon={PurchaseIcon}
+                  title="Purchased Gifts"
+                  onPress={() => handleMenuPress('Purchased Gifts')}
+                />
+                <MenuItem
+                  Icon={LogoutIcon}
+                  title={isAuthenticated ? "Logout" : "Login"}
+                  onPress={() => handleMenuPress('Logout')}
+                  isLast
+                />
+              </View>
 
-          {/* Footer */}
-          <View style={styles.menuFooter}>
-            <Text style={styles.footerText}>Ernit App v1.0.0</Text>
-          </View>
-        </SafeAreaView>
-      </Animated.View>
-    </View>
+              {/* Footer */}
+              <View style={styles.menuFooter}>
+                <Text style={styles.footerText}>Ernit App v1.0.0</Text>
+              </View>
+            </SafeAreaView>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Logout Confirmation Popup - rendered outside side menu so it's always available */}
+      <LogoutConfirmation
+        visible={showLogoutConfirmation}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+      />
+
+      {/* Login Prompt - shown when not authenticated user tries to logout */}
+      <LoginPrompt
+        visible={showLoginPrompt}
+        onClose={closeLoginPrompt}
+        message={loginMessage}
+      />
+    </>
   );
 };
 

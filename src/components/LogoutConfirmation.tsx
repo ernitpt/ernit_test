@@ -10,26 +10,19 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-import { LogIn, UserPlus, X } from 'lucide-react-native';
+import { LogOut, X } from 'lucide-react-native';
 
-type LoginPromptNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-interface LoginPromptProps {
+interface LogoutConfirmationProps {
   visible: boolean;
   onClose: () => void;
-  message?: string;
+  onConfirm: () => void;
 }
 
-const LoginPrompt: React.FC<LoginPromptProps> = ({
+const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   visible,
   onClose,
-  message = 'Please log in to continue.',
+  onConfirm,
 }) => {
-  const navigation = useNavigation<LoginPromptNavigationProp>();
-  
   // Animation values - start at 0 for initial state
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -111,20 +104,14 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   }, [visible]);
 
   const handleClose = () => {
-    onClose(); // Just close the popup, don't navigate - animation handled by useEffect
+    onClose(); // Just close the popup - animation handled by useEffect
   };
 
-  const handleLogin = () => {
+  const handleConfirm = () => {
     handleClose();
+    // Small delay to let close animation start
     setTimeout(() => {
-      navigation.navigate('Auth', { mode: 'signin' });
-    }, 200);
-  };
-
-  const handleSignUp = () => {
-    handleClose();
-    setTimeout(() => {
-      navigation.navigate('Auth', { mode: 'signup' });
+      onConfirm();
     }, 200);
   };
 
@@ -207,15 +194,17 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
               />
             </View>
 
-            <Text style={styles.title}>Login</Text>
-            <Text style={styles.message}>{message}</Text>
+            <Text style={styles.title}>Logout Confirmation</Text>
+            <Text style={styles.message}>
+              Are you sure you want to log out? You'll need to sign in again to access your account.
+            </Text>
             
             {/* Buttons */}
             <View style={styles.buttonContainer}>
-              {/* Sign Up Button with gradient */}
+              {/* Confirm Logout Button with gradient */}
               <TouchableOpacity
                 style={styles.primaryButtonWrapper}
-                onPress={handleSignUp}
+                onPress={handleConfirm}
                 activeOpacity={0.9}
               >
                 <LinearGradient
@@ -224,30 +213,20 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryButton}
                 >
-                  <UserPlus color="white" size={20} strokeWidth={2.5} />
-                  <Text style={styles.primaryButtonText}>Sign Up</Text>
+                  <LogOut color="white" size={20} strokeWidth={2.5} />
+                  <Text style={styles.primaryButtonText}>Logout</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Login Button */}
+              {/* Cancel Button */}
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={handleLogin}
+                onPress={handleClose}
                 activeOpacity={0.8}
               >
-                <LogIn color="#7C3AED" size={20} strokeWidth={2.5} />
-                <Text style={styles.secondaryButtonText}>Log In</Text>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Cancel link */}
-            <TouchableOpacity
-              style={styles.cancelLink}
-              onPress={handleClose}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelLinkText}>Maybe later</Text>
-            </TouchableOpacity>
           </View>
         </Animated.View>
       </Animated.View>
@@ -261,10 +240,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    // Ensure proper centering on mobile
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalContainer: {
     width: '100%',
     maxWidth: 400,
+    // Ensure centered on all screen sizes
+    alignSelf: 'center',
   },
   modal: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -294,18 +281,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     marginBottom: 20,
-  },
-  iconGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   title: {
     fontSize: 28,
@@ -364,15 +339,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     letterSpacing: 0.3,
   },
-  cancelLink: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  cancelLinkText: {
-    color: '#9CA3AF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
 });
 
-export default LoginPrompt;
+export default LogoutConfirmation;
+

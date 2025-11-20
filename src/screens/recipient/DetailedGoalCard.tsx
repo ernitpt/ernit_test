@@ -71,6 +71,14 @@ function isGoalLocked(goal: Goal): boolean {
   return goal.approvalStatus === 'pending' || goal.approvalStatus === 'suggested_change';
 }
 
+// Helper to format target duration (e.g. "1 hr 30 min" or "45 min")
+function formatDurationDisplay(h: number = 0, m: number = 0) {
+  const parts = [];
+  if (h > 0) parts.push(`${h} hr`);
+  if (m > 0) parts.push(`${m} min`);
+  return parts.length > 0 ? parts.join(' ') : '0 min';
+}
+
 const COLORS = {
   purple: '#7C3AED',
   purpleDark: '#6D28D9',
@@ -262,6 +270,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const cancelAnim = useRef(new Animated.Value(0)).current;
   const cancelScale = useRef(new Animated.Value(0.9)).current;
+
+  // Calculate logic for duration and finishing
+  const totalGoalSeconds = useMemo(() => {
+    return (currentGoal.targetHours || 0) * 3600 + (currentGoal.targetMinutes || 0) * 60;
+  }, [currentGoal.targetHours, currentGoal.targetMinutes]);
+
+  // Logic: Can finish if elapsed time is >= 70% of total duration
+  // NOTE: If total seconds is 0 (undefined goal), we default to immediate finish to avoid locking
+  const canFinish = totalGoalSeconds > 0 
+    ? timeElapsed >= (totalGoalSeconds * 0.7)
+    : timeElapsed >= 2; 
+
   const handleFinish = async () => {
     if (!isTimerRunning || !canFinish || loading) return;
 
@@ -337,7 +357,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
         const hintToShow = pendingHint || "Keep going! You're doing great 💪";
-       
+        
         if (pendingHint) {
           const hintObj = { session: totalSessionsDone, hint: pendingHint, date: Date.now() };
           await goalService.appendHint(goalId, hintObj);
@@ -536,8 +556,6 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
   }, [currentGoal.empoweredBy]);
 
   // ========= Other Computations =========
-  const canFinish =
-    timeElapsed >= 2;//(goal.targetHours || 0) * 3600 + (goal.targetMinutes || 0) * 60;
 
   const weekDates = useMemo(() => {
     const start = currentGoal.weekStartAt ? new Date(currentGoal.weekStartAt) : new Date();
@@ -715,14 +733,21 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                     <Text style={styles.disabledStartText}>Waiting for approval</Text>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={styles.startButton}
-                    onPress={handleStart}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity
+                      style={styles.startButton}
+                      onPress={handleStart}
+                      disabled={loading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
+                    </TouchableOpacity>
+                    
+                    {/* SESSION TOTAL TIME TEXT BELOW BUTTON */}
+                    <Text style={styles.sessionDurationText}>
+                      Session duration: {formatDurationDisplay(currentGoal.targetHours, currentGoal.targetMinutes)}
+                    </Text>
+                  </View>
                 )}
               </>
             )
@@ -865,6 +890,12 @@ const styles = StyleSheet.create({
   },
   startButton: { backgroundColor: '#235c9eff', paddingVertical: 14, borderRadius: 12 },
   startButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  sessionDurationText: {
+    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 13,
+    textAlign: 'center',
+  },
   timerContainer: { alignItems: 'center' },
   timerText: { fontSize: 36, fontWeight: 'bold', color: '#111827', marginBottom: 16 },
   finishButton: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
