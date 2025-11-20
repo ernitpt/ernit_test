@@ -777,7 +777,11 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
+              <Text style={styles.sessionDurationText}>
+                Session duration: {formatDurationDisplay(currentGoal.targetHours, currentGoal.targetMinutes)}
+              </Text>
             </View>
+
           )}
         </View>
       </Pressable>
