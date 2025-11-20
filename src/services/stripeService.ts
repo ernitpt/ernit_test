@@ -1,5 +1,7 @@
 // services/stripeService.ts
 
+import { auth } from './firebase';
+
 const STRIPE_FUNCTIONS_URL = "https://europe-west1-ernit-3fc0b.cloudfunctions.net";
 
 export const stripeService = {
@@ -19,10 +21,19 @@ export const stripeService = {
     personalizedMessage?: string
   ): Promise<{ clientSecret: string; paymentIntentId: string }> => {
     try {
+      // Get the current user's ID token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("User not authenticated");
+      }
+
+      const idToken = await currentUser.getIdToken();
+
       const response = await fetch(`${STRIPE_FUNCTIONS_URL}/stripeCreatePaymentIntent_Test`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           amount,
@@ -41,11 +52,11 @@ export const stripeService = {
       }
 
       const data = await response.json();
-      
+
       // Extract payment intent ID from client secret
       // Format: pi_xxxxx_secret_yyyyy
       const paymentIntentId = data.clientSecret.split("_secret_")[0];
-      
+
       return {
         clientSecret: data.clientSecret,
         paymentIntentId,
@@ -102,7 +113,7 @@ export const stripeService = {
       }
 
       const gift = await response.json();
-      
+
       // Convert date strings to Date objects
       return {
         ...gift,

@@ -104,6 +104,7 @@ export interface ExperienceGift {
   claimedAt?: Date;
   completedAt?: Date;
   claimCode: string;
+  expiresAt?: Date; // ✅ Claim code expiration date
   partnerId?: string;
   paymentIntentId?: string;
   updatedAt?: Date;

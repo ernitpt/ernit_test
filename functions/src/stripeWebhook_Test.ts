@@ -2,13 +2,10 @@ import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
-import { db } from './index'; 
+import { db } from './index';
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET_TEST");
-
-// const db = admin.firestore();
-
 
 // ========== STRIPE WEBHOOK HANDLER ==========
 export const stripeWebhook_Test = onRequest(
@@ -109,63 +106,122 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     throw new Error("Cart is empty or invalid");
   }
 
-  // Check existing gifts to avoid duplicates
-  const existing = await db
-    .collection("experienceGifts")
-    .where("paymentIntentId", "==", paymentIntentId)
-    .get();
+  // ✅ Use transaction for idempotency
+  const processedRef = db.collection("processedPayments").doc(paymentIntentId);
 
-  if (!existing.empty) {
-    console.log("⚠️ Gifts already created for this PaymentIntent — returning existing");
-    return existing.docs.map((d) => d.data());
-  }
+  return await db.runTransaction(async (transaction) => {
+    const processedDoc = await transaction.get(processedRef);
 
-  // --- Create multiple experience gifts ---
-  const batch = db.batch();
-  const createdGifts: any[] = [];
+    if (processedDoc.exists) {
+      console.log("⚠️ Payment already processed - returning existing gifts");
+      const existingGiftIds = processedDoc.data()?.gifts || [];
 
-  for (const item of cart) {
-    const { experienceId, quantity } = item;
+      // Fetch and return existing gifts
+      const existingGifts = await Promise.all(
+        existingGiftIds.map(async (giftId: string) => {
+          const giftDoc = await db.collection("experienceGifts").doc(giftId).get();
+          return giftDoc.data();
+        })
+      );
 
-    // We create N gifts for quantity
-    for (let i = 0; i < quantity; i++) {
-      const id = db.collection("experienceGifts").doc().id;
-      const claimCode = generateClaimCode();
-
-      const newGift = {
-        id,
-        giverId: metadata.giverId,
-        giverName: metadata.giverName || "",
-        experienceId,
-        personalizedMessage: metadata.personalizedMessage || "",
-        partnerId: metadata.partnerId || "",
-        deliveryDate: admin.firestore.Timestamp.now(),
-        status: "pending",
-        payment: "paid",
-        paymentIntentId,
-        claimCode,
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
-      };
-
-      batch.set(db.collection("experienceGifts").doc(id), newGift);
-      createdGifts.push(newGift);
+      return existingGifts.filter(Boolean);
     }
-  }
 
-  await batch.commit();
-  console.log(`✅ Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
+    // --- Create multiple experience gifts ---
+    const createdGifts: any[] = [];
+    const batch = db.batch();
 
-  return createdGifts;
+    for (const item of cart) {
+      const { experienceId, quantity } = item;
+
+      // We create N gifts for quantity
+      for (let i = 0; i < quantity; i++) {
+        const id = db.collection("experienceGifts").doc().id;
+        const claimCode = await generateUniqueClaimCode();
+
+        // ✅ Set expiration date (30 days from now)
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+
+        const newGift = {
+          id,
+          giverId: metadata.giverId,
+          giverName: metadata.giverName || "",
+          experienceId,
+          personalizedMessage: metadata.personalizedMessage || "",
+          partnerId: metadata.partnerId || "",
+          deliveryDate: admin.firestore.Timestamp.now(),
+          status: "pending",
+          payment: "paid",
+          paymentIntentId,
+          claimCode,
+          expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+          createdAt: admin.firestore.Timestamp.now(),
+          updatedAt: admin.firestore.Timestamp.now(),
+        };
+
+        batch.set(db.collection("experienceGifts").doc(id), newGift);
+        createdGifts.push(newGift);
+      }
+    }
+
+    // Mark as processed
+    transaction.set(processedRef, {
+      processed: true,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      gifts: createdGifts.map(g => g.id),
+    });
+
+    await batch.commit();
+    console.log(`✅ Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
+
+    return createdGifts;
+  });
 }
 
 
 // ========== HELPER: GENERATE CLAIM CODE ==========
+/**
+ * Generate cryptographically secure claim code
+ * 12 characters = ~3.2 quadrillion combinations
+ */
 function generateClaimCode(): string {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  const crypto = require('crypto');
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+
+  // Generate 12 random characters
+  while (code.length < 12) {
+    const bytes = crypto.randomBytes(1);
+    const randomIndex = bytes[0] % chars.length;
+    code += chars[randomIndex];
   }
+
   return code;
+}
+
+/**
+ * Generate unique claim code with collision detection
+ */
+async function generateUniqueClaimCode(): Promise<string> {
+  const maxAttempts = 10;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const code = generateClaimCode();
+
+    // Check for existing code
+    const existing = await db
+      .collection('experienceGifts')
+      .where('claimCode', '==', code)
+      .limit(1)
+      .get();
+
+    if (existing.empty) {
+      return code;
+    }
+
+    console.warn(`⚠️ Claim code collision detected (attempt ${attempt + 1})`);
+  }
+
+  throw new Error('Failed to generate unique claim code after 10 attempts');
 }

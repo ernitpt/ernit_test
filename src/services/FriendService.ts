@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDocs, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  serverTimestamp 
+import {
+  collection,
+  doc,
+  addDoc,
+  getDocs,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { FriendRequest, Friend, UserSearchResult } from '../types';
@@ -45,7 +45,7 @@ export class FriendService {
         const name = (profile.name || '').toLowerCase();
         const country = (profile.country || '').toLowerCase();
 
-        const matches = 
+        const matches =
           displayName.includes(lowerSearch) ||
           name.includes(lowerSearch) ||
           country.includes(lowerSearch);
@@ -75,6 +75,26 @@ export class FriendService {
   }
 
   /**
+   * Check if user has exceeded friend request rate limit
+   * Limit: 10 requests per hour
+   */
+  private async checkRateLimit(userId: string): Promise<boolean> {
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+
+    const recentRequests = await getDocs(
+      query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', userId),
+        where('createdAt', '>=', new Date(oneHourAgo))
+      )
+    );
+
+    // Limit: 10 requests per hour
+    return recentRequests.size >= 10;
+  }
+
+  /**
    * 📤 Send a friend request (gracefully handles missing names)
    */
   async sendFriendRequest(
@@ -86,6 +106,12 @@ export class FriendService {
     senderProfileImageUrl?: string | null,
   ): Promise<string> {
     try {
+      // ✅ Check rate limit
+      const rateLimited = await this.checkRateLimit(senderId);
+      if (rateLimited) {
+        throw new Error('Rate limit exceeded. You can send up to 10 friend requests per hour. Please try again later.');
+      }
+
       // Graceful defaults for missing names
       senderName = senderName || 'Unknown';
       recipientName = recipientName || 'Unknown';
@@ -143,7 +169,7 @@ export class FriendService {
 
       const requestRef = doc(db, 'friendRequests', requestId);
       const requestDoc = await getDoc(requestRef);
-      
+
       if (!requestDoc.exists()) {
         throw new Error('Friend request not found');
       }
@@ -194,7 +220,7 @@ export class FriendService {
   // --- Remaining methods (getFriends, removeFriend, areFriends, etc.) ---
   async getPendingFriendRequests(userId: string): Promise<FriendRequest[]> {
     if (!userId) return [];
-    
+
     try {
       const requestsRef = collection(db, 'friendRequests');
       const q = query(
@@ -226,7 +252,7 @@ export class FriendService {
 
   async getSentFriendRequests(userId: string): Promise<FriendRequest[]> {
     if (!userId) return [];
-    
+
     const requestsRef = collection(db, 'friendRequests');
     const q = query(
       requestsRef,
@@ -245,7 +271,7 @@ export class FriendService {
 
   async getFriends(userId: string): Promise<Friend[]> {
     if (!userId) return [];
-    
+
     const friendsRef = collection(db, 'friends');
     const q = query(friendsRef, where('userId', '==', userId));
     const snap = await getDocs(q);
@@ -254,13 +280,13 @@ export class FriendService {
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date(),
     })) as Friend[];
-    
+
     return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async removeFriend(userId: string, friendId: string): Promise<void> {
     if (!userId || !friendId) return;
-    
+
     try {
       const friendsRef = collection(db, 'friends');
       const [userToFriend, friendToUser] = await Promise.all([
@@ -322,7 +348,7 @@ export class FriendService {
 
   private async addFriend(userId: string, friendId: string, friendName: string, friendProfileImageUrl?: string | null) {
     if (!userId || !friendId || !friendName) return;
-    
+
     try {
       await addDoc(collection(db, 'friends'), {
         userId,
@@ -343,7 +369,7 @@ export class FriendService {
     const q = query(friendsRef, where('userId', '==', userId));
     const snap = await getDocs(q);
     return snap.size;
-     } 
   }
+}
 
 export const friendService = FriendService.getInstance();

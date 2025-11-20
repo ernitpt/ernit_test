@@ -1,9 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read;
-      allow write: if request.auth != null;
+    // User profile images and files
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024  // 5MB limit
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Partner files
+    match /partners/{partnerId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && request.auth.uid == partnerId
+        && request.resource.size < 10 * 1024 * 1024;  // 10MB limit
+    }
+    
+    // Experience images (admin only)
+    match /experiences/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true;
     }
   }
   match /databases/{database}/documents {
@@ -94,25 +113,59 @@ service cloud.firestore {
     match /goals/{goalId} {
       allow read: if request.auth != null;
 
+      /* ===============================
+         RECEIVER PERMISSIONS
+         =============================== */
+
+      // Receiver can CREATE their own goal
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.userId;
 
-      allow update, delete: if request.auth != null
-        && request.auth.uid == resource.data.userId;
+        // ===== Allow updates =====
+      allow update: if request.auth != null && (
 
-      // Nested sessions
+        // (1) Receiver updating their own goal
+        request.auth.uid == resource.data.userId
+
+        ||
+
+              // Giver can ONLY update approval-related fields
+        request.auth.uid == resource.data.empoweredBy
+        && request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly([
+              'approvalStatus',
+              'suggestedTargetCount',
+              'suggestedSessionsPerWeek',
+              'giverMessage',
+              'giverActionTaken',
+              'approvalRequestedAt',
+              'approvalDeadline',
+              'updatedAt'
+            ])
+      );
+
+      /* ===============================
+         BLOCK DELETES
+         =============================== */
+      allow delete: if false;
+
+      /* ===============================
+         NESTED SESSIONS
+         =============================== */
       match /sessions/{sessionId} {
-        allow read, write, update, delete: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        allow read, write: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
       }
 
-      // Nested hints (per-goal)
+      /* ===============================
+         NESTED HINTS
+         =============================== */
       match /hints/{hintId} {
-        allow read, write, update, delete: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        allow read, write: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
       }
     }
-
+    
     /** =====================
      * 🧩 GOAL SESSIONS (alt structure)
      * ===================== **/
@@ -129,14 +182,45 @@ service cloud.firestore {
      * 🎁 EXPERIENCE GIFTS
      * ===================== **/
     match /experienceGifts/{giftId} {
-      allow read, write: if request.auth != null;
+      // List: allow authenticated users to query (for viewing own gifts and claiming)
+      // Queries include: where('giverId', '==', userId) and where('claimCode', '==', code)
+      allow list: if request.auth != null;
+      
+      // Get: giver, recipient, or pending gifts without a recipient (for claiming)
+      allow get: if request.auth != null && (
+        request.auth.uid == resource.data.giverId ||
+        request.auth.uid == resource.data.recipientId ||
+        (resource.data.status == 'pending' && !('recipientId' in resource.data))
+      );
+      
+      // Create: only via cloud functions (server-side)
+      allow create: if false;
+      
+      // Update: allow recipient to update their gift, OR allow claiming pending gifts
+      allow update: if request.auth != null && (
+        // Existing recipient updating their gift
+        (request.auth.uid == resource.data.recipientId &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['status', 'claimedAt', 'claimedBy', 'updatedAt']))
+        ||
+        // Claiming a pending gift (setting recipientId for the first time)
+        (resource.data.status == 'pending' &&
+         !('recipientId' in resource.data) &&
+         request.resource.data.recipientId == request.auth.uid &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['status', 'recipientId', 'claimedAt', 'claimedBy', 'updatedAt']))
+      );
+      
+      // Delete: never allowed from client
+      allow delete: if false;
     }
 
     /** =====================
      * 💡 HINTS (flat collection)
      * ===================== **/
     match /hints/{hintId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
     }
 
     /** =====================
@@ -179,7 +263,8 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read, update, delete: if request.auth != null &&
         request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId;
     }
 
     /** =====================
@@ -187,14 +272,19 @@ service cloud.firestore {
      * ===================== **/
     match /experiences/{experienceId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner';
     }
 
     /** =========================================================
      * 💌 PARTNER INVITES
      * ========================================================= **/
       match /partnerInvites/{inviteId} {
-        allow read: if true;
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true ||
+          resource.data.email == request.auth.token.email
+        );
 
         allow create: if request.auth != null
           && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true

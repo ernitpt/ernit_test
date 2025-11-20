@@ -71,7 +71,11 @@ const GoalSettingScreen = () => {
       const snap = await getDocs(qGift);
       if (snap.empty) return;
       const giftDoc = snap.docs[0];
-      await updateDoc(doc(db, 'experienceGifts', giftDoc.id), { status: 'claimed' });
+      await updateDoc(doc(db, 'experienceGifts', giftDoc.id), {
+        status: 'claimed',
+        recipientId: state.user?.id,
+        claimedAt: new Date(),
+      });
     } catch (e) {
       console.error('updateGiftStatus error', e);
     }
@@ -113,7 +117,7 @@ const GoalSettingScreen = () => {
       Alert.alert('Error', 'Please complete all fields before continuing.');
       return;
     }
-    
+
     // Validate limits: 5 weeks max, 7 sessions/week max
     const totalWeeks = durationUnit === 'weeks' ? durationNum : durationNum * 4;
     if (totalWeeks > 5) {
@@ -151,7 +155,7 @@ const GoalSettingScreen = () => {
       const durationInDays = totalWeeks * 7;
       const endDate = new Date(now);
       endDate.setDate(now.getDate() + durationInDays);
-      
+
       // Set approval deadline to 24 hours from now
       const approvalDeadline = new Date(now);
       approvalDeadline.setHours(approvalDeadline.getHours() + 24);
@@ -294,7 +298,7 @@ const GoalSettingScreen = () => {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Set Your Goal ✨</Text>
           <Text style={styles.headerSubtitle}>Choose your goal category to get started</Text>
-          
+
         </View>
       </LinearGradient>
       <ScrollView style={{ flex: 1, padding: 20 }} >
@@ -344,7 +348,7 @@ const GoalSettingScreen = () => {
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }, showDurationWarning && { borderColor: '#d48a1b' }] }
+                style={[styles.input, { flex: 1, marginRight: 8 }, showDurationWarning && { borderColor: '#d48a1b' }]}
                 placeholder="Total"
                 value={duration}
                 onChangeText={(t) => {
@@ -433,7 +437,7 @@ const GoalSettingScreen = () => {
 
           {showSessionsWarning && (
             <Text style={styles.limitedNotice}>
-            You can’t plan more than <Text style={{ fontWeight: 'bold' }}>7 sessions</Text> per week.
+              You can’t plan more than <Text style={{ fontWeight: 'bold' }}>7 sessions</Text> per week.
             </Text>
           )}
         </View>
@@ -478,7 +482,7 @@ const GoalSettingScreen = () => {
 
                   if (h > 3 || (h === 3 && m > 0)) setShowTimeWarning(true);
                   else setShowTimeWarning(false);
-                  
+
                   // Clamp minutes to 0–59
                   if (m > 59) m = 59;
                   setMinutes(m.toString());
@@ -508,75 +512,75 @@ const GoalSettingScreen = () => {
           </Text>
         </View>
 
-        <View style={ { paddingBottom: 30 }}>
+        <View style={{ paddingBottom: 30 }}>
           <TouchableOpacity onPress={handleNext} style={styles.nextButton} activeOpacity={0.85}>
             <Text style={styles.nextButtonText}>Next</Text>
           </TouchableOpacity>
         </View>
 
 
-  </ScrollView>
+      </ScrollView>
 
-  {/* Confirmation Modal */}
-  {showConfirm && (
-    <Animated.View
-      style={[
-        styles.modalOverlay,
-        { opacity: modalAnim, transform: [{ scale: modalScale }] },
-      ]}
-    >
-      <View style={styles.modalBox}>
-        <Text style={styles.modalTitle}>Confirm Your Goal</Text>
-        <Text style={styles.modalSubtitle}>
-          Make sure everything looks right before we set it in motion.
-        </Text>
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <Animated.View
+          style={[
+            styles.modalOverlay,
+            { opacity: modalAnim, transform: [{ scale: modalScale }] },
+          ]}
+        >
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Confirm Your Goal</Text>
+            <Text style={styles.modalSubtitle}>
+              Make sure everything looks right before we set it in motion.
+            </Text>
 
-        <View style={styles.modalDetails}>
-          <Text style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Goal:</Text> {selectedCategory}
-          </Text>
-          <Text style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Duration: </Text>
-            {duration} {durationUnit}
-          </Text>
-          <Text style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Sessions/week: </Text>
-            {sessionsPerWeek}
-          </Text>
-          <Text style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Per session: </Text>
-            {hours || '0'}h {minutes || '0'}m
-          </Text>
-        </View>
+            <View style={styles.modalDetails}>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Goal:</Text> {selectedCategory}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Duration: </Text>
+                {duration} {durationUnit}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Sessions/week: </Text>
+                {sessionsPerWeek}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Per session: </Text>
+                {hours || '0'}h {minutes || '0'}m
+              </Text>
+            </View>
 
-        <View style={styles.modalButtons}>
-          <TouchableOpacity
-            onPress={closeModal}
-            style={[styles.modalButton, styles.cancelButton]}
-            activeOpacity={0.8}
-            disabled={isSubmitting} // disable while submitting
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={closeModal}
+                style={[styles.modalButton, styles.cancelButton]}
+                activeOpacity={0.8}
+                disabled={isSubmitting} // disable while submitting
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
 
-        <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
-          <TouchableOpacity
-            onPress={confirmCreateGoal}
-            style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
-            activeOpacity={0.8}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.confirmText}>Confirm</Text>
-            )}
-          </TouchableOpacity>
+              <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                <TouchableOpacity
+                  onPress={confirmCreateGoal}
+                  style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                  activeOpacity={0.8}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.confirmText}>Confirm</Text>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </View>
         </Animated.View>
-        </View>
-      </View>
-    </Animated.View>
-  )}
+      )}
 
 
     </MainScreen>
@@ -639,7 +643,7 @@ const styles = StyleSheet.create({
   },
 
   row: { flexDirection: 'row', alignItems: 'center' },
- 
+
   limitedNotice: {
     color: '#d48a1bff', // red-600
     fontSize: 13,
@@ -671,109 +675,109 @@ const styles = StyleSheet.create({
   nextButton: { backgroundColor: '#8b5cf6', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   nextButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
   modalOverlay: {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: 'rgba(0,0,0,0.45)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 24,
-  zIndex: 999,
-},
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 999,
+  },
 
-modalBox: {
-  backgroundColor: '#fff',
-  borderRadius: 20,
-  width: '90%',
-  maxWidth: 360,
-  paddingVertical: 24,
-  paddingHorizontal: 20,
-  shadowColor: '#000',
-  shadowOpacity: 0.15,
-  shadowRadius: 12,
-  elevation: 8,
-  alignItems: 'center',
-},
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxWidth: 360,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center',
+  },
 
-modalTitle: {
-  fontSize: 20,
-  fontWeight: '700',
-  color: '#4c1d95',
-  marginBottom: 8,
-},
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#4c1d95',
+    marginBottom: 8,
+  },
 
-modalSubtitle: {
-  fontSize: 14,
-  color: '#6b7280',
-  marginBottom: 20,
-  textAlign: 'center',
-},
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
 
-modalGoal: {
-  fontSize: 15,
-  fontWeight: '500',
-  color: '#0e0718ff',
-  textAlign: 'center',
-  marginBottom: 10,
-},
+  modalGoal: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#0e0718ff',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
 
-modalDetails: {
-  width: '100%',
-  backgroundColor: '#f9fafb',
-  borderRadius: 12,
-  paddingVertical: 12,
-  paddingHorizontal: 16,
-  marginBottom: 20,
-  borderWidth: 1,
-  borderColor: '#e5e7eb',
-},
+  modalDetails: {
+    width: '100%',
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
 
-modalRow: {
-  fontSize: 15,
-  color: '#374151',
-  marginBottom: 4,
-},
+  modalRow: {
+    fontSize: 15,
+    color: '#374151',
+    marginBottom: 4,
+  },
 
-modalLabel: {
-  fontWeight: '600',
-  color: '#6d28d9',
-},
+  modalLabel: {
+    fontWeight: '600',
+    color: '#6d28d9',
+  },
 
-modalButtons: {
-  flexDirection: 'row',
-  width: '100%',
-  justifyContent: 'space-between',
-  gap: 10,
-},
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
 
-modalButton: {
-  flex: 1,
-  paddingVertical: 12,
-  borderRadius: 12,
-  alignItems: 'center',
-},
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
 
-cancelButton: {
-  backgroundColor: '#f3f4f6',
-},
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+  },
 
-confirmButton: {
-  backgroundColor: '#7c3aed',
-},
+  confirmButton: {
+    backgroundColor: '#7c3aed',
+  },
 
-cancelText: {
-  color: '#374151',
-  fontWeight: '600',
-  fontSize: 16,
-},
+  cancelText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 
-confirmText: {
-  color: '#fff',
-  fontWeight: '600',
-  fontSize: 16,
-},
+  confirmText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 
 });
 

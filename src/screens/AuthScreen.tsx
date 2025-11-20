@@ -51,11 +51,11 @@ const AuthScreen = () => {
   const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   // Success animation
   const successScaleAnim = useRef(new Animated.Value(0)).current;
   const successOpacityAnim = useRef(new Animated.Value(0)).current;
-  
+
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -66,19 +66,19 @@ const AuthScreen = () => {
 
   // Animated gradient for background
   const gradientAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Button glow animation - pulsing effect
   const buttonGlowAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Button press animation
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
-  
+
   // Card glow animation
   const cardGlowAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Button gradient animation - shifts colors
   const buttonGradientAnim = useRef(new Animated.Value(0)).current;
-  
+
   useEffect(() => {
     // Animate background gradient
     Animated.loop(
@@ -95,7 +95,7 @@ const AuthScreen = () => {
         }),
       ])
     ).start();
-    
+
     // Animate button glow - slower, more dramatic pulse
     Animated.loop(
       Animated.sequence([
@@ -111,7 +111,7 @@ const AuthScreen = () => {
         }),
       ])
     ).start();
-    
+
     // Animate card glow
     Animated.loop(
       Animated.sequence([
@@ -127,7 +127,7 @@ const AuthScreen = () => {
         }),
       ])
     ).start();
-    
+
     // Animate button gradient colors
     Animated.loop(
       Animated.sequence([
@@ -176,7 +176,7 @@ const AuthScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // Password validation state
   const [passwordChecks, setPasswordChecks] = useState({
     minLength: false,
@@ -185,18 +185,21 @@ const AuthScreen = () => {
     hasNumber: false,
     hasSpecialChar: false,
   });
-  
+
   // Email validation state
   const [emailError, setEmailError] = useState('');
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   const redirectUri = "https://auth.expo.io/@ernit/ernit";
 
+  // ✅ Use environment variable for Google Client ID
+  const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "806487127981-ob9oap6pvjhpm4leik8qjt8e994jeckt.apps.googleusercontent.com";
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: "806487127981-ob9oap6pvjhpm4leik8qjt8e994jeckt.apps.googleusercontent.com",
+    clientId: GOOGLE_CLIENT_ID,
     redirectUri,
   });
-  
+
   useEffect(() => {
     if (response?.type === 'success') {
       setIsLoading(true);
@@ -264,11 +267,31 @@ const AuthScreen = () => {
   }, [response]);
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  
-  const sanitizeInput = (input: string) => {
-    return input.trim().replace(/[<>]/g, '');
+
+  /**
+   * ✅ Comprehensive input sanitization
+   * Removes HTML tags, limits length, handles special characters
+   */
+  const sanitizeInput = (input: string, maxLength: number = 500): string => {
+    if (!input) return '';
+
+    let sanitized = input.trim();
+
+    // Remove HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+
+    // Remove potentially dangerous characters
+    sanitized = sanitized.replace(/[<>\"'`]/g, '');
+
+    // Normalize whitespace
+    sanitized = sanitized.replace(/\s+/g, ' ');
+
+    // Limit length
+    sanitized = sanitized.substring(0, maxLength);
+
+    return sanitized;
   };
-  
+
   const validatePasswordStrength = (pwd: string) => {
     const checks = {
       minLength: pwd.length >= 8,
@@ -280,17 +303,17 @@ const AuthScreen = () => {
     setPasswordChecks(checks);
     return Object.values(checks).every(check => check === true);
   };
-  
+
   const isPasswordValid = () => {
     return Object.values(passwordChecks).every(check => check === true);
   };
-  
+
   const checkEmailExists = async (emailToCheck: string) => {
     if (!validateEmail(emailToCheck)) {
       setEmailError('');
       return false;
     }
-    
+
     setIsCheckingEmail(true);
     try {
       const methods = await fetchSignInMethodsForEmail(auth, emailToCheck);
@@ -310,18 +333,18 @@ const AuthScreen = () => {
       return false;
     }
   };
-  
+
   const handleEmailChange = async (text: string) => {
     const sanitized = sanitizeInput(text);
     setEmail(sanitized);
-    
+
     if (sanitized && !isLogin) {
       await checkEmailExists(sanitized);
     } else {
       setEmailError('');
     }
   };
-  
+
   const handlePasswordChange = (text: string) => {
     const sanitized = sanitizeInput(text);
     setPassword(sanitized);
@@ -329,7 +352,7 @@ const AuthScreen = () => {
       validatePasswordStrength(sanitized);
     }
   };
-  
+
   const handleDisplayNameChange = (text: string) => {
     const sanitized = sanitizeInput(text);
     setDisplayName(sanitized);
@@ -340,7 +363,7 @@ const AuthScreen = () => {
     const sanitizedPassword = sanitizeInput(password);
     const sanitizedDisplayName = sanitizeInput(displayName);
     const sanitizedConfirmPassword = sanitizeInput(confirmPassword);
-    
+
     if (!sanitizedEmail || !sanitizedPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -349,7 +372,7 @@ const AuthScreen = () => {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-    
+
     if (!isLogin) {
       if (!sanitizedDisplayName.trim()) {
         Alert.alert('Error', 'Please enter your name');
@@ -496,33 +519,33 @@ const AuthScreen = () => {
   return (
     <View style={{ flex: 1 }}>
       {/* Base gradient */}
-      <LinearGradient 
-        colors={['#7C3AED', '#3B82F6']} 
-        start={{ x: 0, y: 0 }} 
+      <LinearGradient
+        colors={['#7C3AED', '#3B82F6']}
+        start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
-      
+
       {/* Animated overlay gradient */}
-      <Animated.View 
-        style={{ 
-          flex: 1, 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
+      <Animated.View
+        style={{
+          flex: 1,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
           bottom: 0,
           opacity: gradientAnim,
         }}
       >
-        <LinearGradient 
-          colors={['#9333EA', '#2563EB', '#3B82F6']} 
-          start={{ x: 0, y: 0 }} 
+        <LinearGradient
+          colors={['#9333EA', '#2563EB', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{ flex: 1 }}
         />
       </Animated.View>
-      
+
       <SafeAreaView style={{ flex: 1, zIndex: 1, backgroundColor: 'transparent' }}>
         <StatusBar style="light" />
         <KeyboardAvoidingView
@@ -556,9 +579,9 @@ const AuthScreen = () => {
                 <ChevronLeft color="white" size={24} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 60 }}>
-              
+
               {/* Logo */}
               <View style={{ marginBottom: 40, alignItems: 'center' }}>
                 <Image
@@ -600,7 +623,7 @@ const AuthScreen = () => {
                   />
                 </Animated.View>
 
-                <View style={{ 
+                <View style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.95)',
                   borderRadius: 24,
                   padding: 24,
@@ -788,8 +811,8 @@ const AuthScreen = () => {
                   )}
 
                   {/* Glowing Animated Button */}
-                  <Animated.View 
-                    style={{ 
+                  <Animated.View
+                    style={{
                       marginBottom: 16,
                       transform: [{ scale: buttonScaleAnim }],
                     }}
@@ -818,7 +841,7 @@ const AuthScreen = () => {
                               style={{ flex: 1, borderRadius: 24 }}
                             />
                           </Animated.View>
-                          
+
                           {/* Middle glow */}
                           <Animated.View
                             style={{
@@ -909,8 +932,8 @@ const AuthScreen = () => {
                   </Animated.View>
 
                   {/* Toggle between Sign In / Sign Up */}
-                  <TouchableOpacity 
-                    onPress={() => setIsLogin(!isLogin)} 
+                  <TouchableOpacity
+                    onPress={() => setIsLogin(!isLogin)}
                     style={{ alignItems: 'center' }}
                   >
                     <Text style={{ fontSize: 16, color: '#7C3AED', fontWeight: '600' }}>
