@@ -30,7 +30,7 @@ interface DetailedGoalCardProps {
   onFinish?: (goal: Goal) => void;
 }
 
-const DEBUG_ALLOW_MULTIPLE_PER_DAY = true;
+const DEBUG_ALLOW_MULTIPLE_PER_DAY = false;
 const TIMER_STORAGE_KEY = 'goal_timer_state_';
 
 function isoDay(d: Date) {
@@ -278,9 +278,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Logic: Can finish if elapsed time is >= 70% of total duration
   // NOTE: If total seconds is 0 (undefined goal), we default to immediate finish to avoid locking
-  const canFinish = totalGoalSeconds > 0 
+  const canFinish = totalGoalSeconds > 0
     ? timeElapsed >= (totalGoalSeconds * 0.7)
-    : timeElapsed >= 2; 
+    : timeElapsed >= 2;
 
   const handleFinish = async () => {
     if (!isTimerRunning || !canFinish || loading) return;
@@ -291,7 +291,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     // Check approval status and prevent cheating
     if (isGoalLocked(currentGoal)) {
       const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
-      
+
       // Special case: 1 day and 1 session per week goals cannot be completed until approved
       if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
@@ -300,7 +300,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         Alert.alert('Goal Not Approved', message);
         return;
       }
-      
+
       // For other goals: Allow first session, but prevent subsequent sessions if not approved
       if (sessionsDoneBeforeFinish >= 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
@@ -332,7 +332,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         (updated.currentCount * updated.sessionsPerWeek) + (updated.weeklyLogDates?.length || 0);
 
       setLastSessionNumber(totalSessionsDone);
-      
+
       // Clear timer state
       setIsTimerRunning(false);
       setStartTime(null);
@@ -357,7 +357,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
         const hintToShow = pendingHint || "Keep going! You're doing great 💪";
-        
+
         if (pendingHint) {
           const hintObj = { session: totalSessionsDone, hint: pendingHint, date: Date.now() };
           await goalService.appendHint(goalId, hintObj);
@@ -394,68 +394,68 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
       setLoading(false);
     }
   };
-  
-    const handleStart = async () => {
-      console.log(currentGoal.approvalStatus, currentGoal.targetCount, currentGoal.sessionsPerWeek, currentGoal.weeklyCount);
 
-      if (isTimerRunning || loading) return;
-  
-      const goalId = currentGoal.id;
-      if (!goalId) return;
-      // Prevent starting session for 1 day/1 week goals when approval is pending or suggested change
-      if (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
-        const message = currentGoal.approvalStatus === 'suggested_change'
-          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting a session.'
-          : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
-        Alert.alert('Goal Not Approved', message);
-        return;
+  const handleStart = async () => {
+    console.log(currentGoal.approvalStatus, currentGoal.targetCount, currentGoal.sessionsPerWeek, currentGoal.weeklyCount);
+
+    if (isTimerRunning || loading) return;
+
+    const goalId = currentGoal.id;
+    if (!goalId) return;
+    // Prevent starting session for 1 day/1 week goals when approval is pending or suggested change
+    if (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
+      const message = currentGoal.approvalStatus === 'suggested_change'
+        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting a session.'
+        : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
+      Alert.alert('Goal Not Approved', message);
+      return;
+    }
+    // Prevent starting session when goal is locked and weekly count is already 1
+    if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
+      const message = currentGoal.approvalStatus === 'suggested_change'
+        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting another session.'
+        : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
+      Alert.alert('Goal Not Approved', message);
+      return;
+    }
+    setLoading(true);
+    const now = Date.now();
+    setStartTime(now);
+    setTimeElapsed(0);
+    setPendingHint(null);
+    setIsTimerRunning(true);
+
+    try {
+      const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+      const experience = await experienceService.getExperienceById(gift.experienceId);
+      const recipientName = await userService.getUserName(currentGoal.userId);
+
+      const totalSessionsDone =
+        (currentGoal.currentCount * currentGoal.sessionsPerWeek) +
+        (currentGoal.weeklyLogDates?.length || 0);
+      const totalSessions = currentGoal.sessionsPerWeek * currentGoal.targetCount;
+
+      if (totalSessionsDone != totalSessions) {
+        const hint = await aiHintService.generateHint({
+          goalId,
+          experienceType: experience?.title || 'experience',
+          sessionNumber: totalSessionsDone + 1,
+          totalSessions,
+          userName: recipientName || undefined,
+        });
+
+        setPendingHint(hint);
       }
-      // Prevent starting session when goal is locked and weekly count is already 1
-      if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
-        const message = currentGoal.approvalStatus === 'suggested_change'
-          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting another session.'
-          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
-        Alert.alert('Goal Not Approved', message);
-        return;
-      }
-      setLoading(true);
-      const now = Date.now();
-      setStartTime(now);
-      setTimeElapsed(0);
-      setPendingHint(null);
-      setIsTimerRunning(true);
-  
-      try {
-        const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
-        const experience = await experienceService.getExperienceById(gift.experienceId);
-        const recipientName = await userService.getUserName(currentGoal.userId);
-  
-        const totalSessionsDone =
-          (currentGoal.currentCount * currentGoal.sessionsPerWeek) +
-          (currentGoal.weeklyLogDates?.length || 0);
-        const totalSessions = currentGoal.sessionsPerWeek * currentGoal.targetCount;
-        
-        if (totalSessionsDone != totalSessions) {
-          const hint = await aiHintService.generateHint({
-            goalId,
-            experienceType: experience?.title || 'experience',
-            sessionNumber: totalSessionsDone + 1,
-            totalSessions,
-            userName: recipientName || undefined,
-          });
-  
-          setPendingHint(hint);
-        }
-  
-      } catch (err) {
-        console.warn('Hint pre-generation failed:', err);
-        setIsTimerRunning(false);
-        setStartTime(null);
-        Alert.alert('Error', 'Could not start the session timer. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+
+    } catch (err) {
+      console.warn('Hint pre-generation failed:', err);
+      setIsTimerRunning(false);
+      setStartTime(null);
+      Alert.alert('Error', 'Could not start the session timer. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ========= Helpers & Animations =========
   const onPressIn = () =>
@@ -551,7 +551,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
 
   useEffect(() => {
     if (currentGoal.empoweredBy) {
-      userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => {});
+      userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => { });
     }
   }, [currentGoal.empoweredBy]);
 
@@ -711,24 +711,24 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                       {currentGoal.approvalStatus === 'suggested_change'
                         ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications.'
                         : currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1
-                        ? 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
-                        : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'}
+                          ? 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
+                          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'}
                     </Text>
                   </View>
                 )}
                 {/* Approval Status Message - Show only once above start button when locked and one session done */}
                 {isGoalLocked(currentGoal) && totalSessionsDone === 1 && (
-                  <View style={[styles.approvalMessageBox , { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
+                  <View style={[styles.approvalMessageBox, { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
                     <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
-                    {currentGoal.approvalStatus === 'suggested_change'
-                      ? '🎉 Congrats on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.'
-                      : '🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).'}
+                      {currentGoal.approvalStatus === 'suggested_change'
+                        ? '🎉 Congrats on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.'
+                        : '🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).'}
                     </Text>
                   </View>
                 )}
                 {/* Disable start button for 1 day/1 week goals when approval is pending or suggested change */}
-                {(isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) 
-                || (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) ? (
+                {(isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1)
+                  || (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) ? (
                   <View style={styles.disabledStartContainer}>
                     <Text style={styles.disabledStartText}>Waiting for approval</Text>
                   </View>
@@ -742,7 +742,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                     >
                       <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
                     </TouchableOpacity>
-                    
+
                     {/* SESSION TOTAL TIME TEXT BELOW BUTTON */}
                     <Text style={styles.sessionDurationText}>
                       Session duration: {formatDurationDisplay(currentGoal.targetHours, currentGoal.targetMinutes)}

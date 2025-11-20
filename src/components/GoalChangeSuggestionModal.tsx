@@ -34,7 +34,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   // Calculate min values (30% above initial, same as before)
   const minWeeks = Math.ceil(initialWeeks + (suggestedWeeks - initialWeeks) * 0.3);
   const minSessions = Math.ceil(initialSessions + (suggestedSessions - initialSessions) * 0.3);
-  
+
   // Max values: 5 weeks and 7 sessions per week (logical limits)
   const maxWeeks = 5;
   const maxSessions = 7;
@@ -96,7 +96,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       setError('Goal information is missing. Please try again.');
       return;
     }
-    
+
     // Validate limits
     if (selectedWeeks > 5) {
       setError('The maximum duration is 5 weeks.');
@@ -106,7 +106,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       setError('The maximum is 7 sessions per week.');
       return;
     }
-    
+
     setError(null);
     setLoading(true);
     try {
@@ -150,21 +150,21 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Goal Change Suggestion</Text>
-            
-            {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Goal Change Suggestion</Text>
 
-            {goal?.giverMessage && (
-              <View style={styles.messageBox}>
-                <Text style={styles.messageLabel}>Message from giver:</Text>
-                <Text style={styles.messageText}>{goal.giverMessage}</Text>
-              </View>
-            )}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {goal?.giverMessage && (
+            <View style={styles.messageBox}>
+              <Text style={styles.messageLabel}>Message from giver:</Text>
+              <Text style={styles.messageText}>{goal.giverMessage}</Text>
+            </View>
+          )}
 
           <View style={styles.goalInfo}>
             <Text style={styles.infoLabel}>Your original goal:</Text>
@@ -185,10 +185,10 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
             <Text style={styles.selectorValue}>
               {selectedWeeks} weeks, {selectedSessions} sessions per week
             </Text>
-            
+
             <View style={styles.rangeInfo}>
               <Text style={styles.rangeText}>
-                Range: {minWeeks}-{maxWeeks} weeks (max 5), {minSessions}-{maxSessions} sessions/week (max 7)
+                Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
               </Text>
             </View>
 

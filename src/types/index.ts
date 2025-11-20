@@ -145,7 +145,7 @@ export interface Goal {
   completedAt?: Date;
   revealedAt?: Date;
   segments: GoalSegment[];
-    hints?: {
+  hints?: {
     session: number;
     hint: string;
     date: number; // timestamp
@@ -219,7 +219,7 @@ export interface Notification {
   message: string;
   type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response';
   read: boolean;
-  createdAt:  Date | Timestamp;
+  createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
   data?: {
     giftId?: string;
@@ -290,7 +290,7 @@ export type GiverStackParamList = {
 };
 
 export type RecipientStackParamList = {
-  CouponEntry: undefined;
+  CouponEntry: { code?: string } | undefined;
   GoalSetting: { experienceGift: ExperienceGift };
   Roadmap: { goal: Goal };
   Goals: undefined;

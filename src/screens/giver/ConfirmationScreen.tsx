@@ -51,9 +51,9 @@ const ConfirmationScreen = () => {
       }),
     ]).start();
 
-    
+
   }, []);
-  
+
   const [experience, setExperience] = useState<any>(null);
 
   useEffect(() => {
@@ -126,7 +126,7 @@ const ConfirmationScreen = () => {
   const experienceImage = Array.isArray(experience.imageUrl)
     ? experience.imageUrl[0]
     : experience.imageUrl;
-    
+
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="dark" />
@@ -144,7 +144,7 @@ const ConfirmationScreen = () => {
           >
             <CheckCircle color="#10b981" size={64} strokeWidth={2.5} />
           </Animated.View>
-          
+
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Payment Successful!</Text>
             <Text style={styles.heroSubtitle}>
@@ -163,7 +163,7 @@ const ConfirmationScreen = () => {
           <View style={styles.experienceOverlay}>
             <Gift color="#fff" size={24} />
           </View>
-          
+
           <View style={styles.experienceContent}>
             <Text style={styles.experienceTitle}>
               {experience.title}
@@ -173,7 +173,7 @@ const ConfirmationScreen = () => {
                 {experience.subtitle}
               </Text>
             )}
-            
+
             <View style={styles.priceTag}>
               <Text style={styles.priceAmount}>
                 €{experience.price.toFixed(2)}
@@ -205,7 +205,7 @@ const ConfirmationScreen = () => {
             <View style={styles.codeDisplay}>
               <Text style={styles.codeText}>{experienceGift.claimCode}</Text>
             </View>
-            
+
             <View style={styles.codeActions}>
               <TouchableOpacity
                 style={styles.copyCodeButton}
@@ -215,7 +215,7 @@ const ConfirmationScreen = () => {
                 <Copy color="#8b5cf6" size={20} />
                 <Text style={styles.copyCodeText}>Copy Code</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.shareCodeButton}
                 onPress={handleShareCode}
@@ -231,7 +231,7 @@ const ConfirmationScreen = () => {
         {/* How It Works */}
         <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>How It Works</Text>
-          
+
           <View style={styles.stepsContainer}>
             {[
               {
@@ -262,7 +262,7 @@ const ConfirmationScreen = () => {
                   </View>
                   {index < 3 && <View style={styles.stepLine} />}
                 </View>
-                
+
                 <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{item.title}</Text>
                   <Text style={styles.stepDesc}>{item.desc}</Text>

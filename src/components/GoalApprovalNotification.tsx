@@ -41,11 +41,11 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     setLoading(true);
     try {
       await goalService.approveGoal(notification.data.goalId, approveMessage.trim() || null);
-      
+
       // Get recipient name
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
       const experienceTitle = notification.data.experienceTitle || 'the experience';
-      
+
       // Notify receiver
       await notificationService.createNotification(
         notification.data.recipientId || '',
@@ -103,9 +103,10 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const handleSuggestChange = async () => {
     if (!notification.data?.goalId || !notification.id) return;
     setSuggestError(null);
-    
-    const weeks = parseInt(suggestWeeks);
-    const sessions = parseInt(suggestSessions);
+
+    // Use placeholder values as defaults if input is empty
+    const weeks = suggestWeeks.trim() ? parseInt(suggestWeeks) : initialWeeks;
+    const sessions = suggestSessions.trim() ? parseInt(suggestSessions) : initialSessions;
 
     if (!weeks || !sessions || weeks <= 0 || sessions <= 0) {
       setSuggestError('Please enter valid numbers for weeks and sessions.');

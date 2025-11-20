@@ -138,7 +138,7 @@ const ConfirmationMultipleScreen = () => {
           >
             <CheckCircle color="#10b981" size={64} strokeWidth={2.5} />
           </Animated.View>
-          
+
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Payment Successful!</Text>
             <Text style={styles.heroSubtitle}>
@@ -151,7 +151,7 @@ const ConfirmationMultipleScreen = () => {
         <View style={styles.giftsContainer}>
           {giftsWithExperiences.map((item, index) => {
             if (!item.experience) return null;
-            
+
             const experienceImage = Array.isArray(item.experience.imageUrl)
               ? item.experience.imageUrl[0]
               : item.experience.imageUrl;
@@ -166,13 +166,13 @@ const ConfirmationMultipleScreen = () => {
                 <View style={styles.giftOverlay}>
                   <Gift color="#fff" size={20} />
                 </View>
-                
+
                 <View style={styles.giftContent}>
                   <Text style={styles.giftTitle}>{item.experience.title}</Text>
                   {item.experience.subtitle && (
                     <Text style={styles.giftSubtitle}>{item.experience.subtitle}</Text>
                   )}
-                  
+
                   <View style={styles.priceTag}>
                     <Text style={styles.priceAmount}>
                       €{item.experience.price.toFixed(2)}
@@ -195,7 +195,7 @@ const ConfirmationMultipleScreen = () => {
                     <View style={styles.codeDisplay}>
                       <Text style={styles.codeText}>{item.gift.claimCode}</Text>
                     </View>
-                    
+
                     <View style={styles.codeActions}>
                       <TouchableOpacity
                         style={styles.copyCodeButton}
@@ -205,7 +205,7 @@ const ConfirmationMultipleScreen = () => {
                         <Copy color="#8b5cf6" size={18} />
                         <Text style={styles.copyCodeText}>Copy</Text>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={styles.shareCodeButton}
                         onPress={() => handleShareCode(item.gift.claimCode, item.experience?.title)}
@@ -225,7 +225,7 @@ const ConfirmationMultipleScreen = () => {
         {/* How It Works */}
         <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>How It Works</Text>
-          
+
           <View style={styles.stepsContainer}>
             {[
               {
@@ -256,7 +256,7 @@ const ConfirmationMultipleScreen = () => {
                   </View>
                   {index < 3 && <View style={styles.stepLine} />}
                 </View>
-                
+
                 <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{item.title}</Text>
                   <Text style={styles.stepDesc}>{item.desc}</Text>

@@ -102,23 +102,62 @@ const AppNavigatorContent = () => {
   // -----------------------------
   // RENDER
   // -----------------------------
+  const linking = {
+    prefixes: [
+      'ernit://',
+      'https://ernit.app',
+      'https://ernit981723498127658912765187923546.vercel.app',
+    ],
+    config: {
+      screens: {
+        RecipientFlow: {
+          path: 'recipient',
+          screens: {
+            CouponEntry: {
+              path: 'redeem/:code',
+              parse: {
+                code: (code: string) => code,
+              },
+            },
+          },
+        },
+        CategorySelection: '',
+        Landing: 'landing',
+        Auth: 'auth',
+        ExperienceDetails: 'experience/:id',
+        Cart: 'cart',
+        GiverFlow: 'giver',
+        Profile: 'profile',
+        Goals: 'goals',
+        GoalDetail: 'goal/:goalId',
+        Roadmap: 'roadmap',
+        ExperienceCheckout: 'checkout',
+        Confirmation: 'confirmation',
+        ConfirmationMultiple: 'confirmation-multiple',
+        Completion: 'completion',
+        Notification: 'notifications',
+        AddFriend: 'add-friend',
+        FriendProfile: 'friend/:userId',
+        FriendsList: 'friends',
+        PurchasedGifts: 'purchased-gifts',
+        GoalSetting: 'goal-setting',
+      },
+    },
+  };
+
   return (
-    <NavigationContainer 
-      ref={(ref) => {
-        navigationRef.current = ref;
-        if (ref) {
-          setNavigationRef(ref);
-        }
-      }}
+    <NavigationContainer
+      linking={linking as any}
+      ref={navigationRef as any}
       onStateChange={(navState) => {
         // Only update document title, no navigation blocking
         if (Platform.OS === 'web') document.title = 'Ernit';
       }}
     >
-        <RootStack.Navigator
-          initialRouteName="CategorySelection"
-          screenOptions={{ headerShown: false, animation: 'none' }}
-        >
+      <RootStack.Navigator
+        initialRouteName="CategorySelection"
+        screenOptions={{ headerShown: false, animation: 'none' }}
+      >
 
         {/* PUBLIC ROUTES */}
         <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
@@ -273,7 +312,7 @@ const AppNavigatorContent = () => {
           )}
         </RootStack.Screen>
 
-        </RootStack.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 };

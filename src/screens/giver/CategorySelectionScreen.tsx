@@ -159,7 +159,7 @@ const CategorySelectionScreen = () => {
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
-  
+
   // Save guest cart to local storage whenever it changes
   // Use a ref to track previous cart to avoid unnecessary saves
   const prevCartRef = useRef<string>('');
@@ -173,7 +173,7 @@ const CategorySelectionScreen = () => {
       }
     }
   }, [state.guestCart, state.user]);
-  
+
   // Load guest cart from storage on mount if not authenticated
   useEffect(() => {
     const loadGuestCart = async () => {
@@ -188,11 +188,7 @@ const CategorySelectionScreen = () => {
   }, []);
 
   const handleCartPress = () => {
-    if (cartItemCount > 0 && currentCart.length > 0) {
-      navigation.navigate('Cart' as any);
-    } else {
-      Alert.alert('Cart Empty', 'Your cart is empty. Add items to cart first.');
-    }
+    navigation.navigate('Cart' as any);
   };
 
   // Load experiences from Firestore
@@ -200,7 +196,7 @@ const CategorySelectionScreen = () => {
     const fetchExperiences = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'experiences'));
-        const allExperiences = snapshot.docs.map((doc) => doc.data() as Experience); 
+        const allExperiences = snapshot.docs.map((doc) => doc.data() as Experience);
 
         const grouped = allExperiences.reduce((acc, exp) => {
           if (!acc[exp.category]) acc[exp.category] = [];
@@ -214,10 +210,10 @@ const CategorySelectionScreen = () => {
             cat === 'adventure'
               ? 'Adventure'
               : cat === 'relaxation'
-              ? 'Wellness'
-              : cat === 'creative'
-              ? 'Creative'
-              : 'Entertainment',
+                ? 'Wellness'
+                : cat === 'creative'
+                  ? 'Creative'
+                  : 'Entertainment',
           experiences: grouped[cat as ExperienceCategory],
         }));
 
@@ -494,36 +490,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   cardContent: {
-  padding: 10,
-  height: 90, // fixed consistent text+price zone
-  justifyContent: "space-between",
-},
+    padding: 10,
+    height: 90, // fixed consistent text+price zone
+    justifyContent: "space-between",
+  },
 
-textBlock: {
-  height: 64, // consistent space for title + subtitle (2 lines each)
-  overflow: "hidden",
-},
+  textBlock: {
+    height: 64, // consistent space for title + subtitle (2 lines each)
+    overflow: "hidden",
+  },
 
-cardTitle: {
-  color: "#111827",
-  fontWeight: "bold",
-  fontSize: 15,
-  lineHeight: 18,
-},
+  cardTitle: {
+    color: "#111827",
+    fontWeight: "bold",
+    fontSize: 15,
+    lineHeight: 18,
+  },
 
-cardSubtitle: {
-  color: "#6b7280",
-  fontSize: 13,
-  lineHeight: 17,
-  marginTop: 2,
-},
+  cardSubtitle: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 17,
+    marginTop: 2,
+  },
 
-cardPrice: {
-  color: "#166534",
-  fontSize: 14,
-  fontWeight: "bold",
-  textAlign: "right",
-},
+  cardPrice: {
+    color: "#166534",
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "right",
+  },
 
   loadingContainer: {
     flex: 1,
