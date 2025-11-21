@@ -1,11 +1,11 @@
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  Timestamp 
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  Timestamp
 } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -29,7 +29,8 @@ export class UserService {
       ...user,
       createdAt: user.createdAt.toISOString(),
       updatedAt: new Date().toISOString(),
-      cart: user.cart ?? []
+      cart: user.cart ?? [],
+      onboardingStatus: user.onboardingStatus ?? 'not_started'
     });
   }
 
@@ -72,12 +73,14 @@ export class UserService {
       // 🔥 ensure cart is always an array of CartItem
       cart: Array.isArray(data.cart) ? (data.cart as CartItem[]) : [],
 
+      onboardingStatus: data.onboardingStatus || 'not_started',
+
       profile: data.profile
         ? {
-            ...data.profile,
-            createdAt: this.parseDate(data.profile.createdAt),
-            updatedAt: this.parseDate(data.profile.updatedAt),
-          }
+          ...data.profile,
+          createdAt: this.parseDate(data.profile.createdAt),
+          updatedAt: this.parseDate(data.profile.updatedAt),
+        }
         : undefined,
     };
   }
@@ -211,6 +214,18 @@ export class UserService {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       cart: [],
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /** Update onboarding status */
+  async updateOnboardingStatus(
+    userId: string,
+    status: 'not_started' | 'completed' | 'skipped'
+  ): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      onboardingStatus: status,
       updatedAt: new Date().toISOString(),
     });
   }

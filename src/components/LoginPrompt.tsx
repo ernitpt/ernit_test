@@ -29,13 +29,13 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   message = 'Please log in to continue.',
 }) => {
   const navigation = useNavigation<LoginPromptNavigationProp>();
-  
+
   // Animation values - start at 0 for initial state
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  
+
   // Track previous visible state to prevent restarting animations
   const prevVisibleRef = useRef(false);
   const isAnimatingRef = useRef(false);
@@ -44,7 +44,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
     // Only animate on actual state changes, not on every render
     if (visible === prevVisibleRef.current) return;
     if (isAnimatingRef.current) return;
-    
+
     prevVisibleRef.current = visible;
     isAnimatingRef.current = true;
 
@@ -142,7 +142,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
       onRequestClose={handleClose}
     >
       {/* Animated backdrop with smooth blur transition */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.overlay,
           {
@@ -167,12 +167,12 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           />
         )}
 
-        <TouchableOpacity 
-          style={StyleSheet.absoluteFill} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
           onPress={handleClose}
         />
-        
+
         <Animated.View
           style={[
             styles.modalContainer,
@@ -209,7 +209,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
             <Text style={styles.title}>Login</Text>
             <Text style={styles.message}>{message}</Text>
-            
+
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               {/* Sign Up Button with gradient */}

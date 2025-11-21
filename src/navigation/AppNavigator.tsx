@@ -15,6 +15,7 @@ import { setNavigationRef } from '../context/AuthGuardContext';
 import { AuthGuardProvider } from '../context/AuthGuardContext';
 
 // Screens
+import OnboardingScreen from '../screens/OnboardingScreen';
 import LandingScreen from '../screens/LandingScreen';
 import AuthScreen from '../screens/AuthScreen';
 import CategorySelectionScreen from '../screens/giver/CategorySelectionScreen';
@@ -58,6 +59,20 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'PurchasedGifts',
 ];
 
+// Helper function to detect incognito mode
+const isIncognitoMode = () => {
+  if (Platform.OS !== 'web') return false;
+
+  try {
+    // Test if localStorage is available
+    localStorage.setItem('test', 'test');
+    localStorage.removeItem('test');
+    return false;
+  } catch (e) {
+    return true; // Incognito mode detected
+  }
+};
+
 // Giver
 const GiverNavigator = () => (
   <GiverStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
@@ -85,9 +100,10 @@ const RecipientNavigator = () => (
 // -------------------------------------------------------------------
 
 // Inner component that uses useAuthGuard - must be inside AuthGuardProvider
-const AppNavigatorContent = () => {
+const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'CategorySelection' }) => {
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   // Set navigation ref for AuthGuardContext
   useEffect(() => {
@@ -98,6 +114,21 @@ const AppNavigatorContent = () => {
       setNavigationRef(null);
     };
   }, []);
+
+  // Force navigation to onboarding when initialRoute changes
+  useEffect(() => {
+    if (!isNavigationReady || !navigationRef.current) return;
+
+    console.log('🧭 Navigation effect triggered, initialRoute:', initialRoute);
+
+    // Navigate to the correct initial route
+    if (initialRoute === 'Onboarding') {
+      console.log('🎯 Navigating to Onboarding screen');
+      navigationRef.current.navigate('Onboarding');
+    } else {
+      console.log('✅ Staying on CategorySelection');
+    }
+  }, [initialRoute, isNavigationReady]);
 
   // -----------------------------
   // RENDER
@@ -110,6 +141,7 @@ const AppNavigatorContent = () => {
     ],
     config: {
       screens: {
+        Onboarding: 'onboarding',
         RecipientFlow: {
           path: 'recipient',
           screens: {
@@ -149,17 +181,22 @@ const AppNavigatorContent = () => {
     <NavigationContainer
       linking={linking as any}
       ref={navigationRef as any}
+      onReady={() => {
+        console.log('🧭 Navigation ready');
+        setIsNavigationReady(true);
+      }}
       onStateChange={(navState) => {
         // Only update document title, no navigation blocking
         if (Platform.OS === 'web') document.title = 'Ernit';
       }}
     >
       <RootStack.Navigator
-        initialRouteName="CategorySelection"
+        initialRouteName={initialRoute}
         screenOptions={{ headerShown: false, animation: 'none' }}
       >
 
         {/* PUBLIC ROUTES */}
+        <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
         <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
         <RootStack.Screen name="Landing" component={LandingScreen} />
         <RootStack.Screen name="Auth" component={AuthScreen} />
@@ -321,6 +358,65 @@ const AppNavigatorContent = () => {
 const AppNavigator = () => {
   const { state, dispatch } = useApp();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+
+  // -----------------------------
+  // Check if user has seen onboarding
+  // -----------------------------
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        // 🧪 TEST MODE: Set to true to always show onboarding (for testing)
+        const FORCE_SHOW_ONBOARDING = false;
+
+        if (FORCE_SHOW_ONBOARDING) {
+          console.log('🧪 TEST MODE: Forcing onboarding to show');
+          setHasSeenOnboarding(false);
+          setIsCheckingOnboarding(false);
+          return;
+        }
+
+        // If user is logged in, ONLY check Firestore (ignore AsyncStorage)
+        if (state.user?.id) {
+          console.log('🔍 Checking onboarding status for logged-in user:', state.user.id);
+          const userData = await userService.getUserById(state.user.id);
+          console.log('📊 User onboardingStatus from Firestore:', userData?.onboardingStatus);
+
+          if (userData?.onboardingStatus === 'completed' ||
+            userData?.onboardingStatus === 'skipped') {
+            console.log('✅ Onboarding completed/skipped - skipping onboarding screen');
+            setHasSeenOnboarding(true);
+          } else {
+            console.log('🎯 Onboarding not completed - showing onboarding screen');
+            setHasSeenOnboarding(false);
+          }
+        } else {
+          // For guest users, check AsyncStorage
+          console.log('🔍 Checking onboarding status for guest user');
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const seen = await AsyncStorage.getItem('hasSeenOnboarding');
+          console.log('📊 AsyncStorage hasSeenOnboarding:', seen);
+
+          // null or any value other than 'true' means show onboarding
+          if (seen === 'true') {
+            console.log('✅ Guest has seen onboarding - skipping');
+            setHasSeenOnboarding(true);
+          } else {
+            console.log('🎯 Guest hasn\'t seen onboarding - showing (value was:', seen, ')');
+            setHasSeenOnboarding(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // Default to showing onboarding in case of error
+        setHasSeenOnboarding(false);
+      } finally {
+        setIsCheckingOnboarding(false);
+      }
+    };
+    checkOnboarding();
+  }, [state.user]);
 
   // -----------------------------
   // Restore Authentication
@@ -396,9 +492,9 @@ const AppNavigator = () => {
   }, [isCheckingAuth, state.user]);
 
   // -----------------------------
-  // Show loading screen while checking auth
+  // Show loading screen while checking auth and onboarding
   // -----------------------------
-  if (isCheckingAuth) {
+  if (isCheckingAuth || isCheckingOnboarding) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
@@ -409,9 +505,11 @@ const AppNavigator = () => {
   // -----------------------------
   // RENDER
   // -----------------------------
+  console.log('🧭 AppNavigator rendering with hasSeenOnboarding:', hasSeenOnboarding, '→ initialRoute:', hasSeenOnboarding ? 'CategorySelection' : 'Onboarding');
+
   return (
     <AuthGuardProvider>
-      <AppNavigatorContent />
+      <AppNavigatorContent initialRoute={hasSeenOnboarding ? 'CategorySelection' : 'Onboarding'} />
     </AuthGuardProvider>
   );
 };

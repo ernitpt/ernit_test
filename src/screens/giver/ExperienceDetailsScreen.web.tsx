@@ -54,7 +54,7 @@ const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) =
         <TouchableOpacity style={styles.zoomCloseButton} onPress={onClose}>
           <Text style={styles.zoomCloseText}>✕</Text>
         </TouchableOpacity>
-        
+
         <ScrollView
           contentContainerStyle={styles.zoomScrollContent}
           maximumZoomScale={3}
@@ -159,7 +159,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       if (user && state.user) {
         await userService.addToCart(user.uid, cartItem);
       }
-      // Guest cart is saved automatically via useEffect in CartScreen
+      // Guest cart is saved automatically via useEffect
 
       Alert.alert("Success", `Added ${quantity} item(s) to cart!`);
     } catch (error: any) {
@@ -210,14 +210,12 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
-  
+
   // Save guest cart to local storage whenever it changes
-  // Use a ref to track previous cart to avoid unnecessary saves
   const prevCartRef = useRef<string>('');
   useEffect(() => {
     if (!state.user && state.guestCart) {
       const cartString = JSON.stringify(state.guestCart);
-      // Only save if cart actually changed
       if (cartString !== prevCartRef.current) {
         prevCartRef.current = cartString;
         cartService.saveGuestCart(state.guestCart);
@@ -236,7 +234,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
-      
+
       <ScrollView style={styles.container} bounces={false}>
         {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
@@ -357,7 +355,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             </View>
           </View>
 
-          {/* Location Map */}
+          {/* Location Map - RESTORED */}
           {partner?.mapsUrl && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
@@ -442,6 +440,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       {selectedImage && (
         <ZoomableImage uri={selectedImage} onClose={() => setSelectedImage(null)} />
       )}
+
+      {/* Login Prompt */}
       <LoginPrompt
         visible={showLoginPrompt}
         onClose={closeLoginPrompt}
@@ -617,28 +617,6 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "500",
   },
-  partnerBadge: {
-    backgroundColor: "#faf5ff",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: "#8b5cf6",
-  },
-  partnerLabel: {
-    fontSize: 12,
-    color: "#9333ea",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  partnerName: {
-    fontSize: 16,
-    color: "#7c3aed",
-    fontWeight: "700",
-  },
   section: {
     marginBottom: 28,
   },
@@ -776,33 +754,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6b7280",
-  },
-  errorText: {
-    fontSize: 18,
-    color: "#ef4444",
-    marginBottom: 16,
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: "#8b5cf6",
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   zoomModalContainer: {
     flex: 1,

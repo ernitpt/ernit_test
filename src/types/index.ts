@@ -18,6 +18,7 @@ export interface User {
   profile?: UserProfile;
   wishlist: Experience[];
   cart?: CartItem[];
+  onboardingStatus?: 'not_started' | 'completed' | 'skipped';
 }
 
 // User Profile types
@@ -257,6 +258,7 @@ export interface Hint {
 
 // Navigation types
 export type RootStackParamList = {
+  Onboarding: undefined;
   Landing: undefined;
   Auth: { mode?: 'signin' | 'signup'; fromModal?: boolean };
   CategorySelection: undefined;
@@ -279,6 +281,7 @@ export type RootStackParamList = {
   PurchasedGifts: undefined;
   Confirmation: { experienceGift: ExperienceGift };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
+  LoginPromptModal: undefined;
 };
 
 export type GiverStackParamList = {

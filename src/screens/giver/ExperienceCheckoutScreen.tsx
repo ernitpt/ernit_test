@@ -183,6 +183,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
           if (gifts.length === 1) {
             dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
+            dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
             await removeStorageItem(`pending_payment_${clientSecret}`);
 
             if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -192,6 +193,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             Alert.alert("Success", "Your payment was processed successfully!");
             navigation.navigate("Confirmation", { experienceGift: gifts[0] });
           } else if (gifts.length > 1) {
+            dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
             await removeStorageItem(`pending_payment_${clientSecret}`);
             if (Platform.OS === "web" && typeof window !== "undefined") {
               window.history.replaceState({}, document.title, window.location.pathname);
@@ -275,10 +277,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
         if (gifts.length === 1) {
           dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
+          dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
           Alert.alert("Success", "Your payment was processed successfully!");
           navigation.navigate("Confirmation", { experienceGift: gifts[0] });
         } else if (gifts.length > 1) {
+          dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
           navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
         } else {
@@ -439,7 +443,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   const { cartItems } = route.params as { cartItems: CartItem[] };
-  
+
   // Require authentication for checkout
   useEffect(() => {
     if (!state.user) {

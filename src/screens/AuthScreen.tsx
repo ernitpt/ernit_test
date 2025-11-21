@@ -79,6 +79,23 @@ const AuthScreen = () => {
   // Button gradient animation - shifts colors
   const buttonGradientAnim = useRef(new Animated.Value(0)).current;
 
+  // Helper: Transfer onboarding status from AsyncStorage to Firestore
+  const transferOnboardingStatus = async (userId: string) => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+
+      if (hasSeenOnboarding === 'true') {
+        console.log('✅ Transferring onboarding status from AsyncStorage to Firestore');
+        await userService.updateOnboardingStatus(userId, 'completed');
+      } else {
+        console.log('🎯 No onboarding status in AsyncStorage - keeping Firestore default');
+      }
+    } catch (error) {
+      console.error('Error transferring onboarding status:', error);
+    }
+  };
+
   useEffect(() => {
     // Animate background gradient
     Animated.loop(
@@ -190,10 +207,21 @@ const AuthScreen = () => {
   const [emailError, setEmailError] = useState('');
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
-  const redirectUri = "https://auth.expo.io/@ernit/ernit";
+  // ✅ Use makeRedirectUri for proper OAuth configuration
+  const redirectUri = makeRedirectUri({
+    scheme: 'ernit',
+  });
 
   // ✅ Use environment variable for Google Client ID
   const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "806487127981-ob9oap6pvjhpm4leik8qjt8e994jeckt.apps.googleusercontent.com";
+
+  // Log OAuth config for debugging
+  useEffect(() => {
+    console.log('🔐 Google OAuth Configuration:');
+    console.log('  Client ID:', GOOGLE_CLIENT_ID?.substring(0, 30) + '...');
+    console.log('  Redirect URI:', redirectUri);
+    console.log('  ⚠️  Add this URI to Google Console Authorized redirect URIs');
+  }, []);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_CLIENT_ID,
@@ -220,6 +248,9 @@ const AuthScreen = () => {
               createdAt: new Date(),
               wishlist: [],
             });
+
+            // ✅ Transfer onboarding status from AsyncStorage to Firestore
+            await transferOnboardingStatus(user.uid);
           }
 
           dispatch({
@@ -413,6 +444,9 @@ const AuthScreen = () => {
           wishlist: [],
           cart: [],
         });
+
+        // ✅ Transfer onboarding status from AsyncStorage to Firestore
+        await transferOnboardingStatus(userCredential.user.uid);
       }
 
       const user = userCredential.user;
@@ -633,6 +667,53 @@ const AuthScreen = () => {
                   shadowRadius: 12,
                   elevation: 8,
                 }}>
+                  {/* Google Sign-In Button - Primary Option */}
+                  <TouchableOpacity
+                    onPress={() => promptAsync()}
+                    disabled={isLoading || !request}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'white',
+                      borderRadius: 12,
+                      paddingVertical: 14,
+                      marginBottom: 20,
+                      borderWidth: 1,
+                      borderColor: '#E5E7EB',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      marginRight: 12,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#4285F4' }}>G</Text>
+                    </View>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151' }}>
+                      Continue with Google
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* OR Divider */}
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 20,
+                  }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                    <Text style={{ marginHorizontal: 16, color: '#6B7280', fontSize: 14, fontWeight: '500' }}>or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                  </View>
+
                   {!isLogin && (
                     <View style={{ marginBottom: 20 }}>
                       <TextInput
