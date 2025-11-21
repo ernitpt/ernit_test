@@ -234,38 +234,86 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.senderId;
 
-      allow update, delete: if request.auth != null &&
-        (request.auth.uid == resource.data.recipientId ||
-         request.auth.uid == resource.data.senderId);
+      // Allow update: sender or recipient can update the request
+      allow update: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.senderId ||
+          request.auth.uid == resource.data.recipientId ||
+          request.auth.uid == request.resource.data.senderId ||
+          request.auth.uid == request.resource.data.recipientId
+        );
+
+      // Allow delete: sender or recipient can delete the request
+      // Note: for delete operations, request.resource doesn't exist, so only check resource.data
+      allow delete: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.senderId ||
+          request.auth.uid == resource.data.recipientId
+        );
     }
+
 
     /** =====================
      * 👬 FRIENDS
      * ===================== **/
     match /friends/{friendDocId} {
-      // Allow both read and delete if user is part of the friendship
-      allow read, delete: if request.auth != null
-        && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.friendId);
+      // Allow read and delete if user is part of the friendship
+      allow read, delete: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         request.auth.uid == resource.data.friendId);
 
-      // Allow creating either direction
-      allow create: if request.auth != null
-        && (request.auth.uid == request.resource.data.userId || request.auth.uid == request.resource.data.friendId);
+      // Allow either user to create the friendship doc
+      allow create: if request.auth != null &&
+        request.resource.data.userId is string &&
+        request.resource.data.friendId is string &&
+        (request.auth.uid == request.resource.data.userId ||
+         request.auth.uid == request.resource.data.friendId);
 
-      // Optional: Allow updates only for status fields, if you add them later
-      allow update: if request.auth != null
-        && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.friendId);
+      // Allow updates by either friend in case you add fields later
+      allow update: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         request.auth.uid == resource.data.friendId);
     }
+
 
 
     /** =====================
      * 🔔 NOTIFICATIONS
      * ===================== **/
     match /notifications/{notificationId} {
-      allow read, update, delete: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
+      // Anyone who is the target user OR the sender of the friend request can delete
+      allow delete: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.userId || 
+          (
+            resource.data.type == "friend_request" &&
+            request.auth.uid == resource.data.data.senderId
+          )
+        );
+
+      // Allow updates for both sides for friend request notifications
+      allow update: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.userId ||
+          (
+            resource.data.type == "friend_request" &&
+            request.auth.uid == resource.data.data.senderId
+          )
+        );
+
+      // Read rules remain the same
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.userId);
+
+      // Create rules remain same
       allow create: if request.auth != null 
         && request.auth.uid == request.resource.data.userId;
+
+      allow create: if request.auth != null
+        && request.resource.data.type == 'friend_request'
+        && request.resource.data.data.senderId == request.auth.uid;
     }
+
 
     /** =====================
      * 🌍 EXPERIENCES (public)

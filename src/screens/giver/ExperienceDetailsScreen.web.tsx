@@ -224,11 +224,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   }, [state.guestCart, state.user]);
 
   const handleCartPress = () => {
-    if (cartItemCount > 0 && currentCart.length > 0) {
-      navigation.navigate("Cart");
-    } else {
-      Alert.alert("Cart Empty", "Your cart is empty. Add items to cart first.");
-    }
+    // Allow opening cart even when empty - CartScreen handles empty state
+    navigation.navigate("Cart");
   };
 
   return (

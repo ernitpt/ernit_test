@@ -33,7 +33,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
     if (!notification.data?.goalId || !notification.id) return;
     setError(null);
     setLoading(true);
-    
+
     try {
       // Fetch goal to get current values if not already loaded
       let currentGoal = goal;
@@ -43,7 +43,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
           setGoal(currentGoal);
         }
       }
-      
+
       if (!currentGoal || !currentGoal.id) {
         setError('Could not load goal. Please try again.');
         setLoading(false);
@@ -59,12 +59,12 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       );
 
       // Notify giver
-      const giverName = await userService.getUserName(notification.data.senderId || '');
+      const receiverName = await userService.getUserName(notification.data.recipientId || '');
       await notificationService.createNotification(
         notification.data.senderId || '',
         'goal_approval_response',
-        '✅ Receiver accepted your goal suggestion',
-        `Receiver accepted your suggestion: ${suggestedWeeks} weeks, ${suggestedSessions} sessions per week`,
+        `✅ ${receiverName} accepted your goal suggestion`,
+        `${receiverName} accepted your suggestion: ${suggestedWeeks} weeks, ${suggestedSessions} sessions per week`,
         {
           goalId: notification.data.goalId,
           recipientId: notification.data.recipientId || '',
@@ -99,7 +99,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   const handleOpenModal = async () => {
     if (!notification.data?.goalId) return;
     setError(null);
-    
+
     try {
       // Fetch goal if not already loaded
       if (!goal) {
@@ -137,7 +137,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
         }
       }
     }
-    
+
     setShowModal(false);
     onActionTaken();
   };
@@ -163,7 +163,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       <View style={styles.container}>
         <View style={styles.content}>
           <Text style={styles.title}>{notification.title}</Text>
-          <Text style={styles.message}>{notification.message}</Text>
+          {/* <Text style={styles.message}>{notification.message}</Text> */}
           {notification.data?.giverMessage && (
             <View style={styles.messageBox}>
               <Text style={styles.messageLabel}>Message from giver:</Text>
@@ -239,22 +239,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   messageBox: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#eaf0f5ff',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
+    marginTop: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
+    borderLeftColor: '#6a53f1ff',
   },
   messageLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#92400e',
+    color: '#6a53f1ff',
     marginBottom: 4,
   },
   messageText: {
-    fontSize: 14,
-    color: '#78350f',
+    fontSize: 12,
+    color: '#9ca3af',
+    fontStyle: 'italic',
   },
   details: {
     fontSize: 13,
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   },
   buttons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 24,
   },
   button: {
     flex: 1,
@@ -285,10 +287,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   acceptButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#70b373ff',
+    marginLeft: 18,
   },
   changeButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#567cb1ff',
+    marginRight: 18,
   },
   buttonText: {
     color: '#fff',

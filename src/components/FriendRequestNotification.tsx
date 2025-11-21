@@ -31,12 +31,12 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     try {
       setIsHandling(true);
       await friendService.acceptFriendRequest(notification.data.friendRequestId);
-      
-      // Delete the notification after successful handling
+
+      // Delete the notification after successful handling (force=true to bypass clearable check)
       if (notification.id) {
-        await notificationService.deleteNotification(notification.id);
+        await notificationService.deleteNotification(notification.id, true);
       }
-      
+
       Alert.alert('Success', `You are now friends with ${notification.data.senderName}!`);
       onRequestHandled();
     } catch (error) {
@@ -53,12 +53,12 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     try {
       setIsHandling(true);
       await friendService.declineFriendRequest(notification.data.friendRequestId);
-      
-      // Delete the notification after successful handling
+
+      // Delete the notification after successful handling (force=true to bypass clearable check)
       if (notification.id) {
-        await notificationService.deleteNotification(notification.id);
+        await notificationService.deleteNotification(notification.id, true);
       }
-      
+
       Alert.alert('Request Declined', `Friend request from ${notification.data.senderName} has been declined.`);
       onRequestHandled();
     } catch (error) {
@@ -77,19 +77,19 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
-        {senderProfileImageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: senderProfileImageUrl }}
-            style={styles.profileImage}
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>
-              {senderName?.[0]?.toUpperCase() || 'U'}
-            </Text>
-          </View>
-        )}
+          {senderProfileImageUrl && !imageLoadError ? (
+            <Image
+              source={{ uri: senderProfileImageUrl }}
+              style={styles.profileImage}
+              onError={() => setImageLoadError(true)}
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text style={styles.placeholderText}>
+                {senderName?.[0]?.toUpperCase() || 'U'}
+              </Text>
+            </View>
+          )}
           <View style={styles.userDetails}>
             <Text style={styles.userName}>{senderName}</Text>
             {senderCountry && (

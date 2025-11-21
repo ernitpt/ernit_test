@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,10 +53,10 @@ const CouponEntryScreen = () => {
 
   const validateClaimCode = (code: string) => /^[A-Z0-9]{12}$/.test(code);
 
-  const handleClaimCode = async () => {
+  const handleClaimCode = async (codeOverride?: string) => {
     if (isLoading) return;
 
-    const trimmedCode = claimCode.trim().toUpperCase();
+    const trimmedCode = (codeOverride || claimCode).trim().toUpperCase();
     setErrorMessage('');
 
     if (!trimmedCode) {
@@ -136,6 +137,15 @@ const CouponEntryScreen = () => {
                   paddingHorizontal: 32,
                 }}
               >
+                {/* Favicon Logo */}
+                <View style={{ marginBottom: 24, alignItems: 'center' }}>
+                  <Image
+                    source={require('../../assets/favicon.png')}
+                    style={{ width: 80, height: 80 }}
+                    resizeMode="contain"
+                  />
+                </View>
+
                 {/* Header */}
                 <View style={{ marginBottom: 36, alignItems: 'center' }}>
                   <Text
@@ -207,10 +217,9 @@ const CouponEntryScreen = () => {
                         setClaimCode(clean);
                         if (errorMessage) setErrorMessage('');
 
-                        // Auto-submit when 12 valid chars
+                        // Auto-submit when 12 valid chars - pass the fresh code value
                         if (clean.length === 12 && validateClaimCode(clean) && !isLoading) {
-                          // small delay so last char renders before request
-                          setTimeout(() => handleClaimCode(), 50);
+                          setTimeout(() => handleClaimCode(clean), 50);
                         }
                       }}
                       maxLength={12}
@@ -219,30 +228,28 @@ const CouponEntryScreen = () => {
                       autoFocus
                       editable={!isLoading}
                       returnKeyType="done"
-                      onSubmitEditing={handleClaimCode}
+                      onSubmitEditing={() => handleClaimCode()}
                     />
                   </Animated.View>
 
-                  {/* Error message (fixed height to avoid layout jump) */}
-                  {errorMessage ? (
-                    <Text
-                      style={{
-                        color: 'white',
-                        fontSize: 14,
-                        marginTop: 8,
-                        textAlign: 'center',
-                        fontWeight: '500',
-                        height: 20,
-                      }}
-                    >
-                      {errorMessage}
-                    </Text>
-                  ) : (
-                    <View style={{ height: 20, marginTop: 8 }} />
-                  )}
+                  {/* Error message (fixed height to avoid layout jump and overlap) */}
+                  <View style={{ height: 40, marginTop: 12, marginBottom: 8, justifyContent: 'center' }}>
+                    {errorMessage ? (
+                      <Text
+                        style={{
+                          color: 'white',
+                          fontSize: 14,
+                          textAlign: 'center',
+                          fontWeight: '500',
+                        }}
+                      >
+                        {errorMessage}
+                      </Text>
+                    ) : null}
+                  </View>
 
                   <TouchableOpacity
-                    onPress={handleClaimCode}
+                    onPress={() => handleClaimCode()}
                     disabled={isLoading || claimCode.length < 6}
                     activeOpacity={0.8}
                     style={{
@@ -258,7 +265,6 @@ const CouponEntryScreen = () => {
                       shadowOpacity: 0.2,
                       shadowRadius: 6,
                       elevation: 5,
-                      marginTop: -10,
                     }}
                   >
                     {isLoading ? (

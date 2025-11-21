@@ -201,7 +201,7 @@ const GoalSettingScreen = () => {
         goalData.empoweredBy! || '',
         'goal_approval_request',
         `🎯 ${recipientName} set a goal for ${experience.title}`,
-        `Goal: ${totalWeeks} weeks, ${sessionsPerWeekNum} sessions per week`,
+        `Goal: ${goalData.description}`,
         {
           giftId: goalData.experienceGiftId,
           goalId: goal.id,

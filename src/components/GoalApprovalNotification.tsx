@@ -44,6 +44,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
       // Get recipient name
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
+      const giverName = await userService.getUserName(notification.data.senderId || '');
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
       // Notify receiver
@@ -51,7 +52,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         notification.data.recipientId || '',
         'goal_approval_response',
         '✅ Your goal has been approved!',
-        approveMessage.trim() || 'Your giver approved your goal. You can now continue with all sessions!',
+        `Message from ${giverName}: ${approveMessage.trim()}` || `${giverName} approved your goal. You can now continue with all sessions!`,
         {
           goalId: notification.data.goalId,
           giverId: notification.data.senderId || '',
@@ -138,6 +139,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       );
 
       // Get recipient name and experience title
+      const giverName = await userService.getUserName(notification.data.senderId || '');
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
@@ -145,8 +147,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_change_suggested',
-        '📝 Your giver suggested a goal change',
-        suggestMessage.trim() || `Your giver suggested: ${weeks} weeks, ${sessions} sessions per week`,
+        `📝 ${giverName} suggested a goal change`,
+        '', //suggestMessage.trim() || `${giverName} suggested: ${weeks} weeks, ${sessions} sessions per week`,
         {
           goalId: notification.data.goalId,
           giverId: notification.data.senderId || '',
@@ -208,9 +210,6 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       <View style={styles.content}>
         <Text style={styles.title}>{notification.title}</Text>
         <Text style={styles.message}>{notification.message}</Text>
-        <Text style={styles.details}>
-          Original goal: {initialWeeks} weeks, {initialSessions} sessions per week
-        </Text>
       </View>
 
       <View style={styles.buttons}>
@@ -406,7 +405,7 @@ const styles = StyleSheet.create({
   },
   buttons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 24,
   },
   button: {
     flex: 1,
@@ -415,10 +414,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   approveButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#70b373ff',
+    marginLeft: 18,
   },
   suggestButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#567cb1ff',
+    marginRight: 18,
   },
   buttonText: {
     color: '#fff',

@@ -118,13 +118,14 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       );
 
       // Notify giver
+      const receiverName = await userService.getUserName(goal.userId || '');
       const giverId = goal.empoweredBy || '';
       if (giverId) {
         await notificationService.createNotification(
           giverId,
           'goal_approval_response',
-          '✅ Receiver responded to your goal suggestion',
-          message.trim() || `Receiver accepted: ${selectedWeeks} weeks, ${selectedSessions} sessions per week`,
+          `${receiverName} accepted your goal suggestion`,
+          message.trim() || `Accepted goal: ${selectedWeeks} weeks, ${selectedSessions} sessions per week`,
           {
             goalId: goal.id,
             recipientId: goal.userId,
@@ -191,7 +192,6 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
                 Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
               </Text>
             </View>
-
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Weeks:</Text>
               <View style={styles.numberInputContainer}>
@@ -209,13 +209,15 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
                     (selectedWeeks <= minWeeks || loading) && styles.adjustButtonTextDisabled
                   ]}>−</Text>
                 </TouchableOpacity>
-                <TextInput
-                  style={styles.numberInput}
-                  value={selectedWeeks.toString()}
-                  onChangeText={handleWeeksChange}
-                  keyboardType="numeric"
-                  editable={!loading}
-                />
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.numberInput}
+                    value={selectedWeeks.toString()}
+                    onChangeText={handleWeeksChange}
+                    keyboardType="numeric"
+                    editable={!loading}
+                  />
+                </View>
                 <TouchableOpacity
                   style={[
                     styles.adjustButton,
@@ -250,13 +252,15 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
                     (selectedSessions <= minSessions || loading) && styles.adjustButtonTextDisabled
                   ]}>−</Text>
                 </TouchableOpacity>
-                <TextInput
-                  style={styles.numberInput}
-                  value={selectedSessions.toString()}
-                  onChangeText={handleSessionsChange}
-                  keyboardType="numeric"
-                  editable={!loading}
-                />
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.numberInput}
+                    value={selectedSessions.toString()}
+                    onChangeText={handleSessionsChange}
+                    keyboardType="numeric"
+                    editable={!loading}
+                  />
+                </View>
                 <TouchableOpacity
                   style={[
                     styles.adjustButton,

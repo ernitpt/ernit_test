@@ -59,7 +59,7 @@ export class NotificationService {
         senderProfileImageUrl,
         senderCountry,
       },
-      false // Not clearable until user responds
+      true // Allow clearing after responding
     );
   }
 
@@ -120,7 +120,7 @@ export class NotificationService {
       const deletePromises = snapshot.docs
         .filter(doc => {
           const data = doc.data();
-          return data.clearable !== false;
+          return data.clearable !== false && data.type !== 'friend_request' && data.type !== 'goal_approval_request' && data.type !== 'goal_change_suggested';
         })
         .map(doc => deleteDoc(doc.ref));
 

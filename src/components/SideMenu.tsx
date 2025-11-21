@@ -21,8 +21,18 @@ import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
+import { LogIn } from 'lucide-react-native';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
+
+// Wrapper component to adapt Lucide LogIn icon to MenuItem interface
+const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({ 
+  width = 26, 
+  height = 26, 
+  color = '#7C3AED' 
+}) => {
+  return <LogIn size={width} color={color} />;
+};
 
 type SideMenuProps = {
   visible: boolean;
@@ -107,6 +117,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     try {
       const auth = getAuth();
       await signOut(auth);
+      
+      // Navigate to CategorySelection after successful logout
+      navigation.navigate('CategorySelection');
     } catch (error) {
       console.error('Logout failed:', error);
       Alert.alert('Error', 'Failed to log out. Please try again.');
@@ -177,7 +190,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   onPress={() => handleMenuPress('Purchased Gifts')}
                 />
                 <MenuItem
-                  Icon={LogoutIcon}
+                  Icon={isAuthenticated ? LogoutIcon : LoginIcon}
                   title={isAuthenticated ? "Logout" : "Login"}
                   onPress={() => handleMenuPress('Logout')}
                   isLast

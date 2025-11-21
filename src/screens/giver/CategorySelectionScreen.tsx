@@ -18,11 +18,12 @@ import MainScreen from '../MainScreen'; // Assuming this path is correct
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase'; // Assuming this path is correct
-import { Heart, ShoppingCart } from 'lucide-react-native';
+import { Heart, ShoppingCart, LogIn } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useApp } from '../../context/AppContext';
 import { cartService } from '../../services/CartService';
+import { RootStackParamList } from '../../types';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -44,6 +45,7 @@ type GiverStackParamList = {
 
 type Category = { id: ExperienceCategory; title: string; experiences: Experience[] };
 type GiverNavigationProp = NativeStackNavigationProp<GiverStackParamList, 'CategorySelection'>;
+type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ExperienceCard = ({
   experience,
@@ -146,6 +148,7 @@ const CategoryCarousel = ({
 const CategorySelectionScreen = () => {
   console.log('[CategorySelectionScreen] Rendering...');
   const navigation = useNavigation<GiverNavigationProp>();
+  const rootNavigation = useNavigation<RootNavigationProp>();
   const { state, dispatch } = useApp();
   console.log('[CategorySelectionScreen] State loaded:', { hasUser: !!state?.user, hasState: !!state });
   const [searchQuery, setSearchQuery] = useState('');
@@ -155,6 +158,7 @@ const CategorySelectionScreen = () => {
 
   const auth = getAuth();
   const user = auth.currentUser;
+  const isAuthenticated = !!state.user;
 
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
@@ -189,6 +193,10 @@ const CategorySelectionScreen = () => {
 
   const handleCartPress = () => {
     navigation.navigate('Cart' as any);
+  };
+
+  const handleSignInPress = () => {
+    rootNavigation.navigate('Auth' as any);
   };
 
   // Load experiences from Firestore
@@ -232,12 +240,18 @@ const CategorySelectionScreen = () => {
   useFocusEffect(
     useCallback(() => {
       const fetchWishlist = async () => {
-        if (!user) return;
+        if (!user) {
+          // Clear wishlist when user logs out
+          setWishlist([]);
+          return;
+        }
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
           setWishlist(data.wishlist || []);
+        } else {
+          setWishlist([]);
         }
       };
 
@@ -307,19 +321,29 @@ const CategorySelectionScreen = () => {
               <Text style={styles.headerTitle}>Find an Experience</Text>
               <Text style={styles.headerSubtitle}>Select a gift they'll never forget</Text>
             </View>
-            <TouchableOpacity
-              onPress={handleCartPress}
-              style={styles.cartButton}
-            >
-              <ShoppingCart color="#fff" size={24} />
-              {cartItemCount > 0 && (
-                <View style={styles.cartBadge}>
-                  <Text style={styles.cartBadgeText}>
-                    {cartItemCount > 9 ? "9+" : cartItemCount}
-                  </Text>
-                </View>
+            <View style={styles.headerButtons}>
+              {!isAuthenticated && (
+                <TouchableOpacity
+                  onPress={handleSignInPress}
+                  style={styles.signInButton}
+                >
+                  <LogIn color="#fff" size={20} />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCartPress}
+                style={styles.cartButton}
+              >
+                <ShoppingCart color="#fff" size={24} />
+                {cartItemCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>
+                      {cartItemCount > 9 ? "9+" : cartItemCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.searchBar}>
@@ -392,6 +416,19 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 15,
     color: '#e0e7ff',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  signInButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cartButton: {
     width: 44,

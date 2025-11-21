@@ -27,6 +27,8 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
   fetchSignInMethodsForEmail,
+  sendPasswordResetEmail,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
@@ -34,7 +36,6 @@ import { userService } from '../services/userService';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { Check } from 'lucide-react-native';
 
 
@@ -207,6 +208,11 @@ const AuthScreen = () => {
   const [emailError, setEmailError] = useState('');
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
+  // Google sign-in warning modal state
+  const [showGoogleWarning, setShowGoogleWarning] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+
   // ✅ Use makeRedirectUri for proper OAuth configuration
   const redirectUri = makeRedirectUri({
     scheme: 'ernit',
@@ -287,8 +293,68 @@ const AuthScreen = () => {
           }, 1500);
 
         })
-        .catch((error) => {
+        .catch(async (error) => {
           console.error('Google Sign-In Error:', error);
+
+          // ✅ Handle account linking when email already exists with password provider
+          if (error.code === 'auth/account-exists-with-different-credential') {
+            try {
+              const email = error.customData?.email;
+              if (email) {
+                // Check existing sign-in methods
+                const methods = await fetchSignInMethodsForEmail(auth, email);
+                console.log('Existing sign-in methods for', email, ':', methods);
+
+                if (methods.includes('password')) {
+                  Alert.alert(
+                    'Account Linking',
+                    'An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.',
+                    [{ text: 'OK' }]
+                  );
+
+                  // The account is already linked by Firebase automatically in newer versions
+                  // Just sign in with the credential
+                  const userCredential = await signInWithCredential(auth, GoogleAuthProvider.credential(response.params.id_token));
+                  const user = userCredential.user;
+
+                  dispatch({
+                    type: 'SET_USER',
+                    payload: {
+                      id: user.uid,
+                      email: user.email || '',
+                      displayName: user.displayName || '',
+                      userType: 'giver',
+                      createdAt: new Date(),
+                      wishlist: [],
+                    },
+                  });
+
+                  setShowSuccess(true);
+                  Animated.parallel([
+                    Animated.spring(successScaleAnim, {
+                      toValue: 1,
+                      friction: 5,
+                      tension: 40,
+                      useNativeDriver: true,
+                    }),
+                    Animated.timing(successOpacityAnim, {
+                      toValue: 1,
+                      duration: 300,
+                      useNativeDriver: true,
+                    }),
+                  ]).start();
+
+                  setTimeout(() => {
+                    handleAuthSuccess();
+                  }, 1500);
+                  return;
+                }
+              }
+            } catch (linkError) {
+              console.error('Account linking error:', linkError);
+            }
+          }
+
           Alert.alert('Google Sign-In Failed', 'Unable to sign in with Google. Please try again.');
           setIsLoading(false);
         });
@@ -435,6 +501,15 @@ const AuthScreen = () => {
         userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
         await updateProfile(userCredential.user, { displayName: sanitizedDisplayName.trim() });
 
+        // ✅ Send email verification immediately after signup
+        try {
+          await sendEmailVerification(userCredential.user);
+          console.log('✅ Verification email sent to:', sanitizedEmail);
+        } catch (verifyError) {
+          console.error('Error sending verification email:', verifyError);
+          // Don't block signup if verification email fails
+        }
+
         await userService.createUserProfile({
           id: userCredential.user.uid,
           email: userCredential.user.email || '',
@@ -447,6 +522,13 @@ const AuthScreen = () => {
 
         // ✅ Transfer onboarding status from AsyncStorage to Firestore
         await transferOnboardingStatus(userCredential.user.uid);
+
+        // ✅ Show verification message to user
+        Alert.alert(
+          'Account Created!',
+          'A verification email has been sent to ' + sanitizedEmail + '. Please verify your email to secure your account.',
+          [{ text: 'OK' }]
+        );
       }
 
       const user = userCredential.user;
@@ -485,13 +567,38 @@ const AuthScreen = () => {
       }, 1500); // Show success for 1.5 seconds
 
     } catch (error: any) {
+      console.error('Auth error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
+
+      // Check if this is a multi-provider issue
+      if (isLogin && (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
+        try {
+          // Check what sign-in methods are available for this email
+          const methods = await fetchSignInMethodsForEmail(auth, sanitizedEmail);
+          console.log('Available sign-in methods:', methods);
+
+          if (methods.includes('google.com') && !methods.includes('password')) {
+            errorMessage = 'This email is registered with Google Sign-In. Please use the "Continue with Google" button to sign in.';
+            Alert.alert('Sign In Method Mismatch', errorMessage);
+            setIsLoading(false);
+            dispatch({ type: 'SET_LOADING', payload: false });
+            return;
+          } else if (methods.includes('google.com') && methods.includes('password')) {
+            errorMessage = 'This account has multiple sign-in methods. You can sign in with either email/password or Google.';
+          }
+        } catch (fetchError) {
+          console.error('Error fetching sign-in methods:', fetchError);
+        }
+      }
+
+      // Standard error messages
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = 'No account found with this email address.';
           break;
         case 'auth/wrong-password':
-          errorMessage = 'Incorrect password. Please try again.';
+        case 'auth/invalid-credential':
+          errorMessage = 'Incorrect password. Please try again or use "Forgot Password".';
           break;
         case 'auth/email-already-in-use':
           errorMessage = 'An account with this email already exists.';
@@ -530,6 +637,66 @@ const AuthScreen = () => {
       if (error.code === 'auth/user-not-found') message = 'No account found with that email.';
       Alert.alert('Error', message);
     }
+  };
+
+  // Handle Google sign-in button press - show warning modal first
+  const handleGoogleSignInPress = () => {
+    setShowGoogleWarning(true);
+  };
+
+  // Send verification email from the warning modal
+  const handleSendVerificationEmail = async () => {
+    if (!verificationEmail || !validateEmail(verificationEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    setIsSendingVerification(true);
+    try {
+      // Check if user exists and is signed in
+      const currentUser = auth.currentUser;
+
+      if (currentUser && currentUser.email === verificationEmail) {
+        // User is signed in with the correct email
+        await sendEmailVerification(currentUser);
+        Alert.alert(
+          '✅ Verification Email Sent!',
+          'Please check your inbox (and spam folder) and click the verification link before signing in with Google.',
+          [{ text: 'OK' }]
+        );
+      } else if (currentUser && currentUser.email !== verificationEmail) {
+        // User is signed in but with different email
+        Alert.alert(
+          'Email Mismatch',
+          `You are currently signed in as ${currentUser.email}. Please sign out and sign in with ${verificationEmail} to send a verification email to that address.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        // User is not signed in
+        Alert.alert(
+          'Sign In Required',
+          'To send a verification email to ' + verificationEmail + ':\n\n1. Close this modal\n2. Sign in with email/password using ' + verificationEmail + '\n3. A verification email will be sent automatically\n\nIf you don\'t have an account yet, sign up first and the verification email will be sent during signup.',
+          [{ text: 'Got It' }]
+        );
+      }
+    } catch (error: any) {
+      console.error('Error sending verification email:', error);
+      let errorMsg = 'Failed to send verification email. Please try again.';
+
+      if (error.code === 'auth/too-many-requests') {
+        errorMsg = 'Too many requests. Please wait a few minutes before trying again.';
+      }
+
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
+
+  // Proceed with Google sign-in after warning
+  const handleProceedWithGoogle = () => {
+    setShowGoogleWarning(false);
+    promptAsync();
   };
 
   const isButtonDisabled = isLoading || (!isLogin && (!isPasswordValid() || !!emailError || !displayName.trim() || password !== confirmPassword));
@@ -669,7 +836,7 @@ const AuthScreen = () => {
                 }}>
                   {/* Google Sign-In Button - Primary Option */}
                   <TouchableOpacity
-                    onPress={() => promptAsync()}
+                    onPress={handleGoogleSignInPress}
                     disabled={isLoading || !request}
                     style={{
                       flexDirection: 'row',
@@ -1026,6 +1193,111 @@ const AuthScreen = () => {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Google Sign-In Warning Modal */}
+        {showGoogleWarning && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+          }}>
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 20,
+              padding: 24,
+              maxWidth: 500,
+              width: '100%',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.3,
+              shadowRadius: 20,
+              elevation: 10,
+            }}>
+              <Text style={{
+                fontSize: 24,
+                fontWeight: 'bold',
+                color: '#1F2937',
+                marginBottom: 16,
+                textAlign: 'center',
+              }}>
+                ⚠️ Important Notice
+              </Text>
+
+              <Text style={{
+                fontSize: 16,
+                color: '#4B5563',
+                lineHeight: 24,
+                marginBottom: 20,
+              }}>
+                If you haven't verified your email, signing in with Google will replace your current sign-in method.
+              </Text>
+
+              <View style={{
+                backgroundColor: '#FEF3C7',
+                borderLeftWidth: 4,
+                borderLeftColor: '#F59E0B',
+                padding: 16,
+                borderRadius: 8,
+                marginBottom: 24,
+              }}>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: '#92400E',
+                  marginBottom: 8,
+                }}>
+                  To keep both sign-in methods:
+                </Text>
+                <Text style={{ fontSize: 14, color: '#92400E', lineHeight: 20 }}>
+                  • Log in using your email and password{'\n'}
+                  • Verify your email address{'\n'}
+                  • Then you can safely use Google sign-in
+                </Text>
+              </View>
+
+              {/* Action buttons */}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setShowGoogleWarning(false)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#F3F4F6',
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#374151', fontSize: 16, fontWeight: '600' }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleProceedWithGoogle}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#4285F4',
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+                    Proceed Anyway
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -1035,4 +1307,4 @@ const styles = StyleSheet.create({
   animatedGradientWeb: {},
 });
 
-export default AuthScreen;
+export default AuthScreen; 
