@@ -125,7 +125,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
           giverId,
           'goal_approval_response',
           `${receiverName} accepted your goal suggestion`,
-          message.trim() || `Accepted goal: ${selectedWeeks} weeks, ${selectedSessions} sessions per week`,
+          `Accepted goal: ${selectedWeeks} weeks, ${selectedSessions} sessions per week`,
           {
             goalId: goal.id,
             recipientId: goal.userId,
@@ -162,7 +162,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
           {goal?.giverMessage && (
             <View style={styles.messageBox}>
-              <Text style={styles.messageLabel}>Message from giver:</Text>
+              <Text style={styles.messageLabel}>Message from {goal.empoweredBy}:</Text>
               <Text style={styles.messageText}>{goal.giverMessage}</Text>
             </View>
           )}

@@ -57,6 +57,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           goalId: notification.data.goalId,
           giverId: notification.data.senderId || '',
           experienceTitle: experienceTitle,
+          senderName: giverName,
         }
       );
 
@@ -138,20 +139,25 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         suggestMessage.trim() || undefined
       );
 
-      // Get recipient name and experience title
-      const giverName = await userService.getUserName(notification.data.senderId || '');
+      // Get recipient name, giver name, and experience title
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
+      // The notification is for the giver, so notification.userId is the giver's ID
+      // Also check if giverId exists in data as fallback (cast to any to access potentially missing field)
+      const giverIdForSuggestion = (notification.data as any).giverId || notification.userId;
+      const giverNameForSuggestion = await userService.getUserName(giverIdForSuggestion);
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
       // Notify receiver (non-clearable until they respond)
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_change_suggested',
-        `📝 ${giverName} suggested a goal change`,
+        `📝 ${giverNameForSuggestion} suggested a goal change`,
         '', //suggestMessage.trim() || `${giverName} suggested: ${weeks} weeks, ${sessions} sessions per week`,
         {
           goalId: notification.data.goalId,
-          giverId: notification.data.senderId || '',
+          giverId: giverIdForSuggestion,
+          senderId: giverIdForSuggestion, // Also include as senderId for consistency
+          senderName: giverNameForSuggestion, // Include sender name for display
           experienceTitle: experienceTitle,
           initialTargetCount: initialWeeks,
           initialSessionsPerWeek: initialSessions,
@@ -179,12 +185,12 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       }
 
       // Create confirmation notification for giver
-      const giverId = notification.userId; // The notification is for the giver
+      const giverIdForConfirmation = notification.userId; // The notification is for the giver
       await notificationService.createNotification(
-        giverId,
+        giverIdForConfirmation,
         'goal_approval_response',
         '📝 You suggested a goal change',
-        `You suggested a new goal "${experienceTitle}" to ${recipientName}`,
+        `You suggested a new goal to ${recipientName}`,
         {
           goalId: notification.data.goalId,
           recipientId: notification.data.recipientId,

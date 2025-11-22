@@ -50,6 +50,13 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
         return;
       }
 
+      // Verify user is the goal recipient before accepting
+      if (!currentGoal.userId) {
+        setError('Goal is missing user information. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       // Accept the suggestion as-is
       const updated = await goalService.respondToGoalSuggestion(
         notification.data.goalId,
@@ -59,15 +66,20 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       );
 
       // Notify giver
-      const receiverName = await userService.getUserName(notification.data.recipientId || '');
+      // Get recipient ID: use notification.userId (the recipient, since the notification is for them) or goal.userId or notification.data.recipientId
+      const recipientId = currentGoal.userId || notification.userId || notification.data.recipientId || '';
+      // Get giver ID from notification data or use senderId as fallback
+      const giverIdForNotification = (notification.data as any).giverId || notification.data.senderId || '';
+      const receiverName = await userService.getUserName(recipientId);
       await notificationService.createNotification(
-        notification.data.senderId || '',
+        giverIdForNotification,
         'goal_approval_response',
         `✅ ${receiverName} accepted your goal suggestion`,
         `${receiverName} accepted your suggestion: ${suggestedWeeks} weeks, ${suggestedSessions} sessions per week`,
         {
           goalId: notification.data.goalId,
-          recipientId: notification.data.recipientId || '',
+          recipientId: recipientId,
+          giverId: giverIdForNotification,
         }
       );
 
@@ -166,7 +178,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
           {/* <Text style={styles.message}>{notification.message}</Text> */}
           {notification.data?.giverMessage && (
             <View style={styles.messageBox}>
-              <Text style={styles.messageLabel}>Message from giver:</Text>
+              <Text style={styles.messageLabel}>Message from {notification.data?.senderName || 'giver'}:</Text>
               <Text style={styles.messageText}>{notification.data.giverMessage}</Text>
             </View>
           )}

@@ -124,24 +124,26 @@ service cloud.firestore {
         // ===== Allow updates =====
       allow update: if request.auth != null && (
 
-        // (1) Receiver updating their own goal
-        request.auth.uid == resource.data.userId
+        // (1) Receiver updating their own goal (allows all updates)
+        (resource.data.userId is string
+         && request.auth.uid == resource.data.userId)
 
         ||
 
-              // Giver can ONLY update approval-related fields
-        request.auth.uid == resource.data.empoweredBy
-        && request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly([
-              'approvalStatus',
-              'suggestedTargetCount',
-              'suggestedSessionsPerWeek',
-              'giverMessage',
-              'giverActionTaken',
-              'approvalRequestedAt',
-              'approvalDeadline',
-              'updatedAt'
-            ])
+        // (2) Giver can ONLY update approval-related fields
+        (resource.data.empoweredBy is string
+         && request.auth.uid == resource.data.empoweredBy
+         && request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly([
+               'approvalStatus',
+               'suggestedTargetCount',
+               'suggestedSessionsPerWeek',
+               'giverMessage',
+               'giverActionTaken',
+               'approvalRequestedAt',
+               'approvalDeadline',
+               'updatedAt'
+             ]))
       );
 
       /* ===============================
@@ -286,13 +288,17 @@ service cloud.firestore {
      * 🔔 NOTIFICATIONS
      * ===================== **/
     match /notifications/{notificationId} {
-      // Anyone who is the target user OR the sender of the friend request can delete
+      // Allow deletion by: target user, sender of friend request, or recipient of goal change suggestion
       allow delete: if request.auth != null &&
         (
           request.auth.uid == resource.data.userId || 
           (
             resource.data.type == "friend_request" &&
             request.auth.uid == resource.data.data.senderId
+          ) ||
+          (
+            resource.data.type == "goal_change_suggested" &&
+            request.auth.uid == resource.data.userId
           )
         );
 

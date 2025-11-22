@@ -87,6 +87,12 @@ export class UserService {
 
   /** Get user display name */
   async getUserName(userId: string): Promise<string> {
+    // Validate userId to prevent invalid document references
+    if (!userId || userId.trim() === '') {
+      console.warn('getUserName called with empty or invalid userId');
+      return 'Unknown';
+    }
+    
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
