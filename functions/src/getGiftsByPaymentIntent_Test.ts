@@ -47,7 +47,10 @@ export const getGiftsByPaymentIntent_Test = onRequest(
         .where("paymentIntentId", "==", paymentIntentId)
         .get();
     
-        const gifts = snap.docs.map(d => d.data());
+        const gifts = snap.docs.map(d => ({
+          ...d.data(),
+          id: d.id, // Ensure document ID is included
+        }));
     
         res.status(200).json(gifts);
         } catch (err: any) {

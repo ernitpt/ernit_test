@@ -10,6 +10,8 @@ import {
   Animated,
   Platform,
   Share,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -20,6 +22,7 @@ import { GiverStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
+import { experienceGiftService } from '../../services/ExperienceGiftService';
 
 type ConfirmationNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -55,6 +58,10 @@ const ConfirmationScreen = () => {
   }, []);
 
   const [experience, setExperience] = useState<any>(null);
+  const [personalizedMessage, setPersonalizedMessage] = useState(experienceGift.personalizedMessage || '');
+  const [charCount, setCharCount] = useState((experienceGift.personalizedMessage || '').length);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageSent, setMessageSent] = useState(!!experienceGift.personalizedMessage);
 
   useEffect(() => {
     const fetchExperience = async () => {
@@ -68,6 +75,32 @@ const ConfirmationScreen = () => {
     };
     fetchExperience();
   }, [experienceGift.experienceId]);
+
+  const handleMessageChange = (text: string) => {
+    if (text.length <= 500) {
+      setPersonalizedMessage(text);
+      setCharCount(text.length);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!personalizedMessage.trim()) {
+      Alert.alert('Error', 'Please enter a message before sending.');
+      return;
+    }
+
+    setIsSendingMessage(true);
+    try {
+      await experienceGiftService.updatePersonalizedMessage(experienceGift.id, personalizedMessage.trim());
+      setMessageSent(true);
+      Alert.alert('Success', 'Your personalized message has been saved!');
+    } catch (error) {
+      console.error('Error updating personalized message:', error);
+      Alert.alert('Error', 'Failed to save message. Please try again.');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
 
 
   const handleCopyCode = async () => {
@@ -180,15 +213,47 @@ const ConfirmationScreen = () => {
               </Text>
             </View>
 
-            {/* Personal Message */}
-            {experienceGift.personalizedMessage && (
-              <View style={styles.messageCard}>
-                <Text style={styles.messageLabel}>Your Message</Text>
-                <Text style={styles.messageText}>
-                  "{experienceGift.personalizedMessage}"
-                </Text>
+            {/* Personal Message Input/Display */}
+            <View style={styles.messageSection}>
+              <View style={styles.messageSectionHeader}>
+                <Text style={styles.messageLabel}>Personal Message</Text>
+                <Text style={styles.charCounter}>{charCount}/500</Text>
               </View>
-            )}
+              <Text style={styles.messageSubtitle}>
+                Add a heartfelt message to make this gift extra special
+              </Text>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Share why this experience is perfect for them..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                value={personalizedMessage}
+                onChangeText={handleMessageChange}
+                textAlignVertical="top"
+                maxLength={500}
+                editable={!messageSent}
+              />
+              {!messageSent && (
+                <TouchableOpacity
+                  style={[styles.sendMessageButton, isSendingMessage && styles.sendMessageButtonDisabled]}
+                  onPress={handleSendMessage}
+                  disabled={isSendingMessage || !personalizedMessage.trim()}
+                  activeOpacity={0.8}
+                >
+                  {isSendingMessage ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.sendMessageButtonText}>Send Message</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+              {messageSent && (
+                <View style={styles.messageSentBadge}>
+                  <CheckCircle color="#10b981" size={16} />
+                  <Text style={styles.messageSentText}>Message sent!</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
@@ -373,12 +438,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#8b5cf6',
   },
-  messageCard: {
-    backgroundColor: '#f9fafb',
-    padding: 16,
-    borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8b5cf6',
+  messageSection: {
+    marginTop: 16,
+  },
+  messageSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   messageLabel: {
     fontSize: 12,
@@ -386,13 +453,54 @@ const styles = StyleSheet.create({
     color: '#8b5cf6',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
   },
-  messageText: {
+  charCounter: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  messageSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  messageInput: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 15,
-    fontStyle: 'italic',
-    color: '#374151',
-    lineHeight: 22,
+    color: '#111827',
+    minHeight: 100,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 12,
+  },
+  sendMessageButton: {
+    backgroundColor: '#8b5cf6',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendMessageButtonDisabled: {
+    opacity: 0.6,
+  },
+  sendMessageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  messageSentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  messageSentText: {
+    fontSize: 14,
+    color: '#10b981',
+    fontWeight: '600',
   },
   codeSection: {
     marginHorizontal: 20,
@@ -432,7 +540,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   codeText: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#8b5cf6',
     textAlign: 'center',

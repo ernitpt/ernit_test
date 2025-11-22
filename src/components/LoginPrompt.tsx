@@ -38,19 +38,29 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
   // Track previous visible state to prevent restarting animations
   const prevVisibleRef = useRef(false);
-  const isAnimatingRef = useRef(false);
+  const currentAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     // Only animate on actual state changes, not on every render
     if (visible === prevVisibleRef.current) return;
-    if (isAnimatingRef.current) return;
+
+    // Stop any running animation before starting a new one
+    if (currentAnimationRef.current) {
+      currentAnimationRef.current.stop();
+      currentAnimationRef.current = null;
+    }
 
     prevVisibleRef.current = visible;
-    isAnimatingRef.current = true;
 
     if (visible) {
+      // Reset animation values to starting position for animation in
+      scaleAnim.setValue(0);
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
+      backdropOpacity.setValue(0);
+
       // Animate in smoothly
-      Animated.parallel([
+      const animIn = Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
           friction: 7,
@@ -73,12 +83,15 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           duration: 250,
           useNativeDriver: false,
         }),
-      ]).start(() => {
-        isAnimatingRef.current = false;
+      ]);
+
+      currentAnimationRef.current = animIn;
+      animIn.start(() => {
+        currentAnimationRef.current = null;
       });
     } else {
       // Animate out smoothly
-      Animated.parallel([
+      const animOut = Animated.parallel([
         Animated.timing(scaleAnim, {
           toValue: 0,
           duration: 200,
@@ -99,8 +112,11 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           duration: 200,
           useNativeDriver: false,
         }),
-      ]).start(() => {
-        isAnimatingRef.current = false;
+      ]);
+
+      currentAnimationRef.current = animOut;
+      animOut.start(() => {
+        currentAnimationRef.current = null;
         // Reset values after animation completes
         scaleAnim.setValue(0);
         fadeAnim.setValue(0);
@@ -108,7 +124,15 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         backdropOpacity.setValue(0);
       });
     }
-  }, [visible]);
+
+    // Cleanup function to stop animations on unmount
+    return () => {
+      if (currentAnimationRef.current) {
+        currentAnimationRef.current.stop();
+        currentAnimationRef.current = null;
+      }
+    };
+  }, [visible, scaleAnim, fadeAnim, slideAnim, backdropOpacity]);
 
   const handleClose = () => {
     onClose(); // Just close the popup, don't navigate - animation handled by useEffect

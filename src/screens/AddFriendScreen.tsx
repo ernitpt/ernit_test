@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { commonStyles } from '../themes/commonStyles';
+import { ChevronLeft } from 'lucide-react-native';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
@@ -155,10 +156,10 @@ const headerColors = ['#462088ff', '#235c9eff'] as const;
             style={styles.backButtonHero}
             activeOpacity={0.8}
           >
-            <Text style={styles.backIcon}>‹</Text>
+            <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
 
-          <Text style={[commonStyles.headerTitle, { marginLeft: 8 }]}>Add Friend</Text>
+          <Text style={commonStyles.headerTitle}>Add Friend</Text>
         </View>
       </LinearGradient>
 
@@ -226,7 +227,9 @@ const styles = StyleSheet.create({
     paddingTop: 28,
   },
   header: {
+    paddingTop: Platform.OS === "ios" ? 20 : 10,
     paddingBottom: 10,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -381,12 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
-  },
-  backIcon: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
+    marginRight: 12,
   },
   placeholderImage: {
     width: 44,

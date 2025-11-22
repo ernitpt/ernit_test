@@ -196,8 +196,13 @@ service cloud.firestore {
       // Create: only via cloud functions (server-side)
       allow create: if false;
       
-      // Update: allow recipient to update their gift, OR allow claiming pending gifts
+      // Update: allow giver to update personalizedMessage, recipient to update their gift, OR allow claiming pending gifts
       allow update: if request.auth != null && (
+        // Giver updating personalized message
+        (request.auth.uid == resource.data.giverId &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['personalizedMessage', 'updatedAt']))
+        ||
         // Existing recipient updating their gift
         (request.auth.uid == resource.data.recipientId &&
          request.resource.data.diff(resource.data).changedKeys()

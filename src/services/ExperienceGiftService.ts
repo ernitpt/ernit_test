@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, getDoc, getDocs, addDoc, serverTimestamp, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy } from 'firebase/firestore';
 import { ExperienceGift } from '../types';
 
 export class ExperienceGiftService {
@@ -62,6 +62,40 @@ export class ExperienceGiftService {
     } catch (error) {
       console.error('Error fetching gifts by user:', error);
       return [];
+    }
+  }
+
+  /** Update personalized message for an experience gift */
+  async updatePersonalizedMessage(giftId: string, personalizedMessage: string): Promise<void> {
+    try {
+      // Try as document ID first
+      const docRef = doc(db, 'experienceGifts', giftId);
+      const snapshot = await getDoc(docRef);
+      
+      if (snapshot.exists()) {
+        await updateDoc(docRef, {
+          personalizedMessage,
+          updatedAt: serverTimestamp(),
+        });
+        return;
+      }
+
+      // Fallback: find by field 'id'
+      const q = query(this.experiencesCollection, where('id', '==', giftId));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        throw new Error('Experience gift not found');
+      }
+
+      const foundDoc = querySnapshot.docs[0];
+      await updateDoc(doc(db, 'experienceGifts', foundDoc.id), {
+        personalizedMessage,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error updating personalized message:', error);
+      throw error;
     }
   }
 }

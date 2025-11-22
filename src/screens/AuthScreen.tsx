@@ -207,6 +207,9 @@ const AuthScreen = () => {
   // Email validation state
   const [emailError, setEmailError] = useState('');
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  
+  // Password error state for login
+  const [passwordError, setPasswordError] = useState('');
 
   // Google sign-in warning modal state
   const [showGoogleWarning, setShowGoogleWarning] = useState(false);
@@ -434,17 +437,23 @@ const AuthScreen = () => {
   const handleEmailChange = async (text: string) => {
     const sanitized = sanitizeInput(text);
     setEmail(sanitized);
+    // Clear email error when user starts typing
+    if (emailError) {
+      setEmailError('');
+    }
 
     if (sanitized && !isLogin) {
       await checkEmailExists(sanitized);
-    } else {
-      setEmailError('');
     }
   };
 
   const handlePasswordChange = (text: string) => {
     const sanitized = sanitizeInput(text);
     setPassword(sanitized);
+    // Clear password error when user starts typing
+    if (passwordError) {
+      setPasswordError('');
+    }
     if (!isLogin) {
       validatePasswordStrength(sanitized);
     }
@@ -569,6 +578,10 @@ const AuthScreen = () => {
     } catch (error: any) {
       console.error('Auth error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      // Clear previous errors
+      setEmailError('');
+      setPasswordError('');
 
       // Check if this is a multi-provider issue
       if (isLogin && (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
@@ -579,6 +592,7 @@ const AuthScreen = () => {
 
           if (methods.includes('google.com') && !methods.includes('password')) {
             errorMessage = 'This email is registered with Google Sign-In. Please use the "Continue with Google" button to sign in.';
+            setEmailError(errorMessage);
             Alert.alert('Sign In Method Mismatch', errorMessage);
             setIsLoading(false);
             dispatch({ type: 'SET_LOADING', payload: false });
@@ -591,29 +605,56 @@ const AuthScreen = () => {
         }
       }
 
-      // Standard error messages
-      switch (error.code) {
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email address.';
-          break;
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          errorMessage = 'Incorrect password. Please try again or use "Forgot Password".';
-          break;
-        case 'auth/email-already-in-use':
-          errorMessage = 'An account with this email already exists.';
-          break;
-        case 'auth/weak-password':
-          errorMessage = 'Password is too weak. Please choose a stronger password.';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later.';
-          break;
+      // Standard error messages with inline error display
+      if (isLogin) {
+        switch (error.code) {
+          case 'auth/user-not-found':
+            errorMessage = 'No account found with this email address.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
+            setPasswordError('Email or password is incorrect.');
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
+            setPasswordError(errorMessage);
+            break;
+          default:
+            // For other errors, show in alert
+            Alert.alert('Sign In Failed', errorMessage);
+            return;
+        }
+      } else {
+        // Sign up errors
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'An account with this email already exists.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password is too weak. Please choose a stronger password.';
+            setPasswordError(errorMessage);
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            setEmailError(errorMessage);
+            break;
+          default:
+            Alert.alert('Sign Up Failed', errorMessage);
+            return;
+        }
       }
-      Alert.alert(isLogin ? 'Sign In Failed' : 'Sign Up Failed', errorMessage);
+      
+      // Show alert for login errors with inline feedback
+      if (isLogin) {
+        Alert.alert('Sign In Failed', errorMessage);
+      }
     } finally {
       if (!showSuccess) {
         setIsLoading(false);
@@ -943,7 +984,7 @@ const AuthScreen = () => {
                           paddingRight: 80,
                           fontSize: 16,
                           borderWidth: 1,
-                          borderColor: '#E5E7EB',
+                          borderColor: passwordError ? '#EF4444' : '#E5E7EB',
                         }}
                         placeholder="Password"
                         placeholderTextColor="#9CA3AF"
@@ -960,6 +1001,11 @@ const AuthScreen = () => {
                         </Text>
                       </TouchableOpacity>
                     </View>
+                    {passwordError && (
+                      <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                        {passwordError}
+                      </Text>
+                    )}
 
                     {!isLogin && password.length > 0 && (
                       <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
@@ -1069,27 +1115,6 @@ const AuthScreen = () => {
                       {/* Outer glow layers - multiple for more depth */}
                       {!isButtonDisabled && (
                         <>
-                          {/* Outermost glow */}
-                          <Animated.View
-                            style={{
-                              position: 'absolute',
-                              top: -12,
-                              left: -12,
-                              right: -12,
-                              bottom: -12,
-                              borderRadius: 24,
-                              opacity: glowOpacity,
-                              transform: [{ scale: glowScale }],
-                            }}
-                          >
-                            <LinearGradient
-                              colors={['rgba(124, 58, 237, 0.5)', 'rgba(59, 130, 246, 0.5)', 'rgba(147, 51, 234, 0.5)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={{ flex: 1, borderRadius: 24 }}
-                            />
-                          </Animated.View>
-
                           {/* Middle glow */}
                           <Animated.View
                             style={{
@@ -1181,7 +1206,12 @@ const AuthScreen = () => {
 
                   {/* Toggle between Sign In / Sign Up */}
                   <TouchableOpacity
-                    onPress={() => setIsLogin(!isLogin)}
+                    onPress={() => {
+                      setIsLogin(!isLogin);
+                      // Clear errors when switching modes
+                      setEmailError('');
+                      setPasswordError('');
+                    }}
                     style={{ alignItems: 'center' }}
                   >
                     <Text style={{ fontSize: 16, color: '#7C3AED', fontWeight: '600' }}>

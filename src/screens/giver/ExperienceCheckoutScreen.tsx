@@ -130,17 +130,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   const stripe = useStripe();
   const elements = useElements();
 
-  const [message, setMessage] = useState("");
-  const [charCount, setCharCount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(false);
-
-  const handleMessageChange = (text: string) => {
-    if (text.length <= 500) {
-      setMessage(text);
-      setCharCount(text.length);
-    }
-  };
 
   // --- Handle redirect-based flows (e.g. MB Way) ---
   useEffect(() => {
@@ -239,24 +230,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     await setStorageItem(`pending_payment_${clientSecret}`, "true");
 
     try {
-      if (message) {
-        try {
-          await fetch(
-            "https://europe-west1-ernit-3fc0b.cloudfunctions.net/updatePaymentIntentMetadata",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                paymentIntentId,
-                personalizedMessage: message,
-              }),
-            }
-          );
-        } catch (err) {
-          console.warn("Could not update message, proceeding anyway");
-        }
-      }
-
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -365,27 +338,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                 <Text style={styles.priceLabel}>Total Amount</Text>
                 <Text style={styles.priceAmount}>€{totalAmount.toFixed(2)}</Text>
               </View>
-            </View>
-
-            {/* Personal Message (for all gifts) */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Personal Message</Text>
-                <Text style={styles.charCounter}>{charCount}/500</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                Make it special with a heartfelt message (applies to all gifts in this checkout).
-              </Text>
-              <TextInput
-                style={styles.messageInput}
-                placeholder="Share why these experiences are perfect for them..."
-                placeholderTextColor="#9ca3af"
-                multiline
-                value={message}
-                onChangeText={handleMessageChange}
-                textAlignVertical="top"
-                maxLength={500}
-              />
             </View>
 
             {/* Payment */}
@@ -509,7 +461,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
           state.user?.displayName || "",
           firstExp.partnerId,
           cartMetadata,
-          "" // message will be updated later
+          "" // personalized message will be added on confirmation screen
         );
 
         setClientSecret(response.clientSecret);
@@ -700,23 +652,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   sectionSubtitle: { fontSize: 14, color: "#6b7280", marginBottom: 12 },
-  charCounter: { fontSize: 14, color: "#9ca3af", fontWeight: "500" },
-
-  messageInput: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: "#111827",
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
 
   paymentBox: {
     backgroundColor: "#fff",

@@ -10,6 +10,8 @@ import {
   Animated,
   Platform,
   Share,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -21,6 +23,7 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
+import { experienceGiftService } from '../../services/ExperienceGiftService';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -44,6 +47,10 @@ const ConfirmationMultipleScreen = () => {
 
   const [giftsWithExperiences, setGiftsWithExperiences] = useState<GiftWithExperience[]>([]);
   const [loading, setLoading] = useState(true);
+  // Track personalized messages for each gift
+  const [personalizedMessages, setPersonalizedMessages] = useState<Record<string, string>>({});
+  const [messageSentStatus, setMessageSentStatus] = useState<Record<string, boolean>>({});
+  const [sendingMessageId, setSendingMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -70,6 +77,18 @@ const ConfirmationMultipleScreen = () => {
         });
         const results = await Promise.all(promises);
         setGiftsWithExperiences(results);
+        
+        // Initialize messages from existing gifts
+        const initialMessages: Record<string, string> = {};
+        const initialSentStatus: Record<string, boolean> = {};
+        results.forEach(({ gift }) => {
+          if (gift.id) {
+            initialMessages[gift.id] = gift.personalizedMessage || '';
+            initialSentStatus[gift.id] = !!gift.personalizedMessage;
+          }
+        });
+        setPersonalizedMessages(initialMessages);
+        setMessageSentStatus(initialSentStatus);
       } catch (error) {
         console.error("Error fetching experiences:", error);
         Alert.alert("Error", "Could not load experience details.");
@@ -79,6 +98,38 @@ const ConfirmationMultipleScreen = () => {
     };
     fetchExperiences();
   }, [experienceGifts]);
+
+  const handleMessageChange = (giftId: string, text: string) => {
+    if (text.length <= 500) {
+      setPersonalizedMessages((prev) => ({
+        ...prev,
+        [giftId]: text,
+      }));
+    }
+  };
+
+  const handleSendMessage = async (giftId: string) => {
+    const message = personalizedMessages[giftId]?.trim() || '';
+    if (!message) {
+      Alert.alert('Error', 'Please enter a message before sending.');
+      return;
+    }
+
+    setSendingMessageId(giftId);
+    try {
+      await experienceGiftService.updatePersonalizedMessage(giftId, message);
+      setMessageSentStatus((prev) => ({
+        ...prev,
+        [giftId]: true,
+      }));
+      Alert.alert('Success', 'Your personalized message has been saved!');
+    } catch (error) {
+      console.error('Error updating personalized message:', error);
+      Alert.alert('Error', 'Failed to save message. Please try again.');
+    } finally {
+      setSendingMessageId(null);
+    }
+  };
 
   const handleCopyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -179,15 +230,53 @@ const ConfirmationMultipleScreen = () => {
                     </Text>
                   </View>
 
-                  {/* Personal Message */}
-                  {item.gift.personalizedMessage && (
-                    <View style={styles.messageCard}>
-                      <Text style={styles.messageLabel}>Your Message</Text>
-                      <Text style={styles.messageText}>
-                        "{item.gift.personalizedMessage}"
+                  {/* Personal Message Input/Display */}
+                  <View style={styles.messageSection}>
+                    <View style={styles.messageSectionHeader}>
+                      <Text style={styles.messageLabel}>Personal Message</Text>
+                      <Text style={styles.charCounter}>
+                        {(personalizedMessages[item.gift.id || ''] || '').length}/500
                       </Text>
                     </View>
-                  )}
+                    <Text style={styles.messageSubtitle}>
+                      Add a heartfelt message to make this gift extra special
+                    </Text>
+                    <TextInput
+                      style={styles.messageInput}
+                      placeholder="Share why this experience is perfect for them..."
+                      placeholderTextColor="#9ca3af"
+                      multiline
+                      value={personalizedMessages[item.gift.id || ''] || ''}
+                      onChangeText={(text) => handleMessageChange(item.gift.id || '', text)}
+                      textAlignVertical="top"
+                      maxLength={500}
+                      editable={!messageSentStatus[item.gift.id || '']}
+                    />
+                    {!messageSentStatus[item.gift.id || ''] && (
+                      <TouchableOpacity
+                        style={[
+                          styles.sendMessageButton,
+                          (sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()) && 
+                          styles.sendMessageButtonDisabled
+                        ]}
+                        onPress={() => handleSendMessage(item.gift.id || '')}
+                        disabled={sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()}
+                        activeOpacity={0.8}
+                      >
+                        {sendingMessageId === item.gift.id ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Text style={styles.sendMessageButtonText}>Send Message</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                    {messageSentStatus[item.gift.id || ''] && (
+                      <View style={styles.messageSentBadge}>
+                        <CheckCircle color="#10b981" size={16} />
+                        <Text style={styles.messageSentText}>Message sent!</Text>
+                      </View>
+                    )}
+                  </View>
 
                   {/* Claim Code */}
                   <View style={styles.codeSection}>
@@ -380,13 +469,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#8b5cf6',
   },
-  messageCard: {
-    backgroundColor: '#f9fafb',
-    padding: 12,
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8b5cf6',
-    marginBottom: 16,
+  messageSection: {
+    marginTop: 16,
+  },
+  messageSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   messageLabel: {
     fontSize: 11,
@@ -394,13 +484,54 @@ const styles = StyleSheet.create({
     color: '#8b5cf6',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
   },
-  messageText: {
+  charCounter: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  messageSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 10,
+  },
+  messageInput: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
     fontSize: 14,
-    fontStyle: 'italic',
-    color: '#374151',
-    lineHeight: 20,
+    color: '#111827',
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 10,
+  },
+  sendMessageButton: {
+    backgroundColor: '#8b5cf6',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendMessageButtonDisabled: {
+    opacity: 0.6,
+  },
+  sendMessageButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  messageSentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  messageSentText: {
+    fontSize: 13,
+    color: '#10b981',
+    fontWeight: '600',
   },
   codeSection: {
     marginTop: 8,
@@ -422,7 +553,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   codeText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     color: '#8b5cf6',
     textAlign: 'center',

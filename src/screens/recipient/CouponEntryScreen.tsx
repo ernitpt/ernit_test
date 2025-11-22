@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
+  StyleSheet,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,9 +38,17 @@ const CouponEntryScreen = () => {
   const [claimCode, setClaimCode] = useState(initialCode);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPersonalizedMessage, setShowPersonalizedMessage] = useState(false);
+  const [personalizedMessage, setPersonalizedMessage] = useState('');
+  const [pendingExperienceGift, setPendingExperienceGift] = useState<ExperienceGift | null>(null);
 
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Modal animation values
+  const modalScaleAnim = useRef(new Animated.Value(0)).current;
+  const modalFadeAnim = useRef(new Animated.Value(0)).current;
+  const modalBackdropAnim = useRef(new Animated.Value(0)).current;
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -97,10 +107,18 @@ const CouponEntryScreen = () => {
 
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'GoalSetting', params: { experienceGift } }],
-      });
+      // If there's a personalized message, show it in a popup first
+      if (experienceGift.personalizedMessage && experienceGift.personalizedMessage.trim()) {
+        setPersonalizedMessage(experienceGift.personalizedMessage.trim());
+        setPendingExperienceGift(experienceGift);
+        setShowPersonalizedMessage(true);
+      } else {
+        // No message, proceed directly to GoalSetting
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'GoalSetting', params: { experienceGift } }],
+        });
+      }
     } catch (error) {
       console.error('Error claiming experience gift:', error);
       setErrorMessage('An error occurred. Please try again.');
@@ -110,6 +128,71 @@ const CouponEntryScreen = () => {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
+
+  // Handle personalized message modal animation
+  useEffect(() => {
+    if (showPersonalizedMessage) {
+      Animated.parallel([
+        Animated.spring(modalScaleAnim, {
+          toValue: 1,
+          friction: 7,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalFadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalBackdropAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(modalScaleAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalFadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalBackdropAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        // Reset values after animation
+        modalScaleAnim.setValue(0);
+        modalFadeAnim.setValue(0);
+        modalBackdropAnim.setValue(0);
+      });
+    }
+  }, [showPersonalizedMessage]);
+
+  const handleContinueFromMessage = () => {
+    setShowPersonalizedMessage(false);
+    // Small delay to let animation complete
+    setTimeout(() => {
+      if (pendingExperienceGift) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'GoalSetting', params: { experienceGift: pendingExperienceGift } }],
+        });
+      }
+    }, 200);
+  };
+
+  const backdropOpacity = modalBackdropAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.6],
+  });
 
   return (
     <MainScreen activeRoute="Goals">
@@ -333,8 +416,136 @@ const CouponEntryScreen = () => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+
+      {/* Personalized Message Modal */}
+      <Modal
+        visible={showPersonalizedMessage}
+        transparent
+        animationType="none"
+        onRequestClose={handleContinueFromMessage}
+      >
+        <Animated.View
+          style={[
+            styles.modalOverlay,
+            {
+              opacity: modalBackdropAnim,
+            }
+          ]}
+        >
+          {/* Web-specific blur effect */}
+          {Platform.OS === 'web' && showPersonalizedMessage && (
+            <Animated.View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  opacity: modalBackdropAnim,
+                  // @ts-ignore - web-specific style
+                  backdropFilter: 'blur(10px)',
+                  // @ts-ignore - web-specific style
+                  WebkitBackdropFilter: 'blur(10px)',
+                },
+              ]}
+            />
+          )}
+
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleContinueFromMessage}
+          />
+
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                transform: [{ scale: modalScaleAnim }],
+                opacity: modalFadeAnim,
+              },
+            ]}
+            pointerEvents={showPersonalizedMessage ? "box-none" : "none"}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>A Message For You</Text>
+              <View style={styles.messageBox}>
+                <Text style={styles.messageText}>"{personalizedMessage}"</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={handleContinueFromMessage}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </MainScreen>
   );
 };
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  messageBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#374151',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  continueButton: {
+    backgroundColor: '#7C3AED',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 17,
+    letterSpacing: 0.3,
+  },
+});
 
 export default CouponEntryScreen;
