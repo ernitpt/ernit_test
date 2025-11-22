@@ -1,12 +1,11 @@
 // README: run with  node scripts/seedExperiences.js
 // required:  npm install firebase-admin
 
+import { defineSecret } from "firebase-functions/params";
+import { getFirestore } from "firebase-admin/firestore";
+import { initializeApp, cert } from "firebase-admin/app";
 
-// scripts/seedExperiences.js
-const { initializeApp, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
 const SERVICE_ACCOUNT_KEY = defineSecret("SERVICE_ACCOUNT_KEY");
-
 
 // Initialize Firebase Admin
 initializeApp({

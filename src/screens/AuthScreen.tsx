@@ -207,14 +207,14 @@ const AuthScreen = () => {
   // Email validation state
   const [emailError, setEmailError] = useState('');
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-  
+
   // Password error state for login
   const [passwordError, setPasswordError] = useState('');
 
   // Google sign-in warning modal state
-  const [showGoogleWarning, setShowGoogleWarning] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState('');
-  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  // const [showGoogleWarning, setShowGoogleWarning] = useState(false);
+  // const [verificationEmail, setVerificationEmail] = useState('');
+  // const [isSendingVerification, setIsSendingVerification] = useState(false);
 
   // ✅ Use makeRedirectUri for proper OAuth configuration
   const redirectUri = makeRedirectUri({
@@ -578,7 +578,7 @@ const AuthScreen = () => {
     } catch (error: any) {
       console.error('Auth error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
-      
+
       // Clear previous errors
       setEmailError('');
       setPasswordError('');
@@ -650,7 +650,7 @@ const AuthScreen = () => {
             return;
         }
       }
-      
+
       // Show alert for login errors with inline feedback
       if (isLogin) {
         Alert.alert('Sign In Failed', errorMessage);
@@ -680,65 +680,7 @@ const AuthScreen = () => {
     }
   };
 
-  // Handle Google sign-in button press - show warning modal first
-  const handleGoogleSignInPress = () => {
-    setShowGoogleWarning(true);
-  };
 
-  // Send verification email from the warning modal
-  const handleSendVerificationEmail = async () => {
-    if (!verificationEmail || !validateEmail(verificationEmail)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
-    }
-
-    setIsSendingVerification(true);
-    try {
-      // Check if user exists and is signed in
-      const currentUser = auth.currentUser;
-
-      if (currentUser && currentUser.email === verificationEmail) {
-        // User is signed in with the correct email
-        await sendEmailVerification(currentUser);
-        Alert.alert(
-          '✅ Verification Email Sent!',
-          'Please check your inbox (and spam folder) and click the verification link before signing in with Google.',
-          [{ text: 'OK' }]
-        );
-      } else if (currentUser && currentUser.email !== verificationEmail) {
-        // User is signed in but with different email
-        Alert.alert(
-          'Email Mismatch',
-          `You are currently signed in as ${currentUser.email}. Please sign out and sign in with ${verificationEmail} to send a verification email to that address.`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        // User is not signed in
-        Alert.alert(
-          'Sign In Required',
-          'To send a verification email to ' + verificationEmail + ':\n\n1. Close this modal\n2. Sign in with email/password using ' + verificationEmail + '\n3. A verification email will be sent automatically\n\nIf you don\'t have an account yet, sign up first and the verification email will be sent during signup.',
-          [{ text: 'Got It' }]
-        );
-      }
-    } catch (error: any) {
-      console.error('Error sending verification email:', error);
-      let errorMsg = 'Failed to send verification email. Please try again.';
-
-      if (error.code === 'auth/too-many-requests') {
-        errorMsg = 'Too many requests. Please wait a few minutes before trying again.';
-      }
-
-      Alert.alert('Error', errorMsg);
-    } finally {
-      setIsSendingVerification(false);
-    }
-  };
-
-  // Proceed with Google sign-in after warning
-  const handleProceedWithGoogle = () => {
-    setShowGoogleWarning(false);
-    promptAsync();
-  };
 
   const isButtonDisabled = isLoading || (!isLogin && (!isPasswordValid() || !!emailError || !displayName.trim() || password !== confirmPassword));
 
@@ -877,7 +819,7 @@ const AuthScreen = () => {
                 }}>
                   {/* Google Sign-In Button - Primary Option */}
                   <TouchableOpacity
-                    onPress={handleGoogleSignInPress}
+                    onPress={() => promptAsync()}
                     disabled={isLoading || !request}
                     style={{
                       flexDirection: 'row',
@@ -1224,110 +1166,7 @@ const AuthScreen = () => {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Google Sign-In Warning Modal */}
-        {showGoogleWarning && (
-          <View style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 24,
-          }}>
-            <View style={{
-              backgroundColor: 'white',
-              borderRadius: 20,
-              padding: 24,
-              maxWidth: 500,
-              width: '100%',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.3,
-              shadowRadius: 20,
-              elevation: 10,
-            }}>
-              <Text style={{
-                fontSize: 24,
-                fontWeight: 'bold',
-                color: '#1F2937',
-                marginBottom: 16,
-                textAlign: 'center',
-              }}>
-                ⚠️ Important Notice
-              </Text>
 
-              <Text style={{
-                fontSize: 16,
-                color: '#4B5563',
-                lineHeight: 24,
-                marginBottom: 20,
-              }}>
-                If you haven't verified your email, signing in with Google will replace your current sign-in method.
-              </Text>
-
-              <View style={{
-                backgroundColor: '#FEF3C7',
-                borderLeftWidth: 4,
-                borderLeftColor: '#F59E0B',
-                padding: 16,
-                borderRadius: 8,
-                marginBottom: 24,
-              }}>
-                <Text style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: '#92400E',
-                  marginBottom: 8,
-                }}>
-                  To keep both sign-in methods:
-                </Text>
-                <Text style={{ fontSize: 14, color: '#92400E', lineHeight: 20 }}>
-                  • Log in using your email and password{'\n'}
-                  • Verify your email address{'\n'}
-                  • Then you can safely use Google sign-in
-                </Text>
-              </View>
-
-              {/* Action buttons */}
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity
-                  onPress={() => setShowGoogleWarning(false)}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#F3F4F6',
-                    borderRadius: 12,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ color: '#374151', fontSize: 16, fontWeight: '600' }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleProceedWithGoogle}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#4285F4',
-                    borderRadius: 12,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-                    Proceed Anyway
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
       </SafeAreaView>
     </View>
   );

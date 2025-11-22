@@ -697,11 +697,6 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                   Next week starts on {formatNextWeekDay(currentGoal.weekStartAt)} 💪
                 </Text>
               </View>
-            ) : alreadyLoggedToday && !DEBUG_ALLOW_MULTIPLE_PER_DAY ? (
-              <View style={styles.disabledStartContainer}>
-                <Text style={styles.disabledStartText}>You already made progress today</Text>
-                <Text style={styles.disabledStartText}>Come back tomorrow for more 💪</Text>
-              </View>
             ) : (
               <>
                 {/* Approval Status Message - Show only once above start button when locked and no sessions done */}
@@ -721,8 +716,8 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                   <View style={[styles.approvalMessageBox, { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
                     <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
                       {currentGoal.approvalStatus === 'suggested_change'
-                        ? '🎉 Congrats on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.'
-                        : '🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).'}
+                        ? `🎉 Congrats  on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.`
+                        : `🎉 Congrats ${currentGoal.approvalStatus} on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).`}
                     </Text>
                   </View>
                 )}
@@ -731,6 +726,11 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
                   || (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) ? (
                   <View style={styles.disabledStartContainer}>
                     <Text style={styles.disabledStartText}>Waiting for approval</Text>
+                  </View>
+                ) : alreadyLoggedToday && !DEBUG_ALLOW_MULTIPLE_PER_DAY ? (
+                  <View style={styles.disabledStartContainer}>
+                    <Text style={styles.disabledStartText}>You already made progress today</Text>
+                    <Text style={styles.disabledStartText}>Come back tomorrow for more 💪</Text>
                   </View>
                 ) : (
                   <View>

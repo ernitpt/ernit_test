@@ -108,11 +108,14 @@ export class GoalService {
   /** Real-time listener */
   listenToUserGoals(userId: string, cb: (goals: Goal[]) => void) {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
-    const unsub = onSnapshot(qy, (snap) => {
-      const goals = snap.docs.map((d) => {
-        const data = normalizeGoal({ id: d.id, ...d.data() });
-        return data;
-      });
+    const unsub = onSnapshot(qy, async (snap) => {
+      const goals = await Promise.all(
+        snap.docs.map(async (d) => {
+          const data = normalizeGoal({ id: d.id, ...d.data() });
+          // Apply week sweep to ensure isWeekCompleted is current
+          return await this.applyExpiredWeeksSweep(data);
+        })
+      );
       cb(goals);
     });
     return unsub;
@@ -122,14 +125,23 @@ export class GoalService {
   async getUserGoals(userId: string): Promise<Goal[]> {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
     const snap = await getDocs(qy);
-    return snap.docs.map((d) => normalizeGoal({ id: d.id, ...d.data() }));
+    const goals = await Promise.all(
+      snap.docs.map(async (d) => {
+        const data = normalizeGoal({ id: d.id, ...d.data() });
+        // Apply week sweep to ensure isWeekCompleted is current
+        return await this.applyExpiredWeeksSweep(data);
+      })
+    );
+    return goals;
   }
 
   async getGoalById(goalId: string): Promise<Goal | null> {
     const ref = doc(db, 'goals', goalId);
     const s = await getDoc(ref);
     if (!s.exists()) return null;
-    return normalizeGoal({ id: s.id, ...s.data() });
+    const data = normalizeGoal({ id: s.id, ...s.data() });
+    // Apply week sweep to ensure isWeekCompleted is current
+    return await this.applyExpiredWeeksSweep(data);
   }
 
   async appendHint(goalId: string, hintObj: { session: number; hint: string; date: number }) {
@@ -189,9 +201,9 @@ export class GoalService {
   }
 
   /** Handle expired or completed weeks */
-  private applyExpiredWeeksSweep(goal: Goal): Goal {
+  async applyExpiredWeeksSweep(goal: Goal): Promise<Goal> {
     let g = normalizeGoal(goal);
-    if (!g.weekStartAt) return g;
+    if (!g.weekStartAt || !g.id) return g;
 
     let anchor = new Date(g.weekStartAt);
     const now = new Date();
@@ -209,6 +221,17 @@ export class GoalService {
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
+
+      // Persist the week rollover to database
+      const ref = doc(db, 'goals', g.id);
+      await updateDoc(ref, {
+        currentCount: g.currentCount,
+        weekStartAt: anchor,
+        weeklyCount: 0,
+        weeklyLogDates: [],
+        isWeekCompleted: false,
+        updatedAt: serverTimestamp(),
+      } as any);
     }
 
     return g;
@@ -230,7 +253,7 @@ export class GoalService {
     }
 
     // Sweep expired weeks
-    g = this.applyExpiredWeeksSweep(g);
+    g = await this.applyExpiredWeeksSweep(g);
 
     const todayIso = isoDateOnly(new Date());
 
