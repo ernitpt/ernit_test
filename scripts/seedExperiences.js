@@ -192,7 +192,7 @@ const experiences = [
     createdAt: new Date(),
   },
   // Wellness 
-    {
+  {
     id: "wel1",
     partnerId: "FLlCQsFCUhYge7501IqtE2tLUbH3",
     title: "Sound Healing",
@@ -230,8 +230,30 @@ const experiences = [
     price: 45,
     createdAt: new Date(),
   },
+  {
+    id: "wel3",
+    partnerId: "k5pdHPrb1jd9KZ6AdK6CeslW9Ve2",
+    title: "Breathwork Ceremony",
+    subtitle: "Little Yoga Space, Lisbon",
+    description:
+      "A nurturing and deeply restorative reward for someone who needs to reconnect with their body, unwind tension, and feel truly cared for.\n\n"
+      + "In this personalized treatment, the recipient is welcomed into a calm and supportive environment where they can release physical stress, soften tightness, and rediscover a sense of comfort and ease within themselves.\n\n"
+      + "Through a tailored blend of Therapeutic Sports Massage or Relaxation Massage, combined with techniques such as Shiatsu, Thai-inspired stretching, and trigger point therapy, the session becomes more than bodywork — it becomes a grounding journey back into balance, presence, and inner calm.\n\n"
+      + "It’s the perfect gift for someone who has been active, focused, or pushing themselves, and deserves a moment to be held, supported, and fully rejuvenated.\n\n"
+      + "⏱ Duration: 50 minutes\n"
+      + "🧭 Includes: Personalized massage treatment, targeted muscle relief, relaxation techniques, and guided unwinding for full-body recovery\n"
+      + "💙 Ideal for: Athletes, busy minds, or anyone needing deep care and renewal.",
+    category: "relaxation",
+    imageUrl: [
+      "https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/experiences%2Fwellness%2Fbreathworth%2FFire-Module-22.jpg?alt=media&token=1c2a927e-a4e0-4763-a985-07490770424c",
+      "https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/experiences%2Fwellness%2Fbreathworth%2Fmela-breathwork_1.jpeg?alt=media&token=915edfe9-45e2-4959-bbac-3ed613a690d3"
+    ],
+    coverImageUrl: "https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/experiences%2Fwellness%2Fbreathworth%2FIMG_00501.jpg?alt=media&token=f1de3171-aac2-43d9-97ca-fac7f1da22b9",
+    price: 45,
+    createdAt: new Date(),
+  },
   // Creative
-   {
+  {
     id: "cre1",
     partnerId: "j368pTfYsiUYfOS1oWxnioigg3g1",
     title: "Ceramics Workshop",

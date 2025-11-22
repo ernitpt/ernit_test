@@ -105,6 +105,29 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
 
+  // Reset URL to root on web refresh (except for checkout and URLs with query params)
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      const hasQueryParams = window.location.search.length > 0;
+
+      // Don't reset if:
+      // 1. Already at root
+      // 2. On checkout page (has important state)
+      // 3. URL has query parameters (might contain important data)
+      const shouldNotReset =
+        pathname === '/' ||
+        pathname === '' ||
+        pathname.includes('/checkout') ||
+        hasQueryParams;
+
+      if (!shouldNotReset) {
+        console.log('🔄 Resetting URL from', pathname, 'to root');
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, []);
+
   // Set navigation ref for AuthGuardContext
   useEffect(() => {
     if (navigationRef.current) {
