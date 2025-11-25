@@ -295,22 +295,23 @@ const UserProfileScreen: React.FC = () => {
     const [partnerName, setPartnerName] = useState<string>('Partner');
     const [gift, setGift] = useState<any>(null);
     const [loadingCard, setLoadingCard] = useState<boolean>(true);
-  
+
     useEffect(() => {
       const loadAchievementData = async () => {
         try {
           if (!goal.experienceGiftId) return;
-  
-          const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
-          setGift(giftData);
-  
-          const exp = await experienceService.getExperienceById(giftData.experienceId);
-          setExperience(exp || null);
-  
-          const partnerId = giftData.partnerId || exp?.partnerId;
-          if (partnerId) {
-            const partner = await partnerService.getPartnerById(partnerId);
-            if (partner?.name) setPartnerName(partner.name);
+
+          try {
+            const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+            setGift(giftData);
+
+            const exp = await experienceService.getExperienceById(giftData.experienceId);
+            setExperience(exp || null);
+
+            setPartnerName(exp?.subtitle)
+          } catch (dataErr) {
+            console.warn('Error fetching gift/experience data:', dataErr);
+            // Set defaults if data fetch fails
           }
         } catch (err) {
           console.error('Error loading achievement data:', err);
@@ -318,24 +319,24 @@ const UserProfileScreen: React.FC = () => {
           setLoadingCard(false);
         }
       };
-  
+
       loadAchievementData();
     }, [goal.experienceGiftId]);
-  
+
     const weeks = goal.targetCount || 0;
     const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
-  
+
     const cover =
       experience?.coverImageUrl ||
       (experience?.imageUrl && experience.imageUrl.length > 0
         ? experience.imageUrl[0]
         : undefined);
-  
+
     const handlePress = () => {
       if (!gift) return;
       navigation.navigate("Completion", { goal, experienceGift: gift });
     };
-  
+
     return (
       <TouchableOpacity
         onPress={handlePress}
@@ -349,7 +350,7 @@ const UserProfileScreen: React.FC = () => {
             <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
           </View>
         )}
-  
+
         <View style={styles.achievementContent}>
           {loadingCard ? (
             <Text style={styles.achievementLoadingText}>Loading...</Text>
@@ -358,15 +359,15 @@ const UserProfileScreen: React.FC = () => {
               <Text style={styles.achievementTitle} numberOfLines={1}>
                 🎁 {experience?.title || 'Experience unlocked'}
               </Text>
-  
+
               <Text style={styles.achievementPartner} numberOfLines={1}>
                 👤 {partnerName}
               </Text>
-  
+
               <Text style={styles.achievementGoal} numberOfLines={2}>
                 Goal: {goal.title}
               </Text>
-  
+
               <Text style={styles.achievementMeta}>
                 {sessions} sessions completed • {weeks} weeks
               </Text>
@@ -376,7 +377,7 @@ const UserProfileScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
-  
+
 
   const handleRemoveFromWishlist = async (experienceId: string) => {
     if (!state.user) {
@@ -518,19 +519,19 @@ const UserProfileScreen: React.FC = () => {
 
           {/* Stats */}
           <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{activeGoals.length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{activeGoals.length}</Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{completedGoals.length}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{wishlist.length}</Text>
+              <Text style={styles.statLabel}>Wishlist</Text>
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{completedGoals.length}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{wishlist.length}</Text>
-            <Text style={styles.statLabel}>Wishlist</Text>
-          </View>
-        </View>
 
 
           <TouchableOpacity
@@ -628,7 +629,7 @@ const UserProfileScreen: React.FC = () => {
             <View style={styles.imageSection}>
               <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
                 {editFormData.profileImageUrl &&
-                editFormData.profileImageUrl.trim() !== '' ? (
+                  editFormData.profileImageUrl.trim() !== '' ? (
                   <Image
                     source={{ uri: editFormData.profileImageUrl }}
                     style={styles.editProfileImage}

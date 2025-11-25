@@ -5,7 +5,6 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LinearGradient } from 'expo-linear-gradient';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import type { RecipientStackParamList, Goal, ExperienceGift } from '../../types';
@@ -15,6 +14,7 @@ import GoalChangeSuggestionModal from '../../components/GoalChangeSuggestionModa
 import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
+import SharedHeader from '../../components/SharedHeader';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 
@@ -32,7 +32,7 @@ const RoadmapScreen = () => {
       if (snap.exists()) {
         const updatedGoal = snap.data() as Goal;
         setCurrentGoal(updatedGoal);
-        
+
         // Check for auto-approval
         if (updatedGoal.approvalStatus === 'pending' && updatedGoal.approvalDeadline) {
           const now = new Date();
@@ -62,8 +62,6 @@ const RoadmapScreen = () => {
     fetchExperienceGift();
   }, [goal.experienceGiftId]);
 
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
-
   const fmtDateTime = (ts: number) =>
     new Date(ts).toLocaleString(undefined, {
       month: 'short',
@@ -76,8 +74,8 @@ const RoadmapScreen = () => {
   const hintsArray = Array.isArray(currentGoal.hints)
     ? currentGoal.hints
     : currentGoal.hints
-    ? [currentGoal.hints]
-    : [];
+      ? [currentGoal.hints]
+      : [];
 
   const HintItem = ({ hint, index, fmtDateTime }: any) => {
     const anim = useRef(new Animated.Value(0)).current;
@@ -120,41 +118,40 @@ const RoadmapScreen = () => {
   return (
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Roadmap</Text>
-        </View>
-      </LinearGradient>
+      <SharedHeader
+        title="Roadmap"
+        showBack
+      />
 
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{
-        paddingTop: 20,
-        paddingBottom: 20,
-        alignItems: 'center', // centers horizontally
-      }}
-    >
-      <View
-        style={{
-          width: '100%',
-          maxWidth: 380,       // ✅ limit horizontal size
-          paddingHorizontal: 16, // optional for margins
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: 20,
+          paddingBottom: 20,
+          alignItems: 'center', // centers horizontally
         }}
       >
-        {/* Personalized Message Card */}
-        {experienceGift?.personalizedMessage?.trim() && (
-  <View style={styles.messageCard}>
-    <Text style={styles.messageText}>
-      “{experienceGift.personalizedMessage.trim()}”
-    </Text>
-    <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
-  </View>
-)}
+        <View
+          style={{
+            width: '100%',
+            maxWidth: 380,       // ✅ limit horizontal size
+            paddingHorizontal: 16, // optional for margins
+          }}
+        >
+          {/* Personalized Message Card */}
+          {experienceGift?.personalizedMessage?.trim() && (
+            <View style={styles.messageCard}>
+              <Text style={styles.messageText}>
+                "{experienceGift.personalizedMessage.trim()}"
+              </Text>
+              <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
+            </View>
+          )}
 
 
 
-        <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
-      </View>
+          <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>Hint History</Text>
@@ -175,7 +172,7 @@ const RoadmapScreen = () => {
                 .map((h, i) => (
                   <HintItem key={`${h.session}-${h.date}`} hint={h} index={i} fmtDateTime={fmtDateTime} />
                 ))}
-            </View> 
+            </View>
           )}
         </View>
       </ScrollView>
@@ -184,15 +181,6 @@ const RoadmapScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: { paddingHorizontal: 24, paddingTop: 34, paddingBottom: 10 },
-  headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 },
   cardWrapper: { marginTop: 16, marginBottom: 6 },
   card: {
     backgroundColor: '#fff',
@@ -218,8 +206,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: '600',
   },
-  
-  
+
+
   title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6 },
   // emptyText: {
   //   textAlign: 'center',
@@ -228,98 +216,98 @@ const styles = StyleSheet.create({
   //   fontSize: 16,
   // },
   emptyContainer: {
-  alignItems: 'center',
-  paddingVertical: 30,
-},
-emptyIcon: {
-  fontSize: 40,
-  marginBottom: 6,
-},
-emptyText: {
-  color: '#6b7280',
-  fontSize: 16,
-  fontWeight: '600',
-},
-emptySubText: {
-  color: '#9ca3af',
-  fontSize: 14,
-  textAlign: 'center',
-  marginTop: 4,
-  maxWidth: 240,
-},
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 6,
+  },
+  emptyText: {
+    color: '#6b7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptySubText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 240,
+  },
 
-timeline: {
-  marginTop: 10,
-  position: 'relative',
-},
-timelineItem: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  marginBottom: 18,
-  position: 'relative',
-},
-timelineDotContainer: {
-  width: 26,
-  alignItems: 'center',
-},
-timelineDot: {
-  width: 10,
-  height: 10,
-  borderRadius: 5,
-  backgroundColor: '#8b5cf6',
-  borderWidth: 2,
-  borderColor: '#ede9fe',
-},
-timelineLine: {
-  position: 'absolute',
-  left: 13,
-  top: 10,
-  bottom: -8,
-  width: 2,
-  backgroundColor: '#e5e7eb',
-},
-hintCard: {
-  flex: 1,
-  backgroundColor: '#f9fafb',
-  borderRadius: 12,
-  paddingVertical: 10,
-  paddingHorizontal: 14,
-  borderWidth: 1,
-  borderColor: '#e5e7eb',
-  shadowColor: '#000',
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 1,
-},
-hintTitle: {
-  fontWeight: '700',
-  fontSize: 15,
-  color: '#111827',
-  marginBottom: 4,
-},
-hintDate: {
-  fontWeight: '400',
-  fontSize: 13,
-  color: '#6b7280',
-},
-hintText: {
-  fontSize: 15,
-  color: '#374151',
-  fontStyle: 'italic',
-},
-approvalBanner: {
-  backgroundColor: '#fef3c7',
-  borderRadius: 12,
-  padding: 16,
-  marginBottom: 16,
-  borderLeftWidth: 4,
-  borderLeftColor: '#f59e0b',
-},
-approvalBannerText: {
-  fontSize: 14,
-  color: '#78350f',
-  lineHeight: 20,
-},
+  timeline: {
+    marginTop: 10,
+    position: 'relative',
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+    position: 'relative',
+  },
+  timelineDotContainer: {
+    width: 26,
+    alignItems: 'center',
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#8b5cf6',
+    borderWidth: 2,
+    borderColor: '#ede9fe',
+  },
+  timelineLine: {
+    position: 'absolute',
+    left: 13,
+    top: 10,
+    bottom: -8,
+    width: 2,
+    backgroundColor: '#e5e7eb',
+  },
+  hintCard: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  hintTitle: {
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  hintDate: {
+    fontWeight: '400',
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  hintText: {
+    fontSize: 15,
+    color: '#374151',
+    fontStyle: 'italic',
+  },
+  approvalBanner: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  approvalBannerText: {
+    fontSize: 14,
+    color: '#78350f',
+    lineHeight: 20,
+  },
 });
 
 export default RoadmapScreen;

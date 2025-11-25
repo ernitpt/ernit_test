@@ -42,9 +42,10 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     try {
       await goalService.approveGoal(notification.data.goalId, approveMessage.trim() || null);
 
-      // Get recipient name
+      // Get recipient name and giver name
+      // The notification is sent TO the giver, so notification.userId is the giver's ID
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
-      const giverName = await userService.getUserName(notification.data.senderId || '');
+      const giverName = await userService.getUserName(notification.userId); // The person approving (receiving this notification)
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
       // Notify receiver
@@ -55,7 +56,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         `Message from ${giverName}: ${approveMessage.trim()}` || `${giverName} approved your goal. You can now continue with all sessions!`,
         {
           goalId: notification.data.goalId,
-          giverId: notification.data.senderId || '',
+          giverId: notification.userId, // Use notification.userId as the giver ID
           experienceTitle: experienceTitle,
           senderName: giverName,
         }
@@ -66,15 +67,6 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         await notificationService.deleteNotification(notification.id, true);
       } catch (deleteError) {
         console.warn('Could not delete original notification:', deleteError);
-        // Try direct delete as fallback
-        try {
-          const { doc, deleteDoc: deleteDocFn } = await import('firebase/firestore');
-          const { db } = await import('../services/firebase');
-          const ref = doc(db, 'notifications', notification.id);
-          await deleteDocFn(ref);
-        } catch (e) {
-          console.warn('Direct delete also failed:', e);
-        }
       }
 
       // Create confirmation notification for giver

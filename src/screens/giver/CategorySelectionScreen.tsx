@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MainScreen from '../MainScreen'; // Assuming this path is correct
@@ -24,6 +23,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { useApp } from '../../context/AppContext';
 import { cartService } from '../../services/CartService';
 import { RootStackParamList } from '../../types';
+import SharedHeader from '../../components/SharedHeader';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -108,24 +108,7 @@ const CategoryCarousel = ({
 }) => (
   <View style={styles.categorySection}>
     <View style={styles.categoryHeaderInline}>
-      <MaskedView
-        style={{ height: 30 }}
-        maskElement={
-          <Text style={[styles.categoryTitleInline, { backgroundColor: 'transparent' }]}>
-            {category.title}
-          </Text>
-        }
-      >
-        <LinearGradient
-          colors={['#4c1d95', '#1e3a8a']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Text style={[styles.categoryTitleInline, { opacity: 0 }]}>
-            {category.title}
-          </Text>
-        </LinearGradient>
-      </MaskedView>
+      <Text style={styles.categoryTitleInline}>{category.title}</Text>
     </View>
     <FlatList
       data={category.experiences}
@@ -309,55 +292,23 @@ const CategorySelectionScreen = () => {
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
-      {/* <LinearGradient
-                colors={headerColors}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.header}
-              > */}
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Find an Experience</Text>
-              <Text style={styles.headerSubtitle}>Select a gift they'll never forget</Text>
-            </View>
-            <View style={styles.headerButtons}>
-              {!isAuthenticated && (
-                <TouchableOpacity
-                  onPress={handleSignInPress}
-                  style={styles.signInButton}
-                >
-                  <LogIn color="#fff" size={20} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                onPress={handleCartPress}
-                style={styles.cartButton}
-              >
-                <ShoppingCart color="#fff" size={24} />
-                {cartItemCount > 0 && (
-                  <View style={styles.cartBadge}>
-                    <Text style={styles.cartBadgeText}>
-                      {cartItemCount > 9 ? "9+" : cartItemCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+      <SharedHeader
+        title="Find an Experience"
+        subtitle="Select a gift they'll never forget"
+      />
 
-          <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search experiences..."
-              placeholderTextColor="#c7d2fe"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search experiences..."
+            placeholderTextColor="#9ca3af"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
-      </LinearGradient>
+      </View>
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -385,95 +336,29 @@ const CategorySelectionScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: {
+  searchContainer: {
     paddingHorizontal: 24,
-    // paddingTop: 16,
-    paddingBottom: 10,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  headerTextContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 15,
-    color: '#e0e7ff',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  signInButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  cartBadgeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
+    paddingVertical: 16,
+    backgroundColor: '#fff',
   },
   searchBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#f3f4f6',
     borderRadius: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   searchIcon: {
     fontSize: 16,
     marginRight: 8,
-    color: '#c7d2fe',
+    color: '#6b7280',
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#fff',
+    color: '#111827',
     paddingVertical: 10,
   },
   categoriesListMoved: {

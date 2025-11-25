@@ -59,7 +59,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
       slideAnim.setValue(30);
       backdropOpacity.setValue(0);
 
-      // Animate in smoothly
+      // Animate in smoothly - ALL using native driver for 60fps
       const animIn = Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -81,7 +81,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         Animated.timing(backdropOpacity, {
           toValue: 1,
           duration: 250,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]);
 
@@ -90,7 +90,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         currentAnimationRef.current = null;
       });
     } else {
-      // Animate out smoothly
+      // Animate out smoothly - ALL using native driver for 60fps
       const animOut = Animated.parallel([
         Animated.timing(scaleAnim, {
           toValue: 0,
@@ -110,7 +110,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         Animated.timing(backdropOpacity, {
           toValue: 0,
           duration: 200,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]);
 
@@ -152,12 +152,6 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
     }, 200);
   };
 
-  // Interpolate backdrop opacity with blur
-  const backdropOpacityValue = backdropOpacity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.6],
-  });
-
   return (
     <Modal
       visible={visible}
@@ -171,21 +165,19 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           styles.overlay,
           {
             opacity: backdropOpacity,
-            backgroundColor: backdropOpacityValue,
           }
         ]}
       >
-        {/* Web-specific blur effect - only when visible */}
+        {/* Web-specific blur effect - simplified for better performance */}
         {Platform.OS === 'web' && visible && (
-          <Animated.View
+          <View
             style={[
               StyleSheet.absoluteFill,
               {
-                opacity: backdropOpacity,
                 // @ts-ignore - web-specific style
-                backdropFilter: 'blur(10px)',
+                backdropFilter: 'blur(8px)',
                 // @ts-ignore - web-specific style
-                WebkitBackdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(8px)',
               },
             ]}
           />
@@ -285,6 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContainer: {
     width: '100%',

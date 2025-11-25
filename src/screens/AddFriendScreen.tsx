@@ -18,9 +18,8 @@ import { RootStackParamList, UserSearchResult } from '../types';
 import { friendService } from '../services/FriendService';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
-import { LinearGradient } from 'expo-linear-gradient';
 import { commonStyles } from '../themes/commonStyles';
-import { ChevronLeft } from 'lucide-react-native';
+import SharedHeader from '../components/SharedHeader';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
@@ -78,9 +77,9 @@ const AddFriendScreen: React.FC = () => {
         state.user?.profile?.country,
         currentUserProfileImageUrl
       );
-      
+
       Alert.alert('Success', `Friend request sent to ${user.name}!`);
-      
+
       // Refresh search results to update the button state
       const updatedResults = await friendService.searchUsers(searchTerm, currentUserId);
       setSearchResults(updatedResults);
@@ -123,7 +122,7 @@ const AddFriendScreen: React.FC = () => {
           )}
         </View>
       </TouchableOpacity>
-      
+
       <View style={styles.actionButton}>
         {item.isFriend ? (
           <TouchableOpacity style={styles.friendButton} disabled>
@@ -145,107 +144,65 @@ const AddFriendScreen: React.FC = () => {
       </View>
     </View>
   );
-const headerColors = ['#462088ff', '#235c9eff'] as const;
-
   return (
     <MainScreen activeRoute="Profile">
-      <LinearGradient colors={headerColors} style={commonStyles.gradientHeader}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButtonHero}
-            activeOpacity={0.8}
-          >
-            <ChevronLeft color="#fff" size={24} />
-          </TouchableOpacity>
+      <SharedHeader
+        title="Add Friend"
+        showBack
+      />
 
-          <Text style={commonStyles.headerTitle}>Add Friend</Text>
-        </View>
-      </LinearGradient>
-
-        {/* Search Section */}
-        <View style={styles.searchSection}>
-          <Text style={styles.searchLabel}>Search for friends</Text>
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Enter name or email..."
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              autoCapitalize="none"
-              autoCorrect={false}
+      {/* Search Section */}
+      <View style={styles.searchSection}>
+        <Text style={styles.searchLabel}>Search for friends</Text>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Enter name or email..."
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {isSearching && (
+            <ActivityIndicator
+              size="small"
+              color="#8b5cf6"
+              style={styles.searchLoader}
             />
-            {isSearching && (
-              <ActivityIndicator
-                size="small"
-                color="#8b5cf6"
-                style={styles.searchLoader}
-              />
-            )}
-          </View>
-        </View>
-
-        {/* Search Results */}
-        <View style={styles.resultsSection}>
-          {searchTerm.length > 0 && searchTerm.length < 2 && (
-            <Text style={styles.hintText}>Enter at least 2 characters to search</Text>
-          )}
-          
-          {searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
-            <Text style={styles.noResultsText}>No users found</Text>
-          )}
-
-          {searchResults.length > 0 && (
-            <>
-              <Text style={styles.resultsTitle}>
-                {searchResults.length} user{searchResults.length !== 1 ? 's' : ''} found
-              </Text>
-              <FlatList
-                data={searchResults}
-                renderItem={renderUserItem}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.resultsList}
-              />
-            </>
           )}
         </View>
+      </View>
+
+      {/* Search Results */}
+      <View style={styles.resultsSection}>
+        {searchTerm.length > 0 && searchTerm.length < 2 && (
+          <Text style={styles.hintText}>Enter at least 2 characters to search</Text>
+        )}
+
+        {searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
+          <Text style={styles.noResultsText}>No users found</Text>
+        )}
+
+        {searchResults.length > 0 && (
+          <>
+            <Text style={styles.resultsTitle}>
+              {searchResults.length} user{searchResults.length !== 1 ? 's' : ''} found
+            </Text>
+            <FlatList
+              data={searchResults}
+              renderItem={renderUserItem}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.resultsList}
+            />
+          </>
+        )}
+      </View>
     </MainScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: {
-    paddingTop: Platform.OS === "ios" ? 20 : 10,
-    paddingBottom: 10,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#8b5cf6',
-    fontWeight: '600',
-  },
   searchSection: {
     backgroundColor: '#ffffff',
     padding: 24,

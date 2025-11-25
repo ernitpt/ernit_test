@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +20,7 @@ import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
+import SharedHeader from '../components/SharedHeader';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -46,10 +46,10 @@ const NotificationsScreen = () => {
 
 
     const subscribe = async () => {
-        unsubscribe = await notificationService.listenToUserNotifications(userId, (notifications) => {
+      unsubscribe = await notificationService.listenToUserNotifications(userId, (notifications) => {
         setNotifications(notifications);
         setLoading(false); // ✅ set loading to false once we have data
-        });
+      });
     };
 
 
@@ -57,9 +57,9 @@ const NotificationsScreen = () => {
 
 
     return () => {
-        if (unsubscribe) unsubscribe();
+      if (unsubscribe) unsubscribe();
     };
-    }, [userId]);
+  }, [userId]);
 
 
 
@@ -95,7 +95,7 @@ const NotificationsScreen = () => {
       Alert.alert('Error', 'User not authenticated');
       return;
     }
-    
+
     try {
       await notificationService.clearAllNotifications(userId);
       Alert.alert('Success', 'All notifications have been cleared.');
@@ -111,7 +111,7 @@ const NotificationsScreen = () => {
       Alert.alert('Error', 'Cannot clear notification: missing ID');
       return;
     }
-    
+
     try {
       await notificationService.deleteNotification(notificationId);
       // Alert.alert('Success', 'Notification has been cleared.'); // <-- THIS LINE IS REMOVED
@@ -167,44 +167,44 @@ const NotificationsScreen = () => {
       item.createdAt instanceof Date
         ? item.createdAt
         : item.createdAt?.toDate
-        ? item.createdAt.toDate()
-        : new Date();
-        
-  const formatNotificationDate = (createdAt: any) => {
-    // Handle Firestore Timestamp or Date
-    const date =
-      createdAt && typeof createdAt.toDate === 'function'
-        ? createdAt.toDate()
-        : new Date(createdAt);
+          ? item.createdAt.toDate()
+          : new Date();
+
+    const formatNotificationDate = (createdAt: any) => {
+      // Handle Firestore Timestamp or Date
+      const date =
+        createdAt && typeof createdAt.toDate === 'function'
+          ? createdAt.toDate()
+          : new Date(createdAt);
 
 
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
 
-    if (diffDays < 1) {
-      // Less than 1 day → show hours
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      if (diffHours < 1) {
-        // Less than 1 hour -> show minutes
-        const diffMinutes = Math.floor(diffMs / (1000 * 60));
-        return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
+      if (diffDays < 1) {
+        // Less than 1 day → show hours
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        if (diffHours < 1) {
+          // Less than 1 hour -> show minutes
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
+        }
+        return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        // Less than a week → show days
+        return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
+      } else {
+        // Otherwise show formatted date
+        return date.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
       }
-      return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
-    } else if (diffDays < 7) {
-      // Less than a week → show days
-      return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
-    } else {
-      // Otherwise show formatted date
-      return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-  };
+    };
 
 
     return (
@@ -239,25 +239,22 @@ const NotificationsScreen = () => {
     );
   };
 
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
-
-
   return (
-    <MainScreen activeRoute="Notification">
+    <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {notifications.length > 0 && (
+      <SharedHeader
+        title="Notifications"
+        rightActions={
+          notifications.length > 0 ? (
             <TouchableOpacity
               style={styles.clearAllButton}
               onPress={handleClearAll}
             >
               <Text style={styles.clearAllButtonText}>Clear All</Text>
             </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
+          ) : null
+        }
+      />
 
       {loading ? (
         <ActivityIndicator
@@ -282,28 +279,6 @@ const NotificationsScreen = () => {
 
 
 const styles = StyleSheet.create({
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: {
-    paddingHorizontal: 24,
-    // paddingTop: 34,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    // marginBottom: 4,
-  },
-
   clearAllButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
@@ -369,22 +344,22 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 12,
   },
-    clearNotificationButton: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: '#e5e7eb',
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-      margin: 8,
-    },
-    clearNotificationText: {
-      color: '#9ca3af',
-      fontSize: 18,
-      fontWeight: 'bold',
-    },
+  clearNotificationButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 8,
+  },
+  clearNotificationText: {
+    color: '#9ca3af',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   emptyText: {
     textAlign: 'center',
     color: '#6b7280',

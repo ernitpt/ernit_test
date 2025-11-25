@@ -29,9 +29,9 @@ import { userService } from '../../services/userService';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator } from 'react-native';
 import { experienceService } from '../../services/ExperienceService';
+import SharedHeader from '../../components/SharedHeader';
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
@@ -291,16 +291,13 @@ const GoalSettingScreen = () => {
     ]).start(() => setShowConfirm(false));
   };
 
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
   return (
     <MainScreen activeRoute="Goals">
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Set Your Goal ✨</Text>
-          <Text style={styles.headerSubtitle}>Choose your goal category to get started</Text>
-
-        </View>
-      </LinearGradient>
+      <SharedHeader
+        title="Set Your Goal ✨"
+        subtitle="Choose your goal category to get started"
+        showBack
+      />
       <ScrollView style={{ flex: 1, padding: 20 }} >
 
         <View style={styles.categoriesContainer}>
@@ -589,20 +586,6 @@ const GoalSettingScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff', paddingHorizontal: 24, paddingVertical: 24 },
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: { paddingHorizontal: 24, paddingBottom: 10 },
-  headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 },
-  headerSubtitle: {
-    fontSize: 15,
-    color: '#e0e7ff',
-    // marginBottom: 12,
-  },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 24 },
   categoriesContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 24 },

@@ -8,7 +8,7 @@ import { useAuthGuard } from '../hooks/useAuthGuard';
 
 type MainScreenProps = {
   children: React.ReactNode;
-  activeRoute: 'Home' | 'Goals' | 'Profile' | 'Notification' | 'Settings';
+  activeRoute: 'Home' | 'Goals' | 'Profile' | 'Feed' | 'Settings';
 };
 
 /**

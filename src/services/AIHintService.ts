@@ -1,10 +1,9 @@
 // services/AIHintService.ts
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "./firebase"; // ✅ use the shared instance
+import { db, functions } from "./firebase";
 import {
   doc,
   getDoc,
-  setDoc,
   updateDoc,
   serverTimestamp,
   collection,
@@ -12,17 +11,39 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { auth } from "../services/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export type HintStyle = "neutral" | "personalized" | "motivational";
 
 export type SessionDoc = {
   sessionNumber: number;
   hint?: string;
   style?: HintStyle;
-  startedAt?: any; // Firestore Timestamp
-  completedAt?: any; // Firestore Timestamp
+  completedAt?: any;
   timeElapsedSec?: number;
 };
+
+// 🔹 Local cache for fast reuse
+const LOCAL_HINT_CACHE_KEY = "local_hint_cache_v1";
+let localCache: Record<string, string> = {};
+
+async function loadLocalCache() {
+  if (Object.keys(localCache).length > 0) return;
+
+  try {
+    const stored = await AsyncStorage.getItem(LOCAL_HINT_CACHE_KEY);
+    if (stored) localCache = JSON.parse(stored);
+  } catch { }
+}
+
+async function saveLocalCache() {
+  try {
+    await AsyncStorage.setItem(
+      LOCAL_HINT_CACHE_KEY,
+      JSON.stringify(localCache)
+    );
+  } catch { }
+}
 
 // 🌀 Determine style rotation by session number
 function styleForSession(n: number): HintStyle {
@@ -30,96 +51,116 @@ function styleForSession(n: number): HintStyle {
   return i === 0 ? "neutral" : i === 1 ? "personalized" : "motivational";
 }
 
-// 🧩 Create or ensure the session doc exists
-async function ensureSessionDoc(goalId: string, sessionNumber: number) {
-  const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
-  console.log("ensureSessionDoc path:", ref.path);
-
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, { sessionNumber, startedAt: serverTimestamp() } as SessionDoc);
-    console.log("Created new session doc:", ref.path);
-  }
-
-  return ref;
-}
-
 export const aiHintService = {
-  /** ⚡ Generate & cache hint (only if missing) */
+  /** ✅ Get or generate a hint WITHOUT writing to Firestore */
   async generateHint(params: {
     goalId: string;
     experienceType: string;
-    sessionNumber: number; // 1-based
+    sessionNumber: number;
     totalSessions: number;
     userName?: string | null;
   }): Promise<string> {
-    const { goalId, sessionNumber, experienceType, totalSessions, userName } = params;
+    await loadLocalCache();
 
-    const ref = await ensureSessionDoc(goalId, sessionNumber);
-    const snap = await getDoc(ref);
-    const existing = snap.data() as SessionDoc | undefined;
+    const {
+      goalId,
+      sessionNumber,
+      experienceType,
+      totalSessions,
+      userName,
+    } = params;
 
-    if (existing?.hint) {
-      console.log("✅ Hint already exists for session:", sessionNumber);
-      return existing.hint;
+    const cacheKey = `${goalId}_${sessionNumber}`;
+
+    // ✅ Check local cache first
+    if (localCache[cacheKey]) {
+      console.log("✅ Returning cached hint");
+      return localCache[cacheKey];
     }
 
-    const style = styleForSession(sessionNumber);
-    const payload = {
-      experienceType: String(experienceType || "").trim(),
-      sessionNumber: Number(sessionNumber),
-      totalSessions: Number(totalSessions),
-      userName: userName ? String(userName).trim() : null,
-      style: String(style) as HintStyle,
-    };
-
-    // Remove undefined/null fields to avoid serialization issues
-    const cleanPayload = JSON.parse(JSON.stringify(payload));
-    console.log("📦 Final payload sent to Cloud Function:", cleanPayload);
-    
-    if (!auth.currentUser) {
-      console.warn("⚠️ Not logged in...");
-    }
-    
-    // ✅ Use your shared functions instance (not a new one)
-    const callable = httpsCallable(functions, "aiGenerateHint");
-
+    // ✅ Check Firestore stored hint (previous sessions)
     try {
-      const res: any = await callable(cleanPayload);
-      const hint = res?.data?.hint as string;
+      const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
+      const snap = await getDoc(ref);
+      const existing = snap.data() as SessionDoc | undefined;
 
-      if (!hint) throw new Error("No hint returned from Cloud Function");
-
-      console.log("✨ Hint generated:", hint);
-      await updateDoc(ref, {
-        hint,
-        style,
-        startedAt: existing?.startedAt ?? serverTimestamp(),
-      });
-
-      return hint;
-    } catch (err: any) {
-      console.error("❌ aiGenerateHint callable failed:", err?.code, err?.message);
-      throw err;
+      if (existing?.hint) {
+        console.log("✅ Returning Firestore stored hint");
+        localCache[cacheKey] = existing.hint;
+        saveLocalCache();
+        return existing.hint;
+      }
+    } catch (err) {
+      // Document doesn't exist or permission denied - this is expected for future sessions
+      console.log("Session document not found, will generate new hint");
     }
+
+    // ✅ Generate remotely
+    const style = styleForSession(sessionNumber);
+
+    const callable = httpsCallable(functions, "aiGenerateHint");
+    const res: any = await callable({
+      experienceType,
+      sessionNumber,
+      totalSessions,
+      userName,
+      style,
+    });
+
+    const hint = res?.data?.hint as string;
+
+    if (!hint) throw new Error("No hint returned");
+
+    console.log("✨ Generated new hint:", hint);
+
+    // ✅ Cache locally ONLY
+    localCache[cacheKey] = hint;
+    saveLocalCache();
+
+    return hint;
   },
 
-  /** ✅ Mark a session as completed */
-  async completeSession(goalId: string, sessionNumber: number, timeElapsedSec: number) {
+  /** ✅ Save hint ONLY when session is finished (allowed in rules) */
+  async saveHintToFirestore(
+    goalId: string,
+    sessionNumber: number,
+    timeElapsedSec: number
+  ) {
+    const cacheKey = `${goalId}_${sessionNumber}`;
+    const hint = localCache[cacheKey];
+    if (!hint) return; // nothing to save
+
     const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
-    await updateDoc(ref, { completedAt: serverTimestamp(), timeElapsedSec });
+
+    await updateDoc(ref, {
+      hint,
+      style: styleForSession(sessionNumber),
+      completedAt: serverTimestamp(),
+      timeElapsedSec,
+    });
+
+    console.log("✅ Hint saved to Firestore AFTER completion");
   },
 
-  /** 🪄 Fetch a single session hint */
+  /** ✅ Fetch a hint already completed */
   async getHint(goalId: string, sessionNumber: number) {
+    await loadLocalCache();
+
+    const cacheKey = `${goalId}_${sessionNumber}`;
+    if (localCache[cacheKey]) return localCache[cacheKey];
+
     const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
     const snap = await getDoc(ref);
+
     return (snap.data() as SessionDoc | undefined)?.hint ?? null;
   },
 
   /** 📜 Fetch session history (newest first) */
   async getAllSessions(goalId: string) {
-    const q = query(collection(db, "goalSessions", goalId, "sessions"), orderBy("sessionNumber", "desc"));
+    const q = query(
+      collection(db, "goalSessions", goalId, "sessions"),
+      orderBy("sessionNumber", "desc")
+    );
     const snaps = await getDocs(q);
     return snaps.docs.map((d) => d.data() as SessionDoc);
   },

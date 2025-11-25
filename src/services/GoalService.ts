@@ -12,8 +12,13 @@ import {
   arrayUnion,
   onSnapshot,
   setDoc,
+  deleteDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import type { Goal } from '../types';
+import { feedService } from './FeedService';
+import { experienceGiftService } from './ExperienceGiftService';
+import { experienceService } from './ExperienceService';
 
 // ===== Helpers =====
 const isoDateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -102,6 +107,27 @@ export class GoalService {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    // Create feed post for goal started
+    try {
+      // Fetch user data to get name and profile image
+      const userDoc = await getDoc(doc(db, 'users', normalized.userId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
+      await feedService.createFeedPost({
+        userId: normalized.userId,
+        userName: userData?.displayName || userData?.profile?.name || 'User',
+        userProfileImageUrl: userData?.profile?.profileImageUrl,
+        goalId: docRef.id,
+        goalDescription: normalized.description,
+        type: 'goal_started',
+        totalSessions: normalized.targetCount,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Error creating feed post:', error);
+    }
+
     return { ...normalized, id: docRef.id };
   }
 
@@ -268,10 +294,16 @@ export class GoalService {
     }
 
     // Add new session
+    const previousWeeklyCount = g.weeklyCount;
     g.weeklyCount += 1;
     if (!g.weeklyLogDates.includes(todayIso)) {
       g.weeklyLogDates = [...g.weeklyLogDates, todayIso];
     }
+
+    // Calculate total completed sessions
+    const totalCompletedSessions = g.currentCount * g.sessionsPerWeek + g.weeklyCount;
+    const totalSessions = g.targetCount * g.sessionsPerWeek;
+    const progressPercentage = Math.round((totalCompletedSessions / totalSessions) * 100);
 
     // If weekly goal reached → mark as completed but don't roll yet
     if (g.weeklyCount >= g.sessionsPerWeek) {
@@ -280,6 +312,70 @@ export class GoalService {
       // If it's the final week
       if (g.currentCount + 1 >= g.targetCount) {
         g.isCompleted = true;
+
+        // Create feed post for goal completion
+        try {
+          const userDoc = await getDoc(doc(db, 'users', g.userId));
+          const userData = userDoc.exists() ? userDoc.data() : null;
+
+          // Fetch experience details for the completion post
+          let experienceTitle: string | undefined;
+          let experienceImageUrl: string | undefined;
+          let partnerName: string | undefined;
+
+          try {
+            const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
+            const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+
+            experienceTitle = experience?.title;
+            experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
+            partnerName = experience?.subtitle;
+          } catch (expError) {
+            console.warn('Could not fetch experience details for feed post:', expError);
+          }
+
+          await feedService.createFeedPost({
+            userId: g.userId,
+            userName: userData?.displayName || userData?.profile?.name || 'User',
+            userProfileImageUrl: userData?.profile?.profileImageUrl,
+            goalId: g.id,
+            goalDescription: g.description,
+            type: 'goal_completed',
+            sessionNumber: totalSessions,
+            totalSessions: totalSessions,
+            progressPercentage: 100,
+            experienceTitle,
+            experienceImageUrl,
+            partnerName,
+            experienceGiftId: g.experienceGiftId,
+            createdAt: new Date(),
+          });
+        } catch (error) {
+          console.error('Error creating goal completion feed post:', error);
+        }
+      }
+    } else if (previousWeeklyCount < g.weeklyCount) {
+      // Create feed post for every session progress (not just milestones)
+      try {
+        const userDoc = await getDoc(doc(db, 'users', g.userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+
+        await feedService.createFeedPost({
+          userId: g.userId,
+          userName: userData?.displayName || userData?.profile?.name || 'User',
+          userProfileImageUrl: userData?.profile?.profileImageUrl,
+          goalId: g.id,
+          goalDescription: g.description,
+          type: 'session_progress',
+          sessionNumber: totalCompletedSessions,
+          totalSessions: totalSessions,
+          progressPercentage: progressPercentage,
+          weeklyCount: g.weeklyCount,
+          sessionsPerWeek: g.sessionsPerWeek,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        console.error('Error creating progress feed post:', error);
       }
     }
 
@@ -299,15 +395,70 @@ export class GoalService {
   /** Approve a goal */
   async approveGoal(goalId: string, message?: string): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
-    const updates: any = {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Goal not found');
+    const currentGoal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    // Extract category from title or description
+    const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
+    const category = titleMatch ? titleMatch[1] : 'this goal';
+
+    // Check if there are suggested changes and apply them
+    const finalTargetCount = currentGoal.suggestedTargetCount || currentGoal.targetCount;
+    const finalSessionsPerWeek = currentGoal.suggestedSessionsPerWeek || currentGoal.sessionsPerWeek;
+
+    // If suggestions exist, recalculate duration and endDate
+    let updates: any = {
       approvalStatus: 'approved',
       giverMessage: message || '',
       giverActionTaken: true,
       updatedAt: serverTimestamp(),
     };
+
+    if (currentGoal.suggestedTargetCount || currentGoal.suggestedSessionsPerWeek) {
+      // Apply the suggested changes
+      const durationInDays = finalTargetCount * 7;
+      const startDate = toJSDate(currentGoal.startDate) || new Date();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + durationInDays);
+
+      updates = {
+        ...updates,
+        targetCount: finalTargetCount,
+        sessionsPerWeek: finalSessionsPerWeek,
+        duration: durationInDays,
+        endDate,
+      };
+    }
+
+    // Update description to reflect final values
+    const updatedDescription = `Work on ${category} for ${finalTargetCount} weeks, ${finalSessionsPerWeek} times per week.`;
+    updates.description = updatedDescription;
+
     await updateDoc(ref, updates);
-    const snap = await getDoc(ref);
-    return normalizeGoal({ id: snap.id, ...snap.data() });
+    const updatedSnap = await getDoc(ref);
+    const goal = normalizeGoal({ id: updatedSnap.id, ...updatedSnap.data() });
+
+    // Create feed post for goal approval
+    try {
+      const userDoc = await getDoc(doc(db, 'users', goal.userId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
+      await feedService.createFeedPost({
+        userId: goal.userId,
+        userName: userData?.displayName || userData?.profile?.name || 'User',
+        userProfileImageUrl: userData?.profile?.profileImageUrl,
+        goalId: goal.id,
+        goalDescription: goal.description,
+        type: 'goal_approved',
+        totalSessions: goal.targetCount * goal.sessionsPerWeek,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Error creating goal approval feed post:', error);
+    }
+
+    return goal;
   }
 
   /** Suggest a goal change */
@@ -375,18 +526,51 @@ export class GoalService {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + durationInDays);
 
+    // Extract category from title or description
+    const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
+    const category = titleMatch ? titleMatch[1] : 'this goal';
+
+    // Update description to reflect new values
+    const updatedDescription = `Work on ${category} for ${newTargetCount} weeks, ${newSessionsPerWeek} times per week.`;
+
     const updates: any = {
       approvalStatus: 'approved',
       targetCount: newTargetCount,
       sessionsPerWeek: newSessionsPerWeek,
       duration: durationInDays,
       endDate,
+      description: updatedDescription,
       receiverMessage: message || '',
       updatedAt: serverTimestamp(),
     };
     await updateDoc(ref, updates);
     const snap = await getDoc(ref);
-    return normalizeGoal({ id: snap.id, ...snap.data() });
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    console.log('📝 Goal description after update:', goal.description);
+    console.log('📝 Expected description:', updatedDescription);
+
+    // Create feed post for goal approval (with changes)
+    try {
+      const userDoc = await getDoc(doc(db, 'users', goal.userId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
+      // Use updatedDescription directly to ensure we have the correct value
+      await feedService.createFeedPost({
+        userId: goal.userId,
+        userName: userData?.displayName || userData?.profile?.name || 'User',
+        userProfileImageUrl: userData?.profile?.profileImageUrl,
+        goalId: goal.id,
+        goalDescription: updatedDescription, // Use updatedDescription instead of goal.description
+        type: 'goal_approved',
+        totalSessions: newTargetCount * newSessionsPerWeek,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Error creating goal approval feed post:', error);
+    }
+
+    return goal;
   }
 
   /** Auto-approve goal if deadline passed */

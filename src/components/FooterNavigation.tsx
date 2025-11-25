@@ -16,22 +16,21 @@ import type { RootStackParamList } from '../types';
 
 import HomeIcon from '../assets/icons/home.svg';
 import HomeIconActive from '../assets/icons/HomeActive';
-import BellIcon from '../assets/icons/notifications.svg';
-import BellIconActive from '../assets/icons/NotificationsActive';
+import FeedIcon from '../assets/icons/FeedIcon';
+import FeedIconActive from '../assets/icons/FeedIconActive';
 import GoalsIcon from '../assets/icons/goals.svg';
 import GoalsIconActive from '../assets/icons/GoalsActive';
 import ProfileIcon from '../assets/icons/profile.svg';
 import ProfileIconActive from '../assets/icons/ProfileActive';
 import MenuIcon from '../assets/icons/sidemenu.svg';
 
-import { notificationService } from '../services/NotificationService';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type FooterNavigationProps = {
-  activeRoute: 'Home' | 'Goals' | 'Profile' | 'Notification' | 'Settings';
+  activeRoute: 'Home' | 'Goals' | 'Profile' | 'Feed' | 'Settings';
   onMenuPress: () => void;
 };
 
@@ -41,26 +40,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 }) => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const {
-    state: { user },
-  } = useApp();
   const { requireAuth } = useAuthGuard();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setUnreadCount(0);
-      return;
-    }
-    const unsubscribe = notificationService.listenToUserNotifications(
-      user.id,
-      (notifications) => {
-        const unread = notifications.filter((n) => !n.read).length;
-        setUnreadCount(unread);
-      }
-    );
-    return unsubscribe;
-  }, [user?.id]);
 
   const handleNavigation = (route: string) => {
     // Home is always accessible
@@ -68,18 +48,18 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
       navigation.navigate('CategorySelection');
       return;
     }
-    
+
     // Protected routes - check authentication BEFORE navigating
-    if (route === 'Goals' || route === 'Notification' || route === 'Profile') {
+    if (route === 'Goals' || route === 'Feed' || route === 'Profile') {
       // Require authentication - this will show popup if not authenticated
       // and return false to block navigation. Pass route name for post-auth navigation.
       if (!requireAuth('Please log in to access this feature.', route as keyof RootStackParamList)) {
         return; // Don't navigate - popup is shown
       }
-      
+
       // User is authenticated - navigate normally
       if (route === 'Goals') navigation.navigate('Goals');
-      if (route === 'Notification') navigation.navigate('Notification');
+      if (route === 'Feed') navigation.navigate('Feed' as any);
       if (route === 'Profile') navigation.navigate('Profile');
     }
   };
@@ -205,12 +185,11 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
           />
 
           <NavButton
-            icon={BellIcon}
-            activeIcon={BellIconActive}
-            label="Alerts"
-            isActive={activeRoute === 'Notification'}
-            onPress={() => handleNavigation('Notification')}
-            badgeCount={unreadCount}
+            icon={FeedIcon}
+            activeIcon={FeedIconActive}
+            label="Feed"
+            isActive={activeRoute === 'Feed'}
+            onPress={() => handleNavigation('Feed')}
           />
 
           <NavButton

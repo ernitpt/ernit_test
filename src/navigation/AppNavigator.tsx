@@ -36,6 +36,7 @@ import AddFriendScreen from '../screens/AddFriendScreen';
 import FriendProfileScreen from '../screens/FriendProfileScreen';
 import FriendsListScreen from '../screens/FriendsListScreen';
 import PurchasedGiftsScreen from '../screens/PurchasedGiftsScreen';
+import FeedScreen from '../screens/FeedScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
 const GiverStack = createNativeStackNavigator<GiverStackParamList>() as any;
@@ -53,6 +54,7 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'RecipientFlow',
   'Completion',
   'Notification',
+  'Feed',
   'AddFriend',
   'FriendProfile',
   'FriendsList',
@@ -191,6 +193,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         ConfirmationMultiple: 'confirmation-multiple',
         Completion: 'completion',
         Notification: 'notifications',
+        Feed: 'feed',
         AddFriend: 'add-friend',
         FriendProfile: 'friend/:userId',
         FriendsList: 'friends',
@@ -311,6 +314,14 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
           {(props) => (
             <ProtectedRoute>
               <NotificationsScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="Feed">
+          {(props) => (
+            <ProtectedRoute>
+              <FeedScreen {...props} />
             </ProtectedRoute>
           )}
         </RootStack.Screen>

@@ -1,17 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Alert, 
-  FlatList, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  FlatList,
   ActivityIndicator,
   Animated,
   TouchableOpacity,
   Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -24,11 +23,12 @@ import { db } from '../services/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { notificationService } from "../services/NotificationService";
 import { userService } from "../services/userService";
+import SharedHeader from '../components/SharedHeader';
 
 
 type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Goals'>;
 
-const GoalsScreen: React.FC =  () => {
+const GoalsScreen: React.FC = () => {
   const { state, dispatch } = useApp();
   const navigation = useNavigation<GoalsScreenNavigationProp>();
   const userId = state.user?.id || 'current_user';
@@ -63,10 +63,10 @@ const GoalsScreen: React.FC =  () => {
     } catch (error) {
       console.error('Failed to update gift status:', error);
     }
-  }; 
+  };
 
 
-        
+
   useEffect(() => {
     if (!userId) return;
 
@@ -149,17 +149,13 @@ const GoalsScreen: React.FC =  () => {
       <DetailedGoalCard goal={item} onFinish={() => handleFinishGoal(item)} />
     </View>
   );
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
-
   return (
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Current Goals</Text>
-          <Text style={styles.headerSubtitle}>Tap goal to track your progress</Text>
-        </View>
-      </LinearGradient>
+      <SharedHeader
+        title="Current Goals"
+        subtitle="Tap goal to track your progress"
+      />
       {loading ? (
         <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 50 }} />
       ) : (
@@ -174,85 +170,62 @@ const GoalsScreen: React.FC =  () => {
         />
       )}
 
-    {/* ---------- FLOATING REDEEM COUPON BUTTON ---------- */}
-    <Animated.View
-      style={[
-        styles.fabContainer,
-        {
-          transform: [{ translateY: fabAnim }],
-          opacity: fabOpacity,
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.fab}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
+      {/* ---------- FLOATING REDEEM COUPON BUTTON ---------- */}
+      <Animated.View
+        style={[
+          styles.fabContainer,
+          {
+            transform: [{ translateY: fabAnim }],
+            opacity: fabOpacity,
+          },
+        ]}
       >
-        <Image
-          source={require('../assets/icon.png')}
-          style={styles.fabIcon}
-          resizeMode="contain"
-        />
-        <Text style={styles.fabText}>Redeem your Ernit</Text>
-      </TouchableOpacity>
-    </Animated.View>
+        <TouchableOpacity
+          style={styles.fab}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
+        >
+          <Image
+            source={require('../assets/icon.png')}
+            style={styles.fabIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.fabText}>Redeem your Ernit</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
-        </MainScreen>
-      );
-    };
+    </MainScreen>
+  );
+};
 
 const styles = StyleSheet.create({
-    fabContainer: {
-      position: 'absolute',
-      bottom: 30,
-      right: 24,
-    },
-    fab: {
-      backgroundColor: '#8b5cf6',
-      borderRadius: 50,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      shadowColor: '#000',
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 6,
-    },
-    fabIcon: {
-      width: 28,
-      height: 28,
-      marginRight: 10,
-    },
-    fabText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '700',
-    },
-
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
+  fabContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 24,
   },
-  header: {
-    paddingHorizontal: 24,
-    // paddingTop: 34,
-    paddingBottom: 10,
+  fab: {
+    backgroundColor: '#8b5cf6',
+    borderRadius: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
+  fabIcon: {
+    width: 28,
+    height: 28,
+    marginRight: 10,
   },
-  headerSubtitle: {
-    fontSize: 15,
-    color: '#e0e7ff',
+  fabText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   listContainer: {
     padding: 20,

@@ -206,8 +206,8 @@ const FriendProfileScreen: React.FC = () => {
       </View>
     );
   };
-  
-    const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+
+  const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
     const [experience, setExperience] = useState<Experience | null>(null);
     const [partnerName, setPartnerName] = useState<string>("Partner");
     const [gift, setGift] = useState<any>(null);
@@ -228,11 +228,7 @@ const FriendProfileScreen: React.FC = () => {
           );
           setExperience(exp || null);
 
-          const partnerId = giftData.partnerId || exp?.partnerId;
-          if (partnerId) {
-            const partner = await partnerService.getPartnerById(partnerId);
-            if (partner?.name) setPartnerName(partner.name);
-          }
+          setPartnerName(exp?.subtitle)
         } catch (err) {
           console.error("Error loading achievement data:", err);
         } finally {
@@ -341,8 +337,8 @@ const FriendProfileScreen: React.FC = () => {
       activeTab === 'goals'
         ? activeGoals
         : activeTab === 'achievements'
-        ? completedGoals
-        : wishlist;
+          ? completedGoals
+          : wishlist;
 
     if (data.length === 0)
       return <Text style={styles.emptyStateText}>No {activeTab} yet.</Text>;
@@ -354,7 +350,7 @@ const FriendProfileScreen: React.FC = () => {
         <GoalCard key={item.id} goal={item} />
       ) : (
         // Achievements not clickable (unchanged)
-        <AchievementCard  key={item.id} goal={item} />
+        <AchievementCard key={item.id} goal={item} />
       )
     );
   };
@@ -566,7 +562,7 @@ const FriendProfileScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
-  
+
   // HEADER
   header: {
     position: 'absolute',
@@ -719,60 +715,60 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 16,
   },
-    // ACHIEVEMENT CARD (copied from UserProfileScreen)
-    achievementCard: {
-      backgroundColor: "#fff",
-      borderRadius: 16,
-      marginHorizontal: 20,
-      marginTop: 12,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    achievementImage: {
-      width: "100%",
-      height: 140,
-      backgroundColor: "#e5e7eb",
-    },
-    achievementImagePlaceholder: {
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    achievementImagePlaceholderText: {
-      fontSize: 40,
-      opacity: 0.5,
-    },
-    achievementContent: {
-      padding: 16,
-    },
-    achievementLoadingText: {
-      fontSize: 14,
-      color: "#9ca3af",
-    },
-    achievementTitle: {
-      fontSize: 17,
-      fontWeight: "700",
-      color: "#111827",
-      marginBottom: 4,
-    },
-    achievementPartner: {
-      fontSize: 14,
-      color: "#6b7280",
-      marginBottom: 4,
-    },
-    achievementGoal: {
-      fontSize: 14,
-      color: "#6b7280",
-      marginBottom: 6,
-    },
-    achievementMeta: {
-      fontSize: 14,
-      color: "#6b7280",
-    },
-  
+  // ACHIEVEMENT CARD (copied from UserProfileScreen)
+  achievementCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginTop: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  achievementImage: {
+    width: "100%",
+    height: 140,
+    backgroundColor: "#e5e7eb",
+  },
+  achievementImagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  achievementImagePlaceholderText: {
+    fontSize: 40,
+    opacity: 0.5,
+  },
+  achievementContent: {
+    padding: 16,
+  },
+  achievementLoadingText: {
+    fontSize: 14,
+    color: "#9ca3af",
+  },
+  achievementTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  achievementPartner: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  achievementGoal: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 6,
+  },
+  achievementMeta: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+
   // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, fontSize: 16, color: '#6b7280' },

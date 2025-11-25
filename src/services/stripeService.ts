@@ -75,7 +75,7 @@ export const stripeService = {
     personalizedMessage: string
   ): Promise<void> => {
     try {
-      const response = await fetch(`${STRIPE_FUNCTIONS_URL}/updatePaymentIntentMetadata`, {
+      const response = await fetch(`${STRIPE_FUNCTIONS_URL}/updatePaymentIntentMetadata_Test`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

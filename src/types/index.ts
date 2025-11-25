@@ -212,6 +212,64 @@ export interface GoalProgress {
   notes?: string;
 }
 
+// Feed Types
+export type FeedPostType = 'goal_started' | 'session_progress' | 'goal_completed' | 'goal_approved';
+export type ReactionType = 'muscle' | 'heart' | 'like';
+
+export interface FeedPost {
+  id: string;
+  userId: string;
+  userName: string;
+  userProfileImageUrl?: string;
+  goalId: string;
+  goalDescription: string;
+  type: FeedPostType;
+
+  // Progress data
+  sessionNumber?: number;
+  totalSessions?: number;
+  progressPercentage?: number;
+  weeklyCount?: number;
+  sessionsPerWeek?: number;
+
+  // Experience data (for goal_completed posts)
+  experienceTitle?: string;
+  experienceImageUrl?: string;
+  partnerName?: string;
+  experienceGiftId?: string;
+
+  // Metadata
+  createdAt: Date;
+
+  // Aggregated counts
+  reactionCounts: {
+    muscle: number;
+    heart: number;
+    like: number;
+  };
+  commentCount: number;
+}
+
+export interface Reaction {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  type: ReactionType;
+  createdAt: Date;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userProfileImageUrl?: string;
+  text: string;
+  createdAt: Date;
+}
+
+
 //Notifications
 
 export interface Notification {
@@ -274,6 +332,7 @@ export type RootStackParamList = {
   RecipientFlow: NavigatorScreenParams<RecipientStackParamList>;
   GoalSetting: { experienceGift: ExperienceGift };
   Notification: undefined;
+  Feed: undefined;
   AddFriend: undefined;
   FriendProfile: { userId: string };
   FriendsList: undefined;

@@ -19,8 +19,8 @@ import { userService } from '../services/userService';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import PersonAddIcon from '../assets/icons/PersonAdd';
-import { LinearGradient } from 'expo-linear-gradient';
 import { commonStyles } from '../themes/commonStyles';
+import SharedHeader from '../components/SharedHeader';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -182,11 +182,10 @@ const FriendsListScreen: React.FC = () => {
 
   return (
     <MainScreen activeRoute="Profile">
-      <LinearGradient colors={headerColors} style={commonStyles.gradientHeader}>
-        <View style={commonStyles.header}>
-          <Text style={commonStyles.headerTitle}>Your Friends</Text>
-        </View>
-      </LinearGradient>
+      <SharedHeader
+        title="Your Friends"
+        showBack
+      />
 
       {isLoading && !refreshing ? (
         <View style={styles.loadingContainer}>

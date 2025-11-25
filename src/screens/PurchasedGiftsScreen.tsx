@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +18,7 @@ import { userService } from '../services/userService';
 import { ExperienceGift, RootStackParamList } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import SharedHeader from '../components/SharedHeader';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -56,98 +56,95 @@ const PurchasedGiftsScreen = () => {
   };
 
   const GiftItem = ({ item }: { item: ExperienceGift }) => {
-  const navigation = useNavigation<PurchasedGiftsNavigationProp>();
-  const [claimedByName, setClaimedByName] = useState<string | null>(null);
-  const [loadingName, setLoadingName] = useState(false);
-  const [experience, setExperience] = useState<any>(null);
+    const navigation = useNavigation<PurchasedGiftsNavigationProp>();
+    const [claimedByName, setClaimedByName] = useState<string | null>(null);
+    const [loadingName, setLoadingName] = useState(false);
+    const [experience, setExperience] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchClaimerName = async () => {
-      if (item.status !== 'claimed') return;
-      setLoadingName(true);
-      try {
-        const q = query(collection(db, 'goals'), where('experienceGiftId', '==', item.id));
-        const snap = await getDocs(q);
+    useEffect(() => {
+      const fetchClaimerName = async () => {
+        if (item.status !== 'claimed') return;
+        setLoadingName(true);
+        try {
+          const q = query(collection(db, 'goals'), where('experienceGiftId', '==', item.id));
+          const snap = await getDocs(q);
 
-        if (!snap.empty) {
-          const goalData = snap.docs[0].data();
-          if (goalData.userId) {
-            const name = await userService.getUserName(goalData.userId);
-            setClaimedByName(name);
+          if (!snap.empty) {
+            const goalData = snap.docs[0].data();
+            if (goalData.userId) {
+              const name = await userService.getUserName(goalData.userId);
+              setClaimedByName(name);
+            }
           }
+        } catch (err) {
+          console.error(`❌ Error fetching claimer for gift ${item.id}:`, err);
+        } finally {
+          setLoadingName(false);
         }
-      } catch (err) {
-        console.error(`❌ Error fetching claimer for gift ${item.id}:`, err);
-      } finally {
-        setLoadingName(false);
-      }
+      };
+
+      fetchClaimerName();
+    }, [item.status, item.id]);
+
+    useEffect(() => {
+      const fetchExperience = async () => {
+        try {
+          const exp = await experienceService.getExperienceById(item.experienceId);
+          setExperience(exp);
+        } catch (error) {
+          console.error("Error fetching experience:", error);
+        }
+      };
+      fetchExperience();
+    }, [item.experienceId]);
+
+    const handlePress = () => {
+      navigation.navigate("Confirmation", { experienceGift: item });
     };
 
-    fetchClaimerName();
-  }, [item.status, item.id]);
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <Text style={styles.title}>
+              {experience ? experience.title : "Loading..."}
+            </Text>
+            <Text
+              style={[
+                styles.status,
+                item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
+              ]}
+            >
+              {item.status ? item.status.toUpperCase() : 'PENDING'}
+            </Text>
+          </View>
 
-  useEffect(() => {
-    const fetchExperience = async () => {
-      try {
-        const exp = await experienceService.getExperienceById(item.experienceId);
-        setExperience(exp);
-      } catch (error) {
-        console.error("Error fetching experience:", error);
-      }
-    };
-    fetchExperience();
-  }, [item.experienceId]);
+          {item.status === 'claimed' ? (
+            <Text style={[styles.detail, { color: '#166534', fontWeight: '500' }]}>
+              Claimed by:{' '}
+              {loadingName ? (
+                <Text style={{ color: '#9CA3AF' }}>Fetching name...</Text>
+              ) : (
+                claimedByName || 'Unknown'
+              )}
+            </Text>
+          ) : (
+            <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
+          )}
 
-  const handlePress = () => {
-    navigation.navigate("Confirmation", { experienceGift: item });
-  };
-
-  return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
-      <View style={styles.card}>
-        <View style={styles.cardRow}>
-          <Text style={styles.title}>
-            {experience ? experience.title : "Loading..."}
-          </Text>
-          <Text
-            style={[
-              styles.status,
-              item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
-            ]}
-          >
-            {item.status ? item.status.toUpperCase() : 'PENDING'}
-          </Text>
+          <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
         </View>
-
-        {item.status === 'claimed' ? (
-          <Text style={[styles.detail, { color: '#166534', fontWeight: '500' }]}>
-            Claimed by:{' '}
-            {loadingName ? (
-              <Text style={{ color: '#9CA3AF' }}>Fetching name...</Text>
-            ) : (
-              claimedByName || 'Unknown'
-            )}
-          </Text>
-        ) : (
-          <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
-        )}
-
-        <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <MainScreen activeRoute="Settings">
       <StatusBar style="light" />
-      <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Purchased Gifts</Text>
-        </View>
-      </LinearGradient>
+      <SharedHeader
+        title="Purchased Gifts"
+        showBack
+      />
 
       {loading ? (
         <ActivityIndicator
@@ -170,27 +167,6 @@ const PurchasedGiftsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  gradientHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    paddingBottom: 18,
-    paddingTop: 28,
-  },
-  header: {
-    paddingHorizontal: 24,
-    // paddingTop: 34,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
   listContainer: {
     padding: 20,
   },

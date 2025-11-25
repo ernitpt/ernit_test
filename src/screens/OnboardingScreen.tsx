@@ -8,6 +8,7 @@ import {
     Animated,
     StyleSheet,
     Platform,
+    ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +19,7 @@ import { useAuthGuard } from '../hooks/useAuthGuard';
 import { userService } from '../services/userService';
 import { auth } from '../services/firebase';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type OnboardingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -262,7 +263,7 @@ const OnboardingScreen = () => {
     };
 
     return (
-        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <View style={styles.container}>
             <StatusBar style="light" />
 
             <LinearGradient
@@ -288,24 +289,32 @@ const OnboardingScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                <FlatList
-                    data={slides}
-                    renderItem={renderItem}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    pagingEnabled
-                    bounces={false}
-                    keyExtractor={(item) => item.id.toString()}
-                    onScroll={Animated.event(
-                        [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                        { useNativeDriver: false }
-                    )}
-                    scrollEventThrottle={16}
-                    onViewableItemsChanged={onViewableItemsChanged}
-                    viewabilityConfig={viewConfig}
-                    onMomentumScrollEnd={handleMomentumScrollEnd}
-                    ref={slidesRef}
-                />
+                <View style={styles.slidesContainer}>
+                    <FlatList
+                        data={slides}
+                        renderItem={renderItem}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        showsVerticalScrollIndicator={false}
+                        pagingEnabled
+                        bounces={false}
+                        scrollEnabled={true}
+                        directionalLockEnabled={true}
+                        disableIntervalMomentum={true}
+                        overScrollMode="never"
+                        keyExtractor={(item) => item.id.toString()}
+                        onScroll={Animated.event(
+                            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                            { useNativeDriver: false }
+                        )}
+                        scrollEventThrottle={16}
+                        onViewableItemsChanged={onViewableItemsChanged}
+                        viewabilityConfig={viewConfig}
+                        onMomentumScrollEnd={handleMomentumScrollEnd}
+                        ref={slidesRef}
+                        style={styles.flatList}
+                    />
+                </View>
 
                 <View style={styles.footer}>
                     <Paginator data={slides} scrollX={scrollX} />
@@ -328,7 +337,7 @@ const OnboardingScreen = () => {
                     </TouchableOpacity>
                 </View>
             </View>
-        </Animated.View>
+        </View>
     );
 };
 
@@ -336,6 +345,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#0F0728',
+        overflow: 'hidden',
     },
     contentContainer: {
         flex: 1,
@@ -376,7 +386,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         paddingHorizontal: 24,
         paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 20,
+        paddingBottom: 10,
     },
     skipButton: {
         paddingHorizontal: 16,
@@ -389,6 +399,13 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
     },
+    slidesContainer: {
+        flex: 1,
+        overflow: 'hidden',
+    },
+    flatList: {
+        flex: 1,
+    },
     slide: {
         width: SCREEN_WIDTH,
         alignItems: 'center',
@@ -396,14 +413,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 40,
     },
     emojiContainer: {
-        marginBottom: 60,
+        marginBottom: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
     emojiBackground: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#8B5CF6',
@@ -413,7 +430,7 @@ const styles = StyleSheet.create({
         elevation: 20,
     },
     emoji: {
-        fontSize: 100,
+        fontSize: 80,
         textAlign: 'center',
     },
     ring: {
@@ -423,42 +440,43 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     ring1: {
-        width: 240,
-        height: 240,
+        width: 200,
+        height: 200,
     },
     ring2: {
-        width: 280,
-        height: 280,
+        width: 240,
+        height: 240,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     textContainer: {
         alignItems: 'center',
         paddingHorizontal: 20,
+        maxWidth: SCREEN_WIDTH - 80,
     },
     title: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: '800',
         color: '#FFFFFF',
         textAlign: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
         letterSpacing: 0.5,
     },
     description: {
-        fontSize: 17,
+        fontSize: 16,
         color: 'rgba(255, 255, 255, 0.75)',
         textAlign: 'center',
-        lineHeight: 26,
-        maxWidth: 340,
+        lineHeight: 24,
+        maxWidth: 320,
     },
     footer: {
         paddingHorizontal: 32,
-        paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
         alignItems: 'center',
     },
     paginatorContainer: {
         flexDirection: 'row',
-        height: 50,
+        height: 40,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -470,8 +488,8 @@ const styles = StyleSheet.create({
     },
     button: {
         width: '100%',
-        height: 60,
-        borderRadius: 30,
+        height: 56,
+        borderRadius: 28,
         shadowColor: '#8B5CF6',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.5,
@@ -482,7 +500,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 30,
+        borderRadius: 28,
     },
     buttonText: {
         color: '#FFFFFF',
