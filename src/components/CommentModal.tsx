@@ -186,7 +186,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 value={commentText}
                                 onChangeText={setCommentText}
                                 multiline
-                                maxLength={500}
+                                maxLength={300}
                             />
                             <TouchableOpacity
                                 style={[
@@ -288,12 +288,14 @@ const styles = StyleSheet.create({
     },
     commentsList: {
         padding: 20,
-        paddingHorizontal: 24,
+        paddingHorizontal: 16,
     },
     commentItem: {
         flexDirection: 'row',
         marginBottom: 16,
         gap: 12,
+        paddingRight: 8,
+        alignItems: 'flex-start',
     },
     avatar: {
         width: 40,
@@ -315,6 +317,7 @@ const styles = StyleSheet.create({
     },
     commentContent: {
         flex: 1,
+        maxWidth: '85%',
     },
     commentHeader: {
         flexDirection: 'row',
@@ -326,6 +329,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
         color: '#111827',
+        flexShrink: 1,
     },
     deleteText: {
         fontSize: 13,

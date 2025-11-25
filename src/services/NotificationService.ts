@@ -84,7 +84,7 @@ export class NotificationService {
         senderId: giverId,
         senderName: giverName,
       },
-      false // Not clearable until hint is revealed
+      true // Make clearable - user can dismiss these notifications
     );
   }
 

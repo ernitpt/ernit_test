@@ -624,6 +624,7 @@ export class GoalService {
     }
     return null;
   }
+
   // ===== Debug Tools =====
   async debugAdvanceWeek(goalId: string): Promise<void> {
     // Instead of modifying the goal, we advance the global time offset

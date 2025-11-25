@@ -170,8 +170,7 @@ const NotificationsScreen = () => {
 
     // Handle personalized hint left notification (for recipients)
     if (item.type === 'personalized_hint_left') {
-      // These are special - non-clearable until hint is revealed
-      // Just show as regular notification
+      // Falls through to default rendering with clear button
     }
 
 

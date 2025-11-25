@@ -66,6 +66,16 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                 nextSessionNumber
             );
 
+            // Update local goal state to reflect the hint was set
+            setGoal({
+                ...goal,
+                personalizedNextHint: {
+                    hint,
+                    fromName: giverName || 'Your Giver',
+                    forSessionNumber: nextSessionNumber,
+                },
+            });
+
             console.log('✅ Personalized hint set successfully');
         } catch (error) {
             console.error('Error setting personalized hint:', error);
@@ -74,6 +84,14 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     };
 
     const hasPersonalizedHint = goal?.personalizedNextHint !== null && goal?.personalizedNextHint !== undefined;
+
+    const handleClear = async () => {
+        try {
+            await notificationService.deleteNotification(notification.id!);
+        } catch (error) {
+            console.error('Error clearing notification:', error);
+        }
+    };
 
     return (
         <>
@@ -87,26 +105,29 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                     <Text style={styles.cardMessage}>{notification.message}</Text>
 
                     <TouchableOpacity
-                        style={[styles.button, loading && styles.buttonDisabled]}
+                        style={[
+                            styles.button,
+                            (loading || hasPersonalizedHint) && styles.buttonDisabled
+                        ]}
                         onPress={handleLeaveHint}
                         disabled={loading || hasPersonalizedHint}
                     >
-                        <LinearGradient
-                            colors={hasPersonalizedHint ? ['#9CA3AF', '#6B7280'] : ['#7C3AED', '#EC4899']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.buttonGradient}
-                        >
-                            <Text style={styles.buttonText}>
-                                {hasPersonalizedHint
-                                    ? '✓ Hint Already Set'
-                                    : loading
-                                        ? 'Loading...'
-                                        : '💌 Leave Next Hint'}
-                            </Text>
-                        </LinearGradient>
+                        <Text style={styles.buttonText}>
+                            {hasPersonalizedHint
+                                ? '✓ Hint Already Set'
+                                : loading
+                                    ? 'Loading...'
+                                    : 'Leave Hint For Next Session 💌'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                    style={styles.clearNotificationButton}
+                    onPress={handleClear}
+                >
+                    <Text style={styles.clearNotificationText}>×</Text>
+                </TouchableOpacity>
             </View>
 
             {goal && (
@@ -137,8 +158,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 4,
         elevation: 2,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
     },
     cardContent: {
+        flex: 1,
         padding: 16,
     },
     cardHeader: {
@@ -166,21 +190,34 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     button: {
-        borderRadius: 8,
-        overflow: 'hidden',
+        backgroundColor: '#8b5cf6',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
         marginTop: 8,
     },
     buttonDisabled: {
-        opacity: 0.6,
-    },
-    buttonGradient: {
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        alignItems: 'center',
+        backgroundColor: '#9CA3AF',
     },
     buttonText: {
-        color: '#FFFFFF',
+        color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    clearNotificationButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        margin: 8,
+    },
+    clearNotificationText: {
+        color: '#9ca3af',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });

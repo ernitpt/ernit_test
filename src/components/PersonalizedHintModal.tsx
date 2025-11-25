@@ -24,12 +24,12 @@ interface PersonalizedHintModalProps {
 const MAX_HINT_LENGTH = 500;
 
 const EXAMPLE_HINTS = [
-    "Think about the sound of waves... 🌊",
-    "Pack something comfortable for your feet",
-    "You might want to bring a camera for this one",
-    "Get ready for some breathtaking views",
-    "Hope you're not afraid of heights! 😉",
-    "Sunset will be extra special that day",
+    "You're doing amazing! Keep up the great work! 💪",
+    "I'm so proud of your progress!",
+    "Each session brings you closer to your goal!",
+    "Your dedication is truly inspiring! ✨",
+    "Remember why you started - you've got this!",
+    "Can't wait to see you achieve this! 🌟",
 ];
 
 export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
@@ -111,23 +111,23 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                     >
                         {/* Header */}
                         <LinearGradient
-                            colors={['#F59E0B', '#F97316']}
+                            colors={['#7C3AED', '#8B5CF6']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.header}
                         >
-                            <Text style={styles.headerIcon}>🎁</Text>
-                            <Text style={styles.headerTitle}>Leave a Clue</Text>
+                            <Text style={styles.headerIcon}>💌</Text>
+                            <Text style={styles.headerTitle}>Leave a Hint</Text>
                             <Text style={styles.headerSubtitle}>
-                                About {recipientName}'s reward
+                                For session #{sessionNumber}
                             </Text>
                         </LinearGradient>
 
                         {/* Description */}
                         <View style={styles.description}>
                             <Text style={styles.descriptionText}>
-                                Drop a subtle hint about the experience they'll get when they complete their goal.{'\n\n'}
-                                Keep it mysterious—don't make it too obvious! 🤫
+                                Leave a motivational hint for {recipientName} that they'll see after completing session #{sessionNumber}.{'\n\n'}
+                                Keep it encouraging and personal! 💪
                             </Text>
                         </View>
 
@@ -135,7 +135,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                         <View style={styles.inputContainer}>
                             <TextInput
                                 style={styles.textInput}
-                                placeholder="Your subtle clue..."
+                                placeholder="Your encouraging hint..."
                                 placeholderTextColor="#9CA3AF"
                                 value={hint}
                                 onChangeText={setHint}
@@ -203,7 +203,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                 <LinearGradient
                                     colors={
                                         canSubmit && !submitting
-                                            ? ['#F59E0B', '#F97316']
+                                            ? ['#7C3AED', '#8B5CF6']
                                             : ['#9CA3AF', '#6B7280']
                                     }
                                     start={{ x: 0, y: 0 }}
@@ -211,7 +211,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                     style={styles.submitButtonGradient}
                                 >
                                     <Text style={styles.submitButtonText}>
-                                        {submitting ? 'Sending...' : 'Send Clue 🎁'}
+                                        {submitting ? 'Sending...' : 'Send Hint 💌'}
                                     </Text>
                                 </LinearGradient>
                             </TouchableOpacity>
