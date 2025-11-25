@@ -1,3 +1,4 @@
+import { DateHelper } from '../utils/DateHelper';
 import { db } from './firebase';
 import {
   collection,
@@ -94,7 +95,7 @@ export class GoalService {
   private goalsCollection = collection(db, 'goals');
 
   // ===== Debug switch =====
-  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = false;
+  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = true;
   setDebug(allowMultiplePerDay: boolean) {
     this.DEBUG_ALLOW_MULTIPLE_PER_DAY = allowMultiplePerDay;
   }
@@ -178,6 +179,34 @@ export class GoalService {
     });
   }
 
+  /** Set a personalized hint from giver for recipient's next session */
+  async setPersonalizedNextHint(
+    goalId: string,
+    hint: string,
+    giverName: string,
+    forSessionNumber: number
+  ): Promise<void> {
+    const goalRef = doc(db, 'goals', goalId);
+    await updateDoc(goalRef, {
+      personalizedNextHint: {
+        hint,
+        giverName,
+        createdAt: new Date(),
+        forSessionNumber,
+      },
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  /** Clear personalized hint after it has been shown to recipient */
+  async clearPersonalizedNextHint(goalId: string): Promise<void> {
+    const goalRef = doc(db, 'goals', goalId);
+    await updateDoc(goalRef, {
+      personalizedNextHint: null,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
   getOverallProgress(goal: Goal): number {
     if (!goal.targetCount) return 0;
     return Math.min(100, Math.round((goal.currentCount / goal.targetCount) * 100));
@@ -232,7 +261,7 @@ export class GoalService {
     if (!g.weekStartAt || !g.id) return g;
 
     let anchor = new Date(g.weekStartAt);
-    const now = new Date();
+    const now = DateHelper.now();
 
     // If 7+ days have passed since the week started
     if (now >= addDaysSafe(anchor, 7)) {
@@ -273,7 +302,7 @@ export class GoalService {
 
     // If it's the user's first session
     if (!g.weekStartAt) {
-      g.weekStartAt = new Date();
+      g.weekStartAt = DateHelper.now();
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
     }
@@ -281,7 +310,7 @@ export class GoalService {
     // Sweep expired weeks
     g = await this.applyExpiredWeeksSweep(g);
 
-    const todayIso = isoDateOnly(new Date());
+    const todayIso = isoDateOnly(DateHelper.now());
 
     // Prevent multiple sessions same day (unless debug)
     if (!this.DEBUG_ALLOW_MULTIPLE_PER_DAY && g.weeklyLogDates.includes(todayIso)) {
@@ -581,7 +610,7 @@ export class GoalService {
     const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
     if (goal.approvalStatus === 'pending' && goal.approvalDeadline) {
-      const now = new Date();
+      const now = DateHelper.now();
       if (now >= goal.approvalDeadline && !goal.giverActionTaken) {
         // Auto-approve
         await updateDoc(ref, {
@@ -594,6 +623,27 @@ export class GoalService {
       }
     }
     return null;
+  }
+  // ===== Debug Tools =====
+  async debugAdvanceWeek(goalId: string): Promise<void> {
+    // Instead of modifying the goal, we advance the global time offset
+    DateHelper.addOffset(7 * 24 * 60 * 60 * 1000);
+    console.log('🕒 Advanced time by 1 week');
+  }
+
+  async debugAdvanceDay(goalId: string): Promise<void> {
+    DateHelper.addOffset(24 * 60 * 60 * 1000);
+    console.log('🕒 Advanced time by 1 day');
+  }
+
+  async debugRewindWeek(goalId: string): Promise<void> {
+    DateHelper.addOffset(-7 * 24 * 60 * 60 * 1000);
+    console.log('🕒 Rewound time by 1 week');
+  }
+
+  async debugRewindDay(goalId: string): Promise<void> {
+    DateHelper.addOffset(-24 * 60 * 60 * 1000);
+    console.log('🕒 Rewound time by 1 day');
   }
 }
 

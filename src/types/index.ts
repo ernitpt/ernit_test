@@ -152,6 +152,13 @@ export interface Goal {
     hint: string;
     date: number; // timestamp
   }[];
+  // Personalized hint system
+  personalizedNextHint?: {
+    hint: string;
+    giverName: string;
+    createdAt: Date;
+    forSessionNumber: number; // Which session this hint is for
+  };
   // Goal approval fields
   approvalStatus?: 'pending' | 'approved' | 'suggested_change';
   initialTargetCount?: number; // Original goal weeks
@@ -277,7 +284,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)

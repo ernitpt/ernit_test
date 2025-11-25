@@ -131,9 +131,9 @@ service cloud.firestore {
 
         ||
 
-        // (2) Giver can ONLY update approval-related fields
-        request.auth.uid == resource.data.empoweredBy
-        && request.resource.data.diff(resource.data).changedKeys()
+        // (2) Giver can ONLY update approval-related fields and personalized hints
+        (request.auth.uid == resource.data.empoweredBy
+        && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
               'approvalStatus',
               'suggestedTargetCount',
@@ -142,8 +142,16 @@ service cloud.firestore {
               'giverActionTaken',
               'approvalRequestedAt',
               'approvalDeadline',
+              'personalizedNextHint',
               'updatedAt'
-            ])
+            ]))
+        
+        ||
+        
+        // (3) Giver can set personalized hint even without other approval fields
+        ('empoweredBy' in resource.data &&
+        request.auth.uid == resource.data.empoweredBy
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalizedNextHint', 'updatedAt']))
       );
 
       /* ===============================
@@ -332,7 +340,7 @@ service cloud.firestore {
         ||
         // Creating notification for someone else (e.g., goal completion, progress updates)
         // This allows goal recipients to notify their givers and givers to notify recipients
-        (request.resource.data.type in ['goal_completed', 'goal_progress', 'friend_request', 'goal_approval_request', 'goal_change_suggested', 'goal_approval_response'])
+        (request.resource.data.type in ['goal_completed', 'goal_progress', 'friend_request', 'goal_approval_request', 'goal_change_suggested', 'goal_approval_response', 'personalized_hint_left'])
       );
     }
 

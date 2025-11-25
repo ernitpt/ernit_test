@@ -34,12 +34,27 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Animated.View style={[styles.card, { opacity, transform: [{ scale }] }]}>
-          <Text style={[styles.h1, { textAlign: 'center' }]}> Your hint</Text>
-          <Text style={styles.hint}>{hint}</Text>
 
-        <Pressable style={[styles.btn, { width: 140, alignSelf: 'center' }]} onPress={onClose}>
-          <Text style={styles.btnText}>Close</Text>
-        </Pressable>
+          <View style={styles.iconContainer}>
+            <Text style={{ fontSize: 32 }}>✨</Text>
+          </View>
+
+          <Text style={styles.h1}>New Hint Unlocked!</Text>
+          <Text style={styles.subtext}>Session {sessionNumber} of {totalSessions}</Text>
+
+          <View style={styles.hintContainer}>
+            <Text style={styles.hint}>{hint}</Text>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.btn,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+            ]}
+            onPress={onClose}
+          >
+            <Text style={styles.btnText}>Awesome!</Text>
+          </Pressable>
 
           <ConfettiCannon
             ref={confettiRef}
@@ -59,25 +74,82 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(17, 24, 39, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   card: {
     width: '100%',
-    borderRadius: 16,
-    padding: 18,
+    maxWidth: 340,
+    borderRadius: 24,
+    padding: 24,
     backgroundColor: '#ffffff',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
-  h1: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  hint: { fontSize: 16, color: '#111827', marginBottom: 14 },
-  btn: { backgroundColor: '#7c3aed', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F3E8FF', // Light purple bg
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 4,
+    borderColor: '#FAF5FF',
+  },
+  h1: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  subtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  hintContainer: {
+    width: '100%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  hint: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  btn: {
+    width: '100%',
+    backgroundColor: '#7C3AED',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  btnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 17,
+    letterSpacing: 0.5,
+  },
 });
 
 export default HintPopup;

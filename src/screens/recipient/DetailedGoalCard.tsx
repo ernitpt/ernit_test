@@ -30,7 +30,7 @@ interface DetailedGoalCardProps {
   onFinish?: (goal: Goal) => void;
 }
 
-const DEBUG_ALLOW_MULTIPLE_PER_DAY = false;
+const DEBUG_ALLOW_MULTIPLE_PER_DAY = true;
 const TIMER_STORAGE_KEY = 'goal_timer_state_';
 
 function isoDay(d: Date) {
@@ -290,7 +290,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     // Check approval status and prevent cheating
     if (isGoalLocked(currentGoal)) {
-      const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
+      const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
 
       // Special case: 1 day and 1 session per week goals cannot be completed until approved
       if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
@@ -328,8 +328,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const experience = await experienceService.getExperienceById(gift.experienceId);
       const recipientName = await userService.getUserName(updated.userId);
 
+      // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
       const totalSessionsDone =
-        (updated.currentCount * updated.sessionsPerWeek) + (updated.weeklyLogDates?.length || 0);
+        (updated.currentCount * updated.sessionsPerWeek) + updated.weeklyCount;
 
       setLastSessionNumber(totalSessionsDone);
 
@@ -356,20 +357,61 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         // Don't call onFinish for completed goals - handle navigation here
         navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
-        const hintToShow = pendingHint || "Keep going! You're doing great 💪";
+        // Check if there's a personalized hint for this session
+        // totalSessionsDone represents the session that was just completed
+        const hasPersonalizedHint =
+          updated.personalizedNextHint &&
+          updated.personalizedNextHint.forSessionNumber === totalSessionsDone;
 
-        if (pendingHint) {
+        let hintToShow: string;
+
+        if (hasPersonalizedHint) {
+          // Use personalized hint with special formatting
+          hintToShow = `💌 ${updated.personalizedNextHint!.giverName} says:\n\n${updated.personalizedNextHint!.hint}`;
+
+          // Save personalized hint to history
           try {
-            const hintObj = { session: totalSessionsDone, hint: pendingHint, date: Date.now() };
+            const hintObj = {
+              session: totalSessionsDone,
+              hint: hintToShow,
+              date: Date.now()
+            };
             await goalService.appendHint(goalId, hintObj);
 
+            // Update local state to show in history immediately
             setCurrentGoal((prev) => ({
               ...prev,
               hints: [...(prev.hints || []), hintObj],
             }));
           } catch (err) {
-            console.warn('Failed to save hint:', err);
-            // Don't block progress if hint save fails
+            console.warn('Failed to save personalized hint to history:', err);
+          }
+
+          // Clear the personalized hint after use
+          try {
+            await goalService.clearPersonalizedNextHint(goalId);
+            console.log('✅ Personalized hint cleared after display');
+          } catch (err) {
+            console.warn('Failed to clear personalized hint:', err);
+          }
+        } else {
+          // Use AI-generated hint
+          hintToShow = pendingHint || "Keep going! You're doing great 💪";
+
+          if (pendingHint) {
+            try {
+              // totalSessionsDone represents the session that was just completed
+              const hintObj = { session: totalSessionsDone, hint: pendingHint, date: Date.now() };
+              await goalService.appendHint(goalId, hintObj);
+
+              setCurrentGoal((prev) => ({
+                ...prev,
+                hints: [...(prev.hints || []), hintObj],
+              }));
+            } catch (err) {
+              console.warn('Failed to save hint:', err);
+              // Don't block progress if hint save fails
+            }
           }
         }
 
@@ -438,16 +480,25 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
       const experience = await experienceService.getExperienceById(gift.experienceId);
       const recipientName = await userService.getUserName(currentGoal.userId);
 
+      // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
+      // weeklyLogDates only stores unique dates, so it undercounts if multiple sessions happen in one day.
       const totalSessionsDone =
-        (currentGoal.currentCount * currentGoal.sessionsPerWeek) +
-        (currentGoal.weeklyLogDates?.length || 0);
+        (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       const totalSessions = currentGoal.sessionsPerWeek * currentGoal.targetCount;
 
-      if (totalSessionsDone != totalSessions) {
+      // Only generate AI hint if:
+      // 1. Not the last session
+      // 2. No personalized hint exists for the next session
+      const nextSessionNumber = totalSessionsDone + 1;
+      const hasPersonalizedHintForNextSession =
+        currentGoal.personalizedNextHint &&
+        currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
+
+      if (totalSessionsDone != totalSessions && !hasPersonalizedHintForNextSession) {
         const hint = await aiHintService.generateHint({
           goalId,
           experienceType: experience?.title || 'experience',
-          sessionNumber: totalSessionsDone + 1,
+          sessionNumber: nextSessionNumber,
           totalSessions,
           userName: recipientName || undefined,
         });
@@ -589,8 +640,8 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
 
   // Calculate total sessions done
   const totalSessionsDone = useMemo(() => {
-    return (currentGoal.currentCount * currentGoal.sessionsPerWeek) + (currentGoal.weeklyLogDates?.length || 0);
-  }, [currentGoal.currentCount, currentGoal.sessionsPerWeek, currentGoal.weeklyLogDates]);
+    return (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+  }, [currentGoal.currentCount, currentGoal.sessionsPerWeek, currentGoal.weeklyCount]);
 
   const formatTime = (s: number) => {
     // If less than 1 hour, use MM:SS format
@@ -793,6 +844,66 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
         </View>
       </Pressable>
 
+      {/* Debug Controls */}
+      {DEBUG_ALLOW_MULTIPLE_PER_DAY && (
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugTitle}>🔧 Debug Tools</Text>
+          <View style={styles.debugButtonsRow}>
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={async () => {
+                await goalService.debugRewindWeek(currentGoal.id!);
+                // Refresh goal
+                const updated = await goalService.getGoalById(currentGoal.id!);
+                if (updated) setCurrentGoal(updated);
+                alert('Rewound 1 week');
+              }}
+            >
+              <Text style={styles.debugButtonText}>-1 W</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={async () => {
+                await goalService.debugRewindDay(currentGoal.id!);
+                // Refresh goal
+                const updated = await goalService.getGoalById(currentGoal.id!);
+                if (updated) setCurrentGoal(updated);
+                alert('Rewound 1 day');
+              }}
+            >
+              <Text style={styles.debugButtonText}>-1 D</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={async () => {
+                await goalService.debugAdvanceDay(currentGoal.id!);
+                // Refresh goal
+                const updated = await goalService.getGoalById(currentGoal.id!);
+                if (updated) setCurrentGoal(updated);
+                alert('Advanced 1 day');
+              }}
+            >
+              <Text style={styles.debugButtonText}>+1 D</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={async () => {
+                await goalService.debugAdvanceWeek(currentGoal.id!);
+                // Refresh goal
+                const updated = await goalService.getGoalById(currentGoal.id!);
+                if (updated) setCurrentGoal(updated);
+                alert('Advanced 1 week');
+              }}
+            >
+              <Text style={styles.debugButtonText}>+1 W</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Hint Popup */}
       <HintPopup
         visible={showHint}
@@ -927,9 +1038,13 @@ const styles = StyleSheet.create({
     color: '#065F46',
     fontSize: 15,
     fontWeight: '700',
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  weekCompleteSub: { color: '#047857', fontSize: 13, marginTop: 4, textAlign: 'center' },
+  weekCompleteSub: {
+    color: '#047857',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   cancelButton: {
     marginTop: 12,
     paddingVertical: 8,
@@ -937,61 +1052,109 @@ const styles = StyleSheet.create({
     backgroundColor: '#b3afafff',
   },
   cancelButtonText: { color: '#fff', fontSize: 16, fontWeight: '400', textAlign: 'center' },
+  // Debug Styles
+  debugContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  debugButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  debugButton: {
+    flex: 1,
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  debugButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  // Modal Styles
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    zIndex: 999,
+    zIndex: 1000,
   },
   modalBox: {
+    width: '80%',
     backgroundColor: '#fff',
-    borderRadius: 20,
-    width: '85%',
-    maxWidth: 360,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#4c1d95', marginBottom: 8 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
   modalSubtitle: {
     fontSize: 15,
-    color: '#374151',
+    color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    lineHeight: 22,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     width: '100%',
-    gap: 10,
   },
   modalButton: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  cancelButtonPopup: { backgroundColor: '#f3f4f6' },
-  confirmButton: { backgroundColor: '#7c3aed' },
-  cancelText: { color: '#374151', fontWeight: '600', fontSize: 15 },
-  confirmText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  cancelButtonPopup: {
+    backgroundColor: '#F3F4F6',
+  },
+  confirmButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  confirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
   approvalMessageBox: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 8,
     padding: 12,
-    marginBottom: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#f59e0b',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
   },
   approvalMessageText: {
     fontSize: 13,

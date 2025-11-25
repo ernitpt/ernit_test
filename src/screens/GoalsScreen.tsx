@@ -114,39 +114,36 @@ const GoalsScreen: React.FC = () => {
   }, []);
 
 
-  const handleFinishGoal = async (goal: Goal) => {
+  const handleFinishGoal = async (updatedGoal: Goal) => {
     try {
-      setLoading(true);
-
-      // Use weekly model for consistency
-      const updated = await goalService.tickWeeklySession(goal.id);
+      // NO! DetailedGoalCard already calls tickWeeklySession.
+      // We just need to handle the UI/Navigation consequences.
+      // const updated = await goalService.tickWeeklySession(goal.id); <-- CAUSE OF DOUBLE INCREMENT
 
       // If a week just completed and whole goal is done, navigate
-      const experienceGift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
+      const experienceGift = await experienceGiftService.getExperienceGiftById(updatedGoal.experienceGiftId);
 
-      if (updated.isCompleted) {
+      if (updatedGoal.isCompleted) {
         navigation.navigate('Completion', {
-          goal: updated,
+          goal: updatedGoal,
           experienceGift,
         });
-      } else {
-        Alert.alert(
-          'Great Job!',
-          `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}`
-        );
       }
+      // Don't show Alert here - the hint popup from DetailedGoalCard already provides feedback
     } catch (err) {
       console.error('Error finishing goal:', err);
       Alert.alert('Error', 'Failed to update goal progress.');
-    } finally {
-      setLoading(false);
     }
   };
 
 
   const renderGoal = ({ item }: { item: Goal }) => (
     <View style={styles.cardWrapper}>
-      <DetailedGoalCard goal={item} onFinish={() => handleFinishGoal(item)} />
+      <DetailedGoalCard
+        key={item.id}
+        goal={item}
+        onFinish={(updated) => handleFinishGoal(updated)}
+      />
     </View>
   );
   return (

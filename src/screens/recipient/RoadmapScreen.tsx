@@ -15,6 +15,7 @@ import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import SharedHeader from '../../components/SharedHeader';
+import HintPopup from '../../components/HintPopup';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 

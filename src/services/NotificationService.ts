@@ -63,6 +63,31 @@ export class NotificationService {
     );
   }
 
+  /** Create a personalized hint notification */
+  async createPersonalizedHintNotification(
+    recipientId: string,
+    giverId: string,
+    giverName: string,
+    goalId: string,
+    goalTitle: string,
+    sessionsPerWeek: number,
+    totalWeeks: number,
+    sessionNumber: number
+  ): Promise<string> {
+    return await this.createNotification(
+      recipientId,
+      'personalized_hint_left',
+      `💌 ${giverName} left you a hint!`,
+      `A special message awaits for "${goalTitle}" (${sessionsPerWeek} times/week for ${totalWeeks} weeks). Complete your next session to unlock it.`,
+      {
+        goalId,
+        senderId: giverId,
+        senderName: giverName,
+      },
+      false // Not clearable until hint is revealed
+    );
+  }
+
   /** Listen for real-time updates for one user */
   listenToUserNotifications = (
     userId: string,

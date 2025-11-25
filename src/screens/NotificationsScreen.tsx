@@ -20,6 +20,7 @@ import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
+import { GoalProgressNotification } from '../components/GoalProgressNotification';
 import SharedHeader from '../components/SharedHeader';
 
 
@@ -160,6 +161,17 @@ const NotificationsScreen = () => {
           onActionTaken={handleApprovalActionTaken}
         />
       );
+    }
+
+    // Handle goal progress notifications (for givers to leave hints)
+    if (item.type === 'goal_progress') {
+      return <GoalProgressNotification notification={item} />;
+    }
+
+    // Handle personalized hint left notification (for recipients)
+    if (item.type === 'personalized_hint_left') {
+      // These are special - non-clearable until hint is revealed
+      // Just show as regular notification
     }
 
 
