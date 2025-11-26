@@ -7,7 +7,10 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 import { Goal } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
@@ -44,6 +47,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const slideAnim = useModalAnimation(visible);
 
   useEffect(() => {
     if (visible && goal) {
@@ -150,181 +154,180 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Goal Change Suggestion</Text>
+      <TouchableOpacity
+        style={commonStyles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Goal Change Suggestion</Text>
 
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-          {goal?.giverMessage && (
-            <View style={styles.messageBox}>
-              <Text style={styles.messageLabel}>Message from {goal.empoweredBy}:</Text>
-              <Text style={styles.messageText}>{goal.giverMessage}</Text>
-            </View>
-          )}
+            {goal?.giverMessage && (
+              <View style={styles.messageBox}>
+                <Text style={styles.messageLabel}>Message from {goal.empoweredBy}:</Text>
+                <Text style={styles.messageText}>{goal.giverMessage}</Text>
+              </View>
+            )}
 
-          <View style={styles.goalInfo}>
-            <Text style={styles.infoLabel}>Your original goal:</Text>
-            <Text style={styles.infoText}>
-              {initialWeeks} weeks, {initialSessions} sessions per week
-            </Text>
-          </View>
-
-          <View style={styles.goalInfo}>
-            <Text style={styles.infoLabel}>Giver's suggestion:</Text>
-            <Text style={styles.infoText}>
-              {suggestedWeeks} weeks, {suggestedSessions} sessions per week
-            </Text>
-          </View>
-
-          <View style={styles.selectorContainer}>
-            <Text style={styles.selectorLabel}>Choose your goal:</Text>
-            <Text style={styles.selectorValue}>
-              {selectedWeeks} weeks, {selectedSessions} sessions per week
-            </Text>
-
-            <View style={styles.rangeInfo}>
-              <Text style={styles.rangeText}>
-                Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
+            <View style={styles.goalInfo}>
+              <Text style={styles.infoLabel}>Your original goal:</Text>
+              <Text style={styles.infoText}>
+                {initialWeeks} weeks, {initialSessions} sessions per week
               </Text>
             </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Weeks:</Text>
-              <View style={styles.numberInputContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.adjustButton,
-                    (selectedWeeks <= minWeeks || loading) && styles.adjustButtonDisabled
-                  ]}
-                  onPress={() => adjustWeeks(-1)}
-                  disabled={selectedWeeks <= minWeeks || loading}
-                  activeOpacity={selectedWeeks <= minWeeks ? 1 : 0.7}
-                >
-                  <Text style={[
-                    styles.adjustButtonText,
-                    (selectedWeeks <= minWeeks || loading) && styles.adjustButtonTextDisabled
-                  ]}>−</Text>
-                </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    style={styles.numberInput}
-                    value={selectedWeeks.toString()}
-                    onChangeText={handleWeeksChange}
-                    keyboardType="numeric"
-                    editable={!loading}
-                  />
+
+            <View style={styles.goalInfo}>
+              <Text style={styles.infoLabel}>Giver's suggestion:</Text>
+              <Text style={styles.infoText}>
+                {suggestedWeeks} weeks, {suggestedSessions} sessions per week
+              </Text>
+            </View>
+
+            <View style={styles.selectorContainer}>
+              <Text style={styles.selectorLabel}>Choose your goal:</Text>
+              <Text style={styles.selectorValue}>
+                {selectedWeeks} weeks, {selectedSessions} sessions per week
+              </Text>
+
+              <View style={styles.rangeInfo}>
+                <Text style={styles.rangeText}>
+                  Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
+                </Text>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Weeks:</Text>
+                <View style={styles.numberInputContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.adjustButton,
+                      (selectedWeeks <= minWeeks || loading) && styles.adjustButtonDisabled
+                    ]}
+                    onPress={() => adjustWeeks(-1)}
+                    disabled={selectedWeeks <= minWeeks || loading}
+                    activeOpacity={selectedWeeks <= minWeeks ? 1 : 0.7}
+                  >
+                    <Text style={[
+                      styles.adjustButtonText,
+                      (selectedWeeks <= minWeeks || loading) && styles.adjustButtonTextDisabled
+                    ]}>−</Text>
+                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={styles.numberInput}
+                      value={selectedWeeks.toString()}
+                      onChangeText={handleWeeksChange}
+                      keyboardType="numeric"
+                      editable={!loading}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.adjustButton,
+                      (selectedWeeks >= maxWeeks || loading) && styles.adjustButtonDisabled
+                    ]}
+                    onPress={() => adjustWeeks(1)}
+                    disabled={selectedWeeks >= maxWeeks || loading}
+                    activeOpacity={selectedWeeks >= maxWeeks ? 1 : 0.7}
+                  >
+                    <Text style={[
+                      styles.adjustButtonText,
+                      (selectedWeeks >= maxWeeks || loading) && styles.adjustButtonTextDisabled
+                    ]}>+</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.adjustButton,
-                    (selectedWeeks >= maxWeeks || loading) && styles.adjustButtonDisabled
-                  ]}
-                  onPress={() => adjustWeeks(1)}
-                  disabled={selectedWeeks >= maxWeeks || loading}
-                  activeOpacity={selectedWeeks >= maxWeeks ? 1 : 0.7}
-                >
-                  <Text style={[
-                    styles.adjustButtonText,
-                    (selectedWeeks >= maxWeeks || loading) && styles.adjustButtonTextDisabled
-                  ]}>+</Text>
-                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Sessions per week:</Text>
+                <View style={styles.numberInputContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.adjustButton,
+                      (selectedSessions <= minSessions || loading) && styles.adjustButtonDisabled
+                    ]}
+                    onPress={() => adjustSessions(-1)}
+                    disabled={selectedSessions <= minSessions || loading}
+                    activeOpacity={selectedSessions <= minSessions ? 1 : 0.7}
+                  >
+                    <Text style={[
+                      styles.adjustButtonText,
+                      (selectedSessions <= minSessions || loading) && styles.adjustButtonTextDisabled
+                    ]}>−</Text>
+                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={styles.numberInput}
+                      value={selectedSessions.toString()}
+                      onChangeText={handleSessionsChange}
+                      keyboardType="numeric"
+                      editable={!loading}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.adjustButton,
+                      (selectedSessions >= maxSessions || loading) && styles.adjustButtonDisabled
+                    ]}
+                    onPress={() => adjustSessions(1)}
+                    disabled={selectedSessions >= maxSessions || loading}
+                    activeOpacity={selectedSessions >= maxSessions ? 1 : 0.7}
+                  >
+                    <Text style={[
+                      styles.adjustButtonText,
+                      (selectedSessions >= maxSessions || loading) && styles.adjustButtonTextDisabled
+                    ]}>+</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Sessions per week:</Text>
-              <View style={styles.numberInputContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.adjustButton,
-                    (selectedSessions <= minSessions || loading) && styles.adjustButtonDisabled
-                  ]}
-                  onPress={() => adjustSessions(-1)}
-                  disabled={selectedSessions <= minSessions || loading}
-                  activeOpacity={selectedSessions <= minSessions ? 1 : 0.7}
-                >
-                  <Text style={[
-                    styles.adjustButtonText,
-                    (selectedSessions <= minSessions || loading) && styles.adjustButtonTextDisabled
-                  ]}>−</Text>
-                </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    style={styles.numberInput}
-                    value={selectedSessions.toString()}
-                    onChangeText={handleSessionsChange}
-                    keyboardType="numeric"
-                    editable={!loading}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.adjustButton,
-                    (selectedSessions >= maxSessions || loading) && styles.adjustButtonDisabled
-                  ]}
-                  onPress={() => adjustSessions(1)}
-                  disabled={selectedSessions >= maxSessions || loading}
-                  activeOpacity={selectedSessions >= maxSessions ? 1 : 0.7}
-                >
-                  <Text style={[
-                    styles.adjustButtonText,
-                    (selectedSessions >= maxSessions || loading) && styles.adjustButtonTextDisabled
-                  ]}>+</Text>
-                </TouchableOpacity>
-              </View>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Your message to giver (optional)..."
+              value={message}
+              onChangeText={(text) => {
+                setMessage(text);
+                setError(null);
+              }}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.acceptButton]}
+                onPress={handleAccept}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.acceptButtonText}>Accept</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
-
-          <TextInput
-            style={styles.messageInput}
-            placeholder="Your message to giver (optional)..."
-            value={message}
-            onChangeText={(text) => {
-              setMessage(text);
-              setError(null);
-            }}
-            multiline
-            numberOfLines={3}
-          />
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={onClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.acceptButton]}
-              onPress={handleAccept}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.acceptButtonText}>Accept</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 16,

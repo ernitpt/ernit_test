@@ -13,10 +13,12 @@ import {
     Image,
     Animated,
 } from 'react-native';
-import { X, Send } from 'lucide-react-native';
+import { X, Send, MoreHorizontal, Edit2, Trash2 } from 'lucide-react-native';
 import { commentService } from '../services/CommentService';
 import type { Comment } from '../types';
 import { useApp } from '../context/AppContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 interface CommentModalProps {
     visible: boolean;
@@ -31,23 +33,18 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     const [commentText, setCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
-    const slideAnim = useRef(new Animated.Value(1000)).current;
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [menuVisibleId, setMenuVisibleId] = useState<string | null>(null);
+    const [originalCommentText, setOriginalCommentText] = useState('');
+    const slideAnim = useModalAnimation(visible, {
+        initialValue: 1000,
+        tension: 80,
+        friction: 10,
+    });
 
     useEffect(() => {
         if (visible) {
             loadComments();
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                tension: 80,
-                friction: 10,
-                useNativeDriver: true,
-            }).start();
-        } else {
-            Animated.timing(slideAnim, {
-                toValue: 1000,
-                duration: 200,
-                useNativeDriver: true,
-            }).start();
         }
     }, [visible, postId]);
 
@@ -68,21 +65,40 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
 
         setIsSending(true);
         try {
-            await commentService.addComment(postId, {
-                userId: state.user.id,
-                userName: state.user.displayName || state.user.profile?.name || 'User',
-                userProfileImageUrl: state.user.profile?.profileImageUrl,
-                text: commentText.trim(),
-            });
+            if (editingCommentId) {
+                await commentService.updateComment(postId, editingCommentId, commentText.trim());
+                setEditingCommentId(null);
+                setOriginalCommentText('');
+            } else {
+                await commentService.addComment(postId, {
+                    userId: state.user.id,
+                    userName: state.user.displayName || state.user.profile?.name || 'User',
+                    userProfileImageUrl: state.user.profile?.profileImageUrl,
+                    text: commentText.trim(),
+                });
+            }
 
             setCommentText('');
             await loadComments();
             onChange?.();
         } catch (error) {
-            console.error('Error sending comment:', error);
+            console.error('Error sending/updating comment:', error);
         } finally {
             setIsSending(false);
         }
+    };
+
+    const startEditing = (comment: Comment) => {
+        setEditingCommentId(comment.id);
+        setOriginalCommentText(comment.text);
+        setCommentText(comment.text);
+        setMenuVisibleId(null);
+    };
+
+    const cancelEditing = () => {
+        setEditingCommentId(null);
+        setCommentText('');
+        setOriginalCommentText('');
     };
 
     const handleDeleteComment = async (commentId: string) => {
@@ -90,6 +106,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             await commentService.deleteComment(postId, commentId);
             await loadComments();
             onChange?.();
+            setMenuVisibleId(null);
         } catch (error) {
             console.error('Error deleting comment:', error);
         }
@@ -114,16 +131,42 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     <View style={styles.commentHeader}>
                         <Text style={styles.userName}>{item.userName}</Text>
                         {isOwnComment && (
-                            <TouchableOpacity
-                                onPress={() => handleDeleteComment(item.id)}
-                                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                            >
-                                <Text style={styles.deleteText}>Delete</Text>
-                            </TouchableOpacity>
+                            <View style={{ position: 'relative' }}>
+                                <TouchableOpacity
+                                    onPress={() => setMenuVisibleId(menuVisibleId === item.id ? null : item.id)}
+                                    hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                                    style={styles.moreButton}
+                                >
+                                    <MoreHorizontal size={16} color="#9ca3af" />
+                                </TouchableOpacity>
+
+                                {menuVisibleId === item.id && (
+                                    <View style={styles.menuDropdown}>
+                                        <TouchableOpacity
+                                            style={styles.menuItem}
+                                            onPress={() => startEditing(item)}
+                                        >
+                                            <Edit2 size={14} color="#4b5563" />
+                                            <Text style={styles.menuText}>Edit</Text>
+                                        </TouchableOpacity>
+                                        <View style={styles.menuDivider} />
+                                        <TouchableOpacity
+                                            style={styles.menuItem}
+                                            onPress={() => handleDeleteComment(item.id)}
+                                        >
+                                            <Trash2 size={14} color="#ef4444" />
+                                            <Text style={[styles.menuText, { color: '#ef4444' }]}>Delete</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
                         )}
                     </View>
                     <Text style={styles.commentText}>{item.text}</Text>
-                    <Text style={styles.timestamp}>{getTimeAgo(item.createdAt)}</Text>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.timestamp}>{getTimeAgo(item.createdAt)}</Text>
+                        {item.updatedAt && <Text style={styles.editedText}>(edited)</Text>}
+                    </View>
                 </View>
             </View>
         );
@@ -136,7 +179,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             animationType="none"
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
+            <View style={[commonStyles.modalOverlay, { justifyContent: 'flex-end' }]}>
                 <TouchableOpacity
                     style={styles.backdrop}
                     activeOpacity={1}
@@ -179,14 +222,20 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         )}
 
                         <View style={styles.inputContainer}>
+                            {editingCommentId && (
+                                <TouchableOpacity onPress={cancelEditing} style={styles.cancelEditButton}>
+                                    <X size={20} color="#6b7280" />
+                                </TouchableOpacity>
+                            )}
                             <TextInput
                                 style={styles.input}
-                                placeholder="Write a comment..."
+                                placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
                                 placeholderTextColor="#9ca3af"
                                 value={commentText}
                                 onChangeText={setCommentText}
                                 multiline
                                 maxLength={300}
+                                autoFocus={!!editingCommentId}
                             />
                             <TouchableOpacity
                                 style={[
@@ -198,6 +247,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                             >
                                 {isSending ? (
                                     <ActivityIndicator size="small" color="#fff" />
+                                ) : editingCommentId ? (
+                                    <Edit2 color="#fff" size={18} />
                                 ) : (
                                     <Send color="#fff" size={20} />
                                 )}
@@ -226,16 +277,12 @@ const getTimeAgo = (date: Date): string => {
 };
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
     },
     modalContainer: {
         height: '70%',
+        width: '100%',
         backgroundColor: '#fff',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
@@ -374,6 +421,54 @@ const styles = StyleSheet.create({
     },
     sendButtonDisabled: {
         backgroundColor: '#d1d5db',
+    },
+    moreButton: {
+        padding: 8,
+    },
+    menuDropdown: {
+        position: 'absolute',
+        top: 30,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 8,
+        zIndex: 1000,
+        minWidth: 140,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 10,
+    },
+    menuText: {
+        fontSize: 14,
+        color: '#374151',
+        fontWeight: '500',
+    },
+    menuDivider: {
+        height: 1,
+        backgroundColor: '#f3f4f6',
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    editedText: {
+        fontSize: 11,
+        color: '#9ca3af',
+        fontStyle: 'italic',
+    },
+    cancelEditButton: {
+        padding: 8,
+        marginRight: 4,
     },
 });
 

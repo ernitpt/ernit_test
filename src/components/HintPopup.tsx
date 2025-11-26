@@ -1,7 +1,9 @@
 // components/HintPopup.tsx
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Modal, Animated, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Modal, Animated, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 interface Props {
   visible: boolean;
@@ -12,73 +14,63 @@ interface Props {
 }
 
 const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose }) => {
-  const scale = useRef(new Animated.Value(0.8)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const slideAnim = useModalAnimation(visible);
   const confettiRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
-      ]).start();
-
       setTimeout(() => confettiRef.current?.start(), 150);
-    } else {
-      opacity.setValue(0);
-      scale.setValue(0.8);
     }
   }, [visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <Animated.View style={[styles.card, { opacity, transform: [{ scale }] }]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={[commonStyles.modalOverlay, { padding: 24 }]}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View style={[styles.card, { transform: [{ translateY: slideAnim }] }]}>
+          <Pressable style={{ width: '100%', alignItems: 'center' }} onPress={(e) => e.stopPropagation()}>
 
-          <View style={styles.iconContainer}>
-            <Text style={{ fontSize: 32 }}>✨</Text>
-          </View>
+            <View style={styles.iconContainer}>
+              <Text style={{ fontSize: 32 }}>✨</Text>
+            </View>
 
-          <Text style={styles.h1}>New Hint Unlocked!</Text>
-          <Text style={styles.subtext}>Session {sessionNumber} of {totalSessions}</Text>
+            <Text style={styles.h1}>Your Hint!
+            </Text>
 
-          <View style={styles.hintContainer}>
-            <Text style={styles.hint}>{hint}</Text>
-          </View>
+            <View style={styles.hintContainer}>
+              <Text style={styles.hint}>{hint}</Text>
+            </View>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.btn,
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-            ]}
-            onPress={onClose}
-          >
-            <Text style={styles.btnText}>Awesome!</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.btn,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+              ]}
+              onPress={onClose}
+            >
+              <Text style={styles.btnText}>Awesome!</Text>
+            </Pressable>
+
+            <ConfettiCannon
+              ref={confettiRef}
+              autoStart={false}
+              count={80}
+              explosionSpeed={420}
+              fallSpeed={2600}
+              origin={{ x: 150, y: -10 }}
+              fadeOut
+            />
           </Pressable>
-
-          <ConfettiCannon
-            ref={confettiRef}
-            autoStart={false}
-            count={80}
-            explosionSpeed={420}
-            fallSpeed={2600}
-            origin={{ x: 150, y: -10 }}
-            fadeOut
-          />
         </Animated.View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
   card: {
     width: '100%',
     maxWidth: 340,
@@ -107,7 +99,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 18,
     textAlign: 'center',
   },
   subtext: {

@@ -443,6 +443,10 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
         
+        // Update: own comments only
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+        
         // Delete: own comments only
         allow delete: if request.auth != null
           && resource.data.userId == request.auth.uid;

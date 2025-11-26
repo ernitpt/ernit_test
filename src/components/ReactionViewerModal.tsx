@@ -13,6 +13,8 @@ import {
 import { X } from 'lucide-react-native';
 import type { Reaction, ReactionType } from '../types';
 import { reactionService } from '../services/ReactionService';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 interface ReactionViewerModalProps {
     visible: boolean;
@@ -40,21 +42,11 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     const [reactions, setReactions] = useState<Reaction[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState<ReactionType | 'all'>('all');
-    const slideAnim = useRef(new Animated.Value(300)).current;
+    const slideAnim = useModalAnimation(visible);
 
     useEffect(() => {
         if (visible) {
             loadReactions();
-            // Slide up animation
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                useNativeDriver: true,
-                tension: 65,
-                friction: 11,
-            }).start();
-        } else {
-            // Reset position for next open
-            slideAnim.setValue(300);
         }
     }, [visible, postId]);
 
@@ -77,14 +69,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     };
 
     const handleClose = () => {
-        // Slide down animation before closing
-        Animated.timing(slideAnim, {
-            toValue: 300,
-            duration: 200,
-            useNativeDriver: true,
-        }).start(() => {
-            onClose();
-        });
+        onClose();
     };
 
     const groupedReactions = reactions.reduce((acc, reaction) => {
@@ -114,7 +99,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
             onRequestClose={handleClose}
         >
             <TouchableOpacity
-                style={styles.backdrop}
+                style={[commonStyles.modalOverlay, { justifyContent: 'flex-end' }]}
                 activeOpacity={1}
                 onPress={handleClose}
             >
@@ -227,11 +212,6 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
     modalContainer: {
         backgroundColor: '#fff',
         borderTopLeftRadius: 24,

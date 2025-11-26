@@ -23,6 +23,8 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useModalAnimation } from '../../hooks/useModalAnimation';
+import { commonStyles } from '../../styles/commonStyles';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -44,11 +46,9 @@ const CouponEntryScreen = () => {
 
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Modal animation values
-  const modalScaleAnim = useRef(new Animated.Value(0)).current;
-  const modalFadeAnim = useRef(new Animated.Value(0)).current;
-  const modalBackdropAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useModalAnimation(showPersonalizedMessage);
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -129,53 +129,6 @@ const CouponEntryScreen = () => {
     }
   };
 
-  // Handle personalized message modal animation
-  useEffect(() => {
-    if (showPersonalizedMessage) {
-      Animated.parallel([
-        Animated.spring(modalScaleAnim, {
-          toValue: 1,
-          friction: 7,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(modalFadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(modalBackdropAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(modalScaleAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(modalFadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(modalBackdropAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        // Reset values after animation
-        modalScaleAnim.setValue(0);
-        modalFadeAnim.setValue(0);
-        modalBackdropAnim.setValue(0);
-      });
-    }
-  }, [showPersonalizedMessage]);
-
   const handleContinueFromMessage = () => {
     setShowPersonalizedMessage(false);
     // Small delay to let animation complete
@@ -188,11 +141,6 @@ const CouponEntryScreen = () => {
       }
     }, 200);
   };
-
-  const backdropOpacity = modalBackdropAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.6],
-  });
 
   return (
     <MainScreen activeRoute="Goals">
@@ -421,77 +369,46 @@ const CouponEntryScreen = () => {
       <Modal
         visible={showPersonalizedMessage}
         transparent
-        animationType="none"
+        animationType="fade"
         onRequestClose={handleContinueFromMessage}
       >
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            {
-              opacity: modalBackdropAnim,
-            }
-          ]}
+        <TouchableOpacity
+          style={commonStyles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleContinueFromMessage}
         >
-          {/* Web-specific blur effect */}
-          {Platform.OS === 'web' && showPersonalizedMessage && (
-            <Animated.View
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  opacity: modalBackdropAnim,
-                  // @ts-ignore - web-specific style
-                  backdropFilter: 'blur(10px)',
-                  // @ts-ignore - web-specific style
-                  WebkitBackdropFilter: 'blur(10px)',
-                },
-              ]}
-            />
-          )}
-
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={handleContinueFromMessage}
-          />
-
           <Animated.View
             style={[
               styles.modalContainer,
               {
-                transform: [{ scale: modalScaleAnim }],
-                opacity: modalFadeAnim,
+                transform: [{ translateY: slideAnim }],
               },
             ]}
             pointerEvents={showPersonalizedMessage ? "box-none" : "none"}
           >
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>A Message For You</Text>
-              <View style={styles.messageBox}>
-                <Text style={styles.messageText}>"{personalizedMessage}"</Text>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>A Message For You</Text>
+                <View style={styles.messageBox}>
+                  <Text style={styles.messageText}>"{personalizedMessage}"</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  onPress={handleContinueFromMessage}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.continueButtonText}>Continue</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.continueButton}
-                onPress={handleContinueFromMessage}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.continueButtonText}>Continue</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </Animated.View>
-        </Animated.View>
+        </TouchableOpacity>
       </Modal>
     </MainScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
   modalContainer: {
     width: '100%',
     maxWidth: 400,

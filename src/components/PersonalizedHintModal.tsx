@@ -12,6 +12,8 @@ import {
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 interface PersonalizedHintModalProps {
     visible: boolean;
@@ -42,16 +44,10 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     const [hint, setHint] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [showExamples, setShowExamples] = useState(false);
-    const [opacity] = useState(new Animated.Value(0));
+    const slideAnim = useModalAnimation(visible);
 
     React.useEffect(() => {
-        if (visible) {
-            Animated.timing(opacity, {
-                toValue: 1,
-                duration: 200,
-                useNativeDriver: true,
-            }).start();
-        } else {
+        if (!visible) {
             setHint('');
             setShowExamples(false);
         }
@@ -73,13 +69,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     };
 
     const handleClose = () => {
-        Animated.timing(opacity, {
-            toValue: 0,
-            duration: 150,
-            useNativeDriver: true,
-        }).start(() => {
-            onClose();
-        });
+        onClose();
     };
 
     const remainingChars = MAX_HINT_LENGTH - hint.length;
@@ -89,22 +79,20 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
         <Modal
             visible={visible}
             transparent
-            animationType="none"
+            animationType="fade"
             onRequestClose={handleClose}
         >
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
+                style={commonStyles.modalOverlay}
             >
-                <Animated.View style={[styles.overlay, { opacity }]}>
-                    <TouchableOpacity
-                        style={StyleSheet.absoluteFill}
-                        activeOpacity={1}
-                        onPress={handleClose}
-                    />
-                </Animated.View>
+                <TouchableOpacity
+                    style={StyleSheet.absoluteFill}
+                    activeOpacity={1}
+                    onPress={handleClose}
+                />
 
-                <Animated.View style={[styles.modalContent, { opacity }]}>
+                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
@@ -116,7 +104,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                             end={{ x: 1, y: 1 }}
                             style={styles.header}
                         >
-                            <Text style={styles.headerIcon}>💌</Text>
+                            <Text style={styles.headerIcon}></Text>
                             <Text style={styles.headerTitle}>Leave a Hint</Text>
                             <Text style={styles.headerSubtitle}>
                                 For session #{sessionNumber}
@@ -211,7 +199,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                     style={styles.submitButtonGradient}
                                 >
                                     <Text style={styles.submitButtonText}>
-                                        {submitting ? 'Sending...' : 'Send Hint 💌'}
+                                        {submitting ? 'Sending...' : 'Send Hint'}
                                     </Text>
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -224,15 +212,6 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    },
     modalContent: {
         width: '90%',
         maxWidth: 500,

@@ -77,7 +77,7 @@ export class NotificationService {
     return await this.createNotification(
       recipientId,
       'personalized_hint_left',
-      `💌 ${giverName} left you a hint!`,
+      `${giverName} left you a hint!`,
       `A special message awaits for "${goalTitle}" (${sessionsPerWeek} times/week for ${totalWeeks} weeks). Complete your next session to unlock it.`,
       {
         goalId,

@@ -8,6 +8,7 @@ import {
     doc,
     Timestamp,
     limit as firestoreLimit,
+    updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Comment } from '../types';
@@ -51,6 +52,23 @@ class CommentService {
     }
 
     /**
+     * Update a comment
+     */
+    async updateComment(postId: string, commentId: string, newText: string): Promise<void> {
+        try {
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            await updateDoc(commentRef, {
+                text: newText,
+                updatedAt: Timestamp.now(),
+            });
+            console.log('✅ Comment updated');
+        } catch (error) {
+            console.error('❌ Error updating comment:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get comments for a post
      */
     async getComments(postId: string, limitCount?: number): Promise<Comment[]> {
@@ -68,8 +86,13 @@ class CommentService {
                 const data = doc.data();
                 return {
                     id: doc.id,
-                    ...data,
+                    postId: data.postId,
+                    userId: data.userId,
+                    userName: data.userName,
+                    userProfileImageUrl: data.userProfileImageUrl,
+                    text: data.text,
                     createdAt: data.createdAt?.toDate() || new Date(),
+                    updatedAt: data.updatedAt?.toDate(),
                 } as Comment;
             });
         } catch (error) {

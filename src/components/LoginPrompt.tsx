@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Image,
@@ -13,6 +13,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { LogIn, UserPlus, X } from 'lucide-react-native';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 type LoginPromptNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -28,20 +30,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   message = 'Please log in to continue.',
 }) => {
   const navigation = useNavigation<LoginPromptNavigationProp>();
-  const slideAnim = useRef(new Animated.Value(300)).current;
-
-  useEffect(() => {
-    if (visible) {
-      // Slide up animation
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
-    }
-    // No animation on close - Modal's fade handles it
-  }, [visible]);
+  const slideAnim = useModalAnimation(visible);
 
   const handleClose = () => {
     onClose();
@@ -69,7 +58,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
       onRequestClose={handleClose}
     >
       <TouchableOpacity
-        style={styles.overlay}
+        style={[commonStyles.modalOverlay, { padding: 20 }]}
         activeOpacity={1}
         onPress={handleClose}
       >
@@ -156,13 +145,6 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   modalContainer: {
     width: '100%',
     maxWidth: 400,

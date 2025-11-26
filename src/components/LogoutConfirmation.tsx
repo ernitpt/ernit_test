@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, X } from 'lucide-react-native';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 
 interface LogoutConfirmationProps {
   visible: boolean;
@@ -23,20 +25,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   onClose,
   onConfirm,
 }) => {
-  const slideAnim = useRef(new Animated.Value(300)).current;
-
-  useEffect(() => {
-    if (visible) {
-      // Slide up animation
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
-    }
-    // No animation on close - Modal's fade handles it
-  }, [visible]);
+  const slideAnim = useModalAnimation(visible);
 
   const handleClose = () => {
     onClose();
@@ -58,7 +47,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
       onRequestClose={handleClose}
     >
       <TouchableOpacity
-        style={styles.overlay}
+        style={[commonStyles.modalOverlay, { padding: 20 }]}
         activeOpacity={1}
         onPress={handleClose}
       >
@@ -137,13 +126,6 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   modalContainer: {
     width: '100%',
     maxWidth: 400,

@@ -7,7 +7,10 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
@@ -31,6 +34,9 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  const approveAnim = useModalAnimation(showApproveModal);
+  const suggestAnim = useModalAnimation(showSuggestModal);
 
   const initialWeeks = notification.data?.initialTargetCount || 0;
   const initialSessions = notification.data?.initialSessionsPerWeek || 0;

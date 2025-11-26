@@ -374,7 +374,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
         if (hasPersonalizedHint) {
           // Use personalized hint with special formatting
-          hintToShow = `💌 ${updated.personalizedNextHint!.giverName} says:\n\n${updated.personalizedNextHint!.hint}`;
+          hintToShow = `${updated.personalizedNextHint!.giverName} says:\n${updated.personalizedNextHint!.hint}`;
 
           // Save personalized hint to history
           try {

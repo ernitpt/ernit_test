@@ -14,6 +14,8 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
@@ -55,6 +57,7 @@ const UserProfileScreen: React.FC = () => {
 
   const userId = state.user?.id || 'current_user';
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useModalAnimation(isEditModalVisible);
 
   useEffect(() => {
     loadProfileAndGoals();
@@ -597,89 +600,111 @@ const UserProfileScreen: React.FC = () => {
       {/* Edit Modal */}
       <Modal
         visible={isEditModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsEditModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          style={styles.modalContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <TouchableOpacity
+          style={commonStyles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsEditModalVisible(false)}
         >
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setIsEditModalVisible(false)}
-              style={styles.modalCancelButton}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity
-              onPress={handleSaveProfile}
-              disabled={isUpdating}
-              style={[styles.modalSaveButton, isUpdating && styles.disabledButton]}
-            >
-              <Text
-                style={[styles.modalSaveText, isUpdating && styles.disabledText]}
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                transform: [{ translateY: slideAnim }],
+                marginTop: 50, // Top offset
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                overflow: 'hidden',
+              },
+            ]}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ flex: 1 }}>
+              <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               >
-                {isUpdating ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.imageSection}>
-              <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-                {editFormData.profileImageUrl &&
-                  editFormData.profileImageUrl.trim() !== '' ? (
-                  <Image
-                    source={{ uri: editFormData.profileImageUrl }}
-                    style={styles.editProfileImage}
-                  />
-                ) : (
-                  <View style={styles.placeholderImage}>
-                    <Text style={styles.placeholderText}>
-                      {(editFormData.name?.[0] || 'U').toUpperCase()}
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity
+                    onPress={() => setIsEditModalVisible(false)}
+                    style={styles.modalCancelButton}
+                  >
+                    <Text style={styles.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.modalTitle}>Edit Profile</Text>
+                  <TouchableOpacity
+                    onPress={handleSaveProfile}
+                    disabled={isUpdating}
+                    style={[styles.modalSaveButton, isUpdating && styles.disabledButton]}
+                  >
+                    <Text
+                      style={[styles.modalSaveText, isUpdating && styles.disabledText]}
+                    >
+                      {isUpdating ? 'Saving...' : 'Save'}
                     </Text>
-                  </View>
-                )}
-                <View style={styles.imageOverlay}>
-                  <Text style={styles.imageOverlayText}>📷</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-              <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
-            </View>
 
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editFormData.name}
-                onChangeText={(text) =>
-                  setEditFormData((prev) => ({ ...prev, name: text }))
-                }
-                placeholder="Enter your name"
-                maxLength={50}
-              />
-            </View>
+                <ScrollView style={styles.modalContent}>
+                  <View style={styles.imageSection}>
+                    <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+                      {editFormData.profileImageUrl &&
+                        editFormData.profileImageUrl.trim() !== '' ? (
+                        <Image
+                          source={{ uri: editFormData.profileImageUrl }}
+                          style={styles.editProfileImage}
+                        />
+                      ) : (
+                        <View style={styles.placeholderImage}>
+                          <Text style={styles.placeholderText}>
+                            {(editFormData.name?.[0] || 'U').toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.imageOverlay}>
+                        <Text style={styles.imageOverlayText}>📷</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
+                  </View>
 
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>
-                About You ({editFormData.description.length}/300)
-              </Text>
-              <TextInput
-                style={[styles.textInput, styles.descriptionInput]}
-                value={editFormData.description}
-                onChangeText={(text) =>
-                  setEditFormData((prev) => ({ ...prev, description: text }))
-                }
-                placeholder="Tell us about yourself..."
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-                maxLength={300}
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+                  <View style={styles.inputSection}>
+                    <Text style={styles.inputLabel}>Name</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editFormData.name}
+                      onChangeText={(text) =>
+                        setEditFormData((prev) => ({ ...prev, name: text }))
+                      }
+                      placeholder="Enter your name"
+                      maxLength={50}
+                    />
+                  </View>
+
+                  <View style={styles.inputSection}>
+                    <Text style={styles.inputLabel}>
+                      About You ({editFormData.description.length}/300)
+                    </Text>
+                    <TextInput
+                      style={[styles.textInput, styles.descriptionInput]}
+                      value={editFormData.description}
+                      onChangeText={(text) =>
+                        setEditFormData((prev) => ({ ...prev, description: text }))
+                      }
+                      placeholder="Tell us about yourself..."
+                      multiline
+                      numberOfLines={6}
+                      textAlignVertical="top"
+                      maxLength={300}
+                    />
+                  </View>
+                </ScrollView>
+              </KeyboardAvoidingView>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
       </Modal>
     </MainScreen>
   );

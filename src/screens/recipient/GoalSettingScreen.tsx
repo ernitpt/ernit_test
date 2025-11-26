@@ -10,7 +10,8 @@ import {
   StyleSheet,
   Platform,
   Animated,
-  Easing
+  Easing,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -32,6 +33,8 @@ import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/fire
 import { ActivityIndicator } from 'react-native';
 import { experienceService } from '../../services/ExperienceService';
 import SharedHeader from '../../components/SharedHeader';
+import { useModalAnimation } from '../../hooks/useModalAnimation';
+import { commonStyles } from '../../styles/commonStyles';
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
@@ -234,8 +237,7 @@ const GoalSettingScreen = () => {
   };
 
 
-  const modalAnim = useRef(new Animated.Value(0)).current;
-  const modalScale = useRef(new Animated.Value(0.9)).current;
+  const slideAnim = useModalAnimation(showConfirm);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
@@ -261,34 +263,10 @@ const GoalSettingScreen = () => {
 
   const openModal = () => {
     setShowConfirm(true);
-    Animated.parallel([
-      Animated.timing(modalAnim, {
-        toValue: 1,
-        duration: 200,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.spring(modalScale, {
-        toValue: 1,
-        friction: 5,
-        useNativeDriver: true,
-      }),
-    ]).start();
   };
 
   const closeModal = () => {
-    Animated.parallel([
-      Animated.timing(modalAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(modalScale, {
-        toValue: 0.9,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setShowConfirm(false));
+    setShowConfirm(false);
   };
 
   return (
@@ -519,65 +497,76 @@ const GoalSettingScreen = () => {
       </ScrollView>
 
       {/* Confirmation Modal */}
-      {showConfirm && (
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            { opacity: modalAnim, transform: [{ scale: modalScale }] },
-          ]}
+      <Modal
+        visible={showConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <TouchableOpacity
+          style={commonStyles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeModal}
         >
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Confirm Your Goal</Text>
-            <Text style={styles.modalSubtitle}>
-              Make sure everything looks right before we set it in motion.
-            </Text>
+          <Animated.View
+            style={[
+              styles.modalBox,
+              { transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
+              <Text style={styles.modalTitle}>Confirm Your Goal</Text>
+              <Text style={styles.modalSubtitle}>
+                Make sure everything looks right before we set it in motion.
+              </Text>
 
-            <View style={styles.modalDetails}>
-              <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Goal:</Text> {selectedCategory}
-              </Text>
-              <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Duration: </Text>
-                {duration} {durationUnit}
-              </Text>
-              <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Sessions/week: </Text>
-                {sessionsPerWeek}
-              </Text>
-              <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Per session: </Text>
-                {hours || '0'}h {minutes || '0'}m
-              </Text>
-            </View>
+              <View style={styles.modalDetails}>
+                <Text style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Goal:</Text> {selectedCategory}
+                </Text>
+                <Text style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Duration: </Text>
+                  {duration} {durationUnit}
+                </Text>
+                <Text style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Sessions/week: </Text>
+                  {sessionsPerWeek}
+                </Text>
+                <Text style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Per session: </Text>
+                  {hours || '0'}h {minutes || '0'}m
+                </Text>
+              </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                onPress={closeModal}
-                style={[styles.modalButton, styles.cancelButton]}
-                activeOpacity={0.8}
-                disabled={isSubmitting} // disable while submitting
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+              <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  onPress={confirmCreateGoal}
-                  style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                  onPress={closeModal}
+                  style={[styles.modalButton, styles.cancelButton]}
                   activeOpacity={0.8}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting} // disable while submitting
                 >
-                  {isSubmitting ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.confirmText}>Confirm</Text>
-                  )}
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-              </Animated.View>
-            </View>
-          </View>
-        </Animated.View>
-      )}
+
+                <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                  <TouchableOpacity
+                    onPress={confirmCreateGoal}
+                    style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                    activeOpacity={0.8}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.confirmText}>Confirm</Text>
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
 
 
     </MainScreen>
@@ -657,18 +646,6 @@ const styles = StyleSheet.create({
 
   nextButton: { backgroundColor: '#8b5cf6', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   nextButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    zIndex: 999,
-  },
 
   modalBox: {
     backgroundColor: '#fff',

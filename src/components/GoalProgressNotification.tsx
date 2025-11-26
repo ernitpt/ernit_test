@@ -117,7 +117,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                                 ? '✓ Hint Already Set'
                                 : loading
                                     ? 'Loading...'
-                                    : 'Leave Hint For Next Session 💌'}
+                                    : 'Leave Hint For Next Session'}
                         </Text>
                     </TouchableOpacity>
                 </View>
