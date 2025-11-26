@@ -60,6 +60,13 @@ function day2(d: Date) {
   return d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
 }
 
+function dayMonth(d: Date) {
+  const day = d.getDate();
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = monthNames[d.getMonth()];
+  return `${day} ${month}`;
+}
+
 function formatNextWeekDay(weekStartAt?: Date | null) {
   if (!weekStartAt) return '';
   const next = new Date(weekStartAt);
@@ -677,6 +684,7 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
           <View style={styles.calendarRow}>
             {weekDates.map((d) => {
               const label = day2(d);
+              const dateLabel = dayMonth(d);
               const iso = isoDay(d);
               const filled = loggedSet.has(iso);
               const isToday = iso === todayIso;
@@ -684,22 +692,28 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
               return (
                 <View key={iso} style={styles.dayCell}>
                   {filled ? (
-                    isToday ? (
-                      <AnimatedFilledDay label={label} />
-                    ) : (
-                      <LinearGradient
-                        colors={['#7C3AED', '#3B82F6']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.filledCircle}
-                      >
-                        <Text style={styles.dayTextFilled}>{label}</Text>
-                      </LinearGradient>
-                    )
+                    <>
+                      {isToday ? (
+                        <AnimatedFilledDay label={label} />
+                      ) : (
+                        <LinearGradient
+                          colors={['#7C3AED', '#3B82F6']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.filledCircle}
+                        >
+                          <Text style={styles.dayTextFilled}>{label}</Text>
+                        </LinearGradient>
+                      )}
+                      <Text style={[styles.dateLabel, isToday && styles.todayDateLabel]}>{dateLabel}</Text>
+                    </>
                   ) : (
-                    <View style={styles.emptyCircle}>
-                      <Text style={styles.dayTextEmpty}>{label}</Text>
-                    </View>
+                    <>
+                      <View style={[styles.emptyCircle, isToday && styles.todayCircleBorder]}>
+                        <Text style={[styles.dayTextEmpty, isToday && styles.todayText]}>{label}</Text>
+                      </View>
+                      <Text style={[styles.dateLabel, isToday && styles.todayDateLabel]}>{dateLabel}</Text>
+                    </>
                   )}
                 </View>
               );
@@ -1174,6 +1188,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#78350f',
     lineHeight: 18,
+  },
+  dateLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  todayDateLabel: {
+    color: '#235c9eff',
+    fontWeight: '700',
+  },
+  todayCircleBorder: {
+    borderColor: '#235c9eff',
+    borderWidth: 3,
+  },
+  todayText: {
+    color: '#235c9eff',
+    fontWeight: '700',
   },
 });
 
