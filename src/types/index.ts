@@ -141,41 +141,29 @@ export interface Goal {
   location?: string;
   targetHours: number;
   targetMinutes: number;
-  empoweredBy?: string;
-  createdAt: Date;
-  updatedAt?: Date;
-  completedAt?: Date;
-  revealedAt?: Date;
-  segments: GoalSegment[];
-  hints?: {
-    session: number;
-    hint: string;
-    date: number; // timestamp
-  }[];
-  // Personalized hint system
-  personalizedNextHint?: {
-    hint: string;
-    giverName: string;
-    createdAt: Date;
-    forSessionNumber: number; // Which session this hint is for
-  };
-  // Goal approval fields
-  approvalStatus?: 'pending' | 'approved' | 'suggested_change';
-  initialTargetCount?: number; // Original goal weeks
-  initialSessionsPerWeek?: number; // Original sessions per week
   suggestedTargetCount?: number; // Giver's suggested weeks
   suggestedSessionsPerWeek?: number; // Giver's suggested sessions per week
+  approvalStatus?: 'pending' | 'approved' | 'suggested_change' | 'rejected';
   approvalRequestedAt?: Date;
   approvalDeadline?: Date; // 24h from request
   giverMessage?: string; // Message from giver when approving/suggesting
   receiverMessage?: string; // Message from receiver when responding
   giverActionTaken?: boolean; // Ensure giver can only act once
+  empoweredBy?: string; // ID of the giver who empowered this goal
+  personalizedNextHint?: PersonalizedHint | null;
+  hints?: (PersonalizedHint | { session: number; hint: string; date: number })[];
 }
 
-
-
-
-
+export interface PersonalizedHint {
+  type: 'text' | 'audio' | 'mixed' | 'image';
+  text?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  duration?: number; // for audio
+  giverName: string;
+  createdAt: Date;
+  forSessionNumber: number;
+}
 
 // Individual goal segments (e.g., each workout in a month)
 export interface GoalSegment {

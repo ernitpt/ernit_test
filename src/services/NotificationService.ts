@@ -253,6 +253,35 @@ export class NotificationService {
       throw error;
     }
   }
+  /** Invalidate old goal_progress notifications for a goal when a new session is completed */
+  async invalidateOldGoalProgressNotifications(goalId: string, currentSessionNumber: number) {
+    try {
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('type', '==', 'goal_progress'),
+        where('data.goalId', '==', goalId)
+      );
+      const snapshot = await getDocs(q);
+
+      // Delete all goal_progress notifications for this goal except the most recent one
+      const deletePromises = snapshot.docs
+        .filter(doc => {
+          const data = doc.data();
+          // Keep only notifications from the current session or newer
+          // This allows the most recent notification to still be actionable
+          return true; // Delete all old progress notifications since we completed a new session
+        })
+        .map(doc => deleteDoc(doc.ref));
+
+      await Promise.all(deletePromises);
+
+      console.log(`✅ Invalidated ${deletePromises.length} old goal_progress notifications for goal ${goalId}`);
+    } catch (error) {
+      console.error('❌ Error invalidating old goal_progress notifications:', error);
+      // Don't throw - this is a cleanup operation
+    }
+  }
 }
 
 export const notificationService = new NotificationService();

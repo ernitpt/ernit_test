@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Animated, Easing
+  View, Text, ScrollView, StyleSheet, Animated, Easing, Image
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import { notificationService } from '../../services/NotificationService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import SharedHeader from '../../components/SharedHeader';
 import HintPopup from '../../components/HintPopup';
+import AudioPlayer from '../../components/AudioPlayer';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 
@@ -78,8 +79,12 @@ const RoadmapScreen = () => {
       ? [currentGoal.hints]
       : [];
 
+  console.log('🔍 RoadmapScreen hintsArray:', hintsArray);
+
   const HintItem = ({ hint, index, fmtDateTime }: any) => {
     const anim = useRef(new Animated.Value(0)).current;
+
+    console.log('🔍 Rendering HintItem:', hint);
 
     useEffect(() => {
       Animated.timing(anim, {
@@ -90,6 +95,26 @@ const RoadmapScreen = () => {
         useNativeDriver: true,
       }).start();
     }, []);
+
+    // Determine hint content
+    const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+    const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
+    const text = hint.text || hint.hint; // Fallback to old 'hint' field
+
+    // Handle date
+    let dateMs = 0;
+    if (hint.createdAt) {
+      if (typeof hint.createdAt.toMillis === 'function') {
+        dateMs = hint.createdAt.toMillis();
+      } else if (hint.createdAt instanceof Date) {
+        dateMs = hint.createdAt.getTime();
+      } else {
+        // Fallback if it's a string or number
+        dateMs = new Date(hint.createdAt).getTime();
+      }
+    } else if (hint.date) {
+      dateMs = hint.date;
+    }
 
     return (
       <Animated.View
@@ -103,15 +128,24 @@ const RoadmapScreen = () => {
               }),
             },
           ],
-          paddingVertical: 10,
+          paddingVertical: 12,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: '#e5e7eb',
         }}
       >
-        <Text style={{ fontWeight: '700', color: '#111827' }}>
-          {fmtDateTime(hint.date)} {/*Session {hint.sessionNumber} — */}
+        <Text style={{ fontWeight: '700', color: '#111827', marginBottom: 4 }}>
+          {fmtDateTime(dateMs)}
         </Text>
-        <Text style={{ marginTop: 6, color: '#111827' }}>{hint.hint}</Text>
+
+        {hasImage && hint.imageUrl && (
+          <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
+        )}
+
+        {text && <Text style={{ color: '#374151', fontSize: 15, lineHeight: 22, marginBottom: isAudio ? 8 : 0 }}>{text}</Text>}
+
+        {isAudio && hint.audioUrl && (
+          <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+        )}
       </Animated.View>
     );
   };
@@ -169,10 +203,29 @@ const RoadmapScreen = () => {
             <View style={styles.timeline}>
               {hintsArray
                 .slice()
-                .sort((a, b) => Number(b.session) - Number(a.session))
-                .map((h, i) => (
-                  <HintItem key={`${h.session}-${h.date}`} hint={h} index={i} fmtDateTime={fmtDateTime} />
-                ))}
+                .sort((a: any, b: any) => {
+                  const sessionA = a.forSessionNumber || a.session || 0;
+                  const sessionB = b.forSessionNumber || b.session || 0;
+                  return Number(sessionB) - Number(sessionA);
+                })
+                .map((h: any, i) => {
+                  const session = h.forSessionNumber || h.session || 0;
+                  let dateMs = 0;
+                  if (h.createdAt) {
+                    // @ts-ignore
+                    if (typeof h.createdAt.toMillis === 'function') {
+                      // @ts-ignore
+                      dateMs = h.createdAt.toMillis();
+                    } else if (h.createdAt instanceof Date) {
+                      dateMs = h.createdAt.getTime();
+                    } else {
+                      dateMs = new Date(h.createdAt).getTime();
+                    }
+                  } else if (h.date) {
+                    dateMs = h.date;
+                  }
+                  return <HintItem key={`${session}-${dateMs}`} hint={h} index={i} fmtDateTime={fmtDateTime} />;
+                })}
             </View>
           )}
         </View>
@@ -308,6 +361,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#78350f',
     lineHeight: 20,
+  },
+  audioPlayer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6',
+    borderRadius: 20,
+    padding: 8,
+    paddingRight: 16,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  playButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  audioProgress: {
+    width: 100,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    marginRight: 10,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#fff',
+  },
+  audioDuration: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  hintImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 10,
+    backgroundColor: '#f3f4f6',
   },
 });
 

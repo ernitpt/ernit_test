@@ -263,7 +263,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [lastHint, setLastHint] = useState<string | null>(null);
+  const [lastHint, setLastHint] = useState<any>(null);
   const [pendingHint, setPendingHint] = useState<string | null>(null);
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -364,25 +364,53 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         // Don't call onFinish for completed goals - handle navigation here
         navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
-        // Check if there's a personalized hint for this session
+        // Check if there's a personalized hint for the NEXT session
         // totalSessionsDone represents the session that was just completed
         const hasPersonalizedHint =
           updated.personalizedNextHint &&
-          updated.personalizedNextHint.forSessionNumber === totalSessionsDone;
+          updated.personalizedNextHint.forSessionNumber === totalSessionsDone + 1;
 
         let hintToShow: string;
 
         if (hasPersonalizedHint) {
-          // Use personalized hint with special formatting
-          hintToShow = `${updated.personalizedNextHint!.giverName} says:\n${updated.personalizedNextHint!.hint}`;
+          const ph = updated.personalizedNextHint!;
+
+          // Construct rich hint object for history
+          const hintObj: any = {
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Unique ID to prevent arrayUnion deduplication
+            session: totalSessionsDone,
+            type: ph.type,
+            giverName: ph.giverName,
+            date: Date.now(),
+            text: ph.text, // keep text if exists
+            audioUrl: ph.audioUrl,
+            imageUrl: ph.imageUrl,
+            duration: ph.duration,
+          };
+
+          // Construct display text for popup (fallback/title)
+          if (ph.type === 'audio') {
+            hintToShow = `${ph.giverName} sent a voice memo! 🎤`;
+          } else if (ph.type === 'image') {
+            hintToShow = `${ph.giverName} sent a photo! 📷`;
+          } else {
+            hintToShow = `${ph.giverName} says:\n${ph.text || ''}`;
+          }
+
+          // If mixed, maybe combine?
+          if (ph.type === 'mixed') {
+            hintToShow = `${ph.giverName} sent a message!`;
+          }
+
+          // For the popup, we want to pass the WHOLE object so it can render audio/image
+          // We'll use a temporary hack: pass the object as 'hint' if the component supports it,
+          // OR we update the state to hold the object.
+          // Since we updated HintPopup to take 'any', we can pass the object.
+          // However, DetailedGoalCard has 'lastHint' as string state.
+          // We should update 'lastHint' to be 'any'.
 
           // Save personalized hint to history
           try {
-            const hintObj = {
-              session: totalSessionsDone,
-              hint: hintToShow,
-              date: Date.now()
-            };
             await goalService.appendHint(goalId, hintObj);
 
             // Update local state to show in history immediately
@@ -401,6 +429,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           } catch (err) {
             console.warn('Failed to clear personalized hint:', err);
           }
+
+          // Set the object for the popup
+          setLastHint(hintObj);
+
+          // Update the 'updated' object so onFinish propagates the new hint
+          updated.hints = [...(updated.hints || []), hintObj];
+
         } else {
           // Use AI-generated hint
           hintToShow = pendingHint || "Keep going! You're doing great 💪";
@@ -408,23 +443,39 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           if (pendingHint) {
             try {
               // totalSessionsDone represents the session that was just completed
-              const hintObj = { session: totalSessionsDone, hint: pendingHint, date: Date.now() };
+              const hintObj = {
+                id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Unique ID
+                session: totalSessionsDone,
+                hint: pendingHint,
+                date: Date.now(),
+                text: pendingHint
+              };
               await goalService.appendHint(goalId, hintObj);
 
               setCurrentGoal((prev) => ({
                 ...prev,
                 hints: [...(prev.hints || []), hintObj],
               }));
+
+              // Update the 'updated' object so onFinish propagates the new hint
+              updated.hints = [...(updated.hints || []), hintObj];
             } catch (err) {
               console.warn('Failed to save hint:', err);
               // Don't block progress if hint save fails
             }
           }
+          setLastHint(hintToShow);
         }
 
-        setLastHint(hintToShow);
         setShowHint(true);
         setPendingHint(null);
+
+        // Invalidate old goal_progress notifications for this goal
+        try {
+          await notificationService.invalidateOldGoalProgressNotifications(goalId, totalSessionsDone + 1);
+        } catch (err) {
+          console.warn('Failed to invalidate old notifications:', err);
+        }
 
         // Call onFinish for progress updates
         onFinish?.(updated);
@@ -496,7 +547,12 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
       // Only generate AI hint if:
       // 1. Not the last session
       // 2. No personalized hint exists for the next session
-      const nextSessionNumber = totalSessionsDone + 1;
+      // Only generate AI hint if:
+      // 1. Not the last session
+      // 2. No personalized hint exists for the next session
+      // We want to generate a hint for the session AFTER the one we are about to start.
+      // So if we are starting Session 1 (totalSessionsDone=0), we want hint for Session 2.
+      const nextSessionNumber = totalSessionsDone + 2;
       const hasPersonalizedHintForNextSession =
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;

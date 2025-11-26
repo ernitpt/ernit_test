@@ -16,7 +16,7 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
-import type { Goal } from '../types';
+import type { Goal, PersonalizedHint } from '../types';
 import { feedService } from './FeedService';
 import { experienceGiftService } from './ExperienceGiftService';
 import { experienceService } from './ExperienceService';
@@ -171,7 +171,7 @@ export class GoalService {
     return await this.applyExpiredWeeksSweep(data);
   }
 
-  async appendHint(goalId: string, hintObj: { session: number; hint: string; date: number }) {
+  async appendHint(goalId: string, hintObj: any) {
     const goalRef = doc(db, 'goals', goalId);
     await updateDoc(goalRef, {
       hints: arrayUnion(hintObj),
@@ -182,17 +182,13 @@ export class GoalService {
   /** Set a personalized hint from giver for recipient's next session */
   async setPersonalizedNextHint(
     goalId: string,
-    hint: string,
-    giverName: string,
-    forSessionNumber: number
+    hintData: Omit<PersonalizedHint, 'createdAt'>
   ): Promise<void> {
     const goalRef = doc(db, 'goals', goalId);
     await updateDoc(goalRef, {
       personalizedNextHint: {
-        hint,
-        giverName,
+        ...hintData,
         createdAt: new Date(),
-        forSessionNumber,
       },
       updatedAt: serverTimestamp(),
     });

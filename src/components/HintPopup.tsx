@@ -1,13 +1,14 @@
 // components/HintPopup.tsx
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Modal, Animated, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, Animated, Pressable, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import AudioPlayer from './AudioPlayer';
 
 interface Props {
   visible: boolean;
-  hint: string;
+  hint: any; // string or PersonalizedHint object
   sessionNumber: number;
   totalSessions: number;
   onClose: () => void;
@@ -23,6 +24,13 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
     }
   }, [visible]);
 
+  // Determine content
+  const isObj = typeof hint === 'object' && hint !== null;
+  const text = isObj ? (hint.text || hint.hint) : hint;
+  const audioUrl = isObj ? hint.audioUrl : null;
+  const imageUrl = isObj ? hint.imageUrl : null;
+  const duration = isObj ? hint.duration : 0;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity
@@ -37,11 +45,20 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
               <Text style={{ fontSize: 32 }}>✨</Text>
             </View>
 
-            <Text style={styles.h1}>Your Hint!
-            </Text>
+            <Text style={styles.h1}>Your Hint!</Text>
 
             <View style={styles.hintContainer}>
-              <Text style={styles.hint}>{hint}</Text>
+              {imageUrl && (
+                <Image source={{ uri: imageUrl }} style={styles.hintImage} resizeMode="cover" />
+              )}
+
+              {text ? <Text style={styles.hint}>{text}</Text> : null}
+
+              {audioUrl && (
+                <View style={styles.audioContainer}>
+                  <AudioPlayer uri={audioUrl} duration={duration} variant="popup" />
+                </View>
+              )}
             </View>
 
             <Pressable
@@ -116,6 +133,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    alignItems: 'center',
   },
   hint: {
     fontSize: 16,
@@ -123,6 +141,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  hintImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  audioContainer: {
+    marginTop: 12,
+    width: '100%',
+    alignItems: 'center',
   },
   btn: {
     width: '100%',

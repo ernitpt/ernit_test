@@ -5,7 +5,8 @@ import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
 import { notificationService } from '../services/NotificationService';
-import { PersonalizedHintModal } from './PersonalizedHintModal';
+import { PersonalizedHintModal, HintSubmission } from './PersonalizedHintModal';
+import { storageService } from '../services/StorageService';
 import { useApp } from '../context/AppContext';
 
 interface GoalProgressNotificationProps {
@@ -35,23 +36,45 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
         }
     };
 
-    const handleSubmitHint = async (hint: string) => {
+    const handleSubmitHint = async (submission: HintSubmission) => {
         if (!goal || !notification.data?.goalId) return;
 
         const totalSessionsDone =
             (goal.currentCount * goal.sessionsPerWeek) + goal.weeklyCount;
-        const nextSessionNumber = totalSessionsDone + 1;
+        // We want to leave a hint for the session AFTER the current one (or the one about to start)
+        // If 0 sessions done, we want hint for Session 2 (since Session 1 is "current")
+        const nextSessionNumber = totalSessionsDone + 2;
 
         try {
             // Get giver name
             const giverName = await userService.getUserName(state.user!.id);
 
+            let audioUrl: string | undefined;
+            let imageUrl: string | undefined;
+
+            // Upload media if present
+            if (submission.type === 'audio' && submission.audioUri) {
+                audioUrl = await storageService.uploadAudio(submission.audioUri, state.user!.id);
+            } else if (submission.imageUri) {
+                imageUrl = await storageService.uploadImage(submission.imageUri, state.user!.id);
+            }
+
+            const hintData: any = {
+                type: submission.type,
+                giverName: giverName || 'Your Giver',
+                forSessionNumber: nextSessionNumber,
+                createdAt: new Date(),
+            };
+
+            if (submission.text) hintData.text = submission.text;
+            if (audioUrl) hintData.audioUrl = audioUrl;
+            if (imageUrl) hintData.imageUrl = imageUrl;
+            if (submission.duration) hintData.duration = submission.duration;
+
             // Set the personalized hint
             await goalService.setPersonalizedNextHint(
                 notification.data.goalId,
-                hint,
-                giverName || 'Your Giver',
-                nextSessionNumber
+                hintData
             );
 
             // Send notification to recipient
@@ -70,9 +93,8 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             setGoal({
                 ...goal,
                 personalizedNextHint: {
-                    hint,
-                    fromName: giverName || 'Your Giver',
-                    forSessionNumber: nextSessionNumber,
+                    ...hintData,
+                    createdAt: new Date(),
                 },
             });
 
