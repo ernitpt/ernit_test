@@ -78,6 +78,17 @@ const NotificationsScreen = () => {
         console.error('Error fetching experience gift:', error);
       }
     }
+
+    if (n.type === 'personalized_hint_left' && n.data?.goalId) {
+      try {
+        const goal = await goalService.getGoalById(n.data.goalId);
+        if (goal) {
+          navigation.navigate('Roadmap', { goal });
+        }
+      } catch (error) {
+        console.error('Error fetching goal:', error);
+      }
+    }
   };
 
 
@@ -234,7 +245,12 @@ const NotificationsScreen = () => {
           <Text style={styles.cardMessage}>{item.message}</Text>
 
 
-          <Text style={styles.cardDate}>{formatNotificationDate(item.createdAt)}</Text>
+          <View style={styles.cardFooter}>
+            <Text style={styles.cardDate}>{formatNotificationDate(item.createdAt)}</Text>
+            {item.type === 'personalized_hint_left' && (
+              <Text style={styles.hintText}>Tap to view goal</Text>
+            )}
+          </View>
         </TouchableOpacity>
 
 
@@ -354,6 +370,17 @@ const styles = StyleSheet.create({
   cardDate: {
     color: '#9ca3af',
     fontSize: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  hintText: {
+    color: '#8b5cf6',
+    fontSize: 11,
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
   clearNotificationButton: {
     backgroundColor: 'transparent',

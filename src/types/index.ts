@@ -275,6 +275,7 @@ export interface Comment {
   userProfileImageUrl?: string;
   text: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 
