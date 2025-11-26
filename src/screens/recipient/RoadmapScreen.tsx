@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Animated, Easing, Image
+  View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import { experienceGiftService } from '../../services/ExperienceGiftService';
 import SharedHeader from '../../components/SharedHeader';
 import HintPopup from '../../components/HintPopup';
 import AudioPlayer from '../../components/AudioPlayer';
+import ImageViewer from '../../components/ImageViewer';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 
@@ -26,6 +27,7 @@ const RoadmapScreen = () => {
   const { goal } = route.params as { goal: Goal };
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [experienceGift, setExperienceGift] = useState<ExperienceGift | null>(null);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
   // 🔹 Keep goal synced with Firestore
   useEffect(() => {
@@ -138,7 +140,12 @@ const RoadmapScreen = () => {
         </Text>
 
         {hasImage && hint.imageUrl && (
-          <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
+          <TouchableOpacity
+            onPress={() => setSelectedImageUri(hint.imageUrl)}
+            activeOpacity={0.9}
+          >
+            <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
+          </TouchableOpacity>
         )}
 
         {text && <Text style={{ color: '#374151', fontSize: 15, lineHeight: 22, marginBottom: isAudio ? 8 : 0 }}>{text}</Text>}
@@ -230,6 +237,15 @@ const RoadmapScreen = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Fullscreen Image Viewer */}
+      {selectedImageUri && (
+        <ImageViewer
+          visible={!!selectedImageUri}
+          imageUri={selectedImageUri}
+          onClose={() => setSelectedImageUri(null)}
+        />
+      )}
     </MainScreen>
   );
 };

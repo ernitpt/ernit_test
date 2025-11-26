@@ -1,10 +1,11 @@
 // components/HintPopup.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, Animated, Pressable, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import AudioPlayer from './AudioPlayer';
+import ImageViewer from './ImageViewer';
 
 interface Props {
   visible: boolean;
@@ -17,6 +18,7 @@ interface Props {
 const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose }) => {
   const slideAnim = useModalAnimation(visible);
   const confettiRef = useRef<any>(null);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -32,58 +34,78 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   const duration = isObj ? hint.duration : 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={[commonStyles.modalOverlay, { padding: 24 }]}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <Animated.View style={[styles.card, { transform: [{ translateY: slideAnim }] }]}>
-          <Pressable style={{ width: '100%', alignItems: 'center' }} onPress={(e) => e.stopPropagation()}>
+    <>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <TouchableOpacity
+          style={[commonStyles.modalOverlay, { padding: 24 }]}
+          activeOpacity={1}
+          onPress={onClose}
+        >
+          <Animated.View style={[styles.card, { transform: [{ translateY: slideAnim }] }]}>
+            <Pressable style={{ width: '100%', alignItems: 'center' }} onPress={(e) => e.stopPropagation()}>
 
-            <View style={styles.iconContainer}>
-              <Text style={{ fontSize: 32 }}>✨</Text>
-            </View>
+              <View style={styles.iconContainer}>
+                <Text style={{ fontSize: 32 }}>✨</Text>
+              </View>
 
-            <Text style={styles.h1}>Your Hint!</Text>
+              <Text style={styles.h1}>Your Hint!</Text>
 
-            <View style={styles.hintContainer}>
-              {imageUrl && (
-                <Image source={{ uri: imageUrl }} style={styles.hintImage} resizeMode="cover" />
-              )}
+              <View style={styles.hintContainer}>
+                {imageUrl && (
+                  <TouchableOpacity
+                    onPress={() => setShowImageViewer(true)}
+                    activeOpacity={0.9}
+                  >
+                    <Image
+                      source={{ uri: imageUrl }}
+                      style={styles.hintImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                )}
 
-              {text ? <Text style={styles.hint}>{text}</Text> : null}
+                {text ? <Text style={styles.hint}>{text}</Text> : null}
 
-              {audioUrl && (
-                <View style={styles.audioContainer}>
-                  <AudioPlayer uri={audioUrl} duration={duration} variant="popup" />
-                </View>
-              )}
-            </View>
+                {audioUrl && (
+                  <View style={styles.audioContainer}>
+                    <AudioPlayer uri={audioUrl} duration={duration} variant="popup" />
+                  </View>
+                )}
+              </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.btn,
-                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-              ]}
-              onPress={onClose}
-            >
-              <Text style={styles.btnText}>Awesome!</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.btn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+                ]}
+                onPress={onClose}
+              >
+                <Text style={styles.btnText}>Awesome!</Text>
+              </Pressable>
+
+              <ConfettiCannon
+                ref={confettiRef}
+                autoStart={false}
+                count={80}
+                explosionSpeed={420}
+                fallSpeed={2600}
+                origin={{ x: 150, y: -10 }}
+                fadeOut
+              />
             </Pressable>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
 
-            <ConfettiCannon
-              ref={confettiRef}
-              autoStart={false}
-              count={80}
-              explosionSpeed={420}
-              fallSpeed={2600}
-              origin={{ x: 150, y: -10 }}
-              fadeOut
-            />
-          </Pressable>
-        </Animated.View>
-      </TouchableOpacity>
-    </Modal>
+      {/* Fullscreen Image Viewer */}
+      {imageUrl && (
+        <ImageViewer
+          visible={showImageViewer}
+          imageUri={imageUrl}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -105,7 +127,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F3E8FF', // Light purple bg
+    backgroundColor: '#F3E8FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -119,14 +141,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     textAlign: 'center',
   },
-  subtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 20,
-    fontWeight: '500',
-  },
   hintContainer: {
     width: '100%',
+    maxHeight: 400,
     backgroundColor: '#F9FAFB',
     borderRadius: 16,
     padding: 16,
@@ -137,16 +154,17 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 16,
-    color: '#374151',
     lineHeight: 24,
+    color: '#374151',
     textAlign: 'center',
-    fontWeight: '500',
+    marginBottom: 4,
   },
   hintImage: {
     width: '100%',
-    height: 150,
+    height: 200,
     borderRadius: 12,
     marginBottom: 12,
+    backgroundColor: '#f3f4f6',
   },
   audioContainer: {
     marginTop: 12,

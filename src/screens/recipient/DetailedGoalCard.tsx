@@ -381,12 +381,17 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             session: totalSessionsDone,
             type: ph.type,
             giverName: ph.giverName,
+            createdAt: new Date(),
             date: Date.now(),
-            text: ph.text, // keep text if exists
-            audioUrl: ph.audioUrl,
-            imageUrl: ph.imageUrl,
-            duration: ph.duration,
           };
+
+          // Only add fields that exist
+          if (ph.text) hintObj.text = ph.text;
+          if (ph.audioUrl) hintObj.audioUrl = ph.audioUrl;
+          if (ph.imageUrl) hintObj.imageUrl = ph.imageUrl;
+          if (ph.duration) hintObj.duration = ph.duration;
+
+          console.log('💾 Saving personalized hint to Firestore:', hintObj);
 
           // Construct display text for popup (fallback/title)
           if (ph.type === 'audio') {
@@ -412,6 +417,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           // Save personalized hint to history
           try {
             await goalService.appendHint(goalId, hintObj);
+            console.log('✅ Personalized hint saved to Firestore successfully');
 
             // Update local state to show in history immediately
             setCurrentGoal((prev) => ({
@@ -419,7 +425,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               hints: [...(prev.hints || []), hintObj],
             }));
           } catch (err) {
-            console.warn('Failed to save personalized hint to history:', err);
+            console.error('❌ Failed to save personalized hint to history:', err);
           }
 
           // Clear the personalized hint after use
@@ -430,7 +436,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             console.warn('Failed to clear personalized hint:', err);
           }
 
-          // Set the object for the popup
+          // Set the FULL object for the popup (not just the text)
+          console.log('🎨 Setting lastHint for popup:', hintObj);
           setLastHint(hintObj);
 
           // Update the 'updated' object so onFinish propagates the new hint
@@ -474,7 +481,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         try {
           await notificationService.invalidateOldGoalProgressNotifications(goalId, totalSessionsDone + 1);
         } catch (err) {
-          console.warn('Failed to invalidate old notifications:', err);
+          // Silently fail - this is just cleanup, not critical
+          console.log('Note: Could not invalidate old notifications (permissions)');
         }
 
         // Call onFinish for progress updates

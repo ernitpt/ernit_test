@@ -37,7 +37,7 @@ interface PersonalizedHintModalProps {
     onSubmit: (hint: HintSubmission) => Promise<void>;
 }
 
-const MAX_HINT_LENGTH = 500;
+const MAX_HINT_LENGTH = 100;
 const MAX_AUDIO_DURATION = 30; // seconds
 
 const EXAMPLE_HINTS = [

@@ -172,11 +172,13 @@ export class GoalService {
   }
 
   async appendHint(goalId: string, hintObj: any) {
+    console.log('📝 GoalService.appendHint called with:', { goalId, hintObj });
     const goalRef = doc(db, 'goals', goalId);
     await updateDoc(goalRef, {
       hints: arrayUnion(hintObj),
       updatedAt: serverTimestamp(),
     });
+    console.log('✅ GoalService.appendHint completed successfully');
   }
 
   /** Set a personalized hint from giver for recipient's next session */
