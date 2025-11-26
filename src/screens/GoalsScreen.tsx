@@ -151,7 +151,7 @@ const GoalsScreen: React.FC = () => {
       <StatusBar style="light" />
       <SharedHeader
         title="Current Goals"
-        subtitle="Tap goal to track your progress"
+        subtitle="Tap goal to for more details"
       />
       {loading ? (
         <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 50 }} />

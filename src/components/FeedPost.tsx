@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     Image,
+    Animated,
 } from 'react-native';
 import { MessageCircle } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -20,9 +21,10 @@ import { useApp } from '../context/AppContext';
 
 interface FeedPostProps {
     post: FeedPostType;
+    isHighlighted?: boolean;
 }
 
-const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
+const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state } = useApp();
     const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
@@ -32,10 +34,38 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [showReactionModal, setShowReactionModal] = useState(false);
 
+    // Animated value for highlight effect
+    const highlightAnim = useRef(new Animated.Value(0)).current;
+
     useEffect(() => {
         loadUserReaction();
         loadComments();
     }, [post.id]);
+
+    // Animate highlight effect
+    useEffect(() => {
+        if (isHighlighted) {
+            // Fade in with easing
+            Animated.timing(highlightAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: false,
+                easing: (t) => t * t, // Ease in
+            }).start(() => {
+                // Wait 3 seconds, then fade out
+                setTimeout(() => {
+                    Animated.timing(highlightAnim, {
+                        toValue: 0,
+                        duration: 800,
+                        useNativeDriver: false,
+                        easing: (t) => 1 - (1 - t) * (1 - t), // Ease out
+                    }).start();
+                }, 3000);
+            });
+        } else {
+            highlightAnim.setValue(0);
+        }
+    }, [isHighlighted]);
 
     const loadUserReaction = async () => {
         if (!state.user?.id) return;
@@ -140,8 +170,44 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
     const typeInfo = getPostTypeInfo();
     const timeAgo = getTimeAgo(post.createdAt);
 
+    // Interpolate shadow for smooth animation
+    const animatedShadowRadius = highlightAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [8, 20],
+    });
+
+    const animatedShadowOpacity = highlightAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.05, 0.35],
+    });
+
+    // Create web-compatible box shadow
+    const shadowColor = isHighlighted ? '139, 92, 246' : '0, 0, 0';
+
     return (
-        <View style={styles.container}>
+        <Animated.View style={[
+            styles.container,
+            {
+                // iOS shadow
+                shadowColor: isHighlighted ? '#8b5cf6' : '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowRadius: animatedShadowRadius,
+                shadowOpacity: animatedShadowOpacity,
+                // Android elevation
+                elevation: highlightAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [2, 8],
+                }),
+                // Web shadow (boxShadow)
+                boxShadow: highlightAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [
+                        `0 2px 8px rgba(${shadowColor}, 0.05)`,
+                        `0 2px 20px rgba(${shadowColor}, 0.35)`,
+                    ],
+                }),
+            }
+        ]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleUserPress} style={styles.clickableHeader}>
                     {post.userProfileImageUrl ? (
@@ -294,7 +360,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
                 postId={post.id}
                 onClose={() => setShowReactionModal(false)}
             />
-        </View>
+        </Animated.View>
     );
 };
 
@@ -324,6 +390,12 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
+    },
+    highlightedContainer: {
+        borderWidth: 2,
+        borderColor: '#8b5cf6',
+        backgroundColor: '#f5f3ff',
+        shadowOpacity: 0.15,
     },
     header: {
         flexDirection: 'row',

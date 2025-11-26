@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Alert } from 'react-native';
@@ -88,6 +89,10 @@ const NotificationsScreen = () => {
       } catch (error) {
         console.error('Error fetching goal:', error);
       }
+    }
+
+    if (n.type === 'post_reaction' && n.data?.postId) {
+      navigation.navigate('Feed', { highlightPostId: n.data.postId });
     }
   };
 
@@ -177,6 +182,119 @@ const NotificationsScreen = () => {
     // Handle goal progress notifications (for givers to leave hints)
     if (item.type === 'goal_progress') {
       return <GoalProgressNotification notification={item} />;
+    }
+
+    // Handle post reaction notifications with enhanced design
+    if (item.type === 'post_reaction') {
+      const formatNotificationDate = (createdAt: any) => {
+        const date =
+          createdAt && typeof createdAt.toDate === 'function'
+            ? createdAt.toDate()
+            : new Date(createdAt);
+
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 1) {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          if (diffHours < 1) {
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
+          }
+          return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
+        } else if (diffDays < 7) {
+          return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
+        } else {
+          return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }
+      };
+
+      const getReactionEmoji = (reactionType: string) => {
+        switch (reactionType) {
+          case 'muscle': return '💪';
+          case 'heart': return '❤️';
+          case 'like': return '👍';
+          default: return '👍';
+        }
+      };
+
+      const getReactionGradient = (reactionType: string) => {
+        switch (reactionType) {
+          case 'muscle': return ['#f59e0b', '#ef4444'];
+          case 'heart': return ['#ec4899', '#ef4444'];
+          case 'like': return ['#8b5cf6', '#6366f1'];
+          default: return ['#8b5cf6', '#6366f1'];
+        }
+      };
+
+      const mostRecentReaction = (item.data?.mostRecentReaction as 'muscle' | 'heart' | 'like') || 'like';
+      const gradientColors = getReactionGradient(mostRecentReaction);
+
+      return (
+        <TouchableOpacity
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+          style={[
+            styles.reactionCard,
+            !item.read && styles.reactionCardUnread
+          ]}
+        >
+          <View style={styles.reactionCardContent}>
+            {/* Profile Image or Placeholder */}
+            <View style={styles.reactionEmojiContainer}>
+              {item.data?.reactorProfileImageUrl ? (
+                <Image
+                  source={{ uri: item.data.reactorProfileImageUrl }}
+                  style={styles.reactorProfileImage}
+                />
+              ) : (
+                <View style={styles.placeholderAvatar}>
+                  <Text style={styles.placeholderText}>
+                    {item.data?.reactorNames?.[0]?.[0]?.toUpperCase() || 'U'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Content */}
+            <View style={styles.reactionContent}>
+              <View style={styles.reactionHeader}>
+                <Text style={styles.reactionMessage} numberOfLines={2}>
+                  {item.message}
+                </Text>
+                {!item.read && <View style={styles.reactionUnreadDot} />}
+              </View>
+
+              <Text style={styles.reactionDate}>
+                {formatNotificationDate(item.createdAt)}
+              </Text>
+
+              <Text style={styles.reactionCta}>
+                Tap to view →
+              </Text>
+
+
+            </View>
+          </View>
+
+          {/* Clear button */}
+          <TouchableOpacity
+            style={styles.reactionClearButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleClearNotification(item.id!);
+            }}
+          >
+            <Text style={styles.reactionClearText}>×</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
     }
 
     // Handle personalized hint left notification (for recipients)
@@ -403,6 +521,113 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 50,
     fontSize: 16,
+  },
+  // Enhanced reaction notification styles
+  reactionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  reactionCardUnread: {
+    shadowColor: '#8b5cf6',
+    shadowOpacity: 0.15,
+    elevation: 4,
+  },
+  reactionCardContent: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  reactionEmojiContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  reactionEmoji: {
+    fontSize: 28,
+  },
+  reactorProfileImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  placeholderAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  reactionContent: {
+    flex: 1,
+    gap: 8,
+  },
+  reactionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  reactionMessage: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    lineHeight: 20,
+    flex: 1,
+  },
+  reactionUnreadDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 4,
+    marginTop: 6,
+  },
+  reactionFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reactionDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 4,
+  },
+  reactionCta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8b5cf6',
+  },
+  reactionClearButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reactionClearText: {
+    color: '#6b7280',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

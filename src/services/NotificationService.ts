@@ -88,6 +88,81 @@ export class NotificationService {
     );
   }
 
+  /** Create or update a post reaction notification */
+  async createOrUpdatePostReactionNotification(
+    postOwnerId: string,
+    postId: string,
+    reactorId: string,
+    reactorName: string,
+    reactorProfileImageUrl: string | undefined,
+    reactionType: 'muscle' | 'heart' | 'like'
+  ): Promise<void> {
+    try {
+      // Find existing notification for this post
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('userId', '==', postOwnerId),
+        where('type', '==', 'post_reaction'),
+        where('data.postId', '==', postId)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        // Update existing notification
+        const existingDoc = snapshot.docs[0];
+        const existingData = existingDoc.data();
+        const reactorNames = existingData.data?.reactorNames || [];
+
+        // Add reactor if not already in the list
+        if (!reactorNames.includes(reactorName)) {
+          reactorNames.unshift(reactorName); // Add to beginning
+        } else {
+          // Move to front if already exists
+          const index = reactorNames.indexOf(reactorName);
+          reactorNames.splice(index, 1);
+          reactorNames.unshift(reactorName);
+        }
+
+        const totalReactionCount = reactorNames.length;
+        const message = totalReactionCount === 1
+          ? `${reactorNames[0]} reacted to your post`
+          : totalReactionCount === 2
+            ? `${reactorNames[0]} and ${reactorNames[1]} reacted to your post`
+            : `${reactorNames[0]} and ${totalReactionCount - 1} others reacted to your post`;
+
+        await updateDoc(doc(db, 'notifications', existingDoc.id), {
+          message,
+          read: false, // Mark as unread
+          createdAt: serverTimestamp(), // Update timestamp
+          'data.reactorNames': reactorNames,
+          'data.totalReactionCount': totalReactionCount,
+          'data.mostRecentReaction': reactionType,
+          'data.reactorProfileImageUrl': reactorProfileImageUrl || existingData.data?.reactorProfileImageUrl,
+        });
+      } else {
+        // Create new notification
+        await this.createNotification(
+          postOwnerId,
+          'post_reaction',
+          'New Reaction',
+          `${reactorName} reacted to your post`,
+          {
+            postId,
+            reactorNames: [reactorName],
+            totalReactionCount: 1,
+            mostRecentReaction: reactionType,
+            reactorProfileImageUrl,
+          },
+          true
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error creating/updating post reaction notification:', error);
+      throw error;
+    }
+  }
+
   /** Listen for real-time updates for one user */
   listenToUserNotifications = (
     userId: string,

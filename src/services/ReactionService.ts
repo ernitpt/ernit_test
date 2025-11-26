@@ -14,6 +14,7 @@ import {
 import { db } from './firebase';
 import type { Reaction, ReactionType } from '../types';
 import { feedService } from './FeedService';
+import { notificationService } from './NotificationService';
 
 class ReactionService {
     /**
@@ -71,6 +72,29 @@ class ReactionService {
 
             // Update reaction count
             await feedService.updateReactionCount(postId, type, 1);
+
+            // Create notification for post owner (exclude self-reactions)
+            try {
+                const postDoc = await getDoc(doc(db, 'feedPosts', postId));
+                if (postDoc.exists()) {
+                    const postData = postDoc.data();
+                    const postOwnerId = postData.userId;
+
+                    // Don't notify if user is reacting to their own post
+                    if (postOwnerId !== userId) {
+                        await notificationService.createOrUpdatePostReactionNotification(
+                            postOwnerId,
+                            postId,
+                            userId,
+                            userName,
+                            userProfileImageUrl,
+                            type
+                        );
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not create reaction notification:', error);
+            }
 
             console.log('✅ Reaction added');
         } catch (error) {

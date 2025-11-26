@@ -286,7 +286,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -307,6 +307,12 @@ export interface Notification {
     suggestedSessionsPerWeek?: number;
     giverMessage?: string;
     receiverMessage?: string;
+    // Post reaction fields
+    postId?: string;
+    reactorNames?: string[];
+    totalReactionCount?: number;
+    mostRecentReaction?: 'muscle' | 'heart' | 'like';
+    reactorProfileImageUrl?: string;
   };
 }
 
@@ -341,7 +347,7 @@ export type RootStackParamList = {
   RecipientFlow: NavigatorScreenParams<RecipientStackParamList>;
   GoalSetting: { experienceGift: ExperienceGift };
   Notification: undefined;
-  Feed: undefined;
+  Feed: { highlightPostId?: string } | undefined;
   AddFriend: undefined;
   FriendProfile: { userId: string };
   FriendsList: undefined;
