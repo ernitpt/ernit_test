@@ -23,213 +23,115 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   onClose,
   onConfirm,
 }) => {
-  // Animation values - start at 0 for initial state
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  
-  // Track previous visible state to prevent restarting animations
-  const prevVisibleRef = useRef(false);
-  const isAnimatingRef = useRef(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
 
   useEffect(() => {
-    // Only animate on actual state changes, not on every render
-    if (visible === prevVisibleRef.current) return;
-    if (isAnimatingRef.current) return;
-    
-    prevVisibleRef.current = visible;
-    isAnimatingRef.current = true;
-
     if (visible) {
-      // Animate in smoothly
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 7,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 7,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        isAnimatingRef.current = false;
-      });
-    } else {
-      // Animate out smoothly
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 30,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        isAnimatingRef.current = false;
-        // Reset values after animation completes
-        scaleAnim.setValue(0);
-        fadeAnim.setValue(0);
-        slideAnim.setValue(30);
-        backdropOpacity.setValue(0);
-      });
+      // Slide up animation
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
     }
+    // No animation on close - Modal's fade handles it
   }, [visible]);
 
   const handleClose = () => {
-    onClose(); // Just close the popup - animation handled by useEffect
+    onClose();
   };
 
   const handleConfirm = () => {
-    handleClose();
+    onClose();
     // Small delay to let close animation start
     setTimeout(() => {
       onConfirm();
-    }, 200);
+    }, 100);
   };
-
-  // Interpolate backdrop opacity with blur
-  const backdropOpacityValue = backdropOpacity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.6],
-  });
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="fade"
       onRequestClose={handleClose}
     >
-      {/* Animated backdrop with smooth blur transition */}
-      <Animated.View 
-        style={[
-          styles.overlay,
-          {
-            opacity: backdropOpacity,
-            backgroundColor: backdropOpacityValue,
-          }
-        ]}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={handleClose}
       >
-        {/* Web-specific blur effect - only when visible */}
-        {Platform.OS === 'web' && visible && (
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                opacity: backdropOpacity,
-                // @ts-ignore - web-specific style
-                backdropFilter: 'blur(10px)',
-                // @ts-ignore - web-specific style
-                WebkitBackdropFilter: 'blur(10px)',
-              },
-            ]}
-          />
-        )}
-
-        <TouchableOpacity 
-          style={StyleSheet.absoluteFill} 
-          activeOpacity={1} 
-          onPress={handleClose}
-        />
-        
         <Animated.View
           style={[
             styles.modalContainer,
             {
-              transform: [
-                { scale: scaleAnim },
-                { translateY: slideAnim },
-              ],
-              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
             },
           ]}
-          pointerEvents={visible ? "box-none" : "none"}
         >
-          {/* Modal card */}
-          <View style={styles.modal}>
-            {/* Close button */}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleClose}
-              activeOpacity={0.7}
-            >
-              <View style={styles.closeButtonInner}>
-                <X color="#6B7280" size={20} />
-              </View>
-            </TouchableOpacity>
-
-            {/* Icon with gradient background */}
-            <View style={styles.iconContainer}>
-              <Image
-                source={require('../assets/favicon.png')}
-                style={{ width: 92, height: 92, resizeMode: 'contain' }}
-              />
-            </View>
-
-            <Text style={styles.title}>Logout Confirmation</Text>
-            <Text style={styles.message}>
-              Are you sure you want to log out? You'll need to sign in again to access your account.
-            </Text>
-            
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              {/* Confirm Logout Button with gradient */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Modal card */}
+            <View style={styles.modal}>
+              {/* Close button */}
               <TouchableOpacity
-                style={styles.primaryButtonWrapper}
-                onPress={handleConfirm}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#7C3AED', '#9333EA', '#7C3AED']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.primaryButton}
-                >
-                  <LogOut color="white" size={20} strokeWidth={2.5} />
-                  <Text style={styles.primaryButtonText}>Logout</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Cancel Button */}
-              <TouchableOpacity
-                style={styles.secondaryButton}
+                style={styles.closeButton}
                 onPress={handleClose}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <View style={styles.closeButtonInner}>
+                  <X color="#6B7280" size={20} />
+                </View>
               </TouchableOpacity>
+
+              {/* Icon with gradient background */}
+              <View style={styles.iconContainer}>
+                <Image
+                  source={require('../assets/favicon.png')}
+                  style={{ width: 92, height: 92, resizeMode: 'contain' }}
+                />
+              </View>
+
+              <Text style={styles.title}>Logout Confirmation</Text>
+              <Text style={styles.message}>
+                Are you sure you want to log out? You'll need to sign in again to access your account.
+              </Text>
+
+              {/* Buttons */}
+              <View style={styles.buttonContainer}>
+                {/* Confirm Logout Button with gradient */}
+                <TouchableOpacity
+                  style={styles.primaryButtonWrapper}
+                  onPress={handleConfirm}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={['#7C3AED', '#9333EA', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.primaryButton}
+                  >
+                    <LogOut color="white" size={20} strokeWidth={2.5} />
+                    <Text style={styles.primaryButtonText}>Logout</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Cancel Button */}
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleClose}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </Animated.View>
-      </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -237,15 +139,10 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    // Ensure proper centering on mobile
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   modalContainer: {
     width: '100%',

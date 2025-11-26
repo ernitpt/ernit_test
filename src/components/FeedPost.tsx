@@ -13,6 +13,7 @@ import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, Ro
 import CompactReactionBar from './CompactReactionBar';
 import CommentSection from './CommentSection';
 import CommentModal from './CommentModal';
+import ReactionViewerModal from './ReactionViewerModal';
 import { reactionService } from '../services/ReactionService';
 import { commentService } from '../services/CommentService';
 import { useApp } from '../context/AppContext';
@@ -29,6 +30,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
     const [reactionCounts, setReactionCounts] = useState(post.reactionCounts);
     const [commentCount, setCommentCount] = useState(post.commentCount);
     const [showCommentModal, setShowCommentModal] = useState(false);
+    const [showReactionModal, setShowReactionModal] = useState(false);
 
     useEffect(() => {
         loadUserReaction();
@@ -254,6 +256,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
                     reactionCounts={reactionCounts}
                     userReaction={userReaction}
                     onReact={handleReact}
+                    onViewReactions={() => setShowReactionModal(true)}
                 />
 
                 <TouchableOpacity
@@ -284,6 +287,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
                 postId={post.id}
                 onClose={() => setShowCommentModal(false)}
                 onChange={handleCommentsChange}
+            />
+
+            <ReactionViewerModal
+                visible={showReactionModal}
+                postId={post.id}
+                onClose={() => setShowReactionModal(false)}
             />
         </View>
     );

@@ -7,7 +7,6 @@ import {
   Modal,
   StyleSheet,
   Animated,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -29,244 +28,129 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   message = 'Please log in to continue.',
 }) => {
   const navigation = useNavigation<LoginPromptNavigationProp>();
-
-  // Animation values - start at 0 for initial state
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-
-  // Track previous visible state to prevent restarting animations
-  const prevVisibleRef = useRef(false);
-  const currentAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const slideAnim = useRef(new Animated.Value(300)).current;
 
   useEffect(() => {
-    // Only animate on actual state changes, not on every render
-    if (visible === prevVisibleRef.current) return;
-
-    // Stop any running animation before starting a new one
-    if (currentAnimationRef.current) {
-      currentAnimationRef.current.stop();
-      currentAnimationRef.current = null;
-    }
-
-    prevVisibleRef.current = visible;
-
     if (visible) {
-      // Reset animation values to starting position for animation in
-      scaleAnim.setValue(0);
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      backdropOpacity.setValue(0);
-
-      // Animate in smoothly - ALL using native driver for 60fps
-      const animIn = Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 7,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 7,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]);
-
-      currentAnimationRef.current = animIn;
-      animIn.start(() => {
-        currentAnimationRef.current = null;
-      });
-    } else {
-      // Animate out smoothly - ALL using native driver for 60fps
-      const animOut = Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 30,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]);
-
-      currentAnimationRef.current = animOut;
-      animOut.start(() => {
-        currentAnimationRef.current = null;
-        // Reset values after animation completes
-        scaleAnim.setValue(0);
-        fadeAnim.setValue(0);
-        slideAnim.setValue(30);
-        backdropOpacity.setValue(0);
-      });
+      // Slide up animation
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
     }
-
-    // Cleanup function to stop animations on unmount
-    return () => {
-      if (currentAnimationRef.current) {
-        currentAnimationRef.current.stop();
-        currentAnimationRef.current = null;
-      }
-    };
-  }, [visible, scaleAnim, fadeAnim, slideAnim, backdropOpacity]);
+    // No animation on close - Modal's fade handles it
+  }, [visible]);
 
   const handleClose = () => {
-    onClose(); // Just close the popup, don't navigate - animation handled by useEffect
+    onClose();
   };
 
   const handleLogin = () => {
-    handleClose();
+    onClose();
     setTimeout(() => {
       navigation.navigate('Auth', { mode: 'signin' });
-    }, 200);
+    }, 100);
   };
 
   const handleSignUp = () => {
-    handleClose();
+    onClose();
     setTimeout(() => {
       navigation.navigate('Auth', { mode: 'signup' });
-    }, 200);
+    }, 100);
   };
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="fade"
       onRequestClose={handleClose}
     >
-      {/* Animated backdrop with smooth blur transition */}
-      <Animated.View
-        style={[
-          styles.overlay,
-          {
-            opacity: backdropOpacity,
-          }
-        ]}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={handleClose}
       >
-        {/* Web-specific blur effect - simplified for better performance */}
-        {Platform.OS === 'web' && visible && (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                // @ts-ignore - web-specific style
-                backdropFilter: 'blur(8px)',
-                // @ts-ignore - web-specific style
-                WebkitBackdropFilter: 'blur(8px)',
-              },
-            ]}
-          />
-        )}
-
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
-
         <Animated.View
           style={[
             styles.modalContainer,
             {
-              transform: [
-                { scale: scaleAnim },
-                { translateY: slideAnim },
-              ],
-              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
             },
           ]}
-          pointerEvents={visible ? "box-none" : "none"}
         >
-          {/* Modal card */}
-          <View style={styles.modal}>
-            {/* Close button */}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleClose}
-              activeOpacity={0.7}
-            >
-              <View style={styles.closeButtonInner}>
-                <X color="#6B7280" size={20} />
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Modal card */}
+            <View style={styles.modal}>
+              {/* Close button */}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                activeOpacity={0.7}
+              >
+                <View style={styles.closeButtonInner}>
+                  <X color="#6B7280" size={20} />
+                </View>
+              </TouchableOpacity>
+
+              {/* Icon with gradient background */}
+              <View style={styles.iconContainer}>
+                <Image
+                  source={require('../assets/favicon.png')}
+                  style={{ width: 92, height: 92, resizeMode: 'contain' }}
+                />
               </View>
-            </TouchableOpacity>
 
-            {/* Icon with gradient background */}
-            <View style={styles.iconContainer}>
-              <Image
-                source={require('../assets/favicon.png')}
-                style={{ width: 92, height: 92, resizeMode: 'contain' }}
-              />
-            </View>
+              <Text style={styles.title}>Login</Text>
+              <Text style={styles.message}>{message}</Text>
 
-            <Text style={styles.title}>Login</Text>
-            <Text style={styles.message}>{message}</Text>
-
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              {/* Sign Up Button with gradient */}
-              <TouchableOpacity
-                style={styles.primaryButtonWrapper}
-                onPress={handleSignUp}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#7C3AED', '#9333EA', '#7C3AED']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.primaryButton}
+              {/* Buttons */}
+              <View style={styles.buttonContainer}>
+                {/* Sign Up Button with gradient */}
+                <TouchableOpacity
+                  style={styles.primaryButtonWrapper}
+                  onPress={handleSignUp}
+                  activeOpacity={0.9}
                 >
-                  <UserPlus color="white" size={20} strokeWidth={2.5} />
-                  <Text style={styles.primaryButtonText}>Sign Up</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={['#7C3AED', '#9333EA', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.primaryButton}
+                  >
+                    <UserPlus color="white" size={20} strokeWidth={2.5} />
+                    <Text style={styles.primaryButtonText}>Sign Up</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              {/* Login Button */}
+                {/* Login Button */}
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleLogin}
+                  activeOpacity={0.8}
+                >
+                  <LogIn color="#7C3AED" size={20} strokeWidth={2.5} />
+                  <Text style={styles.secondaryButtonText}>Log In</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Cancel link */}
               <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleLogin}
-                activeOpacity={0.8}
+                style={styles.cancelLink}
+                onPress={handleClose}
+                activeOpacity={0.7}
               >
-                <LogIn color="#7C3AED" size={20} strokeWidth={2.5} />
-                <Text style={styles.secondaryButtonText}>Log In</Text>
+                <Text style={styles.cancelLinkText}>Maybe later</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Cancel link */}
-            <TouchableOpacity
-              style={styles.cancelLink}
-              onPress={handleClose}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelLinkText}>Maybe later</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </Animated.View>
-      </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -274,10 +158,10 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContainer: {
     width: '100%',
@@ -311,18 +195,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     marginBottom: 20,
-  },
-  iconGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   title: {
     fontSize: 28,

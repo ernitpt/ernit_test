@@ -262,6 +262,7 @@ export interface Reaction {
   postId: string;
   userId: string;
   userName: string;
+  userProfileImageUrl?: string;
   type: ReactionType;
   createdAt: Date;
 }

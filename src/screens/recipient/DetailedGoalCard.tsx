@@ -9,6 +9,7 @@ import {
   Pressable,
   Easing,
   Platform,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -268,8 +269,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const navigation = useNavigation<UserProfileNavigationProp>();
   const pulse = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const cancelAnim = useRef(new Animated.Value(0)).current;
-  const cancelScale = useRef(new Animated.Value(0.9)).current;
+  const cancelScale = useRef(new Animated.Value(300)).current;
 
   // Calculate logic for duration and finishing
   const totalGoalSeconds = useMemo(() => {
@@ -523,17 +523,16 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
 
   const openCancelPopup = () => {
     setShowCancelPopup(true);
-    Animated.parallel([
-      Animated.timing(cancelAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.spring(cancelScale, { toValue: 1, friction: 5, useNativeDriver: true }),
-    ]).start();
+    Animated.spring(cancelScale, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
   };
 
   const closeCancelPopup = () => {
-    Animated.parallel([
-      Animated.timing(cancelAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-      Animated.timing(cancelScale, { toValue: 0.9, duration: 150, useNativeDriver: true }),
-    ]).start(() => setShowCancelPopup(false));
+    setShowCancelPopup(false);
   };
 
   const handleCancel = () => openCancelPopup();
@@ -914,35 +913,51 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
       />
 
       {/* Cancel Popup */}
-      {showCancelPopup && (
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            { opacity: cancelAnim, transform: [{ scale: cancelScale }] },
-          ]}
+      <Modal
+        visible={showCancelPopup}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCancelPopup}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeCancelPopup}
         >
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Cancel Session?</Text>
-            <Text style={styles.modalSubtitle}>{cancelMessage}</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                onPress={closeCancelPopup}
-                style={[styles.modalButton, styles.cancelButtonPopup]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelText}>No</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={cancelSessionInternal}
-                style={[styles.modalButton, styles.confirmButton]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmText}>Yes, cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Animated.View>
-      )}
+          <Animated.View
+            style={[
+              styles.modalBox,
+              {
+                transform: [{ translateY: cancelScale }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={styles.modalTitle}>Cancel Session?</Text>
+              <Text style={styles.modalSubtitle}>{cancelMessage}</Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  onPress={closeCancelPopup}
+                  style={[styles.modalButton, styles.cancelButtonPopup]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cancelText}>No</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={cancelSessionInternal}
+                  style={[styles.modalButton, styles.confirmButton]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.confirmText}>Yes, cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
     </Animated.View>
   );
 };
@@ -1091,11 +1106,10 @@ const styles = StyleSheet.create({
   },
   // Modal Styles
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
   },
   modalBox: {
     width: '80%',

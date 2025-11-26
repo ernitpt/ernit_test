@@ -6,6 +6,7 @@ import {
     getDocs,
     deleteDoc,
     doc,
+    getDoc,
     Timestamp,
     orderBy,
     limit as firestoreLimit,
@@ -39,15 +40,34 @@ class ReactionService {
                 await this.removeReaction(postId, userId);
             }
 
+            // Fetch user profile image
+            let userProfileImageUrl: string | undefined;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    userProfileImageUrl = userData?.profile?.profileImageUrl;
+                }
+            } catch (error) {
+                console.warn('Could not fetch user profile image:', error);
+            }
+
             // Add new reaction
             const reactionsCollection = collection(db, 'feedPosts', postId, 'reactions');
-            await addDoc(reactionsCollection, {
+            const reactionData: any = {
                 postId,
                 userId,
                 userName,
                 type,
                 createdAt: Timestamp.now(),
-            });
+            };
+
+            // Only add userProfileImageUrl if it exists
+            if (userProfileImageUrl) {
+                reactionData.userProfileImageUrl = userProfileImageUrl;
+            }
+
+            await addDoc(reactionsCollection, reactionData);
 
             // Update reaction count
             await feedService.updateReactionCount(postId, type, 1);

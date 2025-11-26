@@ -18,6 +18,7 @@ interface CompactReactionBarProps {
     };
     userReaction: ReactionType | null;
     onReact: (type: ReactionType) => void;
+    onViewReactions?: () => void;
 }
 
 const REACTION_EMOJIS: Record<ReactionType, string> = {
@@ -30,6 +31,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
     reactionCounts,
     userReaction,
     onReact,
+    onViewReactions,
 }) => {
     const [showPicker, setShowPicker] = useState(false);
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -111,12 +113,14 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                 {activeReactions.length > 0 && (
                     <View style={styles.countsContainer}>
                         {activeReactions.map((type) => (
-                            <View
+                            <TouchableOpacity
                                 key={type}
                                 style={[
                                     styles.reactionCount,
                                     type === userReaction && styles.userReactionCount,
                                 ]}
+                                onPress={onViewReactions}
+                                activeOpacity={0.7}
                             >
                                 <Text style={styles.reactionEmoji}>{REACTION_EMOJIS[type]}</Text>
                                 <Text
@@ -127,7 +131,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                                 >
                                     {reactionCounts[type]}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         ))}
                     </View>
                 )}

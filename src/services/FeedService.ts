@@ -189,7 +189,7 @@ class FeedService {
 
     /**
      * Update reaction count for a post
-     */
+    */
     async updateReactionCount(postId: string, reactionType: 'muscle' | 'heart' | 'like', incrementValue: number) {
         try {
             const postRef = doc(db, 'feedPosts', postId);
