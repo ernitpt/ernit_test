@@ -42,7 +42,6 @@ const CompletionScreen = () => {
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // Animation refs
   const confettiAnim = useRef(new Animated.Value(0)).current;
@@ -124,31 +123,24 @@ const CompletionScreen = () => {
       const existingCode = await goalService.getCouponCode(goal.id);
       if (existingCode) {
         setCouponCode(existingCode);
+      } else {
+        // Auto-generate coupon if it doesn't exist
+        await generateCoupon();
       }
     } catch (error) {
-      console.error('Error fetching existing coupon:', error);
+      console.error('Error fetching/generating coupon:', error);
+      Alert.alert('Error', 'Could not load or generate your coupon. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateUniqueCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length: 8 }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join('');
-  };
-
-  const handleRedeemNow = async () => {
-    if (isGenerating) return;
-    
+  const generateCoupon = async () => {
     try {
-      setIsGenerating(true);
-      
       const partnerId = experienceGift?.partnerId || experience?.partnerId;
 
       if (!partnerId) {
-        Alert.alert('Error', 'This experience is missing a partner ID.');
+        console.error('Missing partner ID for coupon generation');
         return;
       }
 
@@ -156,7 +148,6 @@ const CompletionScreen = () => {
       const userId = goal.userId;
       const validUntil = new Date();
       validUntil.setFullYear(validUntil.getFullYear() + 1);
-
 
       const coupon: PartnerCoupon = {
         code: newCouponCode,
@@ -179,16 +170,18 @@ const CompletionScreen = () => {
       await goalService.saveCouponCode(goal.id, newCouponCode);
 
       setCouponCode(newCouponCode);
-      Alert.alert(
-        '✓ Success',
-        'Your coupon code is ready!'
-      );
+      console.log('✅ Coupon auto-generated:', newCouponCode);
     } catch (error) {
-      console.error('Error creating user coupon:', error);
-      Alert.alert('Error', 'Something went wrong while generating your coupon.');
-    } finally {
-      setIsGenerating(false);
+      console.error('Error generating coupon:', error);
+      throw error;
     }
+  };
+
+  const generateUniqueCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return Array.from({ length: 8 }, () =>
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join('');
   };
 
   const handleCopy = async () => {
@@ -199,10 +192,10 @@ const CompletionScreen = () => {
   };
 
   const experienceImage = experience
-  ? Array.isArray(experience.imageUrl)
-    ? experience.imageUrl[0]
-    : experience.imageUrl
-  : null;
+    ? Array.isArray(experience.imageUrl)
+      ? experience.imageUrl[0]
+      : experience.imageUrl
+    : null;
 
   const totalSessions = goal.sessionsPerWeek * goal.targetCount;
 
@@ -223,7 +216,7 @@ const CompletionScreen = () => {
           >
             <Trophy color="#fbbf24" size={64} strokeWidth={2} />
           </Animated.View>
-          
+
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Goal Completed!</Text>
             <Text style={styles.heroSubtitle}>
@@ -238,10 +231,10 @@ const CompletionScreen = () => {
             <CheckCircle color="#10b981" size={24} />
             <Text style={styles.statsTitle}>Your Achievement</Text>
           </View>
-          
+
           <Text style={styles.goalTitle}>{goal.title}</Text>
           <Text style={styles.goalDesc}>{goal.description}</Text>
-          
+
           <View style={styles.statsBadge}>
             <Sparkles color="#fbbf24" size={20} />
             <Text style={styles.statsNumber}>{totalSessions}</Text>
@@ -255,7 +248,7 @@ const CompletionScreen = () => {
             <Gift color="#8b5cf6" size={24} />
             <Text style={styles.experienceHeaderText}>Your Reward</Text>
           </View>
-          
+
           <Image
             source={{ uri: experienceImage }}
             style={styles.experienceImage}
@@ -282,7 +275,7 @@ const CompletionScreen = () => {
             <Ticket color="#8b5cf6" size={24} />
             <Text style={styles.couponHeaderText}>Redeem Your Experience</Text>
           </View>
-          
+
           <Text style={styles.couponInstructions}>
             Show this code to the experience provider to claim your reward
           </Text>
@@ -298,7 +291,7 @@ const CompletionScreen = () => {
                 <View style={styles.couponCodeBox}>
                   <Text style={styles.couponCode}>{couponCode}</Text>
                 </View>
-                
+
                 <TouchableOpacity
                   style={styles.copyButton}
                   onPress={handleCopy}
@@ -310,30 +303,14 @@ const CompletionScreen = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.validityBox}>
                 <Text style={styles.validityText}>
                   ✓ Valid for a year from generation
                 </Text>
               </View>
             </View>
-          ) : (
-            <TouchableOpacity
-              onPress={handleRedeemNow}
-              style={[styles.generateButton, isGenerating && styles.generateButtonDisabled]}
-              disabled={isGenerating}
-              activeOpacity={0.8}
-            >
-              {isGenerating ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ticket color="#fff" size={20} />
-                  <Text style={styles.generateButtonText}>Generate Coupon Code</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         <View style={{ height: 100 }} />

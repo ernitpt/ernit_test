@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
@@ -8,6 +8,9 @@ import { notificationService } from '../services/NotificationService';
 import { PersonalizedHintModal, HintSubmission } from './PersonalizedHintModal';
 import { storageService } from '../services/StorageService';
 import { useApp } from '../context/AppContext';
+import AudioPlayer from './AudioPlayer';
+import ImageViewer from './ImageViewer';
+import { commonStyles } from '../styles/commonStyles';
 
 interface GoalProgressNotificationProps {
     notification: Notification;
@@ -18,6 +21,8 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
 }) => {
     const { state } = useApp();
     const [showHintModal, setShowHintModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
     const [goal, setGoal] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
@@ -33,6 +38,24 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             alert('Could not load goal details');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleViewHistory = async () => {
+        if (!goal) {
+            try {
+                setLoading(true);
+                const goalData = await goalService.getGoalById(notification.data?.goalId || '');
+                setGoal(goalData);
+                setShowHistoryModal(true);
+            } catch (error) {
+                console.error('Error fetching goal:', error);
+                alert('Could not load goal details');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setShowHistoryModal(true);
         }
     };
 
@@ -142,6 +165,16 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                                     : 'Leave Hint For Next Session'}
                         </Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.historyButton}
+                        onPress={handleViewHistory}
+                        disabled={loading}
+                    >
+                        <Text style={styles.historyButtonText}>
+                            📜 View Hint History
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
@@ -163,6 +196,103 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                     }
                     onClose={() => setShowHintModal(false)}
                     onSubmit={handleSubmitHint}
+                />
+            )}
+
+            {/* Hint History Modal */}
+            <Modal
+                visible={showHistoryModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowHistoryModal(false)}
+            >
+                <TouchableOpacity
+                    style={commonStyles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowHistoryModal(false)}
+                >
+                    <View style={historyStyles.modalContainer}>
+                        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                            <View style={historyStyles.modalHeader}>
+                                <Text style={historyStyles.modalTitle}>Hint History</Text>
+                                <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
+                                    <Text style={historyStyles.closeButton}>×</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={historyStyles.scrollView}>
+                                {goal?.hints && goal.hints.length > 0 ? (
+                                    [...goal.hints].reverse().map((hint: any, index: number) => {
+                                        const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+                                        const hasImage = hint.imageUrl;
+                                        const text = hint.text || hint.hint;
+
+                                        // Handle date
+                                        let dateMs = 0;
+                                        if (hint.createdAt) {
+                                            if (typeof hint.createdAt.toMillis === 'function') {
+                                                dateMs = hint.createdAt.toMillis();
+                                            } else if (hint.createdAt instanceof Date) {
+                                                dateMs = hint.createdAt.getTime();
+                                            } else {
+                                                dateMs = new Date(hint.createdAt).getTime();
+                                            }
+                                        } else if (hint.date) {
+                                            dateMs = hint.date;
+                                        }
+
+                                        return (
+                                            <View key={hint.id || index} style={historyStyles.hintItem}>
+                                                <View style={historyStyles.hintHeader}>
+                                                    <Text style={historyStyles.sessionLabel}>
+                                                        Session {hint.session || index + 1}
+                                                    </Text>
+                                                    <Text style={historyStyles.dateLabel}>
+                                                        {new Date(dateMs).toLocaleDateString()}
+                                                    </Text>
+                                                </View>
+
+                                                {hasImage && (
+                                                    <TouchableOpacity
+                                                        onPress={() => setSelectedImageUri(hint.imageUrl)}
+                                                        activeOpacity={0.9}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: hint.imageUrl }}
+                                                            style={historyStyles.hintImage}
+                                                        />
+                                                    </TouchableOpacity>
+                                                )}
+
+                                                {text && (
+                                                    <Text style={historyStyles.hintText}>{text}</Text>
+                                                )}
+
+                                                {isAudio && hint.audioUrl && (
+                                                    <View style={historyStyles.audioContainer}>
+                                                        <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+                                                    </View>
+                                                )}
+                                            </View>
+                                        );
+                                    })
+                                ) : (
+                                    <Text style={historyStyles.emptyText}>
+                                        No hints have been sent yet.
+                                    </Text>
+                                )}
+                            </ScrollView>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Fullscreen Image Viewer */}
+            {selectedImageUri && (
+                <ImageViewer
+                    visible={!!selectedImageUri}
+                    imageUri={selectedImageUri}
+                    onClose={() => setSelectedImageUri(null)}
                 />
             )}
         </>
@@ -199,12 +329,6 @@ const styles = StyleSheet.create({
         color: '#111827',
         flex: 1,
     },
-    unreadDot: {
-        width: 10,
-        height: 10,
-        backgroundColor: '#8b5cf6',
-        borderRadius: 5,
-    },
     cardMessage: {
         color: '#4b5563',
         fontSize: 14,
@@ -219,27 +343,121 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     buttonDisabled: {
-        backgroundColor: '#9CA3AF',
+        backgroundColor: '#9ca3af',
     },
     buttonText: {
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
     },
-    clearNotificationButton: {
-        backgroundColor: 'transparent',
+    historyButton: {
+        marginTop: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        backgroundColor: '#f3f4f6',
         borderWidth: 1,
         borderColor: '#e5e7eb',
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        justifyContent: 'center',
-        alignItems: 'center',
-        margin: 8,
+    },
+    historyButtonText: {
+        color: '#6b7280',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    clearNotificationButton: {
+        padding: 8,
+        paddingRight: 12,
     },
     clearNotificationText: {
+        fontSize: 24,
         color: '#9ca3af',
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '300',
+    },
+    unreadDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#7c3aed',
+        marginLeft: 8,
+    },
+});
+
+const historyStyles = StyleSheet.create({
+    modalContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        maxWidth: 500,
+        width: '90%',
+        maxHeight: '80%',
+        alignSelf: 'center',
+        marginTop: 'auto',
+        marginBottom: 'auto',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e5e7eb',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    closeButton: {
+        fontSize: 32,
+        color: '#9ca3af',
+        fontWeight: '300',
+    },
+    scrollView: {
+        maxHeight: 500,
+        padding: 20,
+    },
+    hintItem: {
+        marginBottom: 20,
+        padding: 16,
+        backgroundColor: '#f9fafb',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    hintHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    sessionLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#7c3aed',
+    },
+    dateLabel: {
+        fontSize: 12,
+        color: '#6b7280',
+    },
+    hintImage: {
+        width: '100%',
+        height: 150,
+        borderRadius: 8,
+        marginBottom: 8,
+        backgroundColor: '#e5e7eb',
+    },
+    hintText: {
+        fontSize: 15,
+        lineHeight: 22,
+        color: '#374151',
+        marginBottom: 8,
+    },
+    audioContainer: {
+        marginTop: 8,
+    },
+    emptyText: {
+        textAlign: 'center',
+        color: '#9ca3af',
+        fontSize: 15,
+        paddingVertical: 40,
     },
 });
