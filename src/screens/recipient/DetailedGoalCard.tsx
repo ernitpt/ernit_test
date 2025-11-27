@@ -375,23 +375,29 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         if (hasPersonalizedHint) {
           const ph = updated.personalizedNextHint!;
 
-          // Construct rich hint object for history
+          // SECURITY: Validate hint content before creating
+          if (ph.text && ph.text.length > 500) {
+            console.warn('⚠️ Hint text too long, truncating');
+            ph.text = ph.text.substring(0, 500);
+          }
+
+          // Create clean hint object without undefined values
           const hintObj: any = {
-            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Unique ID to prevent arrayUnion deduplication
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Unique ID
             session: totalSessionsDone,
-            type: ph.type,
-            giverName: ph.giverName,
-            createdAt: new Date(),
+            giverName: ph.giverName || 'Your Giver',
             date: Date.now(),
+            createdAt: new Date(),
           };
 
-          // Only add fields that exist
+          // Only add defined properties
           if (ph.text) hintObj.text = ph.text;
           if (ph.audioUrl) hintObj.audioUrl = ph.audioUrl;
           if (ph.imageUrl) hintObj.imageUrl = ph.imageUrl;
-          if (ph.duration) hintObj.duration = ph.duration;
+          if (ph.type) hintObj.type = ph.type;
+          if (typeof ph.duration === 'number') hintObj.duration = ph.duration;
 
-          console.log('💾 Saving personalized hint to Firestore:', hintObj);
+          console.log('💾 Saving hint to Firestore:', hintObj);
 
           // Construct display text for popup (fallback/title)
           if (ph.type === 'audio') {
@@ -545,6 +551,30 @@ Weeks completed: ${updated.currentCount}/${updated.targetCount}`,
       const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
       const experience = await experienceService.getExperienceById(gift.experienceId);
       const recipientName = await userService.getUserName(currentGoal.userId);
+
+      // SECURITY: Validate session timing to prevent rapid completion exploits
+      const MIN_SESSION_INTERVAL_MS = 60000; // 1 minute between sessions
+      const nowCheck = Date.now();
+
+      // Check if there was a previous session
+      if (currentGoal.weeklyLogDates && currentGoal.weeklyLogDates.length > 0) {
+        // Get the most recent session timestamp
+        const lastSessionDate = currentGoal.weeklyLogDates[currentGoal.weeklyLogDates.length - 1];
+        const lastSessionTime = new Date(lastSessionDate).getTime();
+
+        const timeSinceLastSession = nowCheck - lastSessionTime;
+
+        if (timeSinceLastSession < MIN_SESSION_INTERVAL_MS) {
+          const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSinceLastSession) / 1000);
+          Alert.alert(
+            'Too Fast!',
+            `Please wait ${secondsRemaining} seconds between sessions to ensure quality completion.`,
+            [{ text: 'OK' }]
+          );
+          setLoading(false); // Ensure loading state is reset if we return early
+          return;
+        }
+      }
 
       // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
       // weeklyLogDates only stores unique dates, so it undercounts if multiple sessions happen in one day.

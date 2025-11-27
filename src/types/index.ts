@@ -44,24 +44,6 @@ export interface FriendRequest {
   senderProfileImageUrl?: string;
   recipientId: string;
   recipientName: string;
-  status: 'pending' | 'accepted' | 'declined';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Friend relationship types
-export interface Friend {
-  id: string;
-  userId: string;
-  friendId: string;
-  friendName: string;
-  friendProfileImageUrl?: string;
-  createdAt: Date;
-}
-
-// User search result for friend discovery
-export interface UserSearchResult {
-  id: string;
   name: string;
   email: string;
   profileImageUrl?: string;
@@ -125,7 +107,7 @@ export interface Goal {
   /** Per-week sessions */
   sessionsPerWeek: number;      // required sessions per anchored week
   weeklyCount: number;          // sessions logged in the current anchored week
-  weeklyLogDates: string[];     // ISO "YYYY-MM-DD" strings for the current week’s sessions
+  weeklyLogDates: string[];     // ISO "YYYY-MM-DD" strings for the current week's sessions
 
   /** Weekly cadence */
   frequency: 'daily' | 'weekly' | 'monthly'; // keep as-is; we use 'weekly'
@@ -317,6 +299,17 @@ export interface Hint {
   createdAt: Date;
 }
 
+// Partner Coupon
+export interface PartnerCoupon {
+  code: string;
+  status: 'active' | 'redeemed' | 'expired';
+  userId: string;
+  validUntil: Date;
+  partnerId: string;
+  goalId?: string;
+  redeemedAt?: Date;
+}
+
 // Navigation types
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -359,28 +352,5 @@ export type RecipientStackParamList = {
   CouponEntry: { code?: string } | undefined;
   GoalSetting: { experienceGift: ExperienceGift };
   Roadmap: { goal: Goal };
-  Goals: undefined;
   Completion: { goal: Goal; experienceGift: ExperienceGift };
-  Profile: undefined;
 };
-
-export interface PartnerCoupon {
-  id?: string;
-  code: string;
-  status: 'active' | 'redeemed';
-  userId: string;
-  validUntil: Date;
-  partnerId: string;
-  createdAt?: Date | Timestamp;
-}
-
-export interface PartnerUser {
-  id: string;
-  name: string;
-  email: string;
-  userType: 'partner';
-  mapsUrl?: string;     // 👈 what you actually need
-  createdAt?: any;      // optional, Firestore timestamp
-  isAdmin?: boolean;
-  address?: string;
-}

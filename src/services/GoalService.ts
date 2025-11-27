@@ -173,12 +173,80 @@ export class GoalService {
 
   async appendHint(goalId: string, hintObj: any) {
     console.log('📝 GoalService.appendHint called with:', { goalId, hintObj });
+
+    // SECURITY: Validate hint structure
+    if (!hintObj || typeof hintObj !== 'object') {
+      throw new Error('Invalid hint object');
+    }
+
+    if (!hintObj.id || !hintObj.session || typeof hintObj.session !== 'number') {
+      throw new Error('Hint must have id and session number');
+    }
+
+    // SECURITY: Validate and sanitize text content
+    if (hintObj.text) {
+      if (typeof hintObj.text !== 'string') {
+        throw new Error('Hint text must be a string');
+      }
+      // Limit text length to prevent storage DoS
+      const MAX_TEXT_LENGTH = 500;
+      if (hintObj.text.length > MAX_TEXT_LENGTH) {
+        hintObj.text = hintObj.text.substring(0, MAX_TEXT_LENGTH);
+        console.warn(`⚠️ Hint text truncated to ${MAX_TEXT_LENGTH} characters`);
+      }
+      // Basic sanitization: trim whitespace
+      hintObj.text = hintObj.text.trim();
+    }
+
+    // SECURITY: Validate URLs if present
+    if (hintObj.audioUrl && !this.isValidUrl(hintObj.audioUrl)) {
+      throw new Error('Invalid audio URL');
+    }
+    if (hintObj.imageUrl && !this.isValidUrl(hintObj.imageUrl)) {
+      throw new Error('Invalid image URL');
+    }
+
+    // SECURITY: Check array size limit before adding
+    const goal = await this.getGoalById(goalId);
+    const MAX_HINTS = 1000; // Reasonable limit for a goal
+    if ((goal.hints?.length || 0) >= MAX_HINTS) {
+      throw new Error(`Maximum hints limit (${MAX_HINTS}) reached for this goal`);
+    }
+
+    // Create clean hint object with only allowed fields
+    const cleanHint: any = {
+      id: hintObj.id,
+      session: hintObj.session,
+      giverName: hintObj.giverName || 'Anonymous',
+      date: hintObj.date || Date.now(),
+      createdAt: hintObj.createdAt || new Date(),
+    };
+
+    // Add optional fields if present
+    if (hintObj.text) cleanHint.text = hintObj.text;
+    if (hintObj.audioUrl) cleanHint.audioUrl = hintObj.audioUrl;
+    if (hintObj.imageUrl) cleanHint.imageUrl = hintObj.imageUrl;
+    if (hintObj.type) cleanHint.type = hintObj.type;
+    if (typeof hintObj.duration === 'number') cleanHint.duration = hintObj.duration;
+
     const goalRef = doc(db, 'goals', goalId);
     await updateDoc(goalRef, {
-      hints: arrayUnion(hintObj),
+      hints: arrayUnion(cleanHint),
       updatedAt: serverTimestamp(),
     });
     console.log('✅ GoalService.appendHint completed successfully');
+  }
+
+  // SECURITY: URL validation helper
+  private isValidUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      // Only allow https URLs from Firebase Storage
+      return parsed.protocol === 'https:' &&
+        parsed.hostname.includes('firebasestorage.googleapis.com');
+    } catch {
+      return false;
+    }
   }
 
   /** Set a personalized hint from giver for recipient's next session */

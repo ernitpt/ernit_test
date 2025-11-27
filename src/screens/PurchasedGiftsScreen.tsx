@@ -30,6 +30,7 @@ const PurchasedGiftsScreen = () => {
   const userId = state.user?.id;
   const [gifts, setGifts] = useState<ExperienceGift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'claimed'>('all');
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
 
   useEffect(() => {
@@ -43,6 +44,12 @@ const PurchasedGiftsScreen = () => {
 
     fetchGifts();
   }, [userId]);
+
+  // Filter gifts based on selected filter
+  const filteredGifts = gifts.filter(gift => {
+    if (filterStatus === 'all') return true;
+    return gift.status === filterStatus;
+  });
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
@@ -146,17 +153,55 @@ const PurchasedGiftsScreen = () => {
         showBack
       />
 
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterTab, filterStatus === 'all' && styles.filterTabActive]}
+          onPress={() => setFilterStatus('all')}
+        >
+          <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>
+            All ({gifts.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, filterStatus === 'pending' && styles.filterTabActive]}
+          onPress={() => setFilterStatus('pending')}
+        >
+          <Text style={[styles.filterText, filterStatus === 'pending' && styles.filterTextActive]}>
+            Pending ({gifts.filter(g => g.status === 'pending').length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, filterStatus === 'claimed' && styles.filterTabActive]}
+          onPress={() => setFilterStatus('claimed')}
+        >
+          <Text style={[styles.filterText, filterStatus === 'claimed' && styles.filterTextActive]}>
+            Claimed ({gifts.filter(g => g.status === 'claimed').length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <ActivityIndicator
           size="large"
           color="#8b5cf6"
           style={{ marginTop: 50 }}
         />
-      ) : gifts.length === 0 ? (
-        <Text style={styles.emptyText}>No purchased gifts yet.</Text>
+      ) : filteredGifts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🎁</Text>
+          <Text style={styles.emptyTitle}>
+            {filterStatus === 'all' ? 'No Gifts Yet' : `No ${filterStatus} Gifts`}
+          </Text>
+          <Text style={styles.emptyText}>
+            {filterStatus === 'all'
+              ? 'Purchase a gift to empower someone special!'
+              : `No gifts with status "${filterStatus}"`}
+          </Text>
+        </View>
       ) : (
         <FlatList
-          data={gifts}
+          data={filteredGifts}
           renderItem={({ item }) => <GiftItem item={item} />}
           keyExtractor={(item) => item.id!}
           contentContainerStyle={styles.listContainer}
@@ -216,11 +261,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: '#f9fafb',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  filterTabActive: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#8b5cf6',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  filterTextActive: {
+    color: '#fff',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   emptyText: {
     textAlign: 'center',
     color: '#6b7280',
-    marginTop: 50,
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 22,
   },
 });
 

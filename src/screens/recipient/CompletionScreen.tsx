@@ -24,7 +24,7 @@ import {
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { goalService } from '../../services/GoalService';
 import { experienceService } from '../../services/ExperienceService';
@@ -42,11 +42,17 @@ const CompletionScreen = () => {
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [celebrationMessage, setCelebrationMessage] = useState('Amazing!');
 
-  // Animation refs
+  // Enhanced animation refs
   const confettiAnim = useRef(new Animated.Value(0)).current;
+  const confetti2Anim = useRef(new Animated.Value(0)).current;
+  const confetti3Anim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const trophyPulse = useRef(new Animated.Value(1)).current;
+  const sparkleAnim = useRef(new Animated.Value(0)).current;
+  const colorCycle = useRef(new Animated.Value(0)).current;
 
   const { goal: rawGoal, experienceGift: rawGift } = route.params as {
     goal: any;
@@ -94,36 +100,125 @@ const CompletionScreen = () => {
   }, [experienceGift.experienceId]);
 
   useEffect(() => {
-    // Success animations
+    // Pick random celebration message
+    const messages = [
+      'Incredible!',
+      'You crushed it!',
+      'Legend!',
+      'Unstoppable!',
+      'Champion!',
+      'Phenomenal!',
+      'Absolutely Amazing!'
+    ];
+    setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
+
+    // EPIC Success animations with multiple bursts
     Animated.parallel([
+      // Main scale in
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 50,
         friction: 7,
         useNativeDriver: true,
       }),
+      // Fade in
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(confettiAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
+      // First confetti burst
+      Animated.sequence([
+        Animated.timing(confettiAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Second burst (delayed)
+      Animated.sequence([
+        Animated.delay(400),
+        Animated.timing(confetti2Anim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Third burst (more delayed)
+      Animated.sequence([
+        Animated.delay(800),
+        Animated.timing(confetti3Anim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Sparkle effect
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(sparkleAnim, {
+              toValue: 1,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+            Animated.timing(sparkleAnim, {
+              toValue: 0,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+          ])
+        ),
+      ]),
+      // Color cycling
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(colorCycle, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(colorCycle, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+        ])
+      ),
     ]).start();
 
-    fetchExistingCoupon();
-  }, []);
+    // Trophy pulsing animation (separate loop)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(trophyPulse, {
+          toValue: 1.15,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(trophyPulse, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Only fetch/generate coupon after experience is loaded
+    if (experience) {
+      fetchExistingCoupon();
+    }
+  }, [experience]);
 
   const fetchExistingCoupon = async () => {
     try {
       setIsLoading(true);
       const existingCode = await goalService.getCouponCode(goal.id);
       if (existingCode) {
+        console.log('✅ Found existing coupon:', existingCode);
         setCouponCode(existingCode);
       } else {
+        console.log('📝 No existing coupon found, generating new one...');
         // Auto-generate coupon if it doesn't exist
         await generateCoupon();
       }
@@ -137,6 +232,14 @@ const CompletionScreen = () => {
 
   const generateCoupon = async () => {
     try {
+      // SECURITY: Check if coupon already exists to prevent duplicates
+      const existingCode = await goalService.getCouponCode(goal.id);
+      if (existingCode) {
+        console.log('⚠️ Coupon already exists for this goal, using existing:', existingCode);
+        setCouponCode(existingCode);
+        return;
+      }
+
       const partnerId = experienceGift?.partnerId || experience?.partnerId;
 
       if (!partnerId) {
@@ -155,6 +258,7 @@ const CompletionScreen = () => {
         userId,
         validUntil,
         partnerId,
+        goalId: goal.id, // SECURITY: Add goalId reference for authorization
       };
 
       const partnerCouponRef = doc(
@@ -162,11 +266,20 @@ const CompletionScreen = () => {
         newCouponCode
       );
 
+      // SECURITY: Check if code already exists (collision detection)
+      const existingDoc = await getDoc(partnerCouponRef);
+      if (existingDoc.exists()) {
+        console.error('⚠️ Coupon code collision detected, retrying...');
+        // Retry with new code
+        return await generateCoupon();
+      }
+
       await setDoc(partnerCouponRef, {
         ...coupon,
         createdAt: serverTimestamp(),
       });
 
+      // Save the coupon code reference to the goal
       await goalService.saveCouponCode(goal.id, newCouponCode);
 
       setCouponCode(newCouponCode);
@@ -178,8 +291,10 @@ const CompletionScreen = () => {
   };
 
   const generateUniqueCode = () => {
+    // SECURITY: Increased from 8 to 12 characters for better security
+    // 36^12 = 4.7 x 10^18 combinations (vs 36^8 = 2.8 x 10^12)
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length: 8 }, () =>
+    return Array.from({ length: 12 }, () =>
       chars[Math.floor(Math.random() * chars.length)]
     ).join('');
   };
@@ -203,25 +318,185 @@ const CompletionScreen = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section with Animation */}
+        {/* Hero Section with ENHANCED Animation */}
         <View style={styles.heroSection}>
+          {/* Confetti particles */}
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confettiAnim,
+                transform: [{
+                  translateY: confettiAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 300],
+                  }),
+                }],
+                left: '10%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 24 }}>🎊</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confettiAnim,
+                transform: [{
+                  translateY: confettiAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-30, 350],
+                  }),
+                }],
+                left: '25%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 20 }}>🎉</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confetti2Anim,
+                transform: [{
+                  translateY: confetti2Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-40, 320],
+                  }),
+                }],
+                right: '30%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>✨</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confetti2Anim,
+                transform: [{
+                  translateY: confetti2Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 380],
+                  }),
+                }],
+                right: '15%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 26 }}>🎈</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confetti3Anim,
+                transform: [{
+                  translateY: confetti3Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-60, 340],
+                  }),
+                }],
+                left: '50%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 24 }}>🌟</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confetti3Anim,
+                transform: [{
+                  translateY: confetti3Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-35, 360],
+                  }),
+                }],
+                right: '40%',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 20 }}>💫</Text>
+          </Animated.View>
+          {/* Sparkle effects */}
+          <Animated.View
+            style={[
+              styles.sparkle,
+              {
+                opacity: sparkleAnim,
+                top: 40,
+                left: 30,
+              },
+            ]}
+          >
+            <Sparkles color="#fbbf24" size={24} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.sparkle,
+              {
+                opacity: sparkleAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 0],
+                }),
+                top: 60,
+                right: 40,
+              },
+            ]}
+          >
+            <Sparkles color="#f59e0b" size={20} />
+          </Animated.View>
+
           <Animated.View
             style={[
               styles.trophyContainer,
               {
-                transform: [{ scale: scaleAnim }],
+                transform: [
+                  { scale: Animated.multiply(scaleAnim, trophyPulse) }
+                ],
                 opacity: fadeAnim,
               },
             ]}
           >
-            <Trophy color="#fbbf24" size={64} strokeWidth={2} />
+            <Trophy color="#fbbf24" size={80} strokeWidth={2.5} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Goal Completed!</Text>
+            <Animated.Text
+              style={[
+                styles.celebrationMessage,
+                {
+                  color: colorCycle.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: ['#fbbf24', '#f59e0b', '#fbbf24'],
+                  }),
+                }
+              ]}
+            >
+              {celebrationMessage}
+            </Animated.Text>
             <Text style={styles.heroSubtitle}>
               You did it! Your reward is now unlocked 🎉
             </Text>
+
+            {/* Completion Stats */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{totalSessions}</Text>
+                <Text style={styles.statLabel}>Sessions</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{goal.targetCount}</Text>
+                <Text style={styles.statLabel}>Weeks</Text>
+              </View>
+            </View>
           </Animated.View>
         </View>
 
@@ -315,20 +590,6 @@ const CompletionScreen = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Fixed Bottom Button */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={() => navigation.reset({
-            index: 0,
-            routes: [{ name: 'Goals' }],
-          })}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.doneButtonText}>Back to Goals</Text>
-        </TouchableOpacity>
-      </View>
     </MainScreen>
   );
 };
@@ -568,38 +829,49 @@ const styles = StyleSheet.create({
   generateButtonDisabled: {
     opacity: 0.6,
   },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  bottomBar: {
+  // NEW: Celebration enhancement styles
+  sparkle: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
   },
-  doneButton: {
-    backgroundColor: '#10b981',
-    paddingVertical: 16,
-    borderRadius: 12,
+  confetti: {
+    position: 'absolute',
+    top: 0,
+  },
+  celebrationMessage: {
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  statItem: {
+    flex: 1,
     alignItems: 'center',
   },
-  doneButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
+  statNumber: {
+    fontSize: 32,
+    fontWeight: '800',
     color: '#fff',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
 });
 

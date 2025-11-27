@@ -62,6 +62,7 @@ const ConfirmationScreen = () => {
   const [charCount, setCharCount] = useState((experienceGift.personalizedMessage || '').length);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(!!experienceGift.personalizedMessage);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const fetchExperience = async () => {
@@ -105,7 +106,8 @@ const ConfirmationScreen = () => {
 
   const handleCopyCode = async () => {
     await Clipboard.setStringAsync(experienceGift.claimCode);
-    Alert.alert('✓ Copied!', 'Claim code copied to clipboard.');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleShareCode = async () => {
@@ -277,8 +279,10 @@ const ConfirmationScreen = () => {
                 onPress={handleCopyCode}
                 activeOpacity={0.7}
               >
-                <Copy color="#8b5cf6" size={20} />
-                <Text style={styles.copyCodeText}>Copy Code</Text>
+                <Copy color={isCopied ? "#10b981" : "#8b5cf6"} size={20} />
+                <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
+                  {isCopied ? 'Copied!' : 'Copy Code'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -566,6 +570,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#8b5cf6',
+  },
+  copiedText: {
+    color: '#10b981',
   },
   shareCodeButton: {
     flex: 1,
