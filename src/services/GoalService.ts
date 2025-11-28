@@ -94,10 +94,15 @@ export function getAnchoredWeekDates(weekStartAt: Date) {
 export class GoalService {
   private goalsCollection = collection(db, 'goals');
 
-  // ===== Debug switch =====
-  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = true;
+  // ✅ SECURITY FIX: Only allow debug mode in development
+  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = __DEV__;
   setDebug(allowMultiplePerDay: boolean) {
-    this.DEBUG_ALLOW_MULTIPLE_PER_DAY = allowMultiplePerDay;
+    // Only allow in development
+    if (__DEV__) {
+      this.DEBUG_ALLOW_MULTIPLE_PER_DAY = allowMultiplePerDay;
+    } else {
+      console.warn('⚠️ Debug mode not available in production');
+    }
   }
 
   /** Create a new goal */
@@ -691,24 +696,40 @@ export class GoalService {
     return null;
   }
 
-  // ===== Debug Tools =====
+  // ✅ SECURITY: Debug Tools (Development Only)
+  // These methods are ONLY available in development builds
   async debugAdvanceWeek(goalId: string): Promise<void> {
-    // Instead of modifying the goal, we advance the global time offset
+    if (!__DEV__) {
+      console.warn('⚠️ Debug tools not available in production');
+      return;
+    }
     DateHelper.addOffset(7 * 24 * 60 * 60 * 1000);
     console.log('🕒 Advanced time by 1 week');
   }
 
   async debugAdvanceDay(goalId: string): Promise<void> {
+    if (!__DEV__) {
+      console.warn('⚠️ Debug tools not available in production');
+      return;
+    }
     DateHelper.addOffset(24 * 60 * 60 * 1000);
     console.log('🕒 Advanced time by 1 day');
   }
 
   async debugRewindWeek(goalId: string): Promise<void> {
+    if (!__DEV__) {
+      console.warn('⚠️ Debug tools not available in production');
+      return;
+    }
     DateHelper.addOffset(-7 * 24 * 60 * 60 * 1000);
     console.log('🕒 Rewound time by 1 week');
   }
 
   async debugRewindDay(goalId: string): Promise<void> {
+    if (!__DEV__) {
+      console.warn('⚠️ Debug tools not available in production');
+      return;
+    }
     DateHelper.addOffset(-24 * 60 * 60 * 1000);
     console.log('🕒 Rewound time by 1 day');
   }

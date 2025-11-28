@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
 import { auth } from '../services/firebase';
 import {
   createUserWithEmailAndPassword,
@@ -221,19 +221,23 @@ const AuthScreen = () => {
     scheme: 'ernit',
   });
 
-  // ✅ Use environment variable for Google Client ID
-  const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "806487127981-ob9oap6pvjhpm4leik8qjt8e994jeckt.apps.googleusercontent.com";
+  // ✅ SECURITY FIX: No fallback - fail if env var missing
+  const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   // Log OAuth config for debugging
   useEffect(() => {
-    console.log('🔐 Google OAuth Configuration:');
-    console.log('  Client ID:', GOOGLE_CLIENT_ID?.substring(0, 30) + '...');
-    console.log('  Redirect URI:', redirectUri);
-    console.log('  ⚠️  Add this URI to Google Console Authorized redirect URIs');
+    if (!GOOGLE_CLIENT_ID) {
+      console.error('🚨 CRITICAL: Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID environment variable');
+    } else {
+      console.log('🔐 Google OAuth Configuration:');
+      console.log('  Client ID:', GOOGLE_CLIENT_ID?.substring(0, 30) + '...');
+      console.log('  Redirect URI:', redirectUri);
+    }
   }, []);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_CLIENT_ID,
+    webClientId: GOOGLE_CLIENT_ID, // Required for web platform
     redirectUri,
   });
 
@@ -936,11 +940,14 @@ const AuthScreen = () => {
                       />
                       <TouchableOpacity
                         onPress={() => setShowPassword(!showPassword)}
-                        style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -10 }] }}
+                        style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>
-                          {showPassword ? 'Hide' : 'Show'}
-                        </Text>
+                        {showPassword ? (
+                          <EyeOff size={20} color="#9CA3AF" />
+                        ) : (
+                          <Eye size={20} color="#9CA3AF" />
+                        )}
                       </TouchableOpacity>
                     </View>
                     {passwordError && (
@@ -1031,11 +1038,14 @@ const AuthScreen = () => {
                         />
                         <TouchableOpacity
                           onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                          style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -10 }] }}
+                          style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
+                          activeOpacity={0.7}
                         >
-                          <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>
-                            {showConfirmPassword ? 'Hide' : 'Show'}
-                          </Text>
+                          {showConfirmPassword ? (
+                            <EyeOff size={20} color="#9CA3AF" />
+                          ) : (
+                            <Eye size={20} color="#9CA3AF" />
+                          )}
                         </TouchableOpacity>
                       </View>
                       {confirmPassword && password !== confirmPassword && (

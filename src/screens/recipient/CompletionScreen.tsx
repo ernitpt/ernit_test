@@ -24,7 +24,7 @@ import {
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
-import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { goalService } from '../../services/GoalService';
 import { experienceService } from '../../services/ExperienceService';
@@ -210,18 +210,11 @@ const CompletionScreen = () => {
     }
   }, [experience]);
 
+  // ✅ SECURITY FIX: Use Firestore transaction to prevent race conditions
   const fetchExistingCoupon = async () => {
     try {
       setIsLoading(true);
-      const existingCode = await goalService.getCouponCode(goal.id);
-      if (existingCode) {
-        console.log('✅ Found existing coupon:', existingCode);
-        setCouponCode(existingCode);
-      } else {
-        console.log('📝 No existing coupon found, generating new one...');
-        // Auto-generate coupon if it doesn't exist
-        await generateCoupon();
-      }
+      await generateCouponWithTransaction();
     } catch (error) {
       console.error('Error fetching/generating coupon:', error);
       Alert.alert('Error', 'Could not load or generate your coupon. Please try again.');
@@ -230,62 +223,87 @@ const CompletionScreen = () => {
     }
   };
 
-  const generateCoupon = async () => {
+  /**
+   * ✅ SECURITY: Atomic coupon generation using Firestore transaction
+   * Prevents race conditions and duplicate coupons
+   */
+  const generateCouponWithTransaction = async () => {
+    const partnerId = experienceGift?.partnerId || experience?.partnerId;
+
+    if (!partnerId) {
+      console.error('Missing partner ID for coupon generation');
+      throw new Error('Missing partner ID');
+    }
+
+    const goalRef = doc(db, 'goals', goal.id);
+
     try {
-      // SECURITY: Check if coupon already exists to prevent duplicates
-      const existingCode = await goalService.getCouponCode(goal.id);
-      if (existingCode) {
-        console.log('⚠️ Coupon already exists for this goal, using existing:', existingCode);
-        setCouponCode(existingCode);
-        return;
-      }
+      await runTransaction(db, async (transaction) => {
+        // Read goal document within transaction
+        const goalDoc = await transaction.get(goalRef);
 
-      const partnerId = experienceGift?.partnerId || experience?.partnerId;
+        if (!goalDoc.exists()) {
+          throw new Error('Goal not found');
+        }
 
-      if (!partnerId) {
-        console.error('Missing partner ID for coupon generation');
-        return;
-      }
+        const goalData = goalDoc.data();
 
-      const newCouponCode = generateUniqueCode();
-      const userId = goal.userId;
-      const validUntil = new Date();
-      validUntil.setFullYear(validUntil.getFullYear() + 1);
+        // ✅ Check if coupon already exists (atomic check)
+        if (goalData.couponCode) {
+          console.log('✅ Found existing coupon:', goalData.couponCode);
+          setCouponCode(goalData.couponCode);
+          return; // Exit transaction early
+        }
 
-      const coupon: PartnerCoupon = {
-        code: newCouponCode,
-        status: 'active',
-        userId,
-        validUntil,
-        partnerId,
-        goalId: goal.id, // SECURITY: Add goalId reference for authorization
-      };
+        // Generate new coupon code
+        const newCouponCode = generateUniqueCode();
+        const userId = goal.userId;
+        const validUntil = new Date();
+        validUntil.setFullYear(validUntil.getFullYear() + 1);
 
-      const partnerCouponRef = doc(
-        collection(db, `partnerUsers/${partnerId}/coupons`),
-        newCouponCode
-      );
+        const coupon: PartnerCoupon = {
+          code: newCouponCode,
+          status: 'active',
+          userId,
+          validUntil,
+          partnerId,
+          goalId: goal.id,
+        };
 
-      // SECURITY: Check if code already exists (collision detection)
-      const existingDoc = await getDoc(partnerCouponRef);
-      if (existingDoc.exists()) {
-        console.error('⚠️ Coupon code collision detected, retrying...');
-        // Retry with new code
-        return await generateCoupon();
-      }
+        const partnerCouponRef = doc(
+          collection(db, `partnerUsers/${partnerId}/coupons`),
+          newCouponCode
+        );
 
-      await setDoc(partnerCouponRef, {
-        ...coupon,
-        createdAt: serverTimestamp(),
+        // Check for code collision (extremely rare with 12 chars)
+        const existingCouponDoc = await transaction.get(partnerCouponRef);
+        if (existingCouponDoc.exists()) {
+          console.error('⚠️ Coupon code collision detected');
+          throw new Error('CODE_COLLISION'); // Will trigger retry
+        }
+
+        // ✅ Atomically create both documents
+        transaction.set(partnerCouponRef, {
+          ...coupon,
+          createdAt: serverTimestamp(),
+        });
+
+        transaction.update(goalRef, {
+          couponCode: newCouponCode,
+          couponGeneratedAt: serverTimestamp(),
+        });
+
+        // Update local state
+        setCouponCode(newCouponCode);
+        console.log('✅ Coupon atomically generated:', newCouponCode);
       });
+    } catch (error: any) {
+      // Retry on code collision
+      if (error.message === 'CODE_COLLISION') {
+        console.log('🔄 Retrying coupon generation due to collision...');
+        return await generateCouponWithTransaction();
+      }
 
-      // Save the coupon code reference to the goal
-      await goalService.saveCouponCode(goal.id, newCouponCode);
-
-      setCouponCode(newCouponCode);
-      console.log('✅ Coupon auto-generated:', newCouponCode);
-    } catch (error) {
-      console.error('Error generating coupon:', error);
       throw error;
     }
   };

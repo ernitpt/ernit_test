@@ -28,8 +28,8 @@ import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { userService } from '../../services/userService';
 import MainScreen from '../MainScreen';
-import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db, auth } from '../../services/firebase';
+import { collection, query, where, getDocs, updateDoc, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { ActivityIndicator } from 'react-native';
 import { experienceService } from '../../services/ExperienceService';
 import SharedHeader from '../../components/SharedHeader';
@@ -68,19 +68,49 @@ const GoalSettingScreen = () => {
 
   const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
 
+  // ✅ SECURITY FIX: Atomically claim gift when creating goal
   const updateGiftStatus = async (experienceGiftId: string) => {
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Find the gift document
       const qGift = query(collection(db, 'experienceGifts'), where('id', '==', experienceGiftId));
       const snap = await getDocs(qGift);
-      if (snap.empty) return;
-      const giftDoc = snap.docs[0];
-      await updateDoc(doc(db, 'experienceGifts', giftDoc.id), {
-        status: 'claimed',
-        recipientId: state.user?.id,
-        claimedAt: new Date(),
+
+      if (snap.empty) {
+        throw new Error('Gift not found');
+      }
+
+      const giftDocRef = doc(db, 'experienceGifts', snap.docs[0].id);
+
+      // ✅ Use transaction to atomically claim
+      await runTransaction(db, async (transaction) => {
+        const freshGift = await transaction.get(giftDocRef);
+
+        if (!freshGift.exists()) {
+          throw new Error('Gift not found');
+        }
+
+        const giftData = freshGift.data();
+
+        //✅ CRITICAL: Verify gift is still pending
+        if (giftData.status !== 'pending') {
+          throw new Error('Gift already claimed');
+        }
+
+        // ✅ Atomically claim the gift
+        transaction.update(giftDocRef, {
+          status: 'claimed',
+          recipientId: currentUser.uid,
+          claimedAt: serverTimestamp(),
+        });
       });
     } catch (e) {
       console.error('updateGiftStatus error', e);
+      throw e; // Re-throw so goal creation can handle it
     }
   };
   const [experience, setExperience] = useState<any>(null);
@@ -163,6 +193,26 @@ const GoalSettingScreen = () => {
       const approvalDeadline = new Date(now);
       approvalDeadline.setHours(approvalDeadline.getHours() + 24);
 
+      // ✅ CRITICAL: Claim the gift FIRST before creating goal
+      // This prevents orphaned goals if claiming fails
+      try {
+        await updateGiftStatus(experienceGift.id);
+      } catch (claimError: any) {
+        // Handle specific claim errors
+        if (claimError.message === 'Gift already claimed') {
+          Alert.alert(
+            'Code Already Used',
+            'This code has already been claimed by someone else. Please check with the person who sent it to you.'
+          );
+        } else if (claimError.message === 'User not authenticated') {
+          Alert.alert('Error', 'Please sign in to continue.');
+        } else {
+          Alert.alert('Error', 'Failed to claim this gift. Please try again.');
+        }
+        return; // Stop here - don't create goal
+      }
+
+      // If we got here, gift claim succeeded - now create the goal
       const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
         userId: state.user?.id || 'recipient',
         experienceGiftId: experienceGift.id,
@@ -217,7 +267,6 @@ const GoalSettingScreen = () => {
         false // Not clearable
       );
 
-      await updateGiftStatus(experienceGift.id);
       dispatch({ type: 'SET_GOAL', payload: goal });
 
       // ✅ Keep modal open until navigation

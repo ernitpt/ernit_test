@@ -93,16 +93,16 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == partnerId;
 
         // ✅ Users can create (generate) coupons for a partner
-        // SECURITY: Enforce that user has completed a goal and prevent duplicate coupons
+        // ✅ SECURITY FIX: Corrected validation to use isCompleted field
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid  // coupon belongs to this user
           && request.resource.data.partnerId == partnerId      // coupon linked to this partner
           && request.resource.data.keys().hasAll(['userId', 'partnerId', 'code', 'status', 'createdAt'])
-          // SECURITY: Verify goal exists and goal is completed
+          // ✅ SECURITY: Verify goal exists and is completed
           && ('goalId' in request.resource.data ? (
             exists(/databases/$(database)/documents/goals/$(request.resource.data.goalId))
             && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.userId == request.auth.uid
-            && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.status == 'completed'
+            && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.isCompleted == true  // ✅ Fixed: use isCompleted instead of status
           ) : true); // Allow creation without goalId for backward compatibility
 
         // ✅ User can read their own coupon

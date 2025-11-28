@@ -68,17 +68,26 @@ export const stripeService = {
   },
 
   /**
-   * Update payment intent metadata (for personalized message)
+   * ✅ SECURITY FIX: Update payment intent metadata with authentication
    */
   updatePaymentIntentMetadata: async (
     paymentIntentId: string,
     personalizedMessage: string
   ): Promise<void> => {
     try {
+      // ✅ SECURITY: Get authentication token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("User not authenticated");
+      }
+
+      const idToken = await currentUser.getIdToken();
+
       const response = await fetch(`${STRIPE_FUNCTIONS_URL}/updatePaymentIntentMetadata_Test`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`, // ✅ Add auth token
         },
         body: JSON.stringify({
           paymentIntentId,
@@ -87,11 +96,16 @@ export const stripeService = {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update payment intent");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || "Failed to update payment intent");
       }
     } catch (error: any) {
       console.error("Error updating payment intent:", error);
       // Don't throw - this is not critical for payment flow
+      // But log the error for monitoring
+      if (error.message === "User not authenticated") {
+        console.warn("⚠️ User not authenticated when trying to update payment metadata");
+      }
     }
   },
 
