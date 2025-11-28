@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket } from 'lucide-react-native';
+import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail } from 'lucide-react-native';
 import {
   RecipientStackParamList,
   Goal,
@@ -28,6 +29,8 @@ import { collection, doc, setDoc, serverTimestamp, getDoc, runTransaction } from
 import { db } from '../../services/firebase';
 import { goalService } from '../../services/GoalService';
 import { experienceService } from '../../services/ExperienceService';
+import { partnerService } from '../../services/PartnerService';
+import { userService } from '../../services/userService';
 
 type CompletionNavigationProp = NativeStackNavigationProp<
   RecipientStackParamList,
@@ -41,13 +44,12 @@ const CompletionScreen = () => {
 
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [isPhoneCopied, setIsPhoneCopied] = useState(false);
+  const [isEmailCopied, setIsEmailCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [celebrationMessage, setCelebrationMessage] = useState('Amazing!');
 
   // Enhanced animation refs
-  const confettiAnim = useRef(new Animated.Value(0)).current;
-  const confetti2Anim = useRef(new Animated.Value(0)).current;
-  const confetti3Anim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const trophyPulse = useRef(new Animated.Value(1)).current;
@@ -85,19 +87,39 @@ const CompletionScreen = () => {
 
 
   const [experience, setExperience] = useState<any>(null);
+  const [partner, setPartner] = useState<any>(null);
+  const [userName, setUserName] = useState<string>('User');
 
   useEffect(() => {
     const fetchExperience = async () => {
       try {
+        console.log('🔍 Fetching experience with ID:', experienceGift.experienceId);
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
+        console.log('✅ Experience loaded:', exp);
         setExperience(exp);
+
+        // Fetch partner contact info
+        if (exp?.partnerId) {
+          console.log('🔍 Fetching partner with ID:', exp.partnerId);
+          const partnerData = await partnerService.getPartnerById(exp.partnerId);
+          console.log('✅ Partner loaded:', partnerData);
+          setPartner(partnerData);
+        } else {
+          console.warn('⚠️ No partnerId found in experience');
+        }
+
+        // Fetch user name
+        if (goal.userId) {
+          const name = await userService.getUserName(goal.userId);
+          setUserName(name || 'User');
+        }
       } catch (error) {
-        console.error("Error fetching experience:", error);
+        console.error("❌ Error fetching data:", error);
         Alert.alert("Error", "Could not load experience details.");
       }
     };
     fetchExperience();
-  }, [experienceGift.experienceId]);
+  }, [experienceGift.experienceId, goal.userId]);
 
   useEffect(() => {
     // Pick random celebration message
@@ -112,94 +134,66 @@ const CompletionScreen = () => {
     ];
     setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
 
-    // EPIC Success animations with multiple bursts
+    // 🎉 BEAUTIFUL CELEBRATION SEQUENCE
     Animated.parallel([
-      // Main scale in
+      // Trophy entrance with bounce
       Animated.spring(scaleAnim, {
         toValue: 1,
-        tension: 50,
-        friction: 7,
+        tension: 40,
+        friction: 6,
         useNativeDriver: true,
       }),
-      // Fade in
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 600,
         useNativeDriver: true,
       }),
-      // First confetti burst
+    ]).start();
+
+    // 🌟 Trophy pulsing with glow
+    Animated.loop(
       Animated.sequence([
-        Animated.timing(confettiAnim, {
+        Animated.timing(trophyPulse, {
+          toValue: 1.12,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(trophyPulse, {
           toValue: 1,
           duration: 1200,
           useNativeDriver: true,
         }),
-      ]),
-      // Second burst (delayed)
-      Animated.sequence([
-        Animated.delay(400),
-        Animated.timing(confetti2Anim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Third burst (more delayed)
-      Animated.sequence([
-        Animated.delay(800),
-        Animated.timing(confetti3Anim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Sparkle effect
-      Animated.sequence([
-        Animated.delay(300),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(sparkleAnim, {
-              toValue: 1,
-              duration: 600,
-              useNativeDriver: true,
-            }),
-            Animated.timing(sparkleAnim, {
-              toValue: 0,
-              duration: 600,
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-      ]),
-      // Color cycling
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(colorCycle, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-          Animated.timing(colorCycle, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-        ])
-      ),
-    ]).start();
+      ])
+    ).start();
 
-    // Trophy pulsing animation (separate loop)
+    // ✨ Sparkles twinkle
     Animated.loop(
       Animated.sequence([
-        Animated.timing(trophyPulse, {
-          toValue: 1.15,
-          duration: 1000,
+        Animated.timing(sparkleAnim, {
+          toValue: 1,
+          duration: 800,
           useNativeDriver: true,
         }),
-        Animated.timing(trophyPulse, {
-          toValue: 1,
-          duration: 1000,
+        Animated.timing(sparkleAnim, {
+          toValue: 0.3,
+          duration: 800,
           useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // 🎨 Subtle color cycle
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(colorCycle, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(colorCycle, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: false,
         }),
       ])
     ).start();
@@ -228,13 +222,20 @@ const CompletionScreen = () => {
    * Prevents race conditions and duplicate coupons
    */
   const generateCouponWithTransaction = async () => {
-    const partnerId = experienceGift?.partnerId || experience?.partnerId;
+    console.log('🎫 Starting coupon generation...');
+    console.log('experienceGift.partnerId:', experienceGift?.partnerId);
+    console.log('experience.partnerId:', experience?.partnerId);
+
+    const partnerId = experience?.partnerId || experienceGift?.partnerId;
 
     if (!partnerId) {
-      console.error('Missing partner ID for coupon generation');
+      console.error('❌ Missing partner ID for coupon generation');
+      console.error('experienceGift:', experienceGift);
+      console.error('experience:', experience);
       throw new Error('Missing partner ID');
     }
 
+    console.log('✅ Using partnerId:', partnerId);
     const goalRef = doc(db, 'goals', goal.id);
 
     try {
@@ -324,6 +325,78 @@ const CompletionScreen = () => {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleScheduleExperience = () => {
+    if (!partner || !experience) return;
+    const contactEmail = partner.contactEmail || partner.email;
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
+
+    const preferredMethod = partner.preferredContact || 'email';
+
+    if (preferredMethod === 'whatsapp' && partner.phone) {
+      handleWhatsAppSchedule();
+    } else if (contactEmail) {
+      handleEmailSchedule();
+    } else {
+      Alert.alert('No Contact Info', 'Partner contact information is not available.');
+    }
+  };
+
+  const handleWhatsAppSchedule = () => {
+    if (!partner?.phone || !experience) return;
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
+
+    const phoneNumber = partner.phone.replace(/[^0-9]/g, '');
+    const whatsappUrl = Platform.select({
+      ios: `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`,
+      android: `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`,
+      default: `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
+    });
+
+    Linking.canOpenURL(whatsappUrl!).then((supported) => {
+      if (supported) {
+        Linking.openURL(whatsappUrl!);
+      } else {
+        Alert.alert('WhatsApp Not Available', 'WhatsApp is not installed. Please use email to contact the partner.');
+      }
+    });
+  };
+
+  const handleEmailSchedule = () => {
+    if (!partner || !experience) return;
+    const contactEmail = partner.contactEmail || partner.email;
+    if (!contactEmail) {
+      Alert.alert('No Email', 'Partner email is not available.');
+      return;
+    }
+
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
+    handleEmailFallback(message, contactEmail);
+  };
+
+  const handleEmailFallback = (message: string, email?: string) => {
+    const contactEmail = email || partner?.contactEmail || partner?.email;
+    if (!contactEmail) return;
+
+    const subject = `Experience Booking - ${experience?.title || 'Your Experience'}`;
+    const emailUrl = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+    Linking.openURL(emailUrl);
+  };
+
+  const handleCopyPhone = async () => {
+    if (!partner?.phone) return;
+    await Clipboard.setStringAsync(partner.phone);
+    setIsPhoneCopied(true);
+    setTimeout(() => setIsPhoneCopied(false), 2000);
+  };
+
+  const handleCopyEmail = async () => {
+    const contactEmail = partner?.contactEmail || partner?.email;
+    if (!contactEmail) return;
+    await Clipboard.setStringAsync(contactEmail);
+    setIsEmailCopied(true);
+    setTimeout(() => setIsEmailCopied(false), 2000);
+  };
+
   const experienceImage = experience
     ? Array.isArray(experience.imageUrl)
       ? experience.imageUrl[0]
@@ -336,112 +409,9 @@ const CompletionScreen = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section with ENHANCED Animation */}
+        {/* Hero Section - Clean Celebration */}
         <View style={styles.heroSection}>
-          {/* Confetti particles */}
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confettiAnim,
-                transform: [{
-                  translateY: confettiAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-50, 300],
-                  }),
-                }],
-                left: '10%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 24 }}>🎊</Text>
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confettiAnim,
-                transform: [{
-                  translateY: confettiAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-30, 350],
-                  }),
-                }],
-                left: '25%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 20 }}>🎉</Text>
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confetti2Anim,
-                transform: [{
-                  translateY: confetti2Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-40, 320],
-                  }),
-                }],
-                right: '30%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 22 }}>✨</Text>
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confetti2Anim,
-                transform: [{
-                  translateY: confetti2Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-20, 380],
-                  }),
-                }],
-                right: '15%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 26 }}>🎈</Text>
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confetti3Anim,
-                transform: [{
-                  translateY: confetti3Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-60, 340],
-                  }),
-                }],
-                left: '50%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 24 }}>🌟</Text>
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.confetti,
-              {
-                opacity: confetti3Anim,
-                transform: [{
-                  translateY: confetti3Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-35, 360],
-                  }),
-                }],
-                right: '40%',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 20 }}>💫</Text>
-          </Animated.View>
-          {/* Sparkle effects */}
+          {/* ✨ Sparkle effects */}
           <Animated.View
             style={[
               styles.sparkle,
@@ -602,13 +572,97 @@ const CompletionScreen = () => {
                   ✓ Valid for a year from generation
                 </Text>
               </View>
+
+              {/* Partner Contact Info & Schedule Buttons */}
+              {partner && (partner.phone || partner.contactEmail || partner.email) && (
+                <View style={{ marginTop: 20 }}>
+                  {/* Contact Info Display */}
+                  <View style={styles.contactInfoSection}>
+                    <Text style={styles.contactInfoTitle}>Partner Contact</Text>
+
+                    {partner.phone && (
+                      <View style={styles.contactInfoRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.contactInfoLabel}>Phone (WhatsApp)</Text>
+                          <Text style={styles.contactInfoValue}>{partner.phone}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={handleCopyPhone}
+                          style={styles.smallCopyButton}
+                          activeOpacity={0.7}
+                        >
+                          {isPhoneCopied ? (
+                            <CheckCircle size={18} color="#10b981" />
+                          ) : (
+                            <Copy size={18} color="#6B7280" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {(partner.contactEmail || partner.email) && (
+                      <View style={styles.contactInfoRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.contactInfoLabel}>Email</Text>
+                          <Text style={[styles.contactInfoValue, { fontSize: 13 }]}>
+                            {partner.contactEmail || partner.email}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={handleCopyEmail}
+                          style={styles.smallCopyButton}
+                          activeOpacity={0.7}
+                        >
+                          {isEmailCopied ? (
+                            <CheckCircle size={18} color="#10b981" />
+                          ) : (
+                            <Copy size={18} color="#6B7280" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Schedule Buttons */}
+                  <View style={styles.scheduleButtonsContainer}>
+                    {partner.phone && (
+                      <TouchableOpacity
+                        style={[
+                          styles.scheduleButton,
+                          styles.whatsappButton,
+                          (partner.contactEmail || partner.email) && styles.scheduleButtonHalf
+                        ]}
+                        onPress={handleWhatsAppSchedule}
+                        activeOpacity={0.8}
+                      >
+                        <MessageCircle color="#FFFFFF" size={24} />
+                        <Text style={styles.scheduleButtonText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {(partner.contactEmail || partner.email) && (
+                      <TouchableOpacity
+                        style={[
+                          styles.scheduleButton,
+                          partner.phone && styles.scheduleButtonHalf,
+                        ]}
+                        onPress={handleEmailSchedule}
+                        activeOpacity={0.8}
+                      >
+                        <Mail color="#FFFFFF" size={24} />
+                        <Text style={styles.scheduleButtonText}>Email</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
             </View>
           ) : null}
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </MainScreen>
+    </MainScreen >
   );
 };
 
@@ -618,20 +672,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   heroSection: {
-    backgroundColor: '#10b981',
+    // background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', // React Native does not support CSS gradients directly
+    backgroundColor: '#10b981', // Fallback
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 40,
+    paddingBottom: 50,
     paddingHorizontal: 24,
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   trophyContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+    marginVertical: 20,
+    padding: 20,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#fbbf24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
   },
   heroTitle: {
     fontSize: 32,
@@ -799,7 +863,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   couponCode: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
     color: '#8b5cf6',
     textAlign: 'center',
@@ -835,17 +899,79 @@ const styles = StyleSheet.create({
     color: '#166534',
     fontWeight: '600',
   },
-  generateButton: {
-    backgroundColor: '#8b5cf6',
+  scheduleButton: {
+    marginTop: 16,
+    backgroundColor: '#7C3AED',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 16,
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     borderRadius: 12,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  generateButtonDisabled: {
-    opacity: 0.6,
+  whatsappButton: {
+    backgroundColor: '#25D366', // Official WhatsApp green
+    shadowColor: '#25D366',
+  },
+  scheduleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  contactInfoSection: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  contactInfoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  contactInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  contactInfoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  contactInfoValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  smallCopyButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  scheduleButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  scheduleButtonHalf: {
+    flex: 1,
   },
   // NEW: Celebration enhancement styles
   sparkle: {
@@ -856,11 +982,15 @@ const styles = StyleSheet.create({
     top: 0,
   },
   celebrationMessage: {
-    fontSize: 32,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: '700',
     marginTop: 8,
-    marginBottom: 4,
+    textAlign: 'center',
+    color: '#fef3c7',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -105,9 +105,9 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.isCompleted == true  // ✅ Fixed: use isCompleted instead of status
           ) : true); // Allow creation without goalId for backward compatibility
 
-        // ✅ User can read their own coupon
-        allow read: if request.auth != null
-          && request.auth.uid == resource.data.userId;
+        // ✅ User can read their own coupon OR any coupon for collision detection
+        // We allow reading any coupon so the transaction can check if a code already exists
+        allow read: if request.auth != null;
 
         // 🚫 Prevent deletes
         allow delete: if false;

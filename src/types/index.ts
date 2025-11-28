@@ -299,6 +299,25 @@ export interface Hint {
   createdAt: Date;
 }
 
+// Partner User
+export interface PartnerUser {
+  id: string;
+  userType: 'partner';
+  isAdmin: boolean;
+  name: string;
+  createdFromInvite: string;
+  email?: string; // System/auth email
+  contactEmail?: string; // Customer contact email
+  phone?: string;
+  mapsUrl?: string;
+  emailVerified?: boolean;
+  status?: string;
+  preferredContact?: 'whatsapp' | 'email' | 'both';
+  createdAt?: Date;
+  onboardedAt?: Date;
+  updatedAt?: Date;
+}
+
 // Partner Coupon
 export interface PartnerCoupon {
   code: string;

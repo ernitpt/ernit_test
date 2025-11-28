@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, UserPlus, UserMinus, Clock } from 'lucide-react-native';
+import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare } from 'lucide-react-native';
 import { RootStackParamList, UserProfile, Goal, Experience } from '../types';
 import { userService } from '../services/userService';
 import { friendService } from '../services/FriendService';
@@ -23,6 +23,7 @@ import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
 import { partnerService } from '../services/PartnerService';
+import { HintHistoryModal } from '../components/HintHistoryModal';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -133,6 +134,8 @@ const FriendProfileScreen: React.FC = () => {
   // ------------------------------------------------------------------
   const GoalCard = ({ goal }: { goal: Goal }) => {
     const [giverName, setGiverName] = useState<string | null>(null);
+    const [showHintHistory, setShowHintHistory] = useState(false);
+    const isGiver = currentUserId === goal.empoweredBy;
 
     useEffect(() => {
       if (goal.empoweredBy) {
@@ -203,6 +206,38 @@ const FriendProfileScreen: React.FC = () => {
             ))}
           </View>
         </View>
+
+        {/* View Hints Button (only for giver) */}
+        {isGiver && (
+          <TouchableOpacity
+            onPress={() => setShowHintHistory(true)}
+            style={{
+              marginTop: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              backgroundColor: '#F3F4F6',
+              borderRadius: 10,
+            }}
+            activeOpacity={0.7}
+          >
+            <MessageSquare size={18} color="#7C3AED" />
+            <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: '#7C3AED' }}>
+              View Hints ({goal.hints?.length || 0})
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Hint History Modal */}
+        {showHintHistory && (
+          <HintHistoryModal
+            visible={showHintHistory}
+            goal={goal}
+            onClose={() => setShowHintHistory(false)}
+          />
+        )}
       </View>
     );
   };
