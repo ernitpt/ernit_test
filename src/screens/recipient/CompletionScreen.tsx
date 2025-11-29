@@ -11,12 +11,14 @@ import {
   Animated,
   Platform,
   Linking,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail } from 'lucide-react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import {
   RecipientStackParamList,
   Goal,
@@ -49,12 +51,14 @@ const CompletionScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [celebrationMessage, setCelebrationMessage] = useState('Amazing!');
 
-  // Enhanced animation refs
+  // Animation refs for trophy celebration
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const trophyPulse = useRef(new Animated.Value(1)).current;
-  const sparkleAnim = useRef(new Animated.Value(0)).current;
   const colorCycle = useRef(new Animated.Value(0)).current;
+
+  // Confetti cannon ref
+  const confettiRef = useRef<any>(null);
 
   const { goal: rawGoal, experienceGift: rawGift } = route.params as {
     goal: any;
@@ -134,70 +138,55 @@ const CompletionScreen = () => {
     ];
     setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
 
-    // 🎉 BEAUTIFUL CELEBRATION SEQUENCE
-    Animated.parallel([
-      // Trophy entrance with bounce
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 40,
-        friction: 6,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Trophy scale up
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 40,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
 
-    // 🌟 Trophy pulsing with glow
+    // Fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
+    // Trophy pulse
     Animated.loop(
       Animated.sequence([
         Animated.timing(trophyPulse, {
-          toValue: 1.12,
-          duration: 1200,
+          toValue: 1.1,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.timing(trophyPulse, {
           toValue: 1,
-          duration: 1200,
+          duration: 1000,
           useNativeDriver: true,
         }),
       ])
     ).start();
 
-    // ✨ Sparkles twinkle
+    // Color cycle for celebration text
     Animated.loop(
-      Animated.sequence([
-        Animated.timing(sparkleAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sparkleAnim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
+      Animated.timing(colorCycle, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: false,
+      })
     ).start();
 
-    // 🎨 Subtle color cycle
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(colorCycle, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(colorCycle, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
+    // Trigger confetti after short delay
+    const timer = setTimeout(() => {
+      confettiRef.current?.start();
+    }, 300);
 
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     // Only fetch/generate coupon after experience is loaded
     if (experience) {
       fetchExistingCoupon();
@@ -325,24 +314,9 @@ const CompletionScreen = () => {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleScheduleExperience = () => {
-    if (!partner || !experience) return;
-    const contactEmail = partner.contactEmail || partner.email;
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
-
-    const preferredMethod = partner.preferredContact || 'email';
-
-    if (preferredMethod === 'whatsapp' && partner.phone) {
-      handleWhatsAppSchedule();
-    } else if (contactEmail) {
-      handleEmailSchedule();
-    } else {
-      Alert.alert('No Contact Info', 'Partner contact information is not available.');
-    }
-  };
-
   const handleWhatsAppSchedule = () => {
-    if (!partner?.phone || !experience) return;
+    if (!partner || !experience) return;
+
     const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
 
     const phoneNumber = partner.phone.replace(/[^0-9]/g, '');
@@ -363,7 +337,7 @@ const CompletionScreen = () => {
 
   const handleEmailSchedule = () => {
     if (!partner || !experience) return;
-    const contactEmail = partner.contactEmail || partner.email;
+    const contactEmail = partner.contactEmail;
     if (!contactEmail) {
       Alert.alert('No Email', 'Partner email is not available.');
       return;
@@ -409,37 +383,21 @@ const CompletionScreen = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section - Clean Celebration */}
+        {/* Hero Section - Celebration */}
         <View style={styles.heroSection}>
-          {/* ✨ Sparkle effects */}
-          <Animated.View
-            style={[
-              styles.sparkle,
-              {
-                opacity: sparkleAnim,
-                top: 40,
-                left: 30,
-              },
-            ]}
-          >
-            <Sparkles color="#fbbf24" size={24} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.sparkle,
-              {
-                opacity: sparkleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0],
-                }),
-                top: 60,
-                right: 40,
-              },
-            ]}
-          >
-            <Sparkles color="#f59e0b" size={20} />
-          </Animated.View>
+          {/* Confetti Cannon */}
+          <ConfettiCannon
+            ref={confettiRef}
+            count={100}
+            origin={{ x: Dimensions.get('window').width / 2, y: Dimensions.get('window').height }}
+            autoStart={false}
+            fadeOut={true}
+            explosionSpeed={500}
+            fallSpeed={2500}
+            colors={['#fbbf24', '#ffffff', '#8b5cf6', '#10b981']}
+          />
 
+          {/* Trophy Container */}
           <Animated.View
             style={[
               styles.trophyContainer,
@@ -573,84 +531,70 @@ const CompletionScreen = () => {
                 </Text>
               </View>
 
-              {/* Partner Contact Info & Schedule Buttons */}
-              {partner && (partner.phone || partner.contactEmail || partner.email) && (
-                <View style={{ marginTop: 20 }}>
-                  {/* Contact Info Display */}
-                  <View style={styles.contactInfoSection}>
-                    <Text style={styles.contactInfoTitle}>Partner Contact</Text>
+              {/* Partner Contact Information */}
+              {partner && (partner.phone || partner.contactEmail) && (
+                <View style={styles.contactInfoSection}>
+                  <Text style={styles.sectionSubtitle}>Partner Contact</Text>
 
-                    {partner.phone && (
-                      <View style={styles.contactInfoRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.contactInfoLabel}>Phone (WhatsApp)</Text>
-                          <Text style={styles.contactInfoValue}>{partner.phone}</Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={handleCopyPhone}
-                          style={styles.smallCopyButton}
-                          activeOpacity={0.7}
-                        >
-                          {isPhoneCopied ? (
-                            <CheckCircle size={18} color="#10b981" />
-                          ) : (
-                            <Copy size={18} color="#6B7280" />
-                          )}
-                        </TouchableOpacity>
+                  {partner.phone && (
+                    <View style={styles.contactInfoRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.contactLabel}>Phone</Text>
+                        <Text style={styles.contactValue}>{partner.phone}</Text>
                       </View>
-                    )}
+                      <TouchableOpacity
+                        onPress={handleCopyPhone}
+                        style={styles.smallCopyButton}
+                      >
+                        {isPhoneCopied ? (
+                          <CheckCircle color="#10b981" size={18} />
+                        ) : (
+                          <Copy color="#6b7280" size={18} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
-                    {(partner.contactEmail || partner.email) && (
-                      <View style={styles.contactInfoRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.contactInfoLabel}>Email</Text>
-                          <Text style={[styles.contactInfoValue, { fontSize: 13 }]}>
-                            {partner.contactEmail || partner.email}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={handleCopyEmail}
-                          style={styles.smallCopyButton}
-                          activeOpacity={0.7}
-                        >
-                          {isEmailCopied ? (
-                            <CheckCircle size={18} color="#10b981" />
-                          ) : (
-                            <Copy size={18} color="#6B7280" />
-                          )}
-                        </TouchableOpacity>
+                  {(partner.contactEmail || partner.email) && (
+                    <View style={styles.contactInfoRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.contactLabel}>Email</Text>
+                        <Text style={styles.contactValue}>{partner.contactEmail}</Text>
                       </View>
-                    )}
-                  </View>
+                      <TouchableOpacity
+                        onPress={handleCopyEmail}
+                        style={styles.smallCopyButton}
+                      >
+                        {isEmailCopied ? (
+                          <CheckCircle color="#10b981" size={18} />
+                        ) : (
+                          <Copy color="#6b7280" size={18} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   {/* Schedule Buttons */}
                   <View style={styles.scheduleButtonsContainer}>
                     {partner.phone && (
                       <TouchableOpacity
-                        style={[
-                          styles.scheduleButton,
-                          styles.whatsappButton,
-                          (partner.contactEmail || partner.email) && styles.scheduleButtonHalf
-                        ]}
+                        style={[styles.scheduleButton, partner.contactEmail ? styles.halfWidthButton : null]}
                         onPress={handleWhatsAppSchedule}
                         activeOpacity={0.8}
                       >
-                        <MessageCircle color="#FFFFFF" size={24} />
-                        <Text style={styles.scheduleButtonText}>WhatsApp</Text>
+                        <MessageCircle color="#FFFFFF" size={20} />
+                        <Text style={styles.scheduleButtonText}>Schedule your experience</Text>
                       </TouchableOpacity>
                     )}
 
-                    {(partner.contactEmail || partner.email) && (
+                    {(partner.contactEmail) && (
                       <TouchableOpacity
-                        style={[
-                          styles.scheduleButton,
-                          partner.phone && styles.scheduleButtonHalf,
-                        ]}
+                        style={[styles.scheduleButton, partner.phone ? styles.halfWidthButton : null]}
                         onPress={handleEmailSchedule}
                         activeOpacity={0.8}
                       >
-                        <Mail color="#FFFFFF" size={24} />
-                        <Text style={styles.scheduleButtonText}>Email</Text>
+                        <Mail color="#FFFFFF" size={20} />
+                        <Text style={styles.scheduleButtonText}>Schedule your experience</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -672,30 +616,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   heroSection: {
-    // background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', // React Native does not support CSS gradients directly
-    backgroundColor: '#10b981', // Fallback
+    backgroundColor: '#10b981',
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 50,
+    paddingBottom: 40,
     paddingHorizontal: 24,
     alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
   },
   trophyContainer: {
-    marginVertical: 20,
-    padding: 20,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    shadowColor: '#fbbf24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   heroTitle: {
     fontSize: 32,
@@ -807,6 +741,17 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginBottom: 12,
   },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  sectionDescription: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 22,
+  },
   experienceDescription: {
     fontSize: 15,
     color: '#374151',
@@ -899,15 +844,50 @@ const styles = StyleSheet.create({
     color: '#166534',
     fontWeight: '600',
   },
-  scheduleButton: {
+  contactInfoSection: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+  },
+  contactInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  contactValue: {
+    fontSize: 15,
+    color: '#1f2937',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  smallCopyButton: {
+    padding: 8,
+  },
+  scheduleButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 16,
+  },
+  scheduleButton: {
+    flex: 1,
     backgroundColor: '#7C3AED',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     borderRadius: 12,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
@@ -915,63 +895,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  whatsappButton: {
-    backgroundColor: '#25D366', // Official WhatsApp green
-    shadowColor: '#25D366',
+  halfWidthButton: {
+    flex: 0.48,
   },
   scheduleButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  contactInfoSection: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  contactInfoTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  contactInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  contactInfoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  contactInfoValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  smallCopyButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  scheduleButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  scheduleButtonHalf: {
-    flex: 1,
   },
   // NEW: Celebration enhancement styles
   sparkle: {
@@ -982,15 +912,11 @@ const styles = StyleSheet.create({
     top: 0,
   },
   celebrationMessage: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 8,
+    fontSize: 32,
+    fontWeight: '800',
     textAlign: 'center',
-    color: '#fef3c7',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   statsContainer: {
     flexDirection: 'row',
