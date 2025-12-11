@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "ernit-3fc0b",
+    "prod": "ernit-3fc0b",
+    "ernit": "ernit-3fc0b"
+  },
+  "targets": {},
+  "etags": {}
+}

@@ -1,0 +1,66 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========== PROFILE IMAGES ==========
+    // Path: profile-images/{userId}/...
+    // Anyone can view profiles, only owner can upload
+    match /profile-images/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========== PERSONALIZED HINTS ==========
+    // Path: hints/{userId}/audio/... and hints/{userId}/images/...
+    // Uploaded by giver (userId), accessible to giver and goal recipient
+    // For simplicity: authenticated users can read (they can only access if they know the URL)
+    match /hints/{userId}/{allPaths=**} {
+      // Authenticated users can read hints (URLs are only shared with recipient)
+      allow read: if request.auth != null;
+      
+      // Only the owner (giver) can upload their hints
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') 
+            || request.resource.contentType.matches('audio/.*'));
+    }
+    
+    // ========== EXPERIENCE IMAGES ==========
+    // Path: experiences/...
+    // Public images for the experience shop
+    match /experiences/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========== PARTNER FILES ==========
+    // Path: partners/...
+    match /partners/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // ========== USERS FOLDER (legacy/backup) ==========
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========== DEFAULT: Allow reads for any path ==========
+    // Prevents breaking existing images stored in unexpected locations
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

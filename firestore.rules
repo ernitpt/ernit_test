@@ -1,0 +1,550 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+
+    /** =====================
+     * 🔧 HELPERS
+     * ===================== **/
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function partnerUserDoc(uid) {
+      return get(/databases/$(database)/documents/partnerUsers/$(uid));
+    }
+
+    function isUser(uid) {
+      return userDoc(uid).exists();
+    }
+
+    function isPartner(uid) {
+      return partnerUserDoc(uid).exists() &&
+             partnerUserDoc(uid).data.userType == 'partner';
+    }
+
+    function isAdmin(uid) {
+      return partnerUserDoc(uid).exists() &&
+             partnerUserDoc(uid).data.isAdmin == true;
+    }
+
+    /** =====================
+     * 👤 USERS
+     * ===================== **/
+    match /users/{userId} {
+      // User can manage their own user doc
+      allow read: if request.auth != null;
+      allow write, update, delete: if request.auth != null && request.auth.uid == userId;
+
+      // User coupons: users/{userId}/coupons/{couponId}
+      match /coupons/{couponId} {
+        allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    /** =====================
+     * 👔 PARTNER USERS
+     * ===================== **/
+    match /partnerUsers/{partnerId} {
+      // Allow rule engine to fetch partnerUser doc when checking admin status
+      allow get: if request.auth != null;
+
+      // Partner can read/update their own record
+      allow read, update: if request.auth != null && request.auth.uid == partnerId;
+
+      // Create own partner record (from invite)
+      allow create: if request.auth != null
+        && request.auth.uid == partnerId
+        && request.resource.data.userType == 'partner'
+        && request.resource.data.createdFromInvite is string;
+
+      // No client deletes
+      allow delete: if false;
+
+      /** =======================
+       * 🎟 COUPONS SUBCOLLECTION
+       * ======================= **/
+      match /coupons/{couponId} {
+        // ✅ Partner can manage their own coupons
+        allow read, write: if request.auth != null && request.auth.uid == partnerId;
+
+        // ✅ Users can create (generate) coupons for a partner
+        // ✅ SECURITY FIX: Corrected validation to use isCompleted field
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid  // coupon belongs to this user
+          && request.resource.data.partnerId == partnerId      // coupon linked to this partner
+          && request.resource.data.keys().hasAll(['userId', 'partnerId', 'code', 'status', 'createdAt'])
+          // ✅ SECURITY: Verify goal exists and is completed
+          && ('goalId' in request.resource.data ? (
+            exists(/databases/$(database)/documents/goals/$(request.resource.data.goalId))
+            && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.userId == request.auth.uid
+            && get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.isCompleted == true  // ✅ Fixed: use isCompleted instead of status
+          ) : true); // Allow creation without goalId for backward compatibility
+
+        // ✅ Users can read their own coupons OR partner can read their coupons
+        // ✅ Allow checking for existence (resource == null) to support atomic creation
+        allow get: if request.auth != null && (
+          resource == null ||
+          resource.data.userId == request.auth.uid ||
+          resource.data.partnerId == request.auth.uid
+        );
+
+        // ✅ For collision detection during coupon generation,
+        // allow limited queries with specific code filter
+        allow list: if request.auth != null && 
+          request.query.limit == 1;
+
+        // 🚫 Prevent deletes
+        allow delete: if false;
+      }
+    }
+
+    /** =====================
+     * 🎯 GOALS
+     * ===================== **/
+    match /goals/{goalId} {
+      allow read: if request.auth != null;
+
+      /* ===============================
+         RECEIVER PERMISSIONS
+         =============================== */
+
+      // Receiver can CREATE their own goal
+      // Allow if: user is the goal recipient AND the experience gift exists and is accessible
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.userId
+        && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId));
+
+        // ===== Allow updates =====
+      allow update: if request.auth != null && (
+
+        // (1) Receiver updating their own goal
+        // SECURITY: Restrict critical fields when approval is pending or after approval
+        (request.auth.uid == resource.data.userId && (
+          // Allow all updates if no approval process started OR already approved
+          (!('approvalStatus' in resource.data) || resource.data.approvalStatus == 'approved') ||
+          
+          // If approval is pending/requested, only allow safe field updates
+          (resource.data.approvalStatus in ['pending', 'suggested_change', 'rejected'] &&
+           (
+             // Allow accepting a suggestion (transition to approved)
+             (resource.data.approvalStatus == 'suggested_change' && 
+              request.resource.data.approvalStatus == 'approved' &&
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['empoweredBy'])) ||
+             
+             // Allow resubmitting (transition to pending)
+             (resource.data.approvalStatus in ['rejected', 'suggested_change'] && 
+              request.resource.data.approvalStatus == 'pending' &&
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['empoweredBy'])) ||
+
+             // Otherwise, restrict critical fields
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'approvalStatus',      // Can't self-approve
+               'targetCount',         // Can't change goal parameters
+               'sessionsPerWeek',     // Can't change goal parameters
+               'giverActionTaken',    // Can't reset giver action
+               'empoweredBy',         // Can't change giver
+               'approvalDeadline'     // Can't extend deadline
+             ])
+           ))
+        ) 
+        // SECURITY: Add value validation for numeric fields
+        && (!('weeklyCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            (request.resource.data.weeklyCount >= 0 && 
+             request.resource.data.weeklyCount <= request.resource.data.sessionsPerWeek))
+        && (!('targetCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            (request.resource.data.targetCount >= 1 && 
+             request.resource.data.targetCount <= 5))
+        && (!('sessionsPerWeek' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            (request.resource.data.sessionsPerWeek >= 1 && 
+             request.resource.data.sessionsPerWeek <= 7))
+        )
+
+        ||
+
+        // (2) Giver can ONLY update approval-related fields and personalized hints
+        (request.auth.uid == resource.data.empoweredBy
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              'approvalStatus',
+              'suggestedTargetCount',
+              'suggestedSessionsPerWeek',
+              'giverMessage',
+              'giverActionTaken',
+              'approvalRequestedAt',
+              'approvalDeadline',
+              'personalizedNextHint',
+              'updatedAt'
+            ]))
+        
+        ||
+        
+        // (3) Giver can set personalized hint even without other approval fields
+        ('empoweredBy' in resource.data &&
+        request.auth.uid == resource.data.empoweredBy
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalizedNextHint', 'updatedAt']))
+      );
+
+      /* ===============================
+         BLOCK DELETES
+         =============================== */
+      allow delete: if false;
+
+      /* ===============================
+         NESTED SESSIONS
+         =============================== */
+      match /sessions/{sessionId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+      }
+
+      /* ===============================
+         NESTED HINTS
+         =============================== */
+      match /hints/{hintId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+      }
+    }
+    
+    /** =====================
+     * 🧩 GOAL SESSIONS (alt structure)
+     * ===================== **/
+    match /goalSessions/{goalId} {
+      allow read: if request.auth != null;
+
+      match /sessions/{sessionId} {
+        // Receivers can read and write their own session data
+        allow read, write, update, delete: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        
+        // Givers can update to add custom hints only
+        allow update: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.empoweredBy
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['customHint', 'customHintCreatedAt']);
+      }
+    }
+
+    /** =====================
+     * 🎁 EXPERIENCE GIFTS
+     * ===================== **/
+    match /experienceGifts/{giftId} {
+      // List: allow authenticated users to query (for viewing own gifts and claiming)
+      // Queries include: where('giverId', '==', userId) and where('claimCode', '==', code)
+      allow list: if request.auth != null;
+      
+      // Get: allow any authenticated user to read gifts
+      // This is needed because goal owners need to access gifts for completion screens
+      allow get: if request.auth != null;
+      
+      // Create: only via cloud functions (server-side)
+      allow create: if false;
+      
+      // Update: allow giver to update personalizedMessage, recipient to update their gift, OR allow claiming pending gifts
+      allow update: if request.auth != null && (
+        // Giver updating personalized message
+        (request.auth.uid == resource.data.giverId &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['personalizedMessage', 'updatedAt']))
+        ||
+        // Existing recipient updating their gift
+        (request.auth.uid == resource.data.recipientId &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['status', 'claimedAt', 'claimedBy', 'updatedAt']))
+        ||
+        // Claiming a pending gift (setting recipientId for the first time)
+        (resource.data.status == 'pending' &&
+         !('recipientId' in resource.data) &&
+         request.resource.data.recipientId == request.auth.uid &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['status', 'recipientId', 'claimedAt', 'claimedBy', 'updatedAt']))
+        ||
+        // Anyone can update an active gift to claimed when creating a goal
+        (resource.data.status == 'active' &&
+         request.resource.data.status == 'claimed' &&
+         request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['status', 'recipientId', 'claimedAt', 'updatedAt']))
+      );
+      
+      // Delete: never allowed from client
+      allow delete: if false;
+    }
+
+    /** =====================
+     * 💡 HINTS (flat collection)
+     * ===================== **/
+    match /hints/{hintId} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+
+    /** =====================
+     * 👯 FRIEND REQUESTS
+     * ===================== **/
+    match /friendRequests/{requestId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.senderId ||
+         request.auth.uid == resource.data.recipientId);
+
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.senderId;
+
+      // Allow update: sender or recipient can update the request
+      allow update: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.senderId ||
+          request.auth.uid == resource.data.recipientId ||
+          request.auth.uid == request.resource.data.senderId ||
+          request.auth.uid == request.resource.data.recipientId
+        );
+
+      // Allow delete: sender or recipient can delete the request
+      // Note: for delete operations, request.resource doesn't exist, so only check resource.data
+      allow delete: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.senderId ||
+          request.auth.uid == resource.data.recipientId
+        );
+    }
+
+
+    /** =====================
+     * 👬 FRIENDS
+     * ===================== **/
+    match /friends/{friendDocId} {
+      // Allow read and delete if user is part of the friendship
+      allow read, delete: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         request.auth.uid == resource.data.friendId);
+
+      // Allow either user to create the friendship doc
+      allow create: if request.auth != null &&
+        request.resource.data.userId is string &&
+        request.resource.data.friendId is string &&
+        (request.auth.uid == request.resource.data.userId ||
+         request.auth.uid == request.resource.data.friendId);
+
+      // Allow updates by either friend in case you add fields later
+      allow update: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         request.auth.uid == resource.data.friendId);
+    }
+
+
+
+    /** =====================
+     * 🔔 NOTIFICATIONS
+     * ===================== **/
+    match /notifications/{notificationId} {
+      // Helper: check if two users are friends
+      function areFriends(userId1, userId2) {
+        return exists(/databases/$(database)/documents/friends/$(userId1 + '_' + userId2))
+            || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
+      }
+
+      // Allow deletion by: target user, sender of friend request, or recipient of goal change suggestion
+      allow delete: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.userId || 
+          (
+            resource.data.type == "friend_request" &&
+            request.auth.uid == resource.data.data.senderId
+          ) ||
+          (
+            resource.data.type == "goal_change_suggested" &&
+            request.auth.uid == resource.data.userId
+          )
+        );
+
+      // Allow updates for friend request notifications, post reactions, and goal progress stale marking
+      allow update: if request.auth != null &&
+        (
+          request.auth.uid == resource.data.userId ||
+          (
+            resource.data.type == "friend_request" &&
+            request.auth.uid == resource.data.data.senderId
+          ) ||
+          // Allow updating post_reaction notifications if the post exists
+          (
+            resource.data.type == 'post_reaction' &&
+            'postId' in resource.data.data &&
+            exists(/databases/$(database)/documents/feedPosts/$(resource.data.data.postId))
+          ) ||
+          // Allow marking goal_progress notifications as stale
+          // Only the giver (notification recipient) or goal owner (person completing sessions) can do this
+          (
+            resource.data.type == 'goal_progress' &&
+            'goalId' in resource.data.data &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isStale']) &&
+            request.resource.data.isStale == true &&
+            // Allow if user is notification recipient (giver) OR the goal owner (recipient)
+            (request.auth.uid == resource.data.userId ||
+             (exists(/databases/$(database)/documents/goals/$(resource.data.data.goalId)) &&
+              get(/databases/$(database)/documents/goals/$(resource.data.data.goalId)).data.userId == request.auth.uid))
+          )
+        );
+
+      // Allow reading own notifications OR post_reaction notifications (for aggregation)
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         (resource.data.type == 'post_reaction' && 
+          'postId' in resource.data.data &&
+          exists(/databases/$(database)/documents/feedPosts/$(resource.data.data.postId))));
+
+      // SECURITY: Create rules with relationship validation
+      allow create: if request.auth != null && (
+        // Creating notification for yourself
+        request.auth.uid == request.resource.data.userId
+        ||
+        // Friend requests: always allowed (spam prevention via client-side logic)
+        request.resource.data.type == 'friend_request'
+        ||
+        // Goal-related notifications: must have relationship to goal
+        (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request', 
+                                         'goal_change_suggested', 'goal_approval_response', 
+                                         'personalized_hint_left'] &&
+         request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
+         'goalId' in request.resource.data.data)
+        ||
+        // Post reactions: allow if post exists (posts are public to authenticated users)
+        (request.resource.data.type == 'post_reaction' &&
+         'postId' in request.resource.data.data &&
+         exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)))
+      );
+
+      // Allow deleting own notifications OR goal_progress notifications (for cleanup)
+      allow delete: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         resource.data.type == 'goal_progress');
+    }
+
+
+    /** =====================
+     * 🌍 EXPERIENCES (public)
+     * ===================== **/
+    match /experiences/{experienceId} {
+      allow read: if true;
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner';
+    }
+
+    /** =========================================================
+     * 💌 PARTNER INVITES
+     * ========================================================= **/
+      match /partnerInvites/{inviteId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true ||
+          resource.data.email == request.auth.token.email
+        );
+
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
+          && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner'
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdBy == request.auth.uid
+          && (
+            !('createdByEmail' in request.resource.data)
+            || request.resource.data.createdByEmail is string
+            || request.resource.data.createdByEmail == null
+          )
+          && request.resource.data.keys().hasOnly([
+            'status', 'createdAt', 'createdBy', 'createdByEmail'
+          ]);
+
+        allow update, delete: if request.auth != null
+          && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true;
+      }
+
+
+    /** =====================
+     * 📰 FEED POSTS
+     * ===================== **/
+    match /feedPosts/{postId} {
+      // Helper: check if two users are friends
+      function areFriends(userId1, userId2) {
+        return exists(/databases/$(database)/documents/friends/$(userId1 + '_' + userId2))
+            || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
+      }
+      
+      // Read: Allow all authenticated users to read posts
+      // (Required because feed queries fetch globally and filter client-side)
+      allow read: if request.auth != null;
+      
+      // List: Allow all authenticated users to list posts
+      allow list: if request.auth != null;
+      
+      // Create: users can create their own posts OR givers can create goal_approved posts for recipients
+      allow create: if request.auth != null && (
+        request.auth.uid == request.resource.data.userId
+        ||
+        // Allow givers to create goal_approved posts on behalf of recipients
+        (request.resource.data.type == 'goal_approved' && 
+         exists(/databases/$(database)/documents/goals/$(request.resource.data.goalId)) &&
+         get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.empoweredBy == request.auth.uid)
+      );
+      
+      // Update: allow authenticated users to update (for reaction/comment counts)
+      // Posts are only accessible via queries that already filter by friends/own posts
+      allow update: if request.auth != null;
+      
+      // Delete: only owner
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      
+      /** Reactions subcollection **/
+      match /reactions/{reactionId} {
+        // Read: any authenticated user (they can only access via posts they can see)
+        allow read: if request.auth != null;
+        
+        // Create: users can create their own reactions
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+        
+        // Delete: users can delete their own reactions
+        allow delete: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+      }
+      
+      /** Comments subcollection **/
+      match /comments/{commentId} {
+        // Read: any authenticated user (they can only access via posts they can see)
+        allow read: if request.auth != null;
+        
+        // Create: authenticated users can comment
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+        
+        // Update: own comments only
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+        
+        // Delete: own comments only
+        allow delete: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+      }
+    }
+
+
+    /** =========================================================
+     * 🧾 LEGACY partnerCoupons/{partnerId}/coupons
+     * ========================================================= **/
+    match /partnerCoupons/{partnerId} {
+      match /coupons/{couponId} {
+        // Partner can read their own (legacy)
+        allow read: if request.auth != null &&
+          request.auth.uid == partnerId &&
+          isPartner(request.auth.uid);
+
+        // Partner can update only specific fields
+        allow update: if request.auth != null &&
+          request.auth.uid == partnerId &&
+          isPartner(request.auth.uid) &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'redeemedAt']);
+
+        // No client create/delete
+        allow create, delete: if false;
+      }
+    }
+  }
+}

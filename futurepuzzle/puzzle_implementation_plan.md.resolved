@@ -1,0 +1,928 @@
+# Puzzle Hint System - CORRECTED Implementation Plan
+
+## 🎯 Core Logic (FINAL)
+
+### **One Image Per Puzzle**
+- Each puzzle = **1 image divided into 5 pieces**
+- Progressive reveal: heavily blurred → clear
+- User unlocks pieces 1→2→3→4→5 OR guesses correctly
+
+### **Lazy Generation**
+- **NO puzzle at goal creation**
+- First time user selects "Puzzle Hint" → Generate Puzzle #1
+- When Puzzle #1 complete → Next "Puzzle Hint" → Generate Puzzle #2
+- Repeat indefinitely (multiple puzzles per goal)
+
+### **Puzzle Lifecycle**
+
+```
+Goal Created (puzzles: [])
+  ↓
+Session 1: User selects "Puzzle Hint"
+  ↓
+  Check: Is there an active puzzle?
+  → NO → Generate Puzzle #1 (1 image)
+  → Unlock piece 1/5 (e_blur:2000)
+  → Show image + guess input
+  ↓
+Session 2: User selects "Puzzle Hint"
+  ↓
+  Check: Is there an active puzzle?
+  → YES (Puzzle #1, unlockedPieces: 1)
+  → Unlock piece 2/5 (e_blur:1500)
+  → User guesses: "Helicopter Tour" ✅
+  → Mark Puzzle #1 complete
+  ↓
+Session 3: User selects "Puzzle Hint"
+  ↓
+  Check: Is there an active puzzle?
+  → NO (Puzzle #1 completed)
+  → Generate Puzzle #2 (new image)
+  → Unlock piece 1/5 (e_blur:2000)
+  ↓
+... infinite puzzles possible
+```
+
+---
+
+## 📊 Data Structure
+
+### **Updated Goal Interface**
+
+```typescript
+export interface Goal {
+  // ... existing fields ...
+  puzzles?: Puzzle[]; // Array of puzzles, grows over time
+}
+
+export interface Puzzle {
+  id: string; // Unique ID
+  imageUrl: string; // Base Cloudinary URL
+  imageType: 'map' | 'venue' | 'activity' | 'detail' | 'pov' | 'silhouette';
+  totalPieces: number; // Always 5
+  unlockedPieces: number; // 0-5
+  isCompleted: boolean; // true when guessed OR all pieces unlocked
+  wrongGuesses: string[];
+  correctGuess?: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+```
+
+### **Example Goal Data**
+
+```json
+{
+  "id": "goal123",
+  "title": "Morning Workouts",
+  "puzzles": [
+    {
+      "id": "puzzle1",
+      "imageUrl": "https://res.cloudinary.com/.../helicopter.jpg",
+      "imageType": "activity",
+      "totalPieces": 5,
+      "unlockedPieces": 5,
+      "isCompleted": true,
+      "wrongGuesses": ["Skydiving", "Paragliding"],
+      "correctGuess": "Helicopter Tour",
+      "createdAt": "2025-01-01T10:00:00Z",
+      "completedAt": "2025-01-03T14:30:00Z"
+    },
+    {
+      "id": "puzzle2",
+      "imageUrl": "https://res.cloudinary.com/.../map_sf.jpg",
+      "imageType": "map",
+      "totalPieces": 5,
+      "unlockedPieces": 2,
+      "isCompleted": false,
+      "wrongGuesses": ["Los Angeles"],
+      "createdAt": "2025-01-05T09:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 🔧 Implementation Phases
+
+### **Phase 1: Types & Data Structures** (15 min)
+
+#### File: [src/types/index.ts](file:///d:/ErnitAppWeb_Test/src/types/index.ts)
+
+```typescript
+export interface Goal {
+  // ... existing fields ...
+  puzzles?: Puzzle[];
+}
+
+export interface Puzzle {
+  id: string;
+  imageUrl: string; // Cloudinary base URL
+  imageType: 'map' | 'venue' | 'activity' | 'detail' | 'pov' | 'silhouette';
+  totalPieces: number; // 5
+  unlockedPieces: number; // 0-5
+  isCompleted: boolean;
+  wrongGuesses: string[];
+  correctGuess?: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface PersonalizedHint {
+  type: 'text' | 'audio' | 'mixed' | 'image' | 'puzzle_piece';
+  // ... existing fields ...
+  
+  // For puzzle_piece type:
+  puzzleData?: {
+    puzzleId: string;
+    imageUrl: string;
+    pieceNumber: number;
+    totalPieces: number;
+    wrongGuesses: string[];
+  };
+}
+```
+
+---
+
+### **Phase 2: Puzzle Image Service** (2 hours)
+
+#### File: `src/services/PuzzleImageService.ts` (NEW)
+
+```typescript
+import { Puzzle } from '../types';
+import { openai } from './openai';
+
+class PuzzleImageService {
+  /**
+   * Generate ONE new puzzle image
+   * Called when user selects "Puzzle Hint" and no active puzzle exists
+   */
+  async generateNewPuzzle(
+    experienceId: string,
+    experienceTitle: string,
+    existingPuzzles: Puzzle[] = []
+  ): Promise<Puzzle> {
+    // 1. Determine what type of image to generate
+    const imageType = this.selectImageType(existingPuzzles);
+    
+    // 2. Generate image description
+    const description = await this.generateImageDescription(
+      experienceTitle,
+      imageType
+    );
+    
+    // 3. Fetch image from stock API
+    const imageUrl = await this.fetchStockImage(description);
+    
+    // 4. Return new puzzle
+    return {
+      id: `puzzle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      imageUrl,
+      imageType,
+      totalPieces: 5,
+      unlockedPieces: 0,
+      isCompleted: false,
+      wrongGuesses: [],
+      createdAt: new Date()
+    };
+  }
+
+  /**
+   * Select image type based on what's already been shown
+   * Order of preference: map → venue → activity → detail → pov
+   */
+  private selectImageType(existingPuzzles: Puzzle[]): Puzzle['imageType'] {
+    const usedTypes = new Set(existingPuzzles.map(p => p.imageType));
+    const preferredOrder: Puzzle['imageType'][] = [
+      'map', 'venue', 'activity', 'detail', 'pov', 'silhouette'
+    ];
+    
+    return preferredOrder.find(type => !usedTypes.has(type)) || 'activity';
+  }
+
+  /**
+   * Generate AI description for image search
+   * ~200 tokens
+   */
+  private async generateImageDescription(
+    experienceTitle: string,
+    imageType: Puzzle['imageType']
+  ): Promise<string> {
+    const prompts = {
+      map: `Generate a search query for a zoomed-out map image related to: "${experienceTitle}". Should be vague and geographic.`,
+      venue: `Generate a search query for a photo of the venue/location for: "${experienceTitle}". Should be recognizable but not too obvious.`,
+      activity: `Generate a search query for an action shot of: "${experienceTitle}". Should capture the activity clearly.`,
+      detail: `Generate a search query for an extreme close-up detail shot related to: "${experienceTitle}". Should be very specific but unclear at first.`,
+      pov: `Generate a search query for a first-person POV image of: "${experienceTitle}". Should show what the participant sees.`,
+      silhouette: `Generate a search query for a silhouette or outline image related to: "${experienceTitle}". Should be abstract.`
+    };
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "user",
+        content: prompts[imageType]
+      }],
+      max_tokens: 50
+    });
+
+    return response.choices[0].message.content.trim();
+  }
+
+  /**
+   * Fetch image from Unsplash (free tier: 50/hour)
+   */
+  private async fetchStockImage(description: string): Promise<string> {
+    const UNSPLASH_ACCESS_KEY = process.env.EXPO_PUBLIC_UNSPLASH_ACCESS_KEY;
+    
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(description)}&per_page=1&orientation=landscape`,
+      { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+    );
+    
+    const data = await response.json();
+    return data.results[0]?.urls?.regular || '';
+  }
+
+  /**
+   * Get image URL with blur applied
+   * Uses Cloudinary transformation
+   */
+  getImageAtClarityLevel(
+    baseImageUrl: string,
+    unlockedPieces: number,
+    totalPieces: number
+  ): string {
+    const blurAmount = this.calculateBlur(unlockedPieces, totalPieces);
+    return this.applyCloudinaryBlur(baseImageUrl, blurAmount);
+  }
+
+  /**
+   * Calculate blur amount
+   * Piece 1/5: blur = 2000 (very blurry)
+   * Piece 2/5: blur = 1500
+   * Piece 3/5: blur = 1000
+   * Piece 4/5: blur = 500
+   * Piece 5/5: blur = 0 (clear)
+   */
+  private calculateBlur(unlocked: number, total: number): number {
+    const progress = unlocked / total;
+    return Math.round(2000 * (1 - progress));
+  }
+
+  /**
+   * Apply Cloudinary blur transformation
+   */
+  private applyCloudinaryBlur(url: string, blurAmount: number): string {
+    // For external URLs (Unsplash), use Cloudinary fetch
+    const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    return `https://res.cloudinary.com/${cloudName}/image/fetch/e_blur:${blurAmount},q_auto,f_auto/${encodeURIComponent(url)}`;
+  }
+}
+
+export const puzzleImageService = new PuzzleImageService();
+```
+
+---
+
+### **Phase 3: Goal Service Methods** (1 hour)
+
+#### File: [src/services/GoalService.ts](file:///d:/ErnitAppWeb_Test/src/services/GoalService.ts)
+
+Add new methods:
+
+```typescript
+import { puzzleImageService } from './PuzzleImageService';
+import { arrayUnion } from 'firebase/firestore';
+
+/**
+ * Get or create active puzzle
+ * Returns existing puzzle if incomplete, or generates new one
+ */
+async getOrCreateActivePuzzle(goalId: string): Promise<Puzzle> {
+  const goal = await this.getGoal(goalId);
+  const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+  const experience = await experienceService.getExperienceById(gift.experienceId);
+  
+  // Check if there's an active (incomplete) puzzle
+  const activePuzzle = goal.puzzles?.find(p => !p.isCompleted);
+  
+  if (activePuzzle) {
+    return activePuzzle;
+  }
+  
+  // No active puzzle → Generate new one
+  const newPuzzle = await puzzleImageService.generateNewPuzzle(
+    experience.id,
+    experience.title,
+    goal.puzzles || []
+  );
+  
+  // Save to Firestore
+  await updateDoc(doc(db, 'goals', goalId), {
+    puzzles: arrayUnion(newPuzzle)
+  });
+  
+  return newPuzzle;
+}
+
+/**
+ * Unlock next piece of a puzzle
+ */
+async unlockPuzzlePiece(goalId: string, puzzleId: string): Promise<Puzzle> {
+  const goal = await this.getGoal(goalId);
+  const puzzleIndex = goal.puzzles?.findIndex(p => p.id === puzzleId) ?? -1;
+  
+  if (puzzleIndex === -1) throw new Error('Puzzle not found');
+  
+  const puzzle = goal.puzzles[puzzleIndex];
+  const newUnlocked = Math.min(puzzle.unlockedPieces + 1, puzzle.totalPieces);
+  
+  // Update in Firestore using array index
+  await updateDoc(doc(db, 'goals', goalId), {
+    [`puzzles.${puzzleIndex}.unlockedPieces`]: newUnlocked
+  });
+  
+  return { ...puzzle, unlockedPieces: newUnlocked };
+}
+
+/**
+ * Submit guess for puzzle
+ */
+async submitPuzzleGuess(
+  goalId: string,
+  puzzleId: string,
+  guess: string
+): Promise<{ correct: boolean; experienceTitle?: string }> {
+  const goal = await this.getGoal(goalId);
+  const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+  const experience = await experienceService.getExperienceById(gift.experienceId);
+  const puzzleIndex = goal.puzzles?.findIndex(p => p.id === puzzleId) ?? -1;
+  
+  if (puzzleIndex === -1) throw new Error('Puzzle not found');
+  
+  const isCorrect = this.fuzzyMatch(guess, experience.title);
+  
+  if (isCorrect) {
+    // Mark completed, unlock all pieces
+    await updateDoc(doc(db, 'goals', goalId), {
+      [`puzzles.${puzzleIndex}.isCompleted`]: true,
+      [`puzzles.${puzzleIndex}.unlockedPieces`]: 5,
+      [`puzzles.${puzzleIndex}.correctGuess`]: guess,
+      [`puzzles.${puzzleIndex}.completedAt`]: serverTimestamp(),
+      isRevealed: true
+    });
+    
+    // Notify giver
+    const userName = await userService.getUserName(goal.userId);
+    await notificationService.createNotification(
+      goal.empoweredBy,
+      'puzzle_solved',
+      `🎉 ${userName} solved a puzzle!`,
+      `They guessed: "${guess}"`,
+      { goalId, puzzleId }
+    );
+    
+    return { correct: true, experienceTitle: experience.title };
+  } else {
+    // Add wrong guess
+    await updateDoc(doc(db, 'goals', goalId), {
+      [`puzzles.${puzzleIndex}.wrongGuesses`]: arrayUnion(guess)
+    });
+    
+    return { correct: false };
+  }
+}
+
+/**
+ * Fuzzy matching for guess validation
+ */
+private fuzzyMatch(guess: string, title: string): boolean {
+  const normalize = (s: string) =>
+    s.toLowerCase()
+     .replace(/[^a-z0-9\s]/g, '')
+     .trim()
+     .replace(/\s+/g, ' ');
+  
+  const g = normalize(guess);
+  const t = normalize(title);
+  
+  // Exact match
+  if (g === t) return true;
+  
+  // Title contains guess (and guess is >50% of title)
+  if (g.length > t.length * 0.5 && t.includes(g)) return true;
+  
+  // Keyword overlap (>70% match)
+  const gWords = new Set(g.split(' '));
+  const tWords = t.split(' ');
+  const overlap = tWords.filter(w => gWords.has(w)).length;
+  
+  return overlap / tWords.length >= 0.7;
+}
+```
+
+---
+
+### **Phase 4: Hint Selection Modal** (1 hour)
+
+#### File: `src/components/HintSelectionModal.tsx` (NEW)
+
+```typescript
+import React from 'react';
+import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { Puzzle } from '../types';
+
+interface Props {
+  visible: boolean;
+  hasPersonalizedHint: boolean;
+  activePuzzle?: Puzzle; // Current incomplete puzzle, if any
+  onSelect: (type: 'personalized' | 'puzzle' | 'ai') => void;
+  onClose: () => void;
+}
+
+export default function HintSelectionModal({
+  visible,
+  hasPersonalizedHint,
+  activePuzzle,
+  onSelect,
+  onClose
+}: Props) {
+  const nextPiece = (activePuzzle?.unlockedPieces || 0) + 1;
+  const isNewPuzzle = !activePuzzle;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Choose Your Hint</Text>
+
+          {hasPersonalizedHint && (
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => onSelect('personalized')}
+            >
+              <Text style={styles.optionIcon}>💬</Text>
+              <Text style={styles.optionTitle}>Personalized Message</Text>
+              <Text style={styles.optionDesc}>From your giver</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => onSelect('puzzle')}
+          >
+            <Text style={styles.optionIcon}>🧩</Text>
+            <Text style={styles.optionTitle}>
+              {isNewPuzzle ? 'Start New Puzzle' : 'Continue Puzzle'}
+            </Text>
+            <Text style={styles.optionDesc}>
+              {isNewPuzzle 
+                ? 'Generate mystery image'
+                : `Unlock piece ${nextPiece}/5`
+              }
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => onSelect('ai')}
+          >
+            <Text style={styles.optionIcon}>✨</Text>
+            <Text style={styles.optionTitle}>AI Hint</Text>
+            <Text style={styles.optionDesc}>Motivational text</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  card: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  option: {
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb'
+  },
+  optionIcon: { fontSize: 28, marginBottom: 8 },
+  optionTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
+  optionDesc: { fontSize: 14, color: '#6b7280', marginTop: 4 },
+  cancelBtn: { marginTop: 12, paddingVertical: 14, alignItems: 'center' },
+  cancelText: { fontSize: 16, color: '#6b7280' }
+});
+```
+
+---
+
+### **Phase 5: Session Start Flow** (1.5 hours)
+
+#### File: [src/screens/recipient/DetailedGoalCard.tsx](file:///d:/ErnitAppWeb_Test/src/screens/recipient/DetailedGoalCard.tsx)
+
+Modify [handleStart](file:///d:/ErnitAppWeb_Test/src/screens/recipient/DetailedGoalCard.tsx#520-618):
+
+```typescript
+const [showHintSelection, setShowHintSelection] = useState(false);
+const [selectedHintType, setSelectedHintType] = useState<string | null>(null);
+const [activePuzzle, setActivePuzzle] = useState<Puzzle | null>(null);
+
+// Load active puzzle on mount
+useEffect(() => {
+  const loadActivePuzzle = async () => {
+    const puzzle = currentGoal.puzzles?.find(p => !p.isCompleted);
+    setActivePuzzle(puzzle || null);
+  };
+  loadActivePuzzle();
+}, [currentGoal.puzzles]);
+
+const handleStart = async () => {
+  if (isTimerRunning || loading) return;
+  
+  // Show hint selection modal
+  setShowHintSelection(true);
+};
+
+const startSessionWithHint = async (hintType: 'personalized' | 'puzzle' | 'ai') => {
+  setSelectedHintType(hintType);
+  setShowHintSelection(false);
+  setLoading(true);
+
+  const now = Date.now();
+  setStartTime(now);
+  setTimeElapsed(0);
+  setIsTimerRunning(true);
+
+  try {
+    // If puzzle selected, prepare/generate it
+    if (hintType === 'puzzle') {
+      const puzzle = await goalService.getOrCreateActivePuzzle(currentGoal.id);
+      setActivePuzzle(puzzle);
+    }
+    
+    // Store selection
+    await AsyncStorage.setItem(
+      `selected_hint_type_${currentGoal.id}`,
+      hintType
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+// In JSX:
+<HintSelectionModal
+  visible={showHintSelection}
+  hasPersonalizedHint={!!currentGoal.personalizedNextHint}
+  activePuzzle={activePuzzle}
+  onSelect={startSessionWithHint}
+  onClose={() => setShowHintSelection(false)}
+/>
+```
+
+---
+
+### **Phase 6: Session Finish Flow** (2 hours)
+
+#### File: [src/screens/recipient/DetailedGoalCard.tsx](file:///d:/ErnitAppWeb_Test/src/screens/recipient/DetailedGoalCard.tsx)
+
+Modify [handleFinish](file:///d:/ErnitAppWeb_Test/src/screens/recipient/DetailedGoalCard.tsx#292-519):
+
+```typescript
+const handleFinish = async () => {
+  if (!isTimerRunning || !canFinish || loading) return;
+
+  const goalId = currentGoal.id;
+  setLoading(true);
+
+  try {
+    const updated = await goalService.tickWeeklySession(goalId);
+    setCurrentGoal(updated);
+
+    const hintType = await AsyncStorage.getItem(`selected_hint_type_${goalId}`);
+    const totalSessionsDone = (updated.currentCount * updated.sessionsPerWeek) + updated.weeklyCount;
+    setLastSessionNumber(totalSessionsDone);
+
+    // Clear timer
+    setIsTimerRunning(false);
+    setStartTime(null);
+    setTimeElapsed(0);
+    await clearTimerState();
+
+    if (updated.isCompleted) {
+      // Navigate to completion
+      navigation.navigate('Completion', { goal: updated, experienceGift: gift });
+    } else {
+      // Handle hint based on selection
+      if (hintType === 'puzzle') {
+        // Get/refresh active puzzle
+        const puzzle = await goalService.getOrCreateActivePuzzle(goalId);
+        
+        // Unlock next piece
+        const updatedPuzzle = await goalService.unlockPuzzlePiece(goalId, puzzle.id);
+        
+        // Get image at new clarity level
+        const imageUrl = puzzleImageService.getImageAtClarityLevel(
+          updatedPuzzle.imageUrl,
+          updatedPuzzle.unlockedPieces,
+          updatedPuzzle.totalPieces
+        );
+        
+        // Show puzzle hint popup
+        setLastHint({
+          type: 'puzzle_piece',
+          puzzleData: {
+            puzzleId: updatedPuzzle.id,
+            imageUrl,
+            pieceNumber: updatedPuzzle.unlockedPieces,
+            totalPieces: updatedPuzzle.totalPieces,
+            wrongGuesses: updatedPuzzle.wrongGuesses
+          }
+        });
+        
+      } else if (hintType === 'personalized') {
+        // ... existing personalized hint logic ...
+      } else {
+        // ... existing AI hint logic ...
+      }
+
+      setShowHint(true);
+      await AsyncStorage.removeItem(`selected_hint_type_${goalId}`);
+      onFinish?.(updated);
+    }
+  } catch (err) {
+    console.error(err);
+    Alert.alert('Error', 'Could not update goal progress.');
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+---
+
+### **Phase 7: Puzzle Display in HintPopup** (2 hours)
+
+#### File: [src/components/HintPopup.tsx](file:///d:/ErnitAppWeb_Test/src/components/HintPopup.tsx)
+
+Add puzzle display:
+
+```typescript
+const [guess, setGuess] = useState('');
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+const handleGuessSubmit = async () => {
+  if (!guess.trim() || !hint.puzzleData) return;
+
+  setIsSubmitting(true);
+
+  try {
+    const result = await goalService.submitPuzzleGuess(
+      /* goalId - need to pass this */,
+      hint.puzzleData.puzzleId,
+      guess
+    );
+
+    if (result.correct) {
+      // 🎉 Correct guess!
+      confettiRef.current?.start();
+      
+      Alert.alert(
+        '🎉 Correct!',
+        `You guessed it: ${result.experienceTitle}`,
+        [{ text: 'Amazing!', onPress: onClose }]
+      );
+    } else {
+      // ❌ Wrong guess
+      Alert.alert(
+        'Not quite!',
+        'Try again next time you unlock a piece',
+        [{ text: 'OK', onPress: onClose }]
+      );
+    }
+  } catch (err) {
+    Alert.alert('Error', 'Could not submit guess');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+// In render:
+{hint.type === 'puzzle_piece' && hint.puzzleData && (
+  <>
+    <View style={styles.puzzleContainer}>
+      <Image
+        source={{ uri: hint.puzzleData.imageUrl }}
+        style={styles.puzzleImage}
+        resizeMode="cover"
+      />
+    </View>
+
+    <Text style={styles.puzzleProgress}>
+      Piece {hint.puzzleData.pieceNumber}/{hint.puzzleData.totalPieces} unlocked
+    </Text>
+
+    <TextInput
+      placeholder="Guess the experience..."
+      value={guess}
+      onChangeText={setGuess}
+      style={styles.guessInput}
+      autoCapitalize="words"
+    />
+
+    <TouchableOpacity
+      style={[styles.guessBtn, isSubmitting && styles.guessBtnDisabled]}
+      onPress={handleGuessSubmit}
+      disabled={isSubmitting}
+    >
+      <Text style={styles.guessBtnText}>
+        {isSubmitting ? 'Submitting...' : 'Submit Guess'}
+      </Text>
+    </TouchableOpacity>
+
+    {hint.puzzleData.wrongGuesses?.length > 0 && (
+      <View style={styles.wrongGuessesContainer}>
+        <Text style={styles.wrongGuessesTitle}>Previous guesses:</Text>
+        {hint.puzzleData.wrongGuesses.map((g, i) => (
+          <Text key={i} style={styles.wrongGuess}>❌ {g}</Text>
+        ))}
+      </View>
+    )}
+  </>
+)}
+```
+
+Add styles:
+
+```typescript
+puzzleContainer: {
+  width: '100%',
+  height: 250,
+  borderRadius: 12,
+  overflow: 'hidden',
+  marginBottom: 16,
+  backgroundColor: '#f3f4f6'
+},
+puzzleImage: {
+  width: '100%',
+  height: '100%'
+},
+puzzleProgress: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#6b7280',
+  textAlign: 'center',
+  marginBottom: 16
+},
+guessInput: {
+  width: '100%',
+  backgroundColor: '#f9fafb',
+  borderRadius: 12,
+  padding: 14,
+  fontSize: 16,
+  borderWidth: 1,
+  borderColor: '#e5e7eb',
+  marginBottom: 12
+},
+guessBtn: {
+  width: '100%',
+  backgroundColor: '#7C3AED',
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center'
+},
+guessBtnDisabled: {
+  opacity: 0.5
+},
+guessBtnText: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '600'
+},
+wrongGuessesContainer: {
+  marginTop: 16,
+  padding: 12,
+  backgroundColor: '#fef2f2',
+  borderRadius: 8
+},
+wrongGuessesTitle: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: '#991b1b',
+  marginBottom: 6
+},
+wrongGuess: {
+  fontSize: 14,
+  color: '#dc2626',
+  marginTop: 2
+}
+```
+
+---
+
+### **Phase 8: Roadmap Integration** (1 hour)
+
+#### File: [src/screens/recipient/RoadmapScreen.tsx](file:///d:/ErnitAppWeb_Test/src/screens/recipient/RoadmapScreen.tsx)
+
+Add puzzle history display:
+
+```typescript
+{currentGoal.puzzles && currentGoal.puzzles.length > 0 && (
+  <View style={styles.puzzlesCard}>
+    <Text style={styles.puzzlesTitle}>🧩 Puzzle Journey</Text>
+    
+    {currentGoal.puzzles.map((puzzle, index) => {
+      const imageUrl = puzzleImageService.getImageAtClarityLevel(
+        puzzle.imageUrl,
+        puzzle.unlockedPieces,
+        puzzle.totalPieces
+      );
+      
+      return (
+        <View key={puzzle.id} style={styles.puzzleItem}>
+          <Image source={{ uri: imageUrl }} style={styles.puzzleThumbnail} />
+          
+          <View style={styles.puzzleInfo}>
+            <Text style={styles.puzzleNumber}>Puzzle #{index + 1}</Text>
+            <Text style={styles.puzzleStatus}>
+              {puzzle.isCompleted
+                ? `✅ Solved: "${puzzle.correctGuess}"`
+                : `${puzzle.unlockedPieces}/${puzzle.totalPieces} pieces`
+              }
+            </Text>
+            {puzzle.wrongGuesses.length > 0 && (
+              <Text style={styles.puzzleGuesses}>
+                {puzzle.wrongGuesses.length} wrong guess{puzzle.wrongGuesses.length > 1 ? 'es' : ''}
+              </Text>
+            )}
+          </View>
+        </View>
+      );
+    })}
+  </View>
+)}
+```
+
+---
+
+## 📊 Summary
+
+### **Total Estimated Time: 11 hours**
+
+| Phase | Task | Time |
+|-------|------|------|
+| 1 | Types & Interfaces | 15min |
+| 2 | PuzzleImageService | 2h |
+| 3 | GoalService Methods | 1h |
+| 4 | HintSelectionModal | 1h |
+| 5 | Session Start Flow | 1.5h |
+| 6 | Session Finish Flow | 2h |
+| 7 | HintPopup Display | 2h |
+| 8 | Roadmap Integration | 1h |
+
+### **Key Features**
+
+✅ **Lazy Generation**: Puzzles only created when user selects "Puzzle Hint"  
+✅ **One Image Per Puzzle**: Each puzzle = 1 image divided into 5 pieces  
+✅ **Progressive Blur**: e_blur:2000 → e_blur:0 (very blurry → clear)  
+✅ **Multiple Puzzles**: New puzzle generated after each completion  
+✅ **Smart Validation**: Fuzzy matching for guess checking  
+✅ **Low Cost**: ~200 tokens per puzzle ($0.0003)  
+
+### **User Journey Example**
+
+```
+Session 1: Choose "Puzzle" → Generate Puzzle #1 → See piece 1/5 (very blurred helicopter)
+Session 2: Choose "Text" → Get AI hint → Puzzle #1 unchanged
+Session 3: Choose "Puzzle" → See piece 2/5 (less blurred) → Guess "Helicopter Tour" ✅
+Session 4: Choose "Puzzle" → Generate Puzzle #2 → See piece 1/5 (blurred map)
+... infinite puzzles possible
+```
+
+**Ready to implement?** 🚀

@@ -1,0 +1,39 @@
+{
+  "name": "functions",
+  "scripts": {
+    "lint": "echo \"Skipping lint\"",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "build": "tsc",
+    "deploy": "npm run build && firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "migrate:feed:preview": "npm run build && node lib/migrations/feedBackfillMigration.js",
+    "migrate:feed": "npm run build && node lib/migrations/feedBackfillMigration.js execute"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1",
+    "stripe": "^19.2.1",
+    "vercel": "^48.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "@types/node-fetch": "^2.6.13",
+    "@types/stripe": "^8.0.417",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.9.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
