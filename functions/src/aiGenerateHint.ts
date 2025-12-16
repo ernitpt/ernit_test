@@ -285,6 +285,7 @@ export const aiGenerateHint = onCall(
       "http://localhost:3000",
       "https://ernit-nine.vercel.app",
       "https://ernit981723498127658912765187923546.vercel.app",
+      "https://ernit.app",
     ],
     secrets: [
       OPENROUTER_KEY,

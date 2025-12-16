@@ -21,6 +21,7 @@ import { feedService } from './FeedService';
 import { experienceGiftService } from './ExperienceGiftService';
 import { experienceService } from './ExperienceService';
 import { logger } from '../utils/logger';
+import { config } from '../config/environment';
 
 // ===== Helpers =====
 const isoDateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -99,10 +100,10 @@ export class GoalService {
   private goalsCollection = collection(db, 'goals');
 
   // ✅ SECURITY FIX: Only allow debug mode in development
-  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = __DEV__;
+  private DEBUG_ALLOW_MULTIPLE_PER_DAY: boolean = config.debugEnabled;
   setDebug(allowMultiplePerDay: boolean) {
     // Only allow in development
-    if (__DEV__) {
+    if (config.debugEnabled) {
       this.DEBUG_ALLOW_MULTIPLE_PER_DAY = allowMultiplePerDay;
     } else {
       logger.warn('⚠️ Debug mode not available in production');
@@ -715,7 +716,7 @@ export class GoalService {
   // These methods are ONLY available in development builds
   // In production builds, they are no-ops that Metro will tree-shake
   async debugAdvanceWeek(goalId: string): Promise<void> {
-    if (!__DEV__) {
+    if (!config.debugEnabled) {
       logger.warn('⚠️ Debug tools not available in production');
       return;
     }
@@ -724,16 +725,17 @@ export class GoalService {
   }
 
   async debugAdvanceDay(goalId: string): Promise<void> {
-    if (!__DEV__) {
-      logger.warn('⚠️ Debug tools not available in production');
+    console.log('🔧 debugAdvanceDay called, config.debugEnabled:', config.debugEnabled);
+    if (!config.debugEnabled) {
+      console.warn('⚠️ Debug tools not available in production');
       return;
     }
     DateHelper.addOffset(24 * 60 * 60 * 1000);
-    logger.log('🕒 Advanced time by 1 day');
+    console.log('🕒 Advanced time by 1 day, new DateHelper.now():', DateHelper.now().toISOString());
   }
 
   async debugRewindWeek(goalId: string): Promise<void> {
-    if (!__DEV__) {
+    if (!config.debugEnabled) {
       logger.warn('⚠️ Debug tools not available in production');
       return;
     }
@@ -742,7 +744,7 @@ export class GoalService {
   }
 
   async debugRewindDay(goalId: string): Promise<void> {
-    if (!__DEV__) {
+    if (!config.debugEnabled) {
       logger.warn('⚠️ Debug tools not available in production');
       return;
     }

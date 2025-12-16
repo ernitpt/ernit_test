@@ -16,15 +16,21 @@ export const firebaseConfig = {
 export const validateFirebaseConfig = () => {
   const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
   const missingKeys = requiredKeys.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
-  
+
   if (missingKeys.length > 0) {
     logger.warn('Missing Firebase configuration:', missingKeys);
     return false;
   }
-  
+
   return true;
 };
 
 // Development vs Production configuration
-export const isDevelopment = __DEV__;
-export const isProduction = !__DEV__;
+// Use __DEV__ for React Native/Metro, fallback to EXPO_PUBLIC_APP_ENV for web (Vercel)
+export const isDevelopment = typeof __DEV__ !== 'undefined'
+  ? __DEV__
+  : process.env.EXPO_PUBLIC_APP_ENV === 'test';
+export const isProduction = !isDevelopment;
+
+// Debug log to help troubleshoot Vercel deployment
+console.log(`🔧 firebaseConfig: __DEV__=${typeof __DEV__ !== 'undefined' ? __DEV__ : 'undefined'}, EXPO_PUBLIC_APP_ENV=${process.env.EXPO_PUBLIC_APP_ENV}, isDevelopment=${isDevelopment}`);

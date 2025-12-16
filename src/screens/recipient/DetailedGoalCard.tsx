@@ -274,6 +274,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
+  const [debugTimeKey, setDebugTimeKey] = useState(0); // Force re-render when debug time changes
   const [cancelMessage, setCancelMessage] = useState(
     "Are you sure you want to cancel this session? Progress won't be saved."
   );
@@ -723,10 +724,12 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
   // ========= Other Computations =========
 
   const weekDates = useMemo(() => {
-    const start = currentGoal.weekStartAt ? new Date(currentGoal.weekStartAt) : new Date();
+    // Depend on debugTimeKey to force recalculation when debug time changes
+    void debugTimeKey;
+    const start = currentGoal.weekStartAt ? new Date(currentGoal.weekStartAt) : DateHelper.now();
     start.setHours(0, 0, 0, 0);
     return rollingWeek(start);
-  }, [currentGoal.weekStartAt]);
+  }, [currentGoal.weekStartAt, debugTimeKey]);
 
   const loggedSet = useMemo(() => new Set(currentGoal.weeklyLogDates || []), [currentGoal.weeklyLogDates]);
 
@@ -742,7 +745,8 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     return Math.min(base + (finishedThisWeek ? 1 : 0), total);
   }, [currentGoal]);
 
-  const todayIso = isoDay(DateHelper.now());
+  // Depend on debugTimeKey to force recalculation when debug time changes
+  const todayIso = useMemo(() => isoDay(DateHelper.now()), [debugTimeKey]);
   const alreadyLoggedToday = loggedSet.has(todayIso);
 
   // Calculate total sessions done
@@ -966,9 +970,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               style={styles.debugButton}
               onPress={async () => {
                 await goalService.debugRewindWeek(currentGoal.id!);
-                // Refresh goal
+                // Refresh goal and force re-render of time-dependent values
                 const updated = await goalService.getGoalById(currentGoal.id!);
                 if (updated) setCurrentGoal(updated);
+                setDebugTimeKey(k => k + 1);
                 alert('Rewound 1 week');
               }}
             >
@@ -979,9 +984,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               style={styles.debugButton}
               onPress={async () => {
                 await goalService.debugRewindDay(currentGoal.id!);
-                // Refresh goal
+                // Refresh goal and force re-render of time-dependent values
                 const updated = await goalService.getGoalById(currentGoal.id!);
                 if (updated) setCurrentGoal(updated);
+                setDebugTimeKey(k => k + 1);
                 alert('Rewound 1 day');
               }}
             >
@@ -991,10 +997,13 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
             <TouchableOpacity
               style={styles.debugButton}
               onPress={async () => {
+                console.log('🔧 +1D button clicked!');
                 await goalService.debugAdvanceDay(currentGoal.id!);
-                // Refresh goal
+                console.log('🔧 debugAdvanceDay completed');
+                // Refresh goal and force re-render of time-dependent values
                 const updated = await goalService.getGoalById(currentGoal.id!);
                 if (updated) setCurrentGoal(updated);
+                setDebugTimeKey(k => k + 1);
                 alert('Advanced 1 day');
               }}
             >
@@ -1005,9 +1014,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               style={styles.debugButton}
               onPress={async () => {
                 await goalService.debugAdvanceWeek(currentGoal.id!);
-                // Refresh goal
+                // Refresh goal and force re-render of time-dependent values
                 const updated = await goalService.getGoalById(currentGoal.id!);
                 if (updated) setCurrentGoal(updated);
+                setDebugTimeKey(k => k + 1);
                 alert('Advanced 1 week');
               }}
             >

@@ -72,6 +72,12 @@ node_modules/
 
 app.json
 
+ernit-3fc0b-firebase-adminsdk.json
+
+test.env
+
+live.env
+
 serviceAccountKey.json
 
 # Build outputs
@@ -84,3 +90,4 @@ functions/dist/
 functions/.expo/
 
 .dist
+

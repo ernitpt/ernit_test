@@ -44,12 +44,11 @@ if (!admin.apps.length) {
     });
 }
 
-// Use ernitclone2 test database
-// For Firebase Admin SDK v12+, use getFirestore with database ID
+// Use default (production) database
 import { getFirestore } from 'firebase-admin/firestore';
-const db = getFirestore(admin.app(), 'ernitclone2');
+const db = getFirestore(admin.app());
 
-console.log(`📦 Using database: ernitclone2`);
+console.log(`📦 Using database: (default)`);
 
 interface MigrationStats {
     goalsProcessed: number;

@@ -665,7 +665,7 @@ const CompletionScreen = () => {
                         activeOpacity={0.8}
                       >
                         <MessageCircle color="#FFFFFF" size={24} />
-                        <Text style={styles.scheduleButtonText}>WhatsApp</Text>
+                        <Text style={styles.scheduleButtonText}>Book Now</Text>
                       </TouchableOpacity>
                     )}
 
@@ -679,7 +679,7 @@ const CompletionScreen = () => {
                         activeOpacity={0.8}
                       >
                         <Mail color="#FFFFFF" size={24} />
-                        <Text style={styles.scheduleButtonText}>Email</Text>
+                        <Text style={styles.scheduleButtonText}>Book Now</Text>
                       </TouchableOpacity>
                     )}
                   </View>

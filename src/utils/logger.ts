@@ -3,7 +3,10 @@
  * Automatically disables all logs in production builds
  */
 
-const isDev = __DEV__;
+// Use __DEV__ for React Native/Metro, fallback to EXPO_PUBLIC_APP_ENV for web (Vercel)
+const isDev = typeof __DEV__ !== 'undefined'
+    ? __DEV__
+    : process.env.EXPO_PUBLIC_APP_ENV === 'test';
 
 class Logger {
     log(...args: any[]) {

@@ -237,8 +237,8 @@ const AuthScreen = () => {
   }, []);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    webClientId: GOOGLE_CLIENT_ID, // Required for web platform
+    clientId: GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED',
+    webClientId: GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED', // Fail gracefully instead of crashing
     redirectUri,
   });
 
@@ -613,46 +613,46 @@ const AuthScreen = () => {
       // Standard error messages with inline error display
       if (isLogin) {
         switch (error.code) {
-          case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address.';
-            setEmailError(errorMessage);
-            break;
-          case 'auth/wrong-password':
-          case 'auth/invalid-credential':
-            errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
-            setPasswordError('Email or password is incorrect.');
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address.';
-            setEmailError(errorMessage);
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
-            setPasswordError(errorMessage);
-            break;
-          default:
-            // For other errors, show in alert
-            Alert.alert('Sign In Failed', errorMessage);
-            return;
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          setEmailError(errorMessage);
+          break;
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
+          setPasswordError('Email or password is incorrect.');
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address.';
+          setEmailError(errorMessage);
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
+          setPasswordError(errorMessage);
+          break;
+        default:
+          // For other errors, show in alert
+          Alert.alert('Sign In Failed', errorMessage);
+          return;
         }
       } else {
         // Sign up errors
         switch (error.code) {
-          case 'auth/email-already-in-use':
-            errorMessage = 'An account with this email already exists.';
-            setEmailError(errorMessage);
-            break;
-          case 'auth/weak-password':
-            errorMessage = 'Password is too weak. Please choose a stronger password.';
-            setPasswordError(errorMessage);
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address.';
-            setEmailError(errorMessage);
-            break;
-          default:
-            Alert.alert('Sign Up Failed', errorMessage);
-            return;
+        case 'auth/email-already-in-use':
+          errorMessage = 'An account with this email already exists.';
+          setEmailError(errorMessage);
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Please choose a stronger password.';
+          setPasswordError(errorMessage);
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address.';
+          setEmailError(errorMessage);
+          break;
+        default:
+          Alert.alert('Sign Up Failed', errorMessage);
+          return;
         }
       }
 

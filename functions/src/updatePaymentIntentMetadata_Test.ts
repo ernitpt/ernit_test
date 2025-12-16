@@ -3,7 +3,7 @@ import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
 
-const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY"); // Changed secret name
+const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX"); // ✅ Fixed: Use sandbox key for test function
 
 // Use admin from the already initialized app in index.ts (assuming it's initialized elsewhere)
 // The explicit admin.initializeApp() call is removed as per instruction.
