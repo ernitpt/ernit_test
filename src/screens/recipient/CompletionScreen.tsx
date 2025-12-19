@@ -356,14 +356,12 @@ const CompletionScreen = () => {
 
   const handleScheduleExperience = () => {
     if (!partner || !experience) return;
-    const contactEmail = partner.contactEmail || partner.email;
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
 
     const preferredMethod = partner.preferredContact || 'email';
 
     if (preferredMethod === 'whatsapp' && partner.phone) {
       handleWhatsAppSchedule();
-    } else if (contactEmail) {
+    } else if (partner.contactEmail) {
       handleEmailSchedule();
     } else {
       Alert.alert('No Contact Info', 'Partner contact information is not available.');
@@ -372,7 +370,7 @@ const CompletionScreen = () => {
 
   const handleWhatsAppSchedule = () => {
     if (!partner?.phone || !experience) return;
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nLooking forward to it!\n${userName}`;
 
     const phoneNumber = partner.phone.replace(/[^0-9]/g, '');
     const whatsappUrl = Platform.select({
