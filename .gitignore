@@ -74,6 +74,10 @@ app.json
 
 ernit-3fc0b-firebase-adminsdk.json
 
+# Firebase messaging service worker (contains secrets)
+public/firebase-messaging-sw.js
+dist/firebase-messaging-sw.js
+
 test.env
 
 live.env
