@@ -1,8 +1,31 @@
 {
     "rewrites": [
         {
+            "source": "/firebase-messaging-sw.js",
+            "destination": "/public/firebase-messaging-sw.js"
+        },
+        {
+            "source": "/manifest.json",
+            "destination": "/public/manifest.json"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/firebase-messaging-sw.js",
+            "headers": [
+                {
+                    "key": "Service-Worker-Allowed",
+                    "value": "/"
+                },
+                {
+                    "key": "Cache-Control",
+                    "value": "no-cache, no-store, must-revalidate"
+                }
+            ]
         }
     ]
 }

@@ -5,11 +5,13 @@ import { stripeCreatePaymentIntent_Test } from "./stripeCreatePaymentIntent_Test
 import { getGiftsByPaymentIntent_Test } from "./getGiftsByPaymentIntent_Test";
 import { stripeWebhook_Test } from "./stripeWebhook_Test";
 import { updatePaymentIntentMetadata_Test } from "./updatePaymentIntentMetadata_Test";
+import { onNotificationCreated_Test } from "./triggers/onNotificationCreated_Test";
 // Production functions
 import { stripeCreatePaymentIntent } from "./stripeCreatePaymentIntent";
 import { getGiftsByPaymentIntent } from "./getGiftsByPaymentIntent";
 import { stripeWebhook } from "./stripeWebhook";
 import { updatePaymentIntentMetadata } from "./updatePaymentIntentMetadata";
+import { onNotificationCreated } from "./triggers/onNotificationCreated";
 
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
@@ -33,9 +35,11 @@ export {
     getGiftsByPaymentIntent_Test,
     stripeWebhook_Test,
     updatePaymentIntentMetadata_Test,
+    onNotificationCreated_Test,
     // Production
     stripeCreatePaymentIntent,
     getGiftsByPaymentIntent,
     stripeWebhook,
     updatePaymentIntentMetadata,
+    onNotificationCreated,
 };

@@ -2,7 +2,8 @@
 import { useApp } from './AppContext';
 import { NavigationContainerRef } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
-
+import { Platform } from 'react-native';
+import { pushNotificationService } from '../services/PushNotificationService';
 import { logger } from '../utils/logger';
 type PendingNavigation = {
   routeName: keyof RootStackParamList;
@@ -33,18 +34,50 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginMessage, setLoginMessage] = useState('Please log in to continue.');
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
-  
+
   // Prevent double-trigger spam
   const isBlockingRef = useRef(false);
   const wasAuthenticatedRef = useRef(!!state.user);
 
   const isAuthenticated = !!state.user;
 
-  // Note: Navigation is handled by AuthScreen after success animation
-  // This effect is kept as a backup but AuthScreen will call handleAuthSuccess directly
+  // Initialize push notifications when user becomes authenticated
   useEffect(() => {
-    wasAuthenticatedRef.current = isAuthenticated;
-  }, [isAuthenticated]);
+    const wasAuthenticated = wasAuthenticatedRef.current;
+    const isNowAuthenticated = isAuthenticated;
+
+    // User just logged in
+    if (!wasAuthenticated && isNowAuthenticated && state.user && Platform.OS === 'web') {
+      logger.log('🔔 User authenticated, setting up push notifications...');
+
+      // Setup push notifications asynchronously
+      pushNotificationService.setupPushNotifications(state.user.id)
+        .then((success) => {
+          if (success) {
+            logger.log('🔔 Push notifications setup completed');
+          } else {
+            logger.log('🔔 Push notifications setup skipped (may need PWA install first)');
+          }
+        })
+        .catch((error) => {
+          logger.error('🔔 Error setting up push notifications:', error);
+        });
+
+      // Setup foreground message listener
+      const unsubscribe = pushNotificationService.listenForMessages((payload) => {
+        logger.log('🔔 Received foreground notification:', payload);
+        // The notification is already shown by the service
+        // You can add additional handling here if needed
+      });
+
+      // Cleanup listener when user logs out
+      return () => {
+        unsubscribe();
+      };
+    }
+
+    wasAuthenticatedRef.current = isNowAuthenticated;
+  }, [isAuthenticated, state.user]);
 
   /**
    * Require authentication for an action
@@ -62,12 +95,12 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
         isBlockingRef.current = true;
 
         if (message) setLoginMessage(message);
-        
+
         // Store pending navigation if provided
         if (routeName) {
           setPendingNavigation({ routeName, params });
         }
-        
+
         setShowLoginPrompt(true);
       }
 
@@ -92,13 +125,13 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const handleAuthSuccess = useCallback(() => {
     setShowLoginPrompt(false);
     isBlockingRef.current = false;
-    
+
     // Small delay to ensure navigation is ready
     setTimeout(() => {
       if (pendingNavigation) {
         const { routeName, params } = pendingNavigation;
         setPendingNavigation(null);
-        
+
         // Navigate to the originally intended route using ref
         try {
           if (navigationRef) {
