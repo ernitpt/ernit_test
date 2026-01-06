@@ -1,18 +1,28 @@
-import * as functions from "firebase-functions/v1";
+import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { getMessaging } from "firebase-admin/messaging";
-import { QueryDocumentSnapshot } from "firebase-functions/v1/firestore";
 
 /**
  * Cloud Function: onNotificationCreated_Test
  * Triggers when a new notification document is created in Firestore TEST database
  * Sends FCM push notification to all user's registered devices
  */
-export const onNotificationCreated_Test = functions.firestore
-    .document("notifications/{notificationId}")
-    .onCreate(async (snapshot: QueryDocumentSnapshot, context: functions.EventContext) => {
+export const onNotificationCreated_Test = functions.firestore.onDocumentCreated(
+    {
+        document: "notifications/{notificationId}",
+        region: "europe-west1",
+        database: "ernitclone2",  // Watch the test database
+    },
+    async (event) => {
+        const snapshot = event.data;
+        const notificationId = event.params.notificationId;
+
+        if (!snapshot) {
+            console.warn("⚠️ [TEST] No snapshot data");
+            return null;
+        }
+
         const notificationData = snapshot.data();
-        const notificationId = context.params.notificationId;
 
         try {
             console.log(
@@ -28,7 +38,7 @@ export const onNotificationCreated_Test = functions.firestore
             }
 
             // Import db from index.ts (test database)
-            const db = require("./index").db;
+            const db = require("../index").db;
 
             // Get user's FCM tokens
             const userDoc = await db.collection("users").doc(userId).get();
@@ -54,7 +64,7 @@ export const onNotificationCreated_Test = functions.firestore
             // Prepare notification payload
             const title = notificationData.title || "New notification";
             const body = notificationData.message || "";
-            const icon = "/icon-192.png";
+            const icon = "https://ernit.app/icon_192.png"; // Full URL required for FCM
 
             // Prepare click action URL based on notification type
             let clickAction = "/";
@@ -66,19 +76,29 @@ export const onNotificationCreated_Test = functions.firestore
                 clickAction = `/goal/${notificationData.data?.goalId}`;
             }
 
+            // Prepare notification data - FCM requires all values to be strings
+            const notificationDataPayload: Record<string, string> = {
+                notificationId,
+                url: clickAction,
+                type: notificationData.type,
+            };
+
+            // Convert all data fields to strings
+            if (notificationData.data) {
+                Object.keys(notificationData.data).forEach((key) => {
+                    const value = notificationData.data[key];
+                    notificationDataPayload[key] = value != null ? String(value) : "";
+                });
+            }
+
             // Create FCM message
             const message = {
                 notification: {
                     title,
                     body,
-                    icon,
+                    // Note: icon is not supported in main notification, only in webpush
                 },
-                data: {
-                    notificationId,
-                    url: clickAction,
-                    type: notificationData.type,
-                    ...notificationData.data,
-                },
+                data: notificationDataPayload,
                 webpush: {
                     fcmOptions: {
                         link: clickAction,
