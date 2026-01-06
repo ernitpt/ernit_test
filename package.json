@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "echo \"Skipping lint\"",
-    "build": "tsc",
+    "build": "expo export --platform web",
     "deploy": "firebase deploy --only functions",
     "migrate:feed:preview": "tsc && node dist/utils/feedBackfillMigration.js",
     "migrate:feed": "tsc && node dist/utils/feedBackfillMigration.js execute"
