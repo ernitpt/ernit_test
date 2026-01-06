@@ -18,17 +18,33 @@ export const PWAInstaller: React.FC = () => {
         // Only run on web platform
         if (Platform.OS !== 'web') return;
 
-        // Check if already dismissed
-        const dismissed = localStorage.getItem('pwa-install-dismissed');
-        if (dismissed === 'true') return;
-
         // Detect iOS
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
-        // Check if already in standalone mode (installed)
+        // Check if currently in standalone mode (installed)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
             (window.navigator as any).standalone ||
             document.referrer.includes('android-app://');
+
+        // Check previous installation state
+        const wasInstalled = localStorage.getItem('pwa-was-installed') === 'true';
+
+        // Detect if app was uninstalled: was installed before but isn't now
+        if (wasInstalled && !isStandalone) {
+            // App was uninstalled! Clear the dismissal flag so prompt can reappear
+            localStorage.removeItem('pwa-install-dismissed');
+            localStorage.removeItem('pwa-was-installed');
+            console.log('PWA uninstalled detected - clearing dismissal flag');
+        }
+
+        // Update current installation state
+        if (isStandalone) {
+            localStorage.setItem('pwa-was-installed', 'true');
+        }
+
+        // Check if already dismissed (after potential cleanup above)
+        const dismissed = localStorage.getItem('pwa-install-dismissed');
+        if (dismissed === 'true') return;
 
         // iOS: Show manual installation prompt if not installed
         if (isIOS && !isStandalone) {
@@ -67,6 +83,8 @@ export const PWAInstaller: React.FC = () => {
 
         if (outcome === 'accepted') {
             console.log('User accepted the install prompt');
+            // Track that app is now installed
+            localStorage.setItem('pwa-was-installed', 'true');
         }
 
         // Clear the prompt

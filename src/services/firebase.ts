@@ -32,10 +32,14 @@ if (typeof window !== 'undefined') {
 }
 
 // ✅ Use environment-based database selection
-// Test: 'ernitclone' database | Production: default database (no second param)
+// Test: 'ernitclone2' database | Production: default database (no second param)
 const db = config.isProduction
   ? getFirestore(app)  // default database
   : getFirestore(app, 'ernitclone2');  // test database
+
+// Debug logging to verify database connection
+console.log(`🔥 Firebase Database: ${config.isProduction ? 'DEFAULT (Production)' : 'ernitclone2 (Test)'}`);
+console.log(`🔥 Environment Config: isProduction=${config.isProduction}, name=${config.name}`);
 
 const storage = getStorage(app);
 
