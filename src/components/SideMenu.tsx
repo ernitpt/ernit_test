@@ -8,6 +8,7 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,16 +22,16 @@ import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn } from 'lucide-react-native';
+import { LogIn, Download } from 'lucide-react-native';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
 import { logger } from '../utils/logger';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
-const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({ 
-  width = 26, 
-  height = 26, 
-  color = '#7C3AED' 
+const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
+  width = 26,
+  height = 26,
+  color = '#7C3AED'
 }) => {
   return <LogIn size={width} color={color} />;
 };
@@ -51,8 +52,23 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
-  
+  const [showInstallButton, setShowInstallButton] = useState(false);
+
   const isAuthenticated = !!state.user;
+
+  // Check if app is installed as PWA
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      setShowInstallButton(false);
+      return;
+    }
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone ||
+      document.referrer.includes('android-app://');
+
+    setShowInstallButton(!isStandalone);
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -86,6 +102,16 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
 
   const handleMenuPress = async (action: string) => {
     switch (action) {
+      case 'Install App':
+        onClose();
+        // Clear dismissal flag and trigger page reload to show install prompt
+        if (Platform.OS === 'web') {
+          localStorage.removeItem('pwa-install-dismissed-until');
+          // Reload page to trigger install prompt
+          window.location.reload();
+        }
+        break;
+
       case 'Redeem Coupon':
         onClose();
         navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
@@ -118,7 +144,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     try {
       const auth = getAuth();
       await signOut(auth);
-      
+
       // Navigate to CategorySelection after successful logout
       navigation.navigate('CategorySelection');
     } catch (error) {
@@ -180,6 +206,13 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   title="Settings"
                   onPress={() => handleMenuPress('Settings')}
                 /> */}
+                {showInstallButton && (
+                  <MenuItem
+                    Icon={({ width, height, color }) => <Download size={width} color={color} />}
+                    title="Install App"
+                    onPress={() => handleMenuPress('Install App')}
+                  />
+                )}
                 <MenuItem
                   Icon={RedeemIcon}
                   title="Redeem Coupon"
@@ -245,9 +278,11 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
+    overflow: 'hidden',  // Prevent scrolling beyond bounds
   },
   menuContent: {
     flex: 1,
+    overflow: 'hidden',  // Prevent horizontal scrolling in content
   },
   menuHeader: {
     flexDirection: 'row',

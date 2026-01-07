@@ -80,6 +80,9 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
                 notificationId,
                 url: clickAction,
                 type: notificationData.type,
+                title,  // Add title for service worker
+                body,   // Add body for service worker
+                icon,   // Add icon for service worker
             };
 
             // Convert all data fields to strings
@@ -91,21 +94,14 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
             }
 
             // Create FCM message
+            // IMPORTANT: Send ONLY 'data' payload, no 'notification' or 'webpush.notification'
+            // The service worker's onBackgroundMessage will manually create the notification
+            // Any notification-related fields cause FCM to auto-display, creating duplicates
             const message = {
-                notification: {
-                    title,
-                    body,
-                    // Note: icon is not supported in main notification, only in webpush
-                },
                 data: notificationDataPayload,
                 webpush: {
                     fcmOptions: {
-                        link: clickAction,
-                    },
-                    notification: {
-                        icon,
-                        badge: icon,
-                        requireInteraction: false,
+                        link: clickAction,  // URL to open when notification clicked
                     },
                 },
             };

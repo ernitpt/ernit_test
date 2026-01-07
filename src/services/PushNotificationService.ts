@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
 
@@ -131,14 +131,23 @@ class PushNotificationService {
 
     /**
      * Save FCM token to user's Firestore profile
+     * Uses arrayRemove + arrayUnion to ensure deduplication
      */
     private async saveTokenToFirestore(userId: string, token: string) {
         try {
             const userRef = doc(db, 'users', userId);
+
+            // First, remove this token if it exists (handles re-registration)
+            await updateDoc(userRef, {
+                fcmTokens: arrayRemove(token),
+            });
+
+            // Then add it fresh to ensure it appears exactly once
             await updateDoc(userRef, {
                 fcmTokens: arrayUnion(token),
             });
-            logger.log('🔔 FCM token saved to Firestore');
+
+            logger.log('🔔 FCM token saved to Firestore (deduplicated)');
         } catch (error) {
             logger.error('🔔 Error saving FCM token to Firestore:', error);
             throw error;

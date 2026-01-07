@@ -32,7 +32,7 @@ export const PWAInstaller: React.FC = () => {
         // Detect if app was uninstalled: was installed before but isn't now
         if (wasInstalled && !isStandalone) {
             // App was uninstalled! Clear the dismissal flag so prompt can reappear
-            localStorage.removeItem('pwa-install-dismissed');
+            localStorage.removeItem('pwa-install-dismissed-until');
             localStorage.removeItem('pwa-was-installed');
             console.log('PWA uninstalled detected - clearing dismissal flag');
         }
@@ -43,8 +43,15 @@ export const PWAInstaller: React.FC = () => {
         }
 
         // Check if already dismissed (after potential cleanup above)
-        const dismissed = localStorage.getItem('pwa-install-dismissed');
-        if (dismissed === 'true') return;
+        const dismissedUntil = localStorage.getItem('pwa-install-dismissed-until');
+        if (dismissedUntil) {
+            const dismissedTimestamp = parseInt(dismissedUntil, 10);
+            const now = Date.now();
+            // If still within dismissal period, don't show prompt
+            if (now < dismissedTimestamp) return;
+            // Dismissal period expired, clear the flag
+            localStorage.removeItem('pwa-install-dismissed-until');
+        }
 
         // iOS: Show manual installation prompt if not installed
         if (isIOS && !isStandalone) {
@@ -69,7 +76,9 @@ export const PWAInstaller: React.FC = () => {
 
     const handleIOSDismiss = () => {
         setShowIOSPrompt(false);
-        localStorage.setItem('pwa-install-dismissed', 'true');
+        // Dismiss for 7 days instead of permanently
+        const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     const handleAndroidInstall = async () => {
@@ -90,12 +99,16 @@ export const PWAInstaller: React.FC = () => {
         // Clear the prompt
         setDeferredPrompt(null);
         setShowAndroidPrompt(false);
-        localStorage.setItem('pwa-install-dismissed', 'true');
+        // Dismiss for 7 days instead of permanently
+        const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     const handleAndroidDismiss = () => {
         setShowAndroidPrompt(false);
-        localStorage.setItem('pwa-install-dismissed', 'true');
+        // Dismiss for 7 days instead of permanently
+        const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     // iOS Installation Modal
@@ -217,7 +230,6 @@ export const PWAInstaller: React.FC = () => {
                         <View style={styles.benefits}>
                             <Text style={styles.benefit}>✓ Push notifications for goals & hints</Text>
                             <Text style={styles.benefit}>✓ Faster app launch from home screen</Text>
-                            <Text style={styles.benefit}>✓ Works offline</Text>
                             <Text style={styles.benefit}>✓ Full-screen experience</Text>
                         </View>
 
