@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
 
@@ -244,6 +246,213 @@ class PushNotificationService {
         } catch (error) {
             logger.error('🔔 Error setting up push notifications:', error);
             return false;
+        }
+    }
+
+    /**
+     * Setup notification handler for local notifications
+     * Call this on app startup to configure how notifications behave
+     */
+    setupNotificationHandler() {
+        // Configure how notifications are handled when app is in foreground
+        Notifications.setNotificationHandler({
+            handleNotification: async () => ({
+                shouldShowAlert: false, // Don't show when app is open
+                shouldPlaySound: false,
+                shouldSetBadge: false,
+                shouldShowBanner: false,
+                shouldShowList: false,
+            }),
+        });
+
+        logger.log('🔔 Local notification handler configured');
+    }
+
+    /**
+     * Request local notification permissions (for iOS/Android)
+     */
+    async requestLocalNotificationPermissions(): Promise<boolean> {
+        try {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                logger.warn('🔔 Local notification permission not granted');
+                return false;
+            }
+
+            logger.log('🔔 Local notification permission granted');
+            return true;
+        } catch (error) {
+            logger.error('🔔 Error requesting local notification permission:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Schedule a notification for when session timer completes (Web/PWA compatible)
+     * Uses Service Worker for true background notifications
+     * @param goalId - Goal ID for tracking
+     * @param targetSeconds - Duration in seconds until notification should fire
+     * @returns Message ID if scheduled successfully, null otherwise
+     */
+    async scheduleSessionCompletionNotification(
+        goalId: string,
+        targetSeconds: number
+    ): Promise<string | null> {
+        if (Platform.OS !== 'web') {
+            // For native apps, use expo-notifications
+            try {
+                const hasPermission = await this.requestLocalNotificationPermissions();
+                if (!hasPermission) {
+                    logger.warn('🔔 Cannot schedule notification without permission');
+                    return null;
+                }
+
+                await this.cancelSessionNotification(goalId);
+
+                const notificationId = await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: "⏰ Session Time's Up!",
+                        body: "Great job! You can now finish your session and log your progress.",
+                        data: { goalId, type: 'session_completion' },
+                        sound: true,
+                    },
+                    trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                        seconds: targetSeconds,
+                    } as Notifications.TimeIntervalTriggerInput,
+                });
+
+                await AsyncStorage.setItem(
+                    `session_notification_${goalId}`,
+                    notificationId
+                );
+
+                logger.log(`🔔 Session notification scheduled for goal ${goalId} in ${targetSeconds}s (ID: ${notificationId})`);
+                return notificationId;
+            } catch (error) {
+                logger.error('🔔 Error scheduling session notification:', error);
+                return null;
+            }
+        }
+
+        // Web/PWA: Use Service Worker for background notifications
+        try {
+            // Check if browser supports notifications
+            if (!('Notification' in window)) {
+                logger.warn('🔔 Browser does not support notifications');
+                return null;
+            }
+
+            // Request permission if needed
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    logger.warn('🔔 Notification permission denied');
+                    return null;
+                }
+            }
+
+            if (Notification.permission !== 'granted') {
+                logger.warn('🔔 Notification permission not granted');
+                return null;
+            }
+
+            // Cancel any existing scheduled notification
+            await this.cancelSessionNotification(goalId);
+
+            // Register service worker if not already registered
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                    await navigator.serviceWorker.ready;
+
+                    // Send message to service worker to schedule notification
+                    const messageId = `session-${goalId}-${Date.now()}`;
+                    const targetTime = Date.now() + (targetSeconds * 1000);
+
+                    // Store notification data
+                    await AsyncStorage.setItem(
+                        `session_notification_${goalId}`,
+                        JSON.stringify({
+                            messageId,
+                            goalId,
+                            targetTime,
+                            targetSeconds,
+                        })
+                    );
+
+                    // Post message to service worker
+                    registration.active?.postMessage({
+                        type: 'SCHEDULE_SESSION_NOTIFICATION',
+                        payload: {
+                            messageId,
+                            goalId,
+                            targetTime,
+                            targetSeconds,
+                        },
+                    });
+
+                    logger.log(`🔔 Service Worker notification scheduled for goal ${goalId} in ${targetSeconds}s`);
+                    return messageId;
+                } catch (error) {
+                    logger.error('🔔 Service Worker registration failed:', error);
+                    return null;
+                }
+            } else {
+                logger.warn('🔔 Service Worker not supported');
+                return null;
+            }
+        } catch (error) {
+            logger.error('🔔 Error scheduling session notification:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Cancel scheduled session notification for a goal
+     * @param goalId - Goal ID
+     */
+    async cancelSessionNotification(goalId: string): Promise<void> {
+        try {
+            // Get stored notification/timeout ID
+            const storedId = await AsyncStorage.getItem(
+                `session_notification_${goalId}`
+            );
+
+            if (storedId) {
+                if (Platform.OS === 'web') {
+                    // Web: Clear the timeout
+                    clearTimeout(Number(storedId));
+                    logger.log(`🔔 Cancelled session timeout for goal ${goalId}`);
+                } else {
+                    // Native: Cancel scheduled notification
+                    await Notifications.cancelScheduledNotificationAsync(storedId);
+                    logger.log(`🔔 Cancelled session notification for goal ${goalId}`);
+                }
+
+                await AsyncStorage.removeItem(`session_notification_${goalId}`);
+            }
+        } catch (error) {
+            logger.error('🔔 Error cancelling session notification:', error);
+        }
+    }
+
+    /**
+     * Cancel all scheduled notifications
+     */
+    async cancelAllScheduledNotifications(): Promise<void> {
+        try {
+            await Notifications.cancelAllScheduledNotificationsAsync();
+            logger.log('🔔 All scheduled notifications cancelled');
+        } catch (error) {
+            logger.error('🔔 Error cancelling all notifications:', error);
         }
     }
 }

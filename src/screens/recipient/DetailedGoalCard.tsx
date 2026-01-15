@@ -12,19 +12,22 @@ import {
   Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Goal } from '../../types';
+import { Goal, isSelfGifted } from '../../types';
 import { goalService } from '../../services/GoalService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/NotificationService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { experienceService } from '../../services/ExperienceService';
 import { RootStackParamList } from '../../types';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
+import { pushNotificationService } from '../../services/PushNotificationService';
 import { useApp } from '../../context/AppContext';
+import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
 import { DateHelper } from '../../utils/DateHelper';
 
@@ -265,35 +268,71 @@ type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
-  const [timeElapsed, setTimeElapsed] = useState(0);
+  const isSelfGift = isSelfGifted(currentGoal); // Detect self-gifted goals
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [lastHint, setLastHint] = useState<any>(null);
-  const [pendingHint, setPendingHint] = useState<string | null>(null);
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
-  const [debugTimeKey, setDebugTimeKey] = useState(0); // Force re-render when debug time changes
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [debugTimeKey, setDebugTimeKey] = useState(0);
   const [cancelMessage, setCancelMessage] = useState(
     "Are you sure you want to cancel this session? Progress won't be saved."
   );
+
+  // Use centralized timer state from context
+  const { getTimerState, startTimer, stopTimer } = useTimerContext();
+  const timerState = getTimerState(currentGoal.id);
+
+  const isTimerRunning = timerState?.isRunning || false;
+  const startTime = timerState?.startTime || null;
+  const timeElapsed = timerState?.elapsed || 0;
+  const pendingHint = timerState?.pendingHint || null;
 
   const navigation = useNavigation<UserProfileNavigationProp>();
   const pulse = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const cancelScale = useRef(new Animated.Value(300)).current;
+  const celebrationScale = useRef(new Animated.Value(0)).current;
+  const celebrationOpacity = useRef(new Animated.Value(0)).current;
+  const particlesAnim = useRef(new Animated.Value(0)).current;
+
+  // Format planned start date
+  const getStartDateText = () => {
+    if (!currentGoal.plannedStartDate) return null;
+    const planned = new Date(currentGoal.plannedStartDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    planned.setHours(0, 0, 0, 0);
+
+    const diffMs = planned.getTime() - today.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return '🎯 Starts today';
+    if (diffDays === 1) return '🎯 Starts tomorrow';
+    if (diffDays === -1) return '🎯 Started yesterday';
+    if (diffDays < 0) return `🎯 Started ${Math.abs(diffDays)} days ago`;
+    if (diffDays <= 7) return `🎯 Starts in ${diffDays} days`;
+    return `🎯 Starts ${planned.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  };
+
+  const startDateText = getStartDateText();
 
   // Calculate logic for duration and finishing
   const totalGoalSeconds = useMemo(() => {
     return (currentGoal.targetHours || 0) * 3600 + (currentGoal.targetMinutes || 0) * 60;
   }, [currentGoal.targetHours, currentGoal.targetMinutes]);
 
-  // Logic: Can finish if elapsed time is >= 70% of total duration
-  // NOTE: If total seconds is 0 (undefined goal), we default to immediate finish to avoid locking
-  const canFinish = totalGoalSeconds > 2;
-  // ? timeElapsed >= (totalGoalSeconds * 0.7)
-  // : timeElapsed >= 2;
+  // Logic: Can finish if elapsed time is >= 2 seconds
+  // This ensures timer has actually run before allowing finish
+  const canFinish = useMemo(() => {
+    // For goals with defined duration, require at least 2 seconds
+    if (totalGoalSeconds > 2) {
+      return timeElapsed >= 2;
+    }
+    // For goals without duration, also require 2 seconds minimum
+    return timeElapsed >= 2;
+  }, [totalGoalSeconds, timeElapsed]);
 
   const handleFinish = async () => {
     if (!isTimerRunning || !canFinish || loading) return;
@@ -308,7 +347,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       // Special case: 1 day and 1 session per week goals cannot be completed until approved
       if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
-          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before continuing.'
+          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
           : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
         Alert.alert('Goal Not Approved', message);
         return;
@@ -317,8 +356,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       // For other goals: Allow first session, but prevent subsequent sessions if not approved
       if (sessionsDoneBeforeFinish >= 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
-          ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.'
-          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
+          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
+          : `Waiting for ${empoweredName || 'your giver'}\'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
         Alert.alert('Goal Not Approved', message);
         return;
       }
@@ -347,26 +386,30 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       setLastSessionNumber(totalSessionsDone);
 
-      // Clear timer state
-      setIsTimerRunning(false);
-      setStartTime(null);
-      setTimeElapsed(0);
+      // Clear timer state using context
+      stopTimer(currentGoal.id);
       await clearTimerState();
 
+      // Cancel scheduled notification since session is complete
+      await pushNotificationService.cancelSessionNotification(goalId);
+
       if (updated.isCompleted) {
-        await notificationService.createNotification(
-          updated.empoweredBy,
-          'goal_completed',
-          `🎉 ${recipientName} just earned ${experience.title}`,
-          `Goal completed: ${updated.description}`,
-          {
-            goalId: updated.id,
-            giftId: updated.experienceGiftId,
-            giverId: updated.empoweredBy,
-            recipientId: updated.userId,
-            experienceTitle: experience.title,
-          }
-        );
+        // Only notify the giver if they're different from the user (don't send self-notifications)
+        if (updated.empoweredBy && updated.empoweredBy !== updated.userId) {
+          await notificationService.createNotification(
+            updated.empoweredBy,
+            'goal_completed',
+            `🎉 ${recipientName} just earned ${experience.title}`,
+            `Goal completed: ${updated.description}`,
+            {
+              goalId: updated.id,
+              giftId: updated.experienceGiftId,
+              giverId: updated.empoweredBy,
+              recipientId: updated.userId,
+              experienceTitle: experience.title,
+            }
+          );
+        }
         // Don't call onFinish for completed goals - handle navigation here
         navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
@@ -488,8 +531,19 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           setLastHint(hintToShow);
         }
 
-        setShowHint(true);
-        setPendingHint(null);
+        // Only show hint popup if NOT self-gifted
+        if (!isSelfGift) {
+          setShowHint(true);
+        } else {
+          // Show celebration animation for self-gifted goals
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setShowCelebration(true);
+
+          // Auto-dismiss after 3 seconds
+          setTimeout(() => {
+            setShowCelebration(false);
+          }, 3000);
+        }
 
         // Note: We don't invalidate old notifications here because recipients
         // don't have permission to update notifications that belong to givers.
@@ -503,21 +557,24 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           ? updated.currentCount + 1
           : updated.currentCount;
 
-        await notificationService.createNotification(
-          updated.empoweredBy,
-          'goal_progress',
-          `✅ ${recipientName} made progress!`,
-          `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}
+        // Only notify the giver if they're different from the user (don't send self-notifications)
+        if (updated.empoweredBy && updated.empoweredBy !== updated.userId) {
+          await notificationService.createNotification(
+            updated.empoweredBy,
+            'goal_progress',
+            `✅ ${recipientName} made progress!`,
+            `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}
 Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
-          {
-            goalId: updated.id,
-            giftId: updated.experienceGiftId,
-            giverId: updated.empoweredBy,
-            recipientId: updated.userId,
-            experienceTitle: experience.title,
-            sessionNumber: totalSessionsDone,
-          }
-        );
+            {
+              goalId: updated.id,
+              giftId: updated.experienceGiftId,
+              giverId: updated.empoweredBy,
+              recipientId: updated.userId,
+              experienceTitle: experience.title,
+              sessionNumber: totalSessionsDone,
+            }
+          );
+        }
       }
     } catch (err) {
       logger.error(err);
@@ -535,7 +592,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     // Prevent starting session for 1 day/1 week goals when approval is pending or suggested change
     if (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
       const message = currentGoal.approvalStatus === 'suggested_change'
-        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting a session.'
+        ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting a session.`
         : 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.';
       Alert.alert('Goal Not Approved', message);
       return;
@@ -543,17 +600,13 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     // Prevent starting session when goal is locked and weekly count is already 1
     if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
       const message = currentGoal.approvalStatus === 'suggested_change'
-        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion before starting another session.'
-        : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).';
+        ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting another session.`
+        : `Waiting for ${empoweredName || 'your giver'}\'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
       Alert.alert('Goal Not Approved', message);
       return;
     }
     setLoading(true);
     const now = Date.now();
-    setStartTime(now);
-    setTimeElapsed(0);
-    setPendingHint(null);
-    setIsTimerRunning(true);
 
     try {
       const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
@@ -612,7 +665,21 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           userName: recipientName || undefined,
         });
 
-        setPendingHint(hint);
+        // Start timer with pending hint using context
+        startTimer(currentGoal.id, hint);
+      } else {
+        // Start timer without hint
+        startTimer(currentGoal.id, null);
+      }
+
+      // Schedule push notification for when timer completes
+      // Only schedule if there's a defined target duration
+      if (totalGoalSeconds > 0) {
+        const notifId = await pushNotificationService.scheduleSessionCompletionNotification(
+          goalId,
+          totalGoalSeconds
+        );
+        logger.log(`📱 Scheduled session notification with ID: ${notifId} for ${totalGoalSeconds}s`);
       }
 
     } catch (err) {
@@ -623,6 +690,54 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       setLoading(false);
     }
   };
+
+  // Check if session time has elapsed when component mounts or app becomes visible
+  useEffect(() => {
+    if (!isTimerRunning || !startTime) return;
+
+    const checkElapsedTime = () => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+      // If session duration has elapsed and user just opened the app, show notification
+      if (elapsed >= totalGoalSeconds && totalGoalSeconds > 0) {
+        logger.log('⏰ Session time elapsed while app was closed, showing notification');
+
+        // Show browser notification if permission granted
+        if (Platform.OS === 'web' && 'Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification("⏰ Session Time's Up!", {
+            body: "Great job! You can now finish your session and log your progress.",
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: `session-${currentGoal.id}`,
+            requireInteraction: true,
+          });
+
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkElapsedTime();
+
+    // Listen for visibility change (app coming back to foreground)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkElapsedTime();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isTimerRunning, startTime, totalGoalSeconds, currentGoal.id]);
+
+  // ========= Helpers & Animations =========
 
   // ========= Helpers & Animations =========
   const onPressIn = () =>
@@ -648,11 +763,12 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
   const cancelSessionInternal = async () => {
     try {
-      setIsTimerRunning(false);
-      setStartTime(null);
-      setTimeElapsed(0);
-      setPendingHint(null);
+      // Clear timer using context
+      stopTimer(currentGoal.id);
       await clearTimerState();
+
+      // Cancel scheduled notification since session is cancelled
+      await pushNotificationService.cancelSessionNotification(currentGoal.id);
     } catch (error) {
       logger.error('Error cancelling session:', error);
     } finally {
@@ -661,65 +777,78 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
   };
 
   // ========= Timer Persistence =========
-  const loadTimerState = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY + currentGoal.id);
-      if (stored) {
-        const timerState = JSON.parse(stored);
-        setIsTimerRunning(true);
-        setStartTime(timerState.startTime);
-        setPendingHint(timerState.pendingHint || null);
-        const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
-        setTimeElapsed(elapsed);
-
-      }
-    } catch (error) {
-      logger.error('Error loading timer state:', error);
-    }
-  };
-
-  const saveTimerState = async () => {
-    try {
-      const timerState = { startTime, pendingHint, goalId: currentGoal.id };
-      await AsyncStorage.setItem(TIMER_STORAGE_KEY + currentGoal.id, JSON.stringify(timerState));
-    } catch (error) {
-      logger.error('Error saving timer state:', error);
-    }
-  };
+  // Note: Timer state is now managed by TimerContext
+  // Only keeping clearTimerState for cleanup
 
   const clearTimerState = async () => {
     try {
       await AsyncStorage.removeItem(TIMER_STORAGE_KEY + currentGoal.id);
+      // Also cancel any scheduled notification for this goal
+      await pushNotificationService.cancelSessionNotification(currentGoal.id);
     } catch (error) {
       logger.error('Error clearing timer state:', error);
     }
   };
 
-  // ========= Effects =========
-  useEffect(() => {
-    loadTimerState();
-  }, [currentGoal.id]);
 
-  useEffect(() => {
-    if (isTimerRunning && startTime) saveTimerState();
-  }, [isTimerRunning, startTime, pendingHint]);
 
-  useEffect(() => {
-    if (!isTimerRunning || !startTime) return;
-    const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      setTimeElapsed(elapsed);
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [isTimerRunning, startTime]);
+
 
   useEffect(() => {
     if (currentGoal.empoweredBy) {
       userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => { });
     }
   }, [currentGoal.empoweredBy]);
+
+  // Celebration animation effect
+  useEffect(() => {
+    if (showCelebration) {
+      // Reset animations
+      celebrationScale.setValue(0);
+      celebrationOpacity.setValue(0);
+      particlesAnim.setValue(0);
+
+      // Staggered entrance animation
+      Animated.parallel([
+        Animated.spring(celebrationScale, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(celebrationOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Particle burst animation - delayed slightly
+      setTimeout(() => {
+        Animated.timing(particlesAnim, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }, 150);
+    } else {
+      // Exit animation
+      Animated.parallel([
+        Animated.timing(celebrationScale, {
+          toValue: 0.8,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(celebrationOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showCelebration]);
+
 
   // ========= Other Computations =========
 
@@ -782,7 +911,12 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       >
         <View style={styles.card}>
           <Text style={styles.title}>{currentGoal.title}</Text>
-          {!!empoweredName && <Text style={styles.empoweredText}>⚡ Empowered by {empoweredName}</Text>}
+          {/* Show empowered text only if NOT self-gifted */}
+          {!!empoweredName && !isSelfGift && <Text style={styles.empoweredText}>⚡ Empowered by {empoweredName}</Text>}
+          {/* Show self-challenge badge for self-gifted goals */}
+          {isSelfGift && <Text style={styles.selfChallengeText}>🏆 Self-Challenge</Text>}
+          {/* Show planned start date */}
+          {startDateText && <Text style={styles.startDateText}>{startDateText}</Text>}
 
           {/* Weekly Calendar */}
           <View style={styles.calendarRow}>
@@ -874,25 +1008,25 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               </View>
             ) : (
               <>
-                {/* Approval Status Message - Show only once above start button when locked and no sessions done */}
-                {isGoalLocked(currentGoal) && totalSessionsDone === 0 && (
+                {/* Approval Status Message - Show only if locked and NOT self-gifted */}
+                {isGoalLocked(currentGoal) && !isSelfGift && totalSessionsDone === 0 && (
                   <View style={styles.approvalMessageBox}>
                     <Text style={styles.approvalMessageText}>
                       {currentGoal.approvalStatus === 'suggested_change'
-                        ? 'Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications.'
+                        ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion in your notifications.`
                         : currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1
                           ? 'Goals with only 1 day and 1 session per week cannot be completed until giver\'s approval.'
-                          : 'Waiting for your giver\'s approval! You can start with the first session, but the remaining sessions will unlock after giver approves your goal (or automatically in 24 hours).'}
+                          : `Waiting for ${empoweredName || 'your giver'}\'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`}
                     </Text>
                   </View>
                 )}
-                {/* Approval Status Message - Show only once above start button when locked and one session done */}
-                {isGoalLocked(currentGoal) && totalSessionsDone === 1 && (
+                {/* Approval Status Message - Show only if locked, NOT self-gifted, and one session done */}
+                {isGoalLocked(currentGoal) && !isSelfGift && totalSessionsDone === 1 && (
                   <View style={[styles.approvalMessageBox, { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
                     <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
                       {currentGoal.approvalStatus === 'suggested_change'
-                        ? '🎉 Congrats on your first session! Your giver has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.'
-                        : '🎉 Congrats on your first session! The remaining sessions will unlock after your giver approves this goal (or automatically in 24 hours).'}
+                        ? `🎉 Congrats on your first session! ${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.`
+                        : `🎉 Congrats on your first session! The remaining sessions will unlock after ${empoweredName || 'your giver'} approves this goal (or automatically in 24 hours).`}
                     </Text>
                   </View>
                 )}
@@ -935,7 +1069,11 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                     styles.finishButton,
                     canFinish ? styles.finishButtonActive : styles.finishButtonDisabled,
                   ]}
-                  onPress={handleFinish}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleFinish();
+                  }}
                   disabled={!canFinish || loading}
                   activeOpacity={0.85}
                 >
@@ -945,7 +1083,11 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.cancelButton}
-                  onPress={handleCancel}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleCancel();
+                  }}
                   disabled={loading}
                   activeOpacity={0.85}
                 >
@@ -962,70 +1104,72 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       </Pressable>
 
       {/* Debug Controls */}
-      {DEBUG_ALLOW_MULTIPLE_PER_DAY && (
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugTitle}>🔧 Debug Tools</Text>
-          <View style={styles.debugButtonsRow}>
-            <TouchableOpacity
-              style={styles.debugButton}
-              onPress={async () => {
-                await goalService.debugRewindWeek(currentGoal.id!);
-                // Refresh goal and force re-render of time-dependent values
-                const updated = await goalService.getGoalById(currentGoal.id!);
-                if (updated) setCurrentGoal(updated);
-                setDebugTimeKey(k => k + 1);
-                alert('Rewound 1 week');
-              }}
-            >
-              <Text style={styles.debugButtonText}>-1 W</Text>
-            </TouchableOpacity>
+      {
+        DEBUG_ALLOW_MULTIPLE_PER_DAY && (
+          <View style={styles.debugContainer}>
+            <Text style={styles.debugTitle}>🔧 Debug Tools</Text>
+            <View style={styles.debugButtonsRow}>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  await goalService.debugRewindWeek(currentGoal.id!);
+                  // Refresh goal and force re-render of time-dependent values
+                  const updated = await goalService.getGoalById(currentGoal.id!);
+                  if (updated) setCurrentGoal(updated);
+                  setDebugTimeKey(k => k + 1);
+                  alert('Rewound 1 week');
+                }}
+              >
+                <Text style={styles.debugButtonText}>-1 W</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.debugButton}
-              onPress={async () => {
-                await goalService.debugRewindDay(currentGoal.id!);
-                // Refresh goal and force re-render of time-dependent values
-                const updated = await goalService.getGoalById(currentGoal.id!);
-                if (updated) setCurrentGoal(updated);
-                setDebugTimeKey(k => k + 1);
-                alert('Rewound 1 day');
-              }}
-            >
-              <Text style={styles.debugButtonText}>-1 D</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  await goalService.debugRewindDay(currentGoal.id!);
+                  // Refresh goal and force re-render of time-dependent values
+                  const updated = await goalService.getGoalById(currentGoal.id!);
+                  if (updated) setCurrentGoal(updated);
+                  setDebugTimeKey(k => k + 1);
+                  alert('Rewound 1 day');
+                }}
+              >
+                <Text style={styles.debugButtonText}>-1 D</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.debugButton}
-              onPress={async () => {
-                console.log('🔧 +1D button clicked!');
-                await goalService.debugAdvanceDay(currentGoal.id!);
-                console.log('🔧 debugAdvanceDay completed');
-                // Refresh goal and force re-render of time-dependent values
-                const updated = await goalService.getGoalById(currentGoal.id!);
-                if (updated) setCurrentGoal(updated);
-                setDebugTimeKey(k => k + 1);
-                alert('Advanced 1 day');
-              }}
-            >
-              <Text style={styles.debugButtonText}>+1 D</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  console.log('🔧 +1D button clicked!');
+                  await goalService.debugAdvanceDay(currentGoal.id!);
+                  console.log('🔧 debugAdvanceDay completed');
+                  // Refresh goal and force re-render of time-dependent values
+                  const updated = await goalService.getGoalById(currentGoal.id!);
+                  if (updated) setCurrentGoal(updated);
+                  setDebugTimeKey(k => k + 1);
+                  alert('Advanced 1 day');
+                }}
+              >
+                <Text style={styles.debugButtonText}>+1 D</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.debugButton}
-              onPress={async () => {
-                await goalService.debugAdvanceWeek(currentGoal.id!);
-                // Refresh goal and force re-render of time-dependent values
-                const updated = await goalService.getGoalById(currentGoal.id!);
-                if (updated) setCurrentGoal(updated);
-                setDebugTimeKey(k => k + 1);
-                alert('Advanced 1 week');
-              }}
-            >
-              <Text style={styles.debugButtonText}>+1 W</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  await goalService.debugAdvanceWeek(currentGoal.id!);
+                  // Refresh goal and force re-render of time-dependent values
+                  const updated = await goalService.getGoalById(currentGoal.id!);
+                  if (updated) setCurrentGoal(updated);
+                  setDebugTimeKey(k => k + 1);
+                  alert('Advanced 1 week');
+                }}
+              >
+                <Text style={styles.debugButtonText}>+1 W</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      )}
+        )
+      }
 
       {/* Hint Popup */}
       <HintPopup
@@ -1082,7 +1226,77 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           </Animated.View>
         </TouchableOpacity>
       </Modal>
-    </Animated.View>
+
+      {/* Celebration Modal for Self-Gifted Goals */}
+      <Modal
+        visible={showCelebration}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowCelebration(false)}
+      >
+        <View style={styles.celebrationOverlay}>
+          <Animated.View
+            style={[
+              styles.celebrationContainer,
+              {
+                opacity: celebrationOpacity,
+                transform: [{ scale: celebrationScale }],
+              },
+            ]}
+          >
+            {/* Particle Effects */}
+            {[...Array(12)].map((_, i) => {
+              const angle = (i / 12) * 2 * Math.PI;
+              const distance = 80;
+              return (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.particle,
+                    {
+                      backgroundColor: ['#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'][i % 5],
+                      transform: [
+                        {
+                          translateX: particlesAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, Math.cos(angle) * distance],
+                          }),
+                        },
+                        {
+                          translateY: particlesAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, Math.sin(angle) * distance],
+                          }),
+                        },
+                        {
+                          scale: particlesAnim.interpolate({
+                            inputRange: [0, 0.5, 1],
+                            outputRange: [0, 1, 0],
+                          }),
+                        },
+                      ],
+                      opacity: particlesAnim.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 1, 0],
+                      }),
+                    },
+                  ]}
+                />
+              );
+            })}
+
+            {/* Success Icon */}
+            <View style={styles.celebrationIconContainer}>
+              <Text style={styles.celebrationIcon}>🎉</Text>
+            </View>
+
+            {/* Success Message */}
+            <Text style={styles.celebrationTitle}>Amazing!</Text>
+            <Text style={styles.celebrationMessage}>Session complete!</Text>
+          </Animated.View>
+        </View>
+      </Modal>
+    </Animated.View >
   );
 };
 
@@ -1104,6 +1318,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6 },
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14 },
+  selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600' },
+  startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600' },
   calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   dayCell: { alignItems: 'center', width: CIRCLE },
   emptyCircle: {
@@ -1317,6 +1533,49 @@ const styles = StyleSheet.create({
     color: '#235c9eff',
     fontWeight: '700',
   },
+  celebrationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  celebrationContainer: {
+    width: 280,
+    height: 280,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 40,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  particle: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  celebrationIconContainer: {
+    marginBottom: 16,
+  },
+  celebrationIcon: {
+    fontSize: 64,
+  },
+  celebrationTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  celebrationMessage: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+
 });
 
 export default DetailedGoalCard;

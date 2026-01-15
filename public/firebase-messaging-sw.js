@@ -87,3 +87,80 @@ self.addEventListener('install', (event) => {
     console.log('[firebase-messaging-sw.js] Service worker installed');
     self.skipWaiting(); // Activate immediately
 });
+
+// ========================================
+// Session Timer Notifications
+// ========================================
+
+// Store for scheduled session notifications
+const scheduledNotifications = new Map();
+
+// Handle messages from the main app
+self.addEventListener('message', (event) => {
+    console.log('[firebase-messaging-sw.js] Received message:', event.data);
+
+    if (event.data && event.data.type === 'SCHEDULE_SESSION_NOTIFICATION') {
+        const { messageId, goalId, targetTime, targetSeconds } = event.data.payload;
+
+        // Cancel any existing timer for this goal
+        if (scheduledNotifications.has(goalId)) {
+            clearTimeout(scheduledNotifications.get(goalId));
+        }
+
+        // Calculate delay until target time
+        const delay = targetTime - Date.now();
+
+        if (delay > 0) {
+            // Schedule the notification
+            const timerId = setTimeout(() => {
+                console.log('[firebase-messaging-sw.js] Showing session notification for goal:', goalId);
+
+                self.registration.showNotification("⏰ Session Time's Up!", {
+                    body: "Great job! You can now finish your session and log your progress.",
+                    icon: '/icon-192.png',
+                    badge: '/icon-192.png',
+                    tag: `session-${goalId}`,
+                    requireInteraction: true,
+                    data: {
+                        goalId,
+                        type: 'session_completion',
+                        url: '/' // Open app root
+                    },
+                    vibrate: [200, 100, 200]
+                });
+
+                // Remove from map after showing
+                scheduledNotifications.delete(goalId);
+            }, delay);
+
+            // Store the timer ID so we can cancel it later
+            scheduledNotifications.set(goalId, timerId);
+            console.log(`[firebase-messaging-sw.js] Scheduled session notification for goal ${goalId} in ${delay}ms`);
+        } else {
+            // Time already passed, show notification immediately
+            console.log('[firebase-messaging-sw.js] Target time already passed, showing notification immediately');
+            self.registration.showNotification("⏰ Session Time's Up!", {
+                body: "Great job! You can now finish your session and log your progress.",
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `session-${goalId}`,
+                requireInteraction: true,
+                data: {
+                    goalId,
+                    type: 'session_completion',
+                    url: '/'
+                },
+                vibrate: [200, 100, 200]
+            });
+        }
+    } else if (event.data && event.data.type === 'CANCEL_SESSION_NOTIFICATION') {
+        const { goalId } = event.data.payload;
+
+        if (scheduledNotifications.has(goalId)) {
+            clearTimeout(scheduledNotifications.get(goalId));
+            scheduledNotifications.delete(goalId);
+            console.log(`[firebase-messaging-sw.js] Cancelled session notification for goal ${goalId}`);
+        }
+    }
+});
+

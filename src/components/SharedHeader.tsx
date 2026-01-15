@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Animated,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -19,7 +20,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 interface SharedHeaderProps {
     title: string;
     subtitle?: string;
-    variant?: 'default' | 'gradient' | 'simple';
+    variant?: 'default' | 'transparent' | 'solid';
     showBack?: boolean;
     showNotifications?: boolean;
     showCart?: boolean;
@@ -30,7 +31,7 @@ interface SharedHeaderProps {
 const SharedHeader: React.FC<SharedHeaderProps> = ({
     title,
     subtitle,
-    variant = 'gradient',
+    variant = 'default',
     showBack,
     showNotifications,
     showCart,
@@ -79,7 +80,6 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         } else if (navigation.canGoBack()) {
             navigation.goBack();
         } else {
-            // Fallback: navigate to Goals if there's no history (e.g., after page refresh)
             navigation.navigate('Goals' as any);
         }
     };
@@ -92,8 +92,6 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         navigation.navigate('Cart' as any);
     };
 
-    const headerColors = ['#462088ff', '#235c9eff'] as const;
-
     const ActionButton: React.FC<{
         onPress: () => void;
         icon: React.ReactNode;
@@ -103,15 +101,16 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
 
         const handlePress = () => {
             Animated.sequence([
-                Animated.spring(scaleAnim, {
-                    toValue: 0.9,
+                Animated.timing(scaleAnim, {
+                    toValue: 0.88,
+                    duration: 100,
                     useNativeDriver: true,
-                    speed: 20,
                 }),
                 Animated.spring(scaleAnim, {
                     toValue: 1,
                     useNativeDriver: true,
-                    friction: 3,
+                    tension: 300,
+                    friction: 10,
                 }),
             ]).start();
             onPress();
@@ -120,7 +119,9 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         return (
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                 <TouchableOpacity onPress={handlePress} style={styles.actionButton}>
-                    {icon}
+                    <View style={styles.iconBackground}>
+                        {icon}
+                    </View>
                     {badge !== undefined && badge > 0 && (
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>
@@ -134,63 +135,71 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     };
 
     return (
-        <LinearGradient colors={headerColors} style={styles.gradientHeader}>
-            <View style={[styles.header, showBack && styles.headerWithBack]}>
-                <View style={styles.headerTop}>
-                    <View style={styles.headerLeft}>
-                        {showBack && (
-                            <TouchableOpacity onPress={handleBackPress} style={styles.backButtonGradient}>
-                                <ChevronLeft color="#ffffff" size={24} />
-                            </TouchableOpacity>
-                        )}
-                        <View style={styles.headerTextContainer}>
-                            <Text style={styles.headerTitle}>{title}</Text>
-                            {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+        <View style={styles.headerWrapper}>
+            <LinearGradient
+                colors={['#5f23beff', '#7c3aed', '#8b5cf6', '#e5e7eb']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.gradientBackground}
+            >
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <View style={styles.headerLeft}>
+                            {showBack && (
+                                <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                                    <ChevronLeft color="#ffffff" size={26} strokeWidth={2.5} />
+                                </TouchableOpacity>
+                            )}
+                            <View style={styles.headerTextContainer}>
+                                <Text style={styles.headerTitle}>{title}</Text>
+                                {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+                            </View>
+                        </View>
+
+                        <View style={styles.headerButtons}>
+                            {rightActions}
+                            {shouldShowCart && (
+                                <ActionButton
+                                    onPress={handleCartPress}
+                                    icon={<ShoppingCart color="#ffffff" size={22} strokeWidth={2} />}
+                                    badge={cartItemCount}
+                                />
+                            )}
+                            {shouldShowNotifications && (
+                                <ActionButton
+                                    onPress={handleNotificationsPress}
+                                    icon={<Bell color="#ffffff" size={22} strokeWidth={2} />}
+                                    badge={unreadCount}
+                                />
+                            )}
                         </View>
                     </View>
-
-                    <View style={styles.headerButtons}>
-                        {rightActions}
-                        {shouldShowCart && (
-                            <ActionButton
-                                onPress={handleCartPress}
-                                icon={<ShoppingCart color="#fff" size={22} />}
-                                badge={cartItemCount}
-                            />
-                        )}
-                        {shouldShowNotifications && (
-                            <ActionButton
-                                onPress={handleNotificationsPress}
-                                icon={<Bell color="#fff" size={22} />}
-                                badge={unreadCount}
-                            />
-                        )}
-                    </View>
                 </View>
-            </View>
-        </LinearGradient>
+            </LinearGradient>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    gradientHeader: {
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-        overflow: 'hidden',
-        paddingBottom: 18,
-        paddingTop: 28,
+    headerWrapper: {
+        zIndex: 100,
+    },
+    gradientBackground: {
+        shadowColor: '#7c3aed',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 8,
     },
     header: {
-        paddingHorizontal: 24,
-        paddingBottom: 10,
-    },
-    headerWithBack: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 56 : 20,
+        paddingBottom: 24,
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     headerLeft: {
         flex: 1,
@@ -198,11 +207,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 12,
     },
-    backButtonGradient: {
+    backButton: {
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -212,77 +221,60 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 26,
-        fontWeight: 'bold',
+        fontWeight: '800',
         color: '#ffffff',
-        marginBottom: 4,
+        letterSpacing: -0.5,
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     headerSubtitle: {
-        fontSize: 15,
-        color: '#e0e7ff',
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
+        marginTop: 2,
+        fontWeight: '500',
     },
     headerButtons: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
     },
     actionButton: {
+        position: 'relative',
+    },
+    iconBackground: {
         width: 44,
         height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 14,
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
         justifyContent: 'center',
         alignItems: 'center',
-        position: 'relative',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     badge: {
         position: 'absolute',
-        top: -4,
-        right: -4,
+        top: -6,
+        right: -6,
         backgroundColor: '#ef4444',
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
+        borderRadius: 11,
+        minWidth: 22,
+        height: 22,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 4,
-        borderWidth: 2,
+        paddingHorizontal: 6,
+        borderWidth: 2.5,
         borderColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 4,
     },
     badgeText: {
         color: '#fff',
         fontSize: 11,
-        fontWeight: '700',
-    },
-    rightActions: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    // Simple variant styles
-    simpleHeader: {
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        paddingTop: 16,
-        paddingBottom: 12,
-    },
-    simpleHeaderContent: {
-        paddingHorizontal: 24,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    simpleTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#111827',
-        flex: 1,
+        fontWeight: '800',
     },
 });
 

@@ -79,6 +79,65 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
     wasAuthenticatedRef.current = isNowAuthenticated;
   }, [isAuthenticated, state.user]);
 
+  // Periodic token health check - re-register if token is missing
+  useEffect(() => {
+    if (!isAuthenticated || !state.user || Platform.OS !== 'web') {
+      return;
+    }
+
+    // Check token health every 5 minutes
+    const healthCheckInterval = setInterval(async () => {
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../services/firebase');
+
+        const userRef = doc(db, 'users', state.user!.id);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const fcmTokens = userData?.fcmTokens || [];
+
+          // If user has no tokens, re-register
+          if (fcmTokens.length === 0) {
+            logger.warn('🔔 FCM token missing from Firestore, re-registering...');
+            await pushNotificationService.setupPushNotifications(state.user!.id);
+          }
+        }
+      } catch (error) {
+        logger.error('🔔 Token health check failed:', error);
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    // Also do an initial check after 10 seconds (give app time to fully load)
+    const initialCheckTimeout = setTimeout(async () => {
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../services/firebase');
+
+        const userRef = doc(db, 'users', state.user!.id);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const fcmTokens = userData?.fcmTokens || [];
+
+          if (fcmTokens.length === 0) {
+            logger.warn('🔔 FCM token missing on startup, re-registering...');
+            await pushNotificationService.setupPushNotifications(state.user!.id);
+          }
+        }
+      } catch (error) {
+        logger.error('🔔 Initial token check failed:', error);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(healthCheckInterval);
+      clearTimeout(initialCheckTimeout);
+    };
+  }, [isAuthenticated, state.user]);
+
   /**
    * Require authentication for an action
    * @param message - Optional message to show

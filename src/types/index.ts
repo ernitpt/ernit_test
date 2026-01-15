@@ -129,7 +129,8 @@ export interface Goal {
 
   /** Weekly cadence */
   frequency: 'daily' | 'weekly' | 'monthly'; // keep as-is; we use 'weekly'
-  weekStartAt?: Date | null;   // anchor day for the recurring weekly window
+  weekStartAt?: Date | null;   // anchor day for the recurring weekly window (set on first session)
+  plannedStartDate?: Date | null;  // when user intends to start (for accountability/reminders)
 
   /** Misc / existing fields */
   duration: number;            // in days
@@ -169,6 +170,12 @@ export interface PersonalizedHint {
   createdAt: Date;
   forSessionNumber: number;
 }
+
+// Helper function to detect if a goal is self-gifted
+export function isSelfGifted(goal: Goal): boolean {
+  return goal.empoweredBy === goal.userId;
+}
+
 
 // Individual goal segments (e.g., each workout in a month)
 export interface GoalSegment {

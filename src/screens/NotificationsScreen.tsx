@@ -423,6 +423,7 @@ const NotificationsScreen = () => {
       <StatusBar style="light" />
       <SharedHeader
         title="Notifications"
+        showBack={true}
         rightActions={
           notifications.length > 0 ? (
             <TouchableOpacity

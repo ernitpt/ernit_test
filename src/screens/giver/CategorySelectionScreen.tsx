@@ -266,7 +266,6 @@ const CategorySelectionScreen = () => {
       Alert.alert('Error', 'Failed to update wishlist. Please try again.');
     }
   };
-  const headerColors = ['#462088ff', '#2c71c0ff'] as const;
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return categoriesWithExperiences;

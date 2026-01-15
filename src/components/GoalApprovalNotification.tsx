@@ -76,20 +76,6 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         logger.warn('Could not delete original notification:', deleteError);
       }
 
-      // Create confirmation notification for giver
-      const giverId = notification.userId; // The notification is for the giver
-      await notificationService.createNotification(
-        giverId,
-        'goal_approval_response',
-        '✅ You approved a goal',
-        `You approved goal "${experienceTitle}" from ${recipientName}`,
-        {
-          goalId: notification.data.goalId,
-          recipientId: notification.data.recipientId,
-          experienceTitle: experienceTitle,
-        }
-      );
-
       setShowApproveModal(false);
       setApproveMessage('');
       onActionTaken();
@@ -182,20 +168,6 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           logger.warn('Direct delete also failed:', e);
         }
       }
-
-      // Create confirmation notification for giver
-      const giverIdForConfirmation = notification.userId; // The notification is for the giver
-      await notificationService.createNotification(
-        giverIdForConfirmation,
-        'goal_approval_response',
-        '📝 You suggested a goal change',
-        `You suggested a new goal to ${recipientName}`,
-        {
-          goalId: notification.data.goalId,
-          recipientId: notification.data.recipientId,
-          experienceTitle: experienceTitle,
-        }
-      );
 
       setShowSuggestModal(false);
       setSuggestWeeks('');

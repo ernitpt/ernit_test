@@ -13,10 +13,12 @@ import {
   Easing,
   Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Picker } from '@react-native-picker/picker';
+import { CustomCalendar } from '../../components/CustomCalendar';
 import {
   RecipientStackParamList,
   ExperienceGift,
@@ -36,6 +38,8 @@ import SharedHeader from '../../components/SharedHeader';
 import { useModalAnimation } from '../../hooks/useModalAnimation';
 import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
+import HintPopup from '../../components/HintPopup';
+import { aiHintService } from '../../services/AIHintService';
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
@@ -87,6 +91,8 @@ const GoalSettingScreen = () => {
   const [minutes, setMinutes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); // 👈 add this if missing
   const [showConfirm, setShowConfirm] = useState(false);
+  const [plannedStartDate, setPlannedStartDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const categories = [
     { icon: '🧘', name: 'Yoga' },
     { icon: '🏋️', name: 'Gym' },
@@ -99,6 +105,11 @@ const GoalSettingScreen = () => {
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [showSessionsWarning, setShowSessionsWarning] = useState(false);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [hintPromise, setHintPromise] = useState<Promise<string> | null>(null);
+  const [showHintPopup, setShowHintPopup] = useState(false);
+  const [firstHint, setFirstHint] = useState<string | null>(null);
+  const [createdGoal, setCreatedGoal] = useState<Goal | null>(null);
+
 
   const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
 
@@ -162,7 +173,7 @@ const GoalSettingScreen = () => {
     fetchExperience();
   }, [experienceGift.experienceId]);
   // 1. Trigger modal first
-  const handleNext = () => {
+  const handleNext = async () => {
     const finalCategory =
       selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
 
@@ -199,6 +210,20 @@ const GoalSettingScreen = () => {
       Alert.alert('Error', 'Each session cannot exceed 3 hours.');
       return;
     }
+
+    // ✅ Start generating first hint in background while user reviews modal
+    const totalSessions = totalWeeks * sessionsPerWeekNum;
+    const recipientName = await userService.getUserName(state.user?.id || '');
+
+    const promise = aiHintService.generateHint({
+      goalId: 'temp', // We don't have goal ID yet, but it's not used in generation
+      experienceType: experience.title,
+      sessionNumber: 1,
+      totalSessions: totalSessions,
+      userName: recipientName,
+    });
+
+    setHintPromise(promise);
 
     openModal();
   };
@@ -261,6 +286,7 @@ const GoalSettingScreen = () => {
         startDate: now,
         endDate,
         weekStartAt: null,
+        plannedStartDate: plannedStartDate,
         isActive: true,
         isCompleted: false,
         isRevealed: false,
@@ -271,46 +297,89 @@ const GoalSettingScreen = () => {
         createdAt: now,
         weeklyLogDates: [],
         empoweredBy: experienceGift.giverId,
-        // Approval fields
-        approvalStatus: 'pending',
+        // Approval fields - auto-approve if self-gifted
+        approvalStatus: experienceGift.giverId === state.user?.id ? 'approved' : 'pending',
         initialTargetCount: totalWeeks,
         initialSessionsPerWeek: sessionsPerWeekNum,
         approvalRequestedAt: now,
         approvalDeadline,
-        giverActionTaken: false,
+        giverActionTaken: experienceGift.giverId === state.user?.id, // Mark as handled for self-gifts
       };
+
 
       const goal = await goalService.createGoal(goalData as Goal);
       const recipientName = await userService.getUserName(goalData.userId);
 
-      // Create non-clearable notification for giver
-      await notificationService.createNotification(
-        goalData.empoweredBy! || '',
-        'goal_approval_request',
-        `🎯 ${recipientName} set a goal for ${experience.title}`,
-        `Goal: ${goalData.description}`,
-        {
-          giftId: goalData.experienceGiftId,
-          goalId: goal.id,
-          giverId: goalData.empoweredBy,
-          recipientId: goalData.userId,
-          experienceTitle: experience.title,
-          initialTargetCount: totalWeeks,
-          initialSessionsPerWeek: sessionsPerWeekNum,
-        },
-        false // Not clearable
-      );
+      // Only send approval notification if NOT self-gifted
+      const isSelfGift = experienceGift.giverId === state.user?.id;
+      if (!isSelfGift) {
+        await notificationService.createNotification(
+          goalData.empoweredBy! || '',
+          'goal_approval_request',
+          `🎯 ${recipientName} set a goal for ${experience.title}`,
+          `Goal: ${goalData.description}`,
+          {
+            giftId: goalData.experienceGiftId,
+            goalId: goal.id,
+            giverId: goalData.empoweredBy,
+            recipientId: goalData.userId,
+            experienceTitle: experience.title,
+            initialTargetCount: totalWeeks,
+            initialSessionsPerWeek: sessionsPerWeekNum,
+          },
+          false // Not clearable
+        );
+      }
 
       dispatch({ type: 'SET_GOAL', payload: goal });
+      setCreatedGoal(goal);
 
-      // ✅ Keep modal open until navigation
-      navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'Goals' },
-          { name: 'Roadmap', params: { goal } },
-        ],
-      });
+      // ✅ Wait for pre-generated hint (should be ready or almost ready by now)
+      if (hintPromise) {
+        try {
+          const hint = await hintPromise;
+
+          // Save the hint to Firestore
+          const hintObj = {
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            session: 1,
+            text: hint,
+            giverName: 'Ernit',
+            date: Date.now(),
+            createdAt: new Date(),
+            type: 'text',
+          };
+
+          await goalService.appendHint(goal.id, hintObj);
+
+          // Close confirmation modal and show hint popup
+          setShowConfirm(false);
+          setFirstHint(hint);
+          setShowHintPopup(true);
+          setHintPromise(null); // Clear the promise
+
+        } catch (hintError) {
+          // If hint generation failed, just navigate without popup
+          logger.error('Failed to get pre-generated hint:', hintError);
+          navigation.reset({
+            index: 1,
+            routes: [
+              { name: 'CouponEntry' },
+              { name: 'Roadmap', params: { goal } },
+            ],
+          });
+        }
+      } else {
+        // No hint promise (shouldn't happen), just navigate
+        navigation.reset({
+          index: 1,
+          routes: [
+            { name: 'CouponEntry' },
+            { name: 'Roadmap', params: { goal } },
+          ],
+        });
+      }
+
     } catch (error) {
       logger.error('Error creating goal:', error);
       Alert.alert('Error', 'Failed to create goal. Please try again.');
@@ -352,12 +421,27 @@ const GoalSettingScreen = () => {
     setShowConfirm(false);
   };
 
+  const handleHintPopupClose = () => {
+    setShowHintPopup(false);
+    // Navigate to Roadmap after hint is dismissed
+    if (createdGoal) {
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'CouponEntry' },
+          { name: 'Roadmap', params: { goal: createdGoal } },
+        ],
+      });
+    }
+  };
+
+
+
   return (
     <MainScreen activeRoute="Goals">
       <SharedHeader
         title="Set Your Goal ✨"
         subtitle="Choose your goal category to get started"
-        showBack
       />
       <ScrollView style={{ flex: 1, padding: 20 }} >
 
@@ -560,6 +644,38 @@ const GoalSettingScreen = () => {
         </View>
 
 
+        {/* Planned Start Date */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>When do you want to start?</Text>
+          <Text style={styles.sectionDescription}>
+            This helps us send you reminders at the right time
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dateButtonText}>
+              {plannedStartDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Text>
+            <Text style={{ fontSize: 20 }}>📅</Text>
+          </TouchableOpacity>
+
+          <CustomCalendar
+            visible={showDatePicker}
+            selectedDate={plannedStartDate}
+            onSelectDate={(date) => setPlannedStartDate(date)}
+            onClose={() => setShowDatePicker(false)}
+            minimumDate={new Date()}
+          />
+        </View>
+
+
         {/* Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Your Goal:</Text>
@@ -651,6 +767,18 @@ const GoalSettingScreen = () => {
         </TouchableOpacity>
       </Modal>
 
+      {/* First Hint Popup */}
+      {showHintPopup && firstHint && (
+        <HintPopup
+          visible={showHintPopup}
+          hint={firstHint}
+          sessionNumber={1}
+          totalSessions={createdGoal ? createdGoal.targetCount * createdGoal.sessionsPerWeek : 1}
+          onClose={handleHintPopupClose}
+          isFirstHint={true}
+          additionalMessage="🎯 You'll receive your second hint after completing your first session!"
+        />
+      )}
 
     </MainScreen>
   );
@@ -726,6 +854,22 @@ const styles = StyleSheet.create({
   summaryCard: { backgroundColor: '#ede9fe', padding: 16, borderRadius: 12, marginBottom: 20 },
   summaryTitle: { fontSize: 14, fontWeight: '500', color: '#7c3aed', marginBottom: 4 },
   summaryText: { fontSize: 14, color: '#7c3aed' },
+
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#ffffff',
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#374151',
+  },
 
   nextButton: { backgroundColor: '#8b5cf6', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   nextButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },

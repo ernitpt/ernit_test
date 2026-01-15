@@ -1,18 +1,24 @@
 import React from 'react';
 import { AppProvider } from './src/context/AppContext';
 import { AuthGuardProvider } from './src/context/AuthGuardContext';
+import { TimerProvider } from './src/context/TimerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { PWAInstaller } from './src/components/PWAInstaller';
+import { pushNotificationService } from './src/services/PushNotificationService';
 
 export default function App() {
   console.log('[App] Component mounting...');
 
   useEffect(() => {
     console.log('[App] useEffect running...');
+
+    // Setup local notification handler
+    pushNotificationService.setupNotificationHandler();
+
     // Load Ionicons font on web
     Font.loadAsync(Ionicons.font);
 
@@ -73,11 +79,15 @@ export default function App() {
   console.log('[App] Rendering AppProvider and AppNavigator');
 
   return (
-    <AppProvider>
-      {Platform.OS === 'web' && <PWAInstaller />}
-      <AppNavigator />
-    </AppProvider>
+    <>
+      <AppProvider>
+        <AuthGuardProvider>
+          <TimerProvider>
+            <AppNavigator />
+          </TimerProvider>
+        </AuthGuardProvider>
+      </AppProvider>
+      <PWAInstaller />
+    </>
   );
 }
-
-

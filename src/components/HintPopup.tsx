@@ -14,9 +14,11 @@ interface Props {
   sessionNumber: number;
   totalSessions: number;
   onClose: () => void;
+  isFirstHint?: boolean; // Indicates this is the very first hint after goal creation
+  additionalMessage?: string; // Optional message to display (e.g., when they'll get next hint)
 }
 
-const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose }) => {
+const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose, isFirstHint = false, additionalMessage }) => {
   const confettiRef = useRef<any>(null);
   const [isRevealed, setIsRevealed] = useState(false);
 
@@ -35,12 +37,30 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   const revealProgress = useRef(new Animated.Value(0)).current;
   const swipeX = useRef(new Animated.Value(0)).current;
 
+  // Determine content type
+  const isObj = typeof hint === 'object' && hint !== null;
+  const text = isObj ? (hint.text || hint.hint) : hint;
+  const audioUrl = isObj ? hint.audioUrl : null;
+  const imageUrl = isObj ? hint.imageUrl : null;
+  const duration = isObj ? hint.duration : 0;
+  const giverName = isObj ? hint.giverName : null;
+
+  // Only require scratch for image hints
+  const requiresScratch = !!imageUrl;
+
   useEffect(() => {
     if (visible) {
-      // Reset revealed state
-      setIsRevealed(false);
-      revealProgress.setValue(0);
-      totalScratchDistance.current = 0;
+      // Reset revealed state based on hint type
+      if (requiresScratch) {
+        setIsRevealed(false);
+        revealProgress.setValue(0);
+        totalScratchDistance.current = 0;
+      } else {
+        // Auto-reveal text and audio hints
+        setIsRevealed(true);
+        revealProgress.setValue(1);
+        totalScratchDistance.current = 0;
+      }
 
       // Reset all animations
       backdropOpacity.setValue(0);
@@ -196,13 +216,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
     }
   };
 
-  // Determine content
-  const isObj = typeof hint === 'object' && hint !== null;
-  const text = isObj ? (hint.text || hint.hint) : hint;
-  const audioUrl = isObj ? hint.audioUrl : null;
-  const imageUrl = isObj ? hint.imageUrl : null;
-  const duration = isObj ? hint.duration : 0;
-  const giverName = isObj ? hint.giverName : null;
+
 
   // Interpolate blur overlay opacity (1 = fully obscured, 0 = fully revealed)
   const blurOpacity = revealProgress.interpolate({
@@ -258,8 +272,8 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                     </Text>
                   )}
 
-                  {/* Instruction text that disappears when revealed */}
-                  {!isRevealed && (
+                  {/* Instruction text that disappears when revealed - only for image hints */}
+                  {!isRevealed && requiresScratch && (
                     <Text style={styles.instructionText}>
                       Swipe below to reveal your hint
                     </Text>
@@ -278,7 +292,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                   <PanGestureHandler
                     onGestureEvent={onGestureEvent}
                     onHandlerStateChange={onHandlerStateChange}
-                    enabled={!isRevealed}
+                    enabled={requiresScratch && !isRevealed}
                   >
                     <Animated.View style={styles.hintContainer}>
                       {/* Hint Content */}
@@ -322,6 +336,13 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                     </Animated.View>
                   </PanGestureHandler>
                 </Animated.View>
+
+                {/* Additional message for first hint */}
+                {isFirstHint && additionalMessage && (
+                  <View style={styles.firstHintMessageContainer}>
+                    <Text style={styles.firstHintMessage}>{additionalMessage}</Text>
+                  </View>
+                )}
 
                 <Animated.View
                   style={{
@@ -515,6 +536,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 17,
     letterSpacing: 0.5,
+  },
+  firstHintMessageContainer: {
+    width: '100%',
+    backgroundColor: '#F3E8FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+  },
+  firstHintMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7C3AED',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

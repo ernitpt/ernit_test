@@ -51,6 +51,7 @@ function normalizeGoal(g: any): Goal {
   const startDate = toJSDate(g.startDate) ?? DateHelper.now();
   const endDate = toJSDate(g.endDate) ?? addDaysSafe(startDate, 7);
   const weekStartAt = toJSDate(g.weekStartAt);
+  const plannedStartDate = toJSDate(g.plannedStartDate);
   const approvalRequestedAt = toJSDate(g.approvalRequestedAt);
   const approvalDeadline = toJSDate(g.approvalDeadline);
 
@@ -59,6 +60,7 @@ function normalizeGoal(g: any): Goal {
     startDate,
     endDate,
     weekStartAt: weekStartAt ?? null,
+    plannedStartDate: plannedStartDate ?? null,
     weeklyCount: typeof g.weeklyCount === 'number' ? g.weeklyCount : 0,
     weeklyLogDates: Array.isArray(g.weeklyLogDates) ? g.weeklyLogDates : [],
     currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
@@ -355,15 +357,20 @@ export class GoalService {
 
     // If 7+ days have passed since the week started
     if (now >= addDaysSafe(anchor, 7)) {
+      const weekWasCompleted = g.isWeekCompleted || g.weeklyCount >= g.sessionsPerWeek;
+
       // Only count completed weeks toward progress
-      if (g.isWeekCompleted || g.weeklyCount >= g.sessionsPerWeek) {
+      if (weekWasCompleted) {
         g.currentCount += 1;
       }
 
       // Advance to next week window
       anchor = addDaysSafe(anchor, 7);
       g.weekStartAt = anchor;
-      g.weeklyCount = 0;
+
+      // PENALTY: If week wasn't completed, deduct 1 session (min 0)
+      // If week was completed, reset to 0 for fresh start
+      g.weeklyCount = weekWasCompleted ? 0 : Math.max(0, g.weeklyCount - 1);
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
 
@@ -372,7 +379,7 @@ export class GoalService {
       await updateDoc(ref, {
         currentCount: g.currentCount,
         weekStartAt: anchor,
-        weeklyCount: 0,
+        weeklyCount: g.weeklyCount,
         weeklyLogDates: [],
         isWeekCompleted: false,
         updatedAt: serverTimestamp(),

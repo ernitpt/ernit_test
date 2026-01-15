@@ -197,10 +197,11 @@ const RoadmapScreen = () => {
         }}
       >
         <View
+          pointerEvents="box-none"
           style={{
             width: '100%',
-            maxWidth: 380,       // ✅ limit horizontal size
-            paddingHorizontal: 16, // optional for margins
+            maxWidth: 380,
+            paddingHorizontal: 16,
           }}
         >
           {/* Personalized Message Card */}
@@ -213,10 +214,12 @@ const RoadmapScreen = () => {
             </View>
           )}
 
-
-
-          <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+          {/* DetailedGoalCard with pointerEvents to allow button touches */}
+          <View pointerEvents="box-none">
+            <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+          </View>
         </View>
+
 
         <View style={styles.card}>
           <Text style={styles.title}>Hint History</Text>
