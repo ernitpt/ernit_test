@@ -58,6 +58,9 @@ export const aiHintService = {
   async generateHint(params: {
     goalId: string;
     experienceType: string;
+    experienceDescription?: string;
+    experienceCategory?: string;
+    experienceSubtitle?: string;
     sessionNumber: number;
     totalSessions: number;
     userName?: string | null;
@@ -68,6 +71,9 @@ export const aiHintService = {
       goalId,
       sessionNumber,
       experienceType,
+      experienceDescription,
+      experienceCategory,
+      experienceSubtitle,
       totalSessions,
       userName,
     } = params;
@@ -95,16 +101,30 @@ export const aiHintService = {
       logger.log("Session document not found, will generate new hint");
     }
 
+    // ✅ Fetch previous hints for anti-repetition
+    let previousHints: string[] = [];
+    try {
+      const allHints = await this.getPreviousHints(goalId);
+      // Only send last 5 hints to avoid huge payload
+      previousHints = allHints.slice(-5);
+    } catch (err) {
+      logger.warn('Could not fetch previous hints, proceeding without anti-repetition:', err);
+    }
+
     // ✅ Generate remotely
     const style = styleForSession(sessionNumber);
 
     const callable = httpsCallable(functions, "aiGenerateHint");
     const res: any = await callable({
       experienceType,
+      experienceDescription,
+      experienceCategory,
+      experienceSubtitle,
       sessionNumber,
       totalSessions,
       userName,
       style,
+      previousHints, // NEW: Pass previous hints for variety
     });
 
     const hint = res?.data?.hint as string;
@@ -131,6 +151,30 @@ export const aiHintService = {
     const snap = await getDoc(ref);
 
     return (snap.data() as SessionDoc | undefined)?.hint ?? null;
+  },
+
+  /** 📋 Fetch all previous hints for a goal (for anti-repetition) */
+  async getPreviousHints(goalId: string): Promise<string[]> {
+    try {
+      const hintsQuery = query(
+        collection(db, "goalSessions", goalId, "sessions"),
+        orderBy("sessionNumber", "asc")
+      );
+      const snaps = await getDocs(hintsQuery);
+
+      const hints: string[] = [];
+      snaps.docs.forEach((doc) => {
+        const data = doc.data() as SessionDoc;
+        if (data.hint) {
+          hints.push(data.hint);
+        }
+      });
+
+      return hints;
+    } catch (err) {
+      logger.warn('Could not fetch previous hints:', err);
+      return []; // Graceful fallback
+    }
   },
 
   /** 📜 Fetch session history (newest first) */

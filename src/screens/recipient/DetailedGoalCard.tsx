@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, isSelfGifted } from '../../types';
@@ -325,6 +326,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Logic: Can finish if elapsed time is >= 2 seconds
   // This ensures timer has actually run before allowing finish
+
   const canFinish = useMemo(() => {
     // For goals with defined duration, require at least 2 seconds
     if (totalGoalSeconds > 2) {
@@ -499,20 +501,26 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           updated.hints = [...(updated.hints || []), hintObj];
 
         } else {
-          // Use AI-generated hint
-          hintToShow = pendingHint || "Keep going! You're doing great 💪";
+          // No personalized hint - fetch AI-generated hint from cache
+          // The hint was generated for session totalSessionsDone + 2 at start time
+          // After completing, we want to show it for the current session
+          const aiHintSessionNumber = totalSessionsDone + 1;
 
-          if (pendingHint) {
-            try {
-              // The pendingHint was generated for the NEXT session (totalSessionsDone + 2 at start time)
-              // After tickWeeklySession, totalSessionsDone has incremented by 1
-              // So the hint should be saved for session: totalSessionsDone + 1
+          try {
+            // Fetch from cache (should be available since we generated it in background)
+            const cachedHint = await aiHintService.getHint(goalId, aiHintSessionNumber);
+            hintToShow = cachedHint || "Keep going! You're doing great 💪";
+
+            if (cachedHint) {
+              logger.log(`✅ Retrieved AI hint for session ${aiHintSessionNumber}`);
+
+              // Save to session history
               const hintObj = {
-                id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Unique ID
-                session: totalSessionsDone + 1, // Fixed: Save hint for the correct future session
-                hint: pendingHint,
+                id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                session: aiHintSessionNumber,
+                hint: cachedHint,
                 date: Date.now(),
-                text: pendingHint
+                text: cachedHint
               };
               await goalService.appendHint(goalId, hintObj);
 
@@ -521,12 +529,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 hints: [...(prev.hints || []), hintObj],
               }));
 
-              // Update the 'updated' object so onFinish propagates the new hint
               updated.hints = [...(updated.hints || []), hintObj];
-            } catch (err) {
-              logger.warn('Failed to save hint:', err);
-              // Don't block progress if hint save fails
             }
+          } catch (err) {
+            logger.warn('Failed to retrieve/save AI hint:', err);
+            hintToShow = "Keep going! You're doing great 💪";
           }
           setLastHint(hintToShow);
         }
@@ -639,13 +646,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
       // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
       // weeklyLogDates only stores unique dates, so it undercounts if multiple sessions happen in one day.
-      const totalSessionsDone =
+      const funcTotalSessionsDone =
         (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
-      const totalSessions = currentGoal.sessionsPerWeek * currentGoal.targetCount;
+      const funcTotalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
 
-      // Only generate AI hint if:
-      // 1. Not the last session
-      // 2. No personalized hint exists for the next session
       // Only generate AI hint if:
       // 1. Not the last session
       // 2. No personalized hint exists for the next session
@@ -656,20 +660,28 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
 
+      // ✅ START TIMER IMMEDIATELY (non-blocking)
+      startTimer(currentGoal.id, null);
+
+      // ✅ Generate hint in background (don't await - don't block timer)
       if (totalSessionsDone != totalSessions && !hasPersonalizedHintForNextSession) {
-        const hint = await aiHintService.generateHint({
+        // Fire and forget - hint will be saved when ready
+        aiHintService.generateHint({
           goalId,
           experienceType: experience?.title || 'experience',
+          experienceDescription: experience?.description || undefined,
+          experienceCategory: experience?.category || undefined,
+          experienceSubtitle: experience?.subtitle || undefined,
           sessionNumber: nextSessionNumber,
           totalSessions,
           userName: recipientName || undefined,
+        }).then((hint) => {
+          logger.log(`✅ Background hint generated for session ${nextSessionNumber}`);
+          // The hint is already cached by aiHintService, no need to do anything else
+        }).catch((err) => {
+          logger.warn('Background hint generation failed:', err);
+          // This is fine - hint is optional
         });
-
-        // Start timer with pending hint using context
-        startTimer(currentGoal.id, hint);
-      } else {
-        // Start timer without hint
-        startTimer(currentGoal.id, null);
       }
 
       // Schedule push notification for when timer completes
@@ -683,9 +695,8 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       }
 
     } catch (err) {
-      logger.warn('Hint pre-generation failed:', err);
-      // Don't block session start - hint is optional
-      // Timer state is already set, so session will start without hint
+      logger.warn('Session start failed:', err);
+      // Timer already started, so user experience is not blocked
     } finally {
       setLoading(false);
     }
@@ -883,6 +894,33 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     return (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
   }, [currentGoal.currentCount, currentGoal.sessionsPerWeek, currentGoal.weeklyCount]);
 
+  // Calculate total sessions
+  const totalSessions = useMemo(() => {
+    return currentGoal.targetCount * currentGoal.sessionsPerWeek;
+  }, [currentGoal.targetCount, currentGoal.sessionsPerWeek]);
+
+  // Check if user has personalized hint waiting AFTER the next session
+  // Hint creation logic: When giver sees recipient completed X sessions, hint is saved for session X + 2
+  // This is because: completed X sessions → about to start session X+1 → hint is FOR session X+2 (the one after)
+  // 
+  // So the banner should show: "Complete this session to see hint"
+  // Which means: I'm about to start session Y, and hint is for session Y+1
+  // Formula: hint.forSessionNumber === (totalSessionsDone + 1) + 1 = totalSessionsDone + 2
+  const hasPersonalizedHintWaiting = useMemo(() => {
+    if (!currentGoal.personalizedNextHint || isTimerRunning) return false;
+
+    // Show banner if the hint will appear AFTER completing the current session
+    // If I've completed 2 sessions (totalSessionsDone = 2):
+    // - I'm viewing the card, about to start session 3
+    // - Hint was created when I had 2 sessions done, so it's labeled for session 2 + 2 = 4
+    // -  I should see the banner saying "complete this session (3) to see hint (for session 4)"
+    // - So check: hint.forSessionNumber (4) === totalSessionsDone (2) + 2 ✅
+
+    const result = currentGoal.personalizedNextHint.forSessionNumber === (totalSessionsDone + 2);
+
+    return result;
+  }, [currentGoal.personalizedNextHint, isTimerRunning, totalSessionsDone]);
+
   const formatTime = (s: number) => {
     // If less than 1 hour, use MM:SS format
     if (s < 3600) {
@@ -1043,6 +1081,13 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                   </View>
                 ) : (
                   <View>
+                    {/* Subtle Personalized Hint Indicator */}
+                    {hasPersonalizedHintWaiting && currentGoal.personalizedNextHint && (
+                      <Text style={styles.hintIndicator}>
+                        💝 {currentGoal.personalizedNextHint.giverName} left you a hint for next session. Complete session now to view it!
+                      </Text>
+                    )}
+
                     <TouchableOpacity
                       style={styles.startButton}
                       onPress={handleStart}
@@ -1575,7 +1620,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6b7280',
   },
-
+  // Subtle hint indicator
+  hintIndicator: {
+    fontSize: 13,
+    color: '#8B5CF6',
+    textAlign: 'center',
+    marginBottom: 12,
+    opacity: 0.85,
+  },
 });
 
 export default DetailedGoalCard;

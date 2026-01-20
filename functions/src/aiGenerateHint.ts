@@ -28,16 +28,24 @@ function difficultyBand(progress: number) {
 
 function buildUserPrompt({
   experienceType,
+  experienceDescription,
+  experienceCategory,
+  experienceSubtitle,
   sessionNumber,
   totalSessions,
   userName,
   style,
+  previousHints = [], // Add default value here
 }: {
   experienceType: string;
+  experienceDescription?: string;
+  experienceCategory?: string;
+  experienceSubtitle?: string;
   sessionNumber: number;
   totalSessions: number;
   userName?: string | null;
   style: HintStyle;
+  previousHints?: string[];
 }) {
   const progress = clamp01(sessionNumber / totalSessions);
   const band = difficultyBand(progress);
@@ -69,7 +77,7 @@ function buildUserPrompt({
   const currentExample = difficultyExamples[band as keyof typeof difficultyExamples];
   const styleExample = styleExamples[style];
 
-  return [
+  const promptParts = [
     `Create ONE subtle hint for a surprise ${experienceType} experience.`,
     ``,
     `CRITICAL RULES:`,
@@ -79,45 +87,87 @@ function buildUserPrompt({
     getForbiddenWords(experienceType, band),
     `✅ BE CASUAL: Talk like you're texting a friend. Keep it real and conversational.`,
     `✅ BE SUBTLE: Don't give away too much. Make them curious, not informed.`,
-    ``,
-    `Difficulty Level: ${band.toUpperCase()} (Session ${sessionNumber}/${totalSessions} = ${Math.round(progress * 100)}%)`,
-    ``,
-    `📊 How subtle to be:`,
-    `- VAGUE (0-20%): ZERO activity clues. Talk about feelings, preparation, or vibes ONLY.`,
-    `  ⚠️ DO NOT mention: the activity type, equipment, what they'll do, or where they'll be`,
-    `  Example: "${difficultyExamples.vague}"`,
-    ``,
-    `- THEMATIC (21-60%): Hint at sensations or what to bring. NO direct activity mentions.`,
-    `  ⚠️ Still avoid: activity names, specific equipment, exact actions`,
-    `  Example: "${difficultyExamples.thematic}"`,
-    ``,
-    `- STRONG (61-90%): Suggest activity category vaguely. Still NO specific names.`,
-    `  Example: "${difficultyExamples.strong}"`,
-    ``,
-    `- FINALE (91-100%): Clear about activity type, still mysterious about location.`,
-    `  Example: "${difficultyExamples.finale}"`,
-    ``,
-    `🎨 Style: ${style.toUpperCase()}`,
+  ];
+
+  // 🚫 ADD ANTI-REPETITION SECTION
+  if (previousHints && previousHints.length > 0) {
+    promptParts.push('');
+    promptParts.push('🚫 AVOID REPETITION - CRITICAL!');
+    promptParts.push('Previous hints for this goal (DO NOT repeat themes, items, advice, or similar wording):');
+    previousHints.forEach((hint: string, i: number) => {
+      promptParts.push(`  ${i + 1}. "${hint}"`);
+    });
+    promptParts.push('');
+    promptParts.push('✅ Your hint MUST be DIFFERENT from the above:');
+    promptParts.push('   - Use a completely different angle or theme');
+    promptParts.push('   - Mention different items/preparation if applicable');
+    promptParts.push('   - Vary the tone and focus area');
+    promptParts.push('   - If previous hints mentioned physical items, try emotional/mental prep instead');
+  }
+
+  promptParts.push('');
+  promptParts.push(`Difficulty Level: ${band.toUpperCase()} (Session ${sessionNumber}/${totalSessions} = ${Math.round(progress * 100)}%)`);
+  promptParts.push('');
+  promptParts.push(`📊 How subtle to be:`);
+  promptParts.push(`- VAGUE (0-20%): ZERO activity clues. Talk about feelings, preparation, or vibes ONLY.`);
+  promptParts.push(`  ⚠️ DO NOT mention: the activity type, equipment, what they'll do, or where they'll be`);
+  promptParts.push(`  Example: "${difficultyExamples.vague}"`);
+  promptParts.push(``);
+  promptParts.push(`- THEMATIC (21-60%): Hint at sensations or what to bring. NO direct activity mentions.`);
+  promptParts.push(`  ⚠️ Still avoid: activity names, specific equipment, exact actions`);
+  promptParts.push(`  Example: "${difficultyExamples.thematic}"`);
+  promptParts.push(``);
+  promptParts.push(`- STRONG (61-90%): Suggest activity category vaguely. Still NO specific names.`);
+  promptParts.push(`  Example: "${difficultyExamples.strong}"`);
+  promptParts.push(``);
+  promptParts.push(`- FINALE (91-100%): Clear about activity type, still mysterious about location.`);
+  promptParts.push(`  Example: "${difficultyExamples.finale}"`);
+  promptParts.push(``);
+  promptParts.push(`🎨 Style: ${style.toUpperCase()}`);
+  promptParts.push(
     style === "neutral"
       ? "- Be casual, third-person. No names."
-      : `- Use "${name}" naturally in the hint`,
+      : `- Use "${name}" naturally in the hint`
+  );
+  promptParts.push(
     style === "motivational"
       ? "- Be hyped and encouraging!"
       : style === "personalized"
         ? "- Keep it warm but casual"
-        : "",
-    ``,
-    `✅ GOOD example (${style} style):`,
-    `"${styleExample.good}"`,
-    ``,
-    `❌ BAD example (too explicit):`,
-    `"${styleExample.bad}"`,
-    ``,
-    `📝 Format: 1-2 sentences max, under 180 characters. Just plain text—no quotes or tags.`,
-    ``,
-    `Experience type: "${experienceType}"`,
-    `Go:`,
-  ].join("\n");
+        : ""
+  );
+  promptParts.push(``);
+  promptParts.push(`✅ GOOD example (${style} style):`);
+  promptParts.push(`"${styleExample.good}"`);
+  promptParts.push(``);
+  promptParts.push(`❌ BAD example (too explicit):`);
+  promptParts.push(`"${styleExample.bad}"`);
+  promptParts.push(``);
+  promptParts.push(`📝 Format: 1-2 sentences max, under 180 characters. Just plain text—no quotes or tags.`);
+  promptParts.push(``);
+
+  // 🎯 ADD EXPERIENCE CONTEXT (if available)
+  promptParts.push(`🎯 EXPERIENCE CONTEXT:`);
+  promptParts.push(`Type: "${experienceType}"`);
+  if (experienceSubtitle) {
+    promptParts.push(`Subtitle: "${experienceSubtitle}"`);
+  }
+  if (experienceDescription) {
+    promptParts.push(`Description: "${experienceDescription}"`);
+  }
+  if (experienceCategory) {
+    promptParts.push(`Category: ${experienceCategory}`);
+  }
+  promptParts.push(``);
+  promptParts.push(`💡 Use this context to create relevant, specific hints:`);
+  promptParts.push(`   - What to bring (based on activity details)`);
+  promptParts.push(`   - How to prepare physically/mentally`);
+  promptParts.push(`   - What mindset or expectations to have`);
+  promptParts.push(`   - Practical advice relevant to THIS specific experience`);
+  promptParts.push(``);
+  promptParts.push(`Go:`);
+
+  return promptParts.join("\n");
 }
 
 // Helper to get forbidden words based on experience type
@@ -344,10 +394,14 @@ export const aiGenerateHint = onCall(
     const data = (requestData?.data || requestData) as any;
     const {
       experienceType,
+      experienceDescription,
+      experienceCategory,
+      experienceSubtitle,
       sessionNumber,
       totalSessions,
       userName,
       style,
+      previousHints = [], // NEW: Extract previous hints
     } = data;
 
     if (!experienceType || !sessionNumber || !totalSessions || !style) {
@@ -360,14 +414,19 @@ export const aiGenerateHint = onCall(
       sessionNumber,
       totalSessions,
       style,
+      previousHintsCount: previousHints.length,
     });
 
     const prompt = buildUserPrompt({
       experienceType,
+      experienceDescription,
+      experienceCategory,
+      experienceSubtitle,
       sessionNumber,
       totalSessions,
       userName,
       style,
+      previousHints, // NEW: Pass previous hints
     });
 
     const provider = (LLM_PROVIDER.value() || "openrouter").toLowerCase();

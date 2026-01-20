@@ -118,10 +118,12 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
       // 1. Already at root
       // 2. On checkout page (has important state)
       // 3. URL has query parameters (might contain important data)
+      // 4. On recipient redemption page (deep link)
       const shouldNotReset =
         pathname === '/' ||
         pathname === '' ||
         pathname.includes('/checkout') ||
+        pathname.includes('/recipient/redeem/') ||
         hasQueryParams;
 
       if (!shouldNotReset) {

@@ -164,11 +164,11 @@ const ConfirmationMultipleScreen = () => {
       const shareOptions = {
         title: 'Gift Code',
         message: `
-        Hey! Got you an Ernit experience${experienceTitle ? `: ${experienceTitle}` : ''}. A little boost for your goals.
+Hey! Got you an Ernit experience, a little boost for your goals.
 
-        Sign up and use code ${code} at https://ernit.app to set up your goals. Once you complete your goals, you'll see what I got you 😎
+Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you 😎
 
-        Earn it. Unlock it. Enjoy it 💙
+Earn it. Unlock it. Enjoy it 💙
         `
       };
 

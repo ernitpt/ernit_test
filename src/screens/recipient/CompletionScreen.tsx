@@ -32,6 +32,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { partnerService } from '../../services/PartnerService';
 import { userService } from '../../services/userService';
 import { logger } from '../../utils/logger';
+import { BookingCalendar } from '../../components/BookingCalendar';
 
 type CompletionNavigationProp = NativeStackNavigationProp<
   RecipientStackParamList,
@@ -118,6 +119,11 @@ const CompletionScreen = () => {
   const [experience, setExperience] = useState<any>(null);
   const [partner, setPartner] = useState<any>(null);
   const [userName, setUserName] = useState<string>('User');
+
+  // Date selection for booking
+  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
 
   useEffect(() => {
     const fetchExperience = async () => {
@@ -370,7 +376,17 @@ const CompletionScreen = () => {
 
   const handleWhatsAppSchedule = () => {
     if (!partner?.phone || !experience) return;
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nLooking forward to it!\n${userName}`;
+
+    const dateString = preferredDate
+      ? preferredDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+      : 'at your earliest convenience';
+
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
 
     const phoneNumber = partner.phone.replace(/[^0-9]/g, '');
     const whatsappUrl = Platform.select({
@@ -396,7 +412,16 @@ const CompletionScreen = () => {
       return;
     }
 
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience at your earliest convenience.\n\nGoal completed: ${goal.title}\nCoupon Code: ${couponCode}\n\nLooking forward to it!\n${userName}`;
+    const dateString = preferredDate
+      ? preferredDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+      : 'at your earliest convenience';
+
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
     handleEmailFallback(message, contactEmail);
   };
 
@@ -422,6 +447,41 @@ const CompletionScreen = () => {
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
     setTimeout(() => setIsEmailCopied(false), 2000);
+  };
+
+  // New handlers for booking with date selection
+  const handleBookNowWhatsApp = () => {
+    setBookingMethod('whatsapp');
+    setShowCalendar(true);
+  };
+
+  const handleBookNowEmail = () => {
+    setBookingMethod('email');
+    setShowCalendar(true);
+  };
+
+  const handleConfirmBooking = (date: Date) => {
+    setPreferredDate(date);
+    setShowCalendar(false);
+
+    // Proceed with the selected booking method
+    if (bookingMethod === 'whatsapp') {
+      handleWhatsAppSchedule();
+    } else if (bookingMethod === 'email') {
+      handleEmailSchedule();
+    }
+  };
+
+  const handleCancelBooking = () => {
+    setPreferredDate(null);
+    setShowCalendar(false);
+
+    // Proceed without date
+    if (bookingMethod === 'whatsapp') {
+      handleWhatsAppSchedule();
+    } else if (bookingMethod === 'email') {
+      handleEmailSchedule();
+    }
   };
 
   const experienceImage = experience
@@ -659,7 +719,7 @@ const CompletionScreen = () => {
                           styles.whatsappButton,
                           (partner.contactEmail || partner.email) && styles.scheduleButtonHalf
                         ]}
-                        onPress={handleWhatsAppSchedule}
+                        onPress={handleBookNowWhatsApp}
                         activeOpacity={0.8}
                       >
                         <MessageCircle color="#FFFFFF" size={24} />
@@ -673,7 +733,7 @@ const CompletionScreen = () => {
                           styles.scheduleButton,
                           partner.phone && styles.scheduleButtonHalf,
                         ]}
-                        onPress={handleEmailSchedule}
+                        onPress={handleBookNowEmail}
                         activeOpacity={0.8}
                       >
                         <Mail color="#FFFFFF" size={24} />
@@ -686,6 +746,15 @@ const CompletionScreen = () => {
             </View>
           ) : null}
         </View>
+
+        {/* Date Selection Calendar for Booking */}
+        <BookingCalendar
+          visible={showCalendar}
+          selectedDate={preferredDate || new Date()}
+          onConfirm={handleConfirmBooking}
+          onCancel={handleCancelBooking}
+          minimumDate={new Date()}
+        />
 
         <View style={{ height: 100 }} />
       </ScrollView>
