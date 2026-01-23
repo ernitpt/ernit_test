@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -37,7 +37,7 @@ const slides: Slide[] = [
     {
         id: 1,
         title: 'The Gift of Motivation',
-        description: 'Ernit isn\'t just about gifts. It\'s about helping friends achieve their dreams with a little extra incentive.',
+        description: 'Gift experiences your friends will earn. Set a challenge, they achieve goals, unlock their surprise reward.',
         emoji: '🎁',
         color1: '#8B5CF6',
         color2: '#6366F1',

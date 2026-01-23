@@ -178,7 +178,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                         disabled={loading}
                     >
                         <Text style={styles.historyButtonText}>
-                            📜 View Hint History
+                            View Hint History
                         </Text>
                     </TouchableOpacity>
                 </View>

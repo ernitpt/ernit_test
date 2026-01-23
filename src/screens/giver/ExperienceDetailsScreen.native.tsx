@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, TextInput,
   Alert, StyleSheet,
@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { WebView } from 'react-native-webview';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, HelpCircle } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
@@ -19,6 +19,7 @@ import {
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
+import HowItWorksModal from '../../components/HowItWorksModal';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
@@ -66,6 +67,7 @@ export default function ExperienceDetailsScreen() {
   const [personalizedMessage, setPersonalizedMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partner, setPartner] = useState<PartnerUser | null>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   useEffect(() => {
     const loadPartner = async () => {
@@ -134,15 +136,25 @@ export default function ExperienceDetailsScreen() {
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <LinearGradient colors={['#7C3AED', '#3B82F6']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={{ padding: 24 }}>
+        <ScrollView contentContainerStyle={{ padding: 24 }}>          <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft color="#fff" size={22} />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
+        </View>
 
           <Image source={{ uri: experience.coverImageUrl }} style={styles.image} />
           <Text style={styles.title}>{experience.title}</Text>
           <Text style={styles.desc}>{experience.description}</Text>
+
+          <TouchableOpacity
+            onPress={() => setShowHowItWorks(true)}
+            style={styles.howItWorksButton}
+          >
+            <HelpCircle color="#7C3AED" size={18} />
+            <Text style={styles.howItWorksText}>How it works</Text>
+          </TouchableOpacity>
+
           <Text style={styles.price}>€{experience.price}</Text>
 
           <TextInput
@@ -164,6 +176,11 @@ export default function ExperienceDetailsScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <HowItWorksModal
+          visible={showHowItWorks}
+          onClose={() => setShowHowItWorks(false)}
+        />
       </LinearGradient>
     </MainScreen>
   );
@@ -172,10 +189,32 @@ export default function ExperienceDetailsScreen() {
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
   backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   backText: { color: '#fff', fontSize: 17, fontWeight: '600', marginLeft: 4 },
   image: { width: '100%', height: 240, borderRadius: 16, marginBottom: 16 },
   title: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
   desc: { color: '#ddd', fontSize: 16, marginBottom: 8 },
+  howItWorksButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  howItWorksText: {
+    color: '#7C3AED',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
   price: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
   textInput: {
     backgroundColor: 'rgba(255,255,255,0.2)',

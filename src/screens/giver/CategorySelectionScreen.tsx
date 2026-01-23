@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -294,8 +294,8 @@ const CategorySelectionScreen = () => {
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <SharedHeader
-        title="Find an Experience"
-        subtitle="Select a gift they'll never forget"
+        title="Gift Experiences"
+        subtitle="Empower your friends"
       />
 
       <View style={styles.searchContainer}>
@@ -352,6 +352,9 @@ const CategorySelectionScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+
+
     </MainScreen>
   );
 };
@@ -360,7 +363,6 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: '#fff',
   },
   searchBar: {
     backgroundColor: '#f3f4f6',
@@ -384,15 +386,14 @@ const styles = StyleSheet.create({
   },
   categoriesListMoved: {
     paddingTop: 10,
-    paddingBottom: 12,
+    paddingBottom: 80,
   },
   categorySection: {
-    marginBottom: 10,
+    marginBottom: 0,
   },
   categoryHeaderInline: {
     paddingHorizontal: 24,
     paddingVertical: 8,
-    backgroundColor: '#f8fafc',
   },
   categoryTitleInline: {
     fontSize: 22,

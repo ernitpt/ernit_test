@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,11 @@ import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn, Download, MessageSquare, LifeBuoy } from 'lucide-react-native';
+import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle } from 'lucide-react-native';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
+import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
@@ -55,6 +56,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const [contactModalType, setContactModalType] = useState<'feedback' | 'support'>('feedback');
 
   const isAuthenticated = !!state.user;
@@ -134,6 +136,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       case 'Get Support':
         setContactModalType('support');
         setContactModalVisible(true);
+        // Don't close side menu yet - will close when modal opens
+        break;
+
+      case 'How It Works':
+        setHowItWorksVisible(true);
         // Don't close side menu yet - will close when modal opens
         break;
 
@@ -239,6 +246,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   onPress={() => handleMenuPress('Purchased Gifts')}
                 />
                 <MenuItem
+                  Icon={({ width, height, color }) => <HelpCircle size={width} color={color} />}
+                  title="How It Works"
+                  onPress={() => handleMenuPress('How It Works')}
+                />
+                <MenuItem
                   Icon={({ width, height, color }) => <MessageSquare size={width} color={color} />}
                   title="Give Feedback"
                   onPress={() => handleMenuPress('Give Feedback')}
@@ -277,6 +289,15 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         visible={showLoginPrompt}
         onClose={closeLoginPrompt}
         message={loginMessage}
+      />
+
+      {/* How It Works Modal */}
+      <HowItWorksModal
+        visible={howItWorksVisible}
+        onClose={() => {
+          setHowItWorksVisible(false);
+          onClose(); // Also close side menu
+        }}
       />
 
       {/* Contact Modal - shown for feedback and support */}

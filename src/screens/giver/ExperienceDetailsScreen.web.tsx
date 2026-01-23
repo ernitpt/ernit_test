@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { loadStripe } from "@stripe/stripe-js";
-import { ChevronLeft, MapPin, Clock, ShoppingCart } from "lucide-react-native";
+import { ChevronLeft, MapPin, Clock, ShoppingCart, Info } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
 import { getAuth } from "firebase/auth";
@@ -27,6 +27,7 @@ import { CartItem } from "../../types";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import LoginPrompt from "../../components/LoginPrompt";
 import { cartService } from "../../services/CartService";
+import HowItWorksModal from "../../components/HowItWorksModal";
 
 import {
   GiverStackParamList,
@@ -109,6 +110,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const auth = getAuth();
   const user = auth.currentUser;
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
@@ -373,7 +375,15 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What to expect</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>What to expect</Text>
+              <TouchableOpacity
+                onPress={() => setShowHowItWorks(true)}
+                style={styles.howItWorksButton}
+              >
+                <Info color="#8b5cf6" size={18} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.descriptionCard}>
               <Text style={styles.descriptionText}>{experience.description.trim()}</Text>
             </View>
@@ -461,9 +471,11 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       </View>
 
       {/* Zoomable Image Modal */}
-      {selectedImage && (
-        <ZoomableImage uri={selectedImage} onClose={() => setSelectedImage(null)} />
-      )}
+      {
+        selectedImage && (
+          <ZoomableImage uri={selectedImage} onClose={() => setSelectedImage(null)} />
+        )
+      }
 
       {/* Login Prompt */}
       <LoginPrompt
@@ -471,7 +483,13 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         onClose={closeLoginPrompt}
         message={loginMessage}
       />
-    </MainScreen>
+
+      {/* How It Works Modal */}
+      <HowItWorksModal
+        visible={showHowItWorks}
+        onClose={() => setShowHowItWorks(false)}
+      />
+    </MainScreen >
   );
 }
 
@@ -545,6 +563,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 20,
+    marginTop: 5,
+
   },
   titleContainer: {
     flex: 1,
@@ -554,16 +574,26 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
     fontSize: 16,
     color: "#6b7280",
   },
+  howItWorksButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
   priceTag: {
     backgroundColor: "#f3f4f6",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 12,
     alignItems: "center",
   },
@@ -644,16 +674,21 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 28,
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 16,
   },
   descriptionCard: {
     backgroundColor: "#f9fafb",
     borderRadius: 16,
-    padding: 20,
+    padding: 12,
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },

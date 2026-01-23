@@ -1039,9 +1039,9 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           {!isTimerRunning ? (
             currentGoal.isWeekCompleted && !currentGoal.isCompleted ? (
               <View style={styles.weekCompleteBox}>
-                <Text style={styles.weekCompleteText}>🎉 You've completed this week!</Text>
+                <Text style={styles.weekCompleteText}>You've completed this week!</Text>
                 <Text style={styles.weekCompleteSub}>
-                  Next week starts on {formatNextWeekDay(currentGoal.weekStartAt)} 💪
+                  Next week starts on {formatNextWeekDay(currentGoal.weekStartAt)}
                 </Text>
               </View>
             ) : (

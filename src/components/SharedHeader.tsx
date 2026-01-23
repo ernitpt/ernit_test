@@ -237,14 +237,14 @@ const styles = StyleSheet.create({
     headerButtons: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 5,
     },
     actionButton: {
         position: 'relative',
     },
     iconBackground: {
-        width: 44,
-        height: 44,
+        width: 38,
+        height: 38,
         borderRadius: 14,
         backgroundColor: 'rgba(255, 255, 255, 0.25)',
         justifyContent: 'center',

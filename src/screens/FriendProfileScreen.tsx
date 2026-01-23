@@ -260,7 +260,7 @@ const FriendProfileScreen: React.FC = () => {
             activeOpacity={0.7}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#6b7280', textAlign: 'center' }}>
-              📜 View Hint History
+              View Hint History
             </Text>
           </TouchableOpacity>
         )}
