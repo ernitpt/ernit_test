@@ -119,7 +119,7 @@ export default function HowItWorksModal({ visible, onClose }: HowItWorksModalPro
                         {/* Call to Action */}
                         <View style={styles.ctaContainer}>
                             <Text style={styles.ctaText}>
-                                Motivation meets reward. That's Ernit! 💪
+                                Motivation meets reward. That's Ernit!
                             </Text>
                         </View>
                     </ScrollView>
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
     modalContainer: {
-        height: '85%',
+        height: '81%',
         width: '100%',
         backgroundColor: '#fff',
         borderTopLeftRadius: 24,

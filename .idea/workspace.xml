@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0d2f95ac-158e-42e5-b224-fb9d2e310abf" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp/firestore.rules" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp/firestore.rules" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp/package-lock.json" afterDir="false" />
@@ -14,25 +15,26 @@
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp/src/firebase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp/src/firebase.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp/src/types/partner.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp/src/types/partner.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ErnitPartnerApp/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/ErnitPartnerApp/tsconfig.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/FooterNavigation.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/FooterNavigation.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/SharedHeader.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/SharedHeader.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/SideMenu.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/SideMenu.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/OnboardingScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/OnboardingScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/giver/CategorySelectionScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/giver/CategorySelectionScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/giver/ExperienceDetailsScreen.native.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/giver/ExperienceDetailsScreen.native.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/giver/ExperienceDetailsScreen.web.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/giver/ExperienceDetailsScreen.web.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="323" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="38ZnKLrz3b2eHN3pMF4HDKwtdHn" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -41,6 +43,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
@@ -64,6 +67,7 @@
     <attachedChunks>
       <set>
         <option value="bundled-jdk-30f59d01ecdd-26cb7f24e5b0-intellij.indexing.shared.core-IU-253.29346.240" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-IU-253.29346.240" />
       </set>
     </attachedChunks>
   </component>
@@ -75,6 +79,7 @@
       <option name="presentableId" value="Default" />
       <updated>1769015896175</updated>
       <workItem from="1769015905580" duration="566000" />
+      <workItem from="1769167739128" duration="2177000" />
     </task>
     <servers />
   </component>

@@ -9,6 +9,7 @@ import {
     StyleSheet,
     Platform,
     ScrollView,
+    Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -36,16 +37,16 @@ interface Slide {
 const slides: Slide[] = [
     {
         id: 1,
-        title: 'The Gift of Motivation',
-        description: 'Gift experiences your friends will earn. Set a challenge, they achieve goals, unlock their surprise reward.',
+        title: 'Welcome to Ernit',
+        description: 'Gift experiences your friends can earn. They set a challenge, achieve goals and unlock their surprise reward.',
         emoji: '🎁',
         color1: '#8B5CF6',
         color2: '#6366F1',
     },
     {
         id: 2,
-        title: 'Send an Experience',
-        description: 'Pick a meaningful reward for your friend. The surprise stays hidden, and they\'ll discover it piece by piece through motivating hints.',
+        title: 'Send them the Ernit experience',
+        description: 'The surprise stays hidden, and they\'ll discover it piece by piece through motivating hints.',
         emoji: '🎯',
         color1: '#EC4899',
         color2: '#8B5CF6',
@@ -219,6 +220,8 @@ const OnboardingScreen = () => {
             extrapolate: 'clamp',
         });
 
+        const isFirstSlide = index === 0;
+
         return (
             <View style={styles.slide}>
                 <Animated.View
@@ -227,24 +230,36 @@ const OnboardingScreen = () => {
                         {
                             transform: [
                                 { scale },
-                                { rotate },
+                                { rotate: isFirstSlide ? '0deg' : rotate },
                             ],
                             opacity
                         }
                     ]}
                 >
-                    <LinearGradient
-                        colors={[item.color1, item.color2]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.emojiBackground}
-                    >
-                        <Text style={styles.emoji}>{item.emoji}</Text>
-                    </LinearGradient>
+                    {isFirstSlide ? (
+                        // Show logo on first slide
+                        <Image
+                            source={require('../assets/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    ) : (
+                        // Show emoji gradient on other slides
+                        <>
+                            <LinearGradient
+                                colors={[item.color1, item.color2]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.emojiBackground}
+                            >
+                                <Text style={styles.emoji}>{item.emoji}</Text>
+                            </LinearGradient>
 
-                    {/* Decorative rings */}
-                    <View style={[styles.ring, styles.ring1]} />
-                    <View style={[styles.ring, styles.ring2]} />
+                            {/* Decorative rings */}
+                            <View style={[styles.ring, styles.ring1]} />
+                            <View style={[styles.ring, styles.ring2]} />
+                        </>
+                    )}
                 </Animated.View>
 
                 <Animated.View
@@ -252,7 +267,8 @@ const OnboardingScreen = () => {
                         styles.textContainer,
                         {
                             transform: [{ translateY }],
-                            opacity
+                            opacity,
+                            marginTop: isFirstSlide ? 10 : 0,
                         }
                     ]}
                 >
@@ -417,6 +433,10 @@ const styles = StyleSheet.create({
         marginBottom: 40,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    logo: {
+        width: 160,
+        height: 160,
     },
     emojiBackground: {
         width: 160,
