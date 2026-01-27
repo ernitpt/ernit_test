@@ -336,6 +336,7 @@ export const aiGenerateHint = onCall(
       "https://ernit-nine.vercel.app",
       "https://ernit981723498127658912765187923546.vercel.app",
       "https://ernit.app",
+      "https://ernit.xyz",
     ],
     secrets: [
       OPENROUTER_KEY,

@@ -388,6 +388,8 @@ export type RootStackParamList = {
   Confirmation: { experienceGift: ExperienceGift };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
+  ValentinesLanding: undefined;
+  ValentinesChallenge: undefined;
 };
 
 export type GiverStackParamList = {

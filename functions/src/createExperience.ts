@@ -16,6 +16,7 @@ export const createExperience = onCall(
             "https://ernit-nine.vercel.app",
             "https://ernit981723498127658912765187923546.vercel.app",
             "https://ernit.app",
+            "https://ernit.xyz", // Partner app production domain
             "https://ernitpartner.vercel.app", // Partner app domain
         ],
     },

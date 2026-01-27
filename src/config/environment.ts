@@ -13,11 +13,11 @@ type Environment = 'test' | 'production';
 
 // Default to 'test' unless explicitly set to 'production'
 // This ensures development and test deployments use test functions
-const envValue = process.env.EXPO_PUBLIC_APP_ENV;
+const rawEnvValue = process.env.EXPO_PUBLIC_APP_ENV;
+const envValue = rawEnvValue?.trim().replace(/['"]/g, ''); // Remove quotes and whitespace
+
 const APP_ENV: Environment = envValue === 'production' ? 'production' : 'test';
 
-// Debug log to verify which environment is selected
-console.log(`🔧 EXPO_PUBLIC_APP_ENV raw value: "${envValue}", using: ${APP_ENV}`);
 
 interface EnvironmentConfig {
     name: Environment;

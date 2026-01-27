@@ -31,6 +31,7 @@ export const sendContactEmail = onCall(
             'http://localhost:3000',
             'https://ernit-nine.vercel.app',
             'https://ernit.app',
+            'https://ernit.xyz',
         ],
         secrets: [EMAIL_USER, EMAIL_PASS],
     },

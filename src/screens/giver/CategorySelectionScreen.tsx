@@ -191,26 +191,33 @@ const CategorySelectionScreen = () => {
         const snapshot = await getDocs(collection(db, 'experiences'));
         const allExperiences = snapshot.docs.map((doc) => doc.data() as Experience);
 
+        const validCategories = ['adventure', 'creative', 'wellness'];
+
         const grouped = allExperiences.reduce((acc, exp) => {
-          if (!acc[exp.category]) acc[exp.category] = [];
-          acc[exp.category].push(exp);
+          const cat = exp.category.toLowerCase();
+          if (validCategories.includes(cat)) {
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(exp);
+          }
           return acc;
-        }, {} as Record<ExperienceCategory, Experience[]>);
+        }, {} as Record<string, Experience[]>);
 
-        const categoriesArray = Object.keys(grouped).map((cat) => ({
-          id: cat as ExperienceCategory,
-          title:
-            cat === 'adventure'
-              ? 'Adventure'
-              : cat === 'relaxation'
-                ? 'Wellness'
-                : cat === 'creative'
-                  ? 'Creative'
-                  : 'Entertainment',
-          experiences: grouped[cat as ExperienceCategory],
-        }));
+        const categoryOrder = ['adventure', 'wellness', 'creative'];
 
-        setCategories(categoriesArray);
+        const categoriesArray = Object.keys(grouped)
+          .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b))
+          .map((cat) => ({
+            id: cat,
+            title:
+              cat === 'adventure'
+                ? 'Adventure'
+                : cat === 'wellness'
+                  ? 'Wellness'
+                  : 'Creative',
+            experiences: grouped[cat],
+          }));
+
+        setCategories(categoriesArray as Category[]);
       } catch (error) {
         logger.error('Error fetching experiences:', error);
         Alert.alert('Error', 'Could not load experiences.');
