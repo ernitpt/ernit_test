@@ -389,6 +389,63 @@ export class GoalService {
     return g;
   }
 
+  /**
+   * Check if Valentine partner has completed their weekly goal
+   * Returns true if:
+   * - Not a Valentine challenge (allow normal progression)
+   * - Partner hasn't redeemed code yet (allow first partner to progress alone)
+   * - Partner has completed their weekly goal
+   */
+  async checkPartnerProgress(goalId: string): Promise<boolean> {
+    try {
+      const goal = await this.getGoalById(goalId);
+      if (!goal) return true;
+
+      // Not a Valentine challenge - allow normal progression
+      if (!goal.valentineChallengeId) return true;
+
+      // Fetch Valentine challenge to get partner's goal
+      const challengeRef = doc(db, 'valentineChallenges', goal.valentineChallengeId);
+      const challengeSnap = await getDoc(challengeRef);
+
+      if (!challengeSnap.exists()) {
+        logger.warn(`Valentine challenge ${goal.valentineChallengeId} not found`);
+        return true; // Allow progression if challenge not found
+      }
+
+      const challengeData = challengeSnap.data();
+
+      // Determine partner's goal ID
+      const partnerGoalId = goal.id === challengeData.purchaserGoalId
+        ? challengeData.partnerGoalId
+        : challengeData.purchaserGoalId;
+
+      // If partner hasn't redeemed code yet, allow first partner to progress
+      if (!partnerGoalId) {
+        logger.log('Partner has not redeemed code yet - allowing progression');
+        return true;
+      }
+
+      // Get partner's goal
+      const partnerGoal = await this.getGoalById(partnerGoalId);
+      if (!partnerGoal) {
+        logger.warn(`Partner goal ${partnerGoalId} not found`);
+        return true;
+      }
+
+      // Both must complete their week to progress
+      const partnerCompleted = partnerGoal.isWeekCompleted ||
+        partnerGoal.weeklyCount >= partnerGoal.sessionsPerWeek;
+
+      logger.log(`Partner progress check: ${partnerCompleted ? 'COMPLETED' : 'PENDING'} (${partnerGoal.weeklyCount}/${partnerGoal.sessionsPerWeek})`);
+
+      return partnerCompleted;
+    } catch (error) {
+      logger.error('Error checking partner progress:', error);
+      return true; // Allow progression on error to avoid blocking users
+    }
+  }
+
   /** Increment a session for the current anchored week */
   async tickWeeklySession(goalId: string): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
@@ -434,6 +491,34 @@ export class GoalService {
     // If weekly goal reached → mark as completed but don't roll yet
     if (g.weeklyCount >= g.sessionsPerWeek) {
       g.isWeekCompleted = true;
+
+      // 💑 VALENTINE CHALLENGE: Check if partner has also completed their week
+      if (g.valentineChallengeId) {
+        const partnerCompleted = await this.checkPartnerProgress(goalId);
+
+        if (!partnerCompleted) {
+          // Mark week complete but set canProgress to false
+          g.canProgress = false;
+
+          await updateDoc(ref, {
+            weeklyCount: g.weeklyCount,
+            weeklyLogDates: g.weeklyLogDates,
+            isWeekCompleted: true,
+            canProgress: false,
+            weekStartAt: g.weekStartAt,
+            updatedAt: serverTimestamp(),
+          } as any);
+
+          logger.log('💑 Week complete! Waiting for partner to finish their week...');
+
+          // Return early - don't progress to next week yet
+          return { ...(g as any) } as Goal;
+        } else {
+          // Both completed - allow progression
+          g.canProgress = true;
+          logger.log('🎉 Both partners completed their week! Progressing...');
+        }
+      }
 
       // If it's the final week
       if (g.currentCount + 1 >= g.targetCount) {

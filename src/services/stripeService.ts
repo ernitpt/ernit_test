@@ -156,4 +156,45 @@ export const stripeService = {
       return null;
     }
   },
+
+  /**
+   * Create payment intent for Valentine's challenge (no authentication required)
+   */
+  createValentinePaymentIntent: async (
+    amount: number,
+    currency: string,
+    metadata: Record<string, string>
+  ): Promise<{ clientSecret: string; paymentIntentId: string }> => {
+    try {
+      const response = await fetch(`${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.createValentinePaymentIntent}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount,
+          currency,
+          metadata,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Extract payment intent ID from client secret
+      const paymentIntentId = data.clientSecret.split("_secret_")[0];
+
+      return {
+        clientSecret: data.clientSecret,
+        paymentIntentId,
+      };
+    } catch (error: any) {
+      logger.error("Error creating Valentine payment intent:", error);
+      throw new Error(error.message || "Failed to create payment intent");
+    }
+  },
 };

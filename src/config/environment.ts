@@ -27,6 +27,7 @@ interface EnvironmentConfig {
     functionsUrl: string;
     stripeFunctions: {
         createPaymentIntent: string;
+        createValentinePaymentIntent: string;
         updatePaymentIntentMetadata: string;
         getGiftsByPaymentIntent: string;
         webhook: string;
@@ -43,6 +44,7 @@ const configs: Record<Environment, EnvironmentConfig> = {
         functionsUrl: 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
         stripeFunctions: {
             createPaymentIntent: 'stripeCreatePaymentIntent_Test',
+            createValentinePaymentIntent: 'stripeCreateValentinePaymentIntent_Test',
             updatePaymentIntentMetadata: 'updatePaymentIntentMetadata_Test',
             getGiftsByPaymentIntent: 'getGiftsByPaymentIntent_Test',
             webhook: 'stripeWebhook_Test',
@@ -55,6 +57,7 @@ const configs: Record<Environment, EnvironmentConfig> = {
         functionsUrl: 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
         stripeFunctions: {
             createPaymentIntent: 'stripeCreatePaymentIntent',
+            createValentinePaymentIntent: 'stripeCreateValentinePaymentIntent',
             updatePaymentIntentMetadata: 'updatePaymentIntentMetadata',
             getGiftsByPaymentIntent: 'getGiftsByPaymentIntent',
             webhook: 'stripeWebhook',

@@ -31,6 +31,8 @@ import { useApp } from '../../context/AppContext';
 import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
 import { DateHelper } from '../../utils/DateHelper';
+import { db } from '../../services/firebase';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 import { config } from '../../config/environment';
 
@@ -269,6 +271,7 @@ type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
+  const [valentinePartnerName, setValentinePartnerName] = useState<string | null>(null);
   const isSelfGift = isSelfGifted(currentGoal); // Detect self-gifted goals
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -300,6 +303,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Format planned start date
   const getStartDateText = () => {
+    // Don't show start date for Valentine goals
+    if (currentGoal.valentineChallengeId) return null;
+
     if (!currentGoal.plannedStartDate) return null;
     const planned = new Date(currentGoal.plannedStartDate);
     const today = new Date();
@@ -378,8 +384,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       setCurrentGoal(updated);
 
-      const gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
-      const experience = await experienceService.getExperienceById(gift.experienceId);
+      // Check if this is a Valentine goal
+      const isValentineGoal = !!updated.valentineChallengeId;
+
+      let gift: any = null;
+      let experience: any = null;
+
+      // Only fetch experience for non-Valentine goals
+      if (!isValentineGoal && updated.experienceGiftId) {
+        gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
+        experience = await experienceService.getExperienceById(gift.experienceId);
+      }
+
       const recipientName = await userService.getUserName(updated.userId);
 
       // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
@@ -396,24 +412,41 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       await pushNotificationService.cancelSessionNotification(goalId);
 
       if (updated.isCompleted) {
-        // Only notify the giver if they're different from the user (don't send self-notifications)
-        if (updated.empoweredBy && updated.empoweredBy !== updated.userId) {
-          await notificationService.createNotification(
-            updated.empoweredBy,
-            'goal_completed',
-            `🎉 ${recipientName} just earned ${experience.title}`,
-            `Goal completed: ${updated.description}`,
-            {
-              goalId: updated.id,
-              giftId: updated.experienceGiftId,
-              giverId: updated.empoweredBy,
-              recipientId: updated.userId,
-              experienceTitle: experience.title,
-            }
-          );
+        // For Valentine goals, navigate without experience gift
+        if (isValentineGoal) {
+          // Create a minimal gift object for Valentine goals
+          const fakeGift = {
+            id: '',
+            experienceId: '',
+            giverId: '',
+            giverName: '',
+            status: 'completed' as const,
+            createdAt: new Date(),
+            deliveryDate: new Date(),
+            payment: '',
+            claimCode: '',
+          };
+          navigation.navigate('Completion', { goal: updated, experienceGift: fakeGift });
+        } else if (gift) {
+          // Only notify the giver if they're different from the user (don't send self-notifications)
+          if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
+            await notificationService.createNotification(
+              updated.empoweredBy,
+              'goal_completed',
+              `🎉 ${recipientName} just earned ${experience.title}`,
+              `Goal completed: ${updated.description}`,
+              {
+                goalId: updated.id,
+                giftId: updated.experienceGiftId,
+                giverId: updated.empoweredBy,
+                recipientId: updated.userId,
+                experienceTitle: experience.title,
+              }
+            );
+          }
+          // Don't call onFinish for completed goals - handle navigation here
+          navigation.navigate('Completion', { goal: updated, experienceGift: gift });
         }
-        // Don't call onFinish for completed goals - handle navigation here
-        navigation.navigate('Completion', { goal: updated, experienceGift: gift });
       } else {
         // Check if there's a personalized hint for the NEXT session
         // totalSessionsDone represents the session that was just completed
@@ -538,11 +571,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           setLastHint(hintToShow);
         }
 
-        // Only show hint popup if NOT self-gifted
-        if (!isSelfGift) {
+        // Only show hint popup if NOT self-gifted and NOT Valentine goal
+        const isValentineGoal = !!updated.valentineChallengeId;
+        if (!isSelfGift && !isValentineGoal) {
           setShowHint(true);
         } else {
-          // Show celebration animation for self-gifted goals
+          // Show celebration animation for self-gifted goals or Valentine goals
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setShowCelebration(true);
 
@@ -564,8 +598,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           ? updated.currentCount + 1
           : updated.currentCount;
 
-        // Only notify the giver if they're different from the user (don't send self-notifications)
-        if (updated.empoweredBy && updated.empoweredBy !== updated.userId) {
+        // Only notify the giver if they're different from the user and it's not a Valentine goal
+        if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
           await notificationService.createNotification(
             updated.empoweredBy,
             'goal_progress',
@@ -616,9 +650,17 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     const now = Date.now();
 
     try {
-      const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
-      const experience = await experienceService.getExperienceById(gift.experienceId);
-      const recipientName = await userService.getUserName(currentGoal.userId);
+      // Check if this is a Valentine goal (has valentineChallengeId and no experienceGiftId)
+      const isValentineGoal = !!currentGoal.valentineChallengeId;
+
+      let experience: any = null;
+      let recipientName = await userService.getUserName(currentGoal.userId);
+
+      // Only fetch experience gift if it's not a Valentine goal
+      if (!isValentineGoal && currentGoal.experienceGiftId) {
+        const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+        experience = await experienceService.getExperienceById(gift.experienceId);
+      }
 
       // SECURITY: Validate session timing to prevent rapid completion exploits
       const MIN_SESSION_INTERVAL_MS = 60000; // 1 minute between sessions
@@ -653,6 +695,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       // Only generate AI hint if:
       // 1. Not the last session
       // 2. No personalized hint exists for the next session
+      // 3. Not a Valentine goal (Valentine goals don't have hints)
       // We want to generate a hint for the session AFTER the one we are about to start.
       // So if we are starting Session 1 (totalSessionsDone=0), we want hint for Session 2.
       const nextSessionNumber = totalSessionsDone + 2;
@@ -664,7 +707,8 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       startTimer(currentGoal.id, null);
 
       // ✅ Generate hint in background (don't await - don't block timer)
-      if (totalSessionsDone != totalSessions && !hasPersonalizedHintForNextSession) {
+      // Skip hint generation for Valentine goals
+      if (!isValentineGoal && totalSessionsDone != totalSessions && !hasPersonalizedHintForNextSession && experience) {
         // Fire and forget - hint will be saved when ready
         aiHintService.generateHint({
           goalId,
@@ -811,6 +855,54 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     }
   }, [currentGoal.empoweredBy]);
 
+  // Fetch Valentine partner's name
+  useEffect(() => {
+    const fetchPartnerName = async () => {
+      logger.log('Valentine check:', {
+        hasValentineChallenge: !!currentGoal.valentineChallengeId,
+        hasPartnerGoal: !!currentGoal.partnerGoalId,
+        valentineChallengeId: currentGoal.valentineChallengeId,
+        partnerGoalId: currentGoal.partnerGoalId,
+      });
+
+      if (currentGoal.valentineChallengeId && currentGoal.partnerGoalId) {
+        try {
+          logger.log('Fetching partner goal:', currentGoal.partnerGoalId);
+          const partnerGoalDoc = await getDoc(doc(db, 'goals', currentGoal.partnerGoalId));
+          if (partnerGoalDoc.exists()) {
+            const partnerUserId = partnerGoalDoc.data().userId;
+            logger.log('Partner userId:', partnerUserId);
+            const partnerName = await userService.getUserName(partnerUserId);
+            logger.log('Partner name fetched:', partnerName);
+            setValentinePartnerName(partnerName);
+          } else {
+            logger.warn('Partner goal document does not exist');
+          }
+        } catch (error) {
+          logger.warn('Failed to fetch Valentine partner name:', error);
+        }
+      }
+    };
+    fetchPartnerName();
+  }, [currentGoal.valentineChallengeId, currentGoal.partnerGoalId]);
+
+  // Real-time listener for goal updates (especially for Valentine partner linking)
+  useEffect(() => {
+    if (!currentGoal.id) return;
+
+    const unsubscribe = onSnapshot(doc(db, 'goals', currentGoal.id), (snapshot) => {
+      if (snapshot.exists()) {
+        const updatedGoal = { id: snapshot.id, ...snapshot.data() } as Goal;
+        logger.log('Goal updated from Firestore listener');
+        setCurrentGoal(updatedGoal);
+      }
+    }, (error) => {
+      logger.error('Error listening to goal updates:', error);
+    });
+
+    return () => unsubscribe();
+  }, [currentGoal.id]);
+
   // Celebration animation effect
   useEffect(() => {
     if (showCelebration) {
@@ -948,11 +1040,30 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
         style={{ borderRadius: 16 }}
       >
         <View style={styles.card}>
+          {/* Hearts background decoration for Valentine goals */}
+          {!!currentGoal.valentineChallengeId && (
+            <View style={styles.heartsBackground}>
+              <Text style={[styles.heartIcon, { top: 10, left: 20, transform: [{ rotate: '15deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { top: 15, right: 30, transform: [{ rotate: '-20deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { top: 50, left: 10, transform: [{ rotate: '25deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { top: 60, right: 15, transform: [{ rotate: '-15deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { bottom: 80, left: 25, transform: [{ rotate: '-25deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { bottom: 70, right: 20, transform: [{ rotate: '20deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { bottom: 40, left: 15, transform: [{ rotate: '18deg' }] }]}>❤️</Text>
+              <Text style={[styles.heartIcon, { bottom: 30, right: 25, transform: [{ rotate: '-22deg' }] }]}>❤️</Text>
+            </View>
+          )}
           <Text style={styles.title}>{currentGoal.title}</Text>
           {/* Show empowered text only if NOT self-gifted */}
           {!!empoweredName && !isSelfGift && <Text style={styles.empoweredText}>⚡ Empowered by {empoweredName}</Text>}
           {/* Show self-challenge badge for self-gifted goals */}
           {isSelfGift && <Text style={styles.selfChallengeText}>🏆 Self-Challenge</Text>}
+          {/* Show Valentine badge for Valentine goals with partner name */}
+          {!!currentGoal.valentineChallengeId && (
+            <Text style={styles.valentineChallengeText}>
+              💝 Valentine's Challenge{valentinePartnerName ? ` with ${valentinePartnerName}` : ''}
+            </Text>
+          )}
           {/* Show planned start date */}
           {startDateText && <Text style={styles.startDateText}>{startDateText}</Text>}
 
@@ -1364,6 +1475,20 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6 },
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14 },
   selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600' },
+  valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600' },
+  heartsBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    opacity: 0.15,
+  },
+  heartIcon: {
+    position: 'absolute',
+    fontSize: 32,
+  },
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600' },
   calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   dayCell: { alignItems: 'center', width: CIRCLE },

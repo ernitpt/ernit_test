@@ -158,6 +158,12 @@ export interface Goal {
   personalizedNextHint?: PersonalizedHint | null;
   hints?: (PersonalizedHint | { session: number; hint: string; date: number })[];
   createdAt: Date;                  // When the goal was created
+
+  // Valentine-specific fields (optional for backward compatibility)
+  valentineChallengeId?: string;
+  partnerGoalId?: string;
+  isLeader?: boolean;
+  canProgress?: boolean;
 }
 
 export interface PersonalizedHint {
@@ -361,6 +367,50 @@ export interface PartnerCoupon {
   redeemedAt?: Date;
 }
 
+// Valentine's Pack Types
+export interface ValentineChallenge {
+  id: string;
+  purchaserEmail: string;
+  partnerEmail: string;
+  experienceId: string;
+  experiencePrice: number;
+  mode: 'revealed' | 'secret';
+
+  // Challenge parameters
+  goalType: string; // 'Gym', 'Yoga', 'Run', or custom
+  weeks: number;
+  sessionsPerWeek: number;
+
+  // Purchase info
+  paymentIntentId: string;
+  purchaseDate: Date;
+  totalAmount: number;
+
+  // Partner tracking
+  purchaserUserId?: string;
+  partnerUserId?: string;
+  purchaserCodeRedeemed: boolean;
+  partnerCodeRedeemed: boolean;
+  purchaserCode: string; // 12-char redemption code
+  partnerCode: string; // 12-char redemption code
+
+  // Goal references
+  purchaserGoalId?: string;
+  partnerGoalId?: string;
+
+  status: 'pending_redemption' | 'partially_redeemed' | 'active' | 'completed';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Extended Goal type for Valentine coupled challenges
+export interface ValentineGoalExtensions {
+  valentineChallengeId?: string;
+  partnerGoalId?: string;
+  isLeader?: boolean; // Purchaser is leader to prevent circular checks
+  canProgress?: boolean; // Computed: both completed their week
+}
+
 // Navigation types
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -390,6 +440,10 @@ export type RootStackParamList = {
   LoginPromptModal: undefined;
   ValentinesLanding: undefined;
   ValentinesChallenge: undefined;
+  ValentineCheckout: { valentineData: any; totalAmount: number };
+  ValentineConfirmation: { purchaserEmail: string; partnerEmail: string };
+  ValentineRedemption: { code: string };
+  ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
 };
 
 export type GiverStackParamList = {

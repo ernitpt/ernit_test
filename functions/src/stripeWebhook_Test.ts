@@ -3,6 +3,7 @@ import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
 import { db } from './index';
+import { GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from './services/emailService.js';
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET_TEST");
@@ -11,7 +12,7 @@ const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET_TEST");
 export const stripeWebhook_Test = onRequest(
   {
     region: "europe-west1",
-    secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET],
+    secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
   },
   async (req, res) => {
     console.log("🔔 Webhook received");
@@ -81,7 +82,15 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   const metadata = paymentIntent.metadata;
   const paymentIntentId = paymentIntent.id;
 
-  console.log("📦 Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
+  console.log("📦 [TEST] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
+
+  // ✅ ROUTE TO VALENTINE HANDLER
+  if (metadata.type === 'valentine_challenge') {
+    console.log("💘 [TEST] Detected Valentine's challenge payment");
+    return await handleValentinePayment_Test(paymentIntent);
+  }
+
+  // ✅ STANDARD GIFT PURCHASE FLOW
   console.log("🧪 typeof cart metadata:", typeof metadata.cart);
   console.log("🧪 raw cart metadata:", metadata.cart);
   console.log("🧪 giverId metadata:", metadata.giverId);
@@ -224,4 +233,133 @@ async function generateUniqueClaimCode(): Promise<string> {
   }
 
   throw new Error('Failed to generate unique claim code after 10 attempts');
+}
+
+// ========== VALENTINE CHALLENGE HANDLER (TEST) ==========
+async function handleValentinePayment_Test(paymentIntent: Stripe.PaymentIntent) {
+  const metadata = paymentIntent.metadata;
+  const paymentIntentId = paymentIntent.id;
+
+  // Validate Valentine metadata
+  if (!metadata.purchaserEmail || !metadata.partnerEmail || !metadata.experienceId) {
+    throw new Error("Missing required Valentine metadata");
+  }
+
+  // Check idempotency
+  const processedRef = db.collection("processedPayments").doc(paymentIntentId);
+  const processedDoc = await processedRef.get();
+
+  if (processedDoc.exists) {
+    console.log("⚠️ [TEST] Valentine payment already processed");
+    return;
+  }
+
+  // Generate unique codes for both partners
+  const purchaserCode = await generateUniqueValentineCode_Test();
+  const partnerCode = await generateUniqueValentineCode_Test();
+
+  console.log("💘 [TEST] Generated codes:", { purchaserCode, partnerCode });
+
+  // Create Valentine challenge document
+  const challengeId = db.collection("valentineChallenges").doc().id;
+  const challengeData = {
+    id: challengeId,
+    purchaserEmail: metadata.purchaserEmail,
+    partnerEmail: metadata.partnerEmail,
+    experienceId: metadata.experienceId,
+    experiencePrice: parseFloat(metadata.experiencePrice || "0"),
+    mode: metadata.mode as 'revealed' | 'secret',
+    goalType: metadata.goalType,
+    weeks: parseInt(metadata.weeks),
+    sessionsPerWeek: parseInt(metadata.sessionsPerWeek),
+    paymentIntentId,
+    purchaseDate: admin.firestore.Timestamp.now(),
+    totalAmount: paymentIntent.amount / 100,
+    purchaserCode,
+    partnerCode,
+    purchaserCodeRedeemed: false,
+    partnerCodeRedeemed: false,
+    status: 'pending_redemption',
+    createdAt: admin.firestore.Timestamp.now(),
+    updatedAt: admin.firestore.Timestamp.now(),
+  };
+
+  // Save to Firestore
+  await db.collection("valentineChallenges").doc(challengeId).set(challengeData);
+
+  // Mark as processed
+  await processedRef.set({
+    processed: true,
+    processedAt: admin.firestore.FieldValue.serverTimestamp(),
+    type: 'valentine_challenge',
+    challengeId,
+  });
+
+  // Send emails to both partners
+  try {
+    const { sendEmail } = await import('./services/emailService.js');
+    const { generateValentineEmail } = await import('./templates/valentineEmail.js');
+
+    await Promise.all([
+      sendEmail(
+        metadata.purchaserEmail,
+        "💕 Your Valentine's Challenge Code",
+        generateValentineEmail(
+          metadata.purchaserEmail,
+          purchaserCode,
+          metadata.partnerEmail,
+          true // isPurchaser
+        )
+      ),
+      sendEmail(
+        metadata.partnerEmail,
+        "💕 Your Valentine's Challenge Code",
+        generateValentineEmail(
+          metadata.partnerEmail,
+          partnerCode,
+          metadata.purchaserEmail,
+          false // not purchaser
+        )
+      ),
+    ]);
+
+    console.log("✅ [TEST] Valentine emails sent successfully to both partners");
+  } catch (emailError) {
+    console.error("❌ [TEST] Failed to send emails:", emailError);
+    // Don't fail the webhook - codes are still saved in Firestore
+  }
+
+  console.log("✅ [TEST] Valentine challenge created:", challengeId);
+
+  return { challengeId, purchaserCode, partnerCode };
+}
+
+// ========== GENERATE UNIQUE VALENTINE CODE (TEST) ==========
+async function generateUniqueValentineCode_Test(): Promise<string> {
+  const maxAttempts = 10;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const code = generateClaimCode();
+
+    // Check for collisions in valentine challenges
+    const existing = await db
+      .collection('valentineChallenges')
+      .where('purchaserCode', '==', code)
+      .limit(1)
+      .get();
+
+    const existing2 = await db
+      .collection('valentineChallenges')
+      .where('partnerCode', '==', code)
+      .limit(1)
+      .get();
+
+    if (existing.empty && existing2.empty) {
+      return code;
+    }
+
+    console.warn(`⚠️ [TEST] Valentine code collision (attempt ${attempt + 1})`);
+  }
+
+  throw new Error('[TEST] Failed to generate unique Valentine code');
 }

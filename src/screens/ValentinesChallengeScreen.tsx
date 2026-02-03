@@ -8,10 +8,13 @@ import {
     Dimensions,
     Platform,
     TextInput,
+    Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Sparkles, Heart, Check, Flame } from 'lucide-react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChevronLeft, Sparkles, Heart, Check, Flame, Mail, CheckCircle } from 'lucide-react-native';
+import { RootStackParamList } from '../types';
 
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -95,8 +98,10 @@ const ModernSlider = ({
     );
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ValentinesChallenge'>;
+
 export default function ValentinesChallengeScreen() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<NavigationProp>();
 
     const [experiences, setExperiences] = useState<any[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<any | null>(null);
@@ -109,6 +114,11 @@ export default function ValentinesChallengeScreen() {
     const [step, setStep] = useState(1);
     const [selectedMode, setSelectedMode] = useState<'revealed' | 'secret' | null>(null);
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    // Email state
+    const [purchaserEmail, setPurchaserEmail] = useState('');
+    const [partnerEmail, setPartnerEmail] = useState('');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     React.useEffect(() => {
         if (step === 2) {
@@ -165,6 +175,16 @@ export default function ValentinesChallengeScreen() {
     const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
 
     const totalSessions = useMemo(() => weeks * sessionsPerWeek, [weeks, sessionsPerWeek]);
+
+    // Email validation helper
+    const validateEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email.trim());
+    };
+
+    const isEmailValid = (email: string): boolean => {
+        return email.trim().length > 0 && validateEmail(email);
+    };
 
     return (
         <View style={styles.container}>
@@ -382,6 +402,65 @@ export default function ValentinesChallengeScreen() {
                     <View style={styles.section}>
                         <Text style={styles.questionTitle}>How will be your loved one's experience?</Text>
 
+                        {/* Email Collection Section */}
+                        <View style={styles.emailSection}>
+                            <Text style={styles.sectionTitle}>
+                                <Mail size={20} color="#FF6B9D" /> Who's taking the challenge?
+                            </Text>
+
+                            <View style={styles.emailInputContainer}>
+                                <TextInput
+                                    style={[
+                                        styles.emailInput,
+                                        purchaserEmail && !isEmailValid(purchaserEmail) && styles.emailInputError
+                                    ]}
+                                    placeholder="Your email"
+                                    placeholderTextColor="#999"
+                                    value={purchaserEmail}
+                                    onChangeText={setPurchaserEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {purchaserEmail && isEmailValid(purchaserEmail) && (
+                                    <CheckCircle
+                                        size={20}
+                                        color="#10B981"
+                                        style={styles.emailCheckIcon}
+                                    />
+                                )}
+                            </View>
+
+                            <View style={styles.emailInputContainer}>
+                                <TextInput
+                                    style={[
+                                        styles.emailInput,
+                                        partnerEmail && !isEmailValid(partnerEmail) && styles.emailInputError
+                                    ]}
+                                    placeholder="Your partner's email"
+                                    placeholderTextColor="#999"
+                                    value={partnerEmail}
+                                    onChangeText={setPartnerEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {partnerEmail && isEmailValid(partnerEmail) && (
+                                    <CheckCircle
+                                        size={20}
+                                        color="#10B981"
+                                        style={styles.emailCheckIcon}
+                                    />
+                                )}
+                            </View>
+
+                            <Text style={styles.emailHint}>
+                                💌 You'll both receive redemption codes via email
+                            </Text>
+                        </View>
+
+                        <Text style={styles.sectionTitle}>Choose Your Mode</Text>
+
                         {/* Secret Mode */}
                         <TouchableOpacity
                             style={[
@@ -448,21 +527,55 @@ export default function ValentinesChallengeScreen() {
             </ScrollView >
 
             {/* Fixed Footer */}
-            < View style={styles.footer} >
+            <View style={styles.footer} >
                 <TouchableOpacity
                     style={[styles.ctaButton, step === 2 && !selectedMode && styles.ctaButtonDisabled]}
-                    onPress={() => {
+                    onPress={async () => {
                         if (step === 1) {
                             setStep(2);
-                        } else {
-                            // Handle completion
-                            console.log('Finished with mode:', selectedMode);
+                        } else if (step === 2 && selectedMode) {
+                            // Validate emails
+                            if (!isEmailValid(purchaserEmail) || !isEmailValid(partnerEmail)) {
+                                Alert.alert('Invalid Email', 'Please enter valid email addresses for both you and your partner');
+                                return;
+                            }
+
+                            if (purchaserEmail.toLowerCase().trim() === partnerEmail.toLowerCase().trim()) {
+                                Alert.alert('Same Email', 'Please use different email addresses for you and your partner');
+                                return;
+                            }
+
+                            setIsProcessingPayment(true);
+
+                            try {
+                                // Create valentine challenge metadata
+                                const valentineData = {
+                                    purchaserEmail: purchaserEmail.trim(),
+                                    partnerEmail: partnerEmail.trim(),
+                                    experienceId: selectedExperience.id,
+                                    experiencePrice: selectedExperience.price,
+                                    mode: selectedMode,
+                                    goalType: customGoal.trim() || selectedGoal,
+                                    weeks,
+                                    sessionsPerWeek,
+                                };
+
+                                // Navigate to checkout with Valentine data
+                                navigation.navigate('ValentineCheckout', {
+                                    valentineData,
+                                    totalAmount: selectedExperience.price * 2,
+                                });
+                            } catch (error: any) {
+                                Alert.alert('Error', error.message || 'Failed to process. Please try again.');
+                            } finally {
+                                setIsProcessingPayment(false);
+                            }
                         }
                     }}
-                    disabled={step === 2 && !selectedMode}
+                    disabled={(step === 2 && !selectedMode) || isProcessingPayment}
                 >
                     <Text style={styles.ctaText}>
-                        {step === 1 ? 'Continue' : 'Start Challenge'}
+                        {isProcessingPayment ? 'Processing...' : (step === 1 ? 'Continue' : 'Proceed to Payment')}
                     </Text>
                 </TouchableOpacity>
             </View >
@@ -965,5 +1078,36 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 10,
         fontWeight: '800',
+    },
+    emailSection: {
+        marginBottom: 24,
+    },
+    emailInputContainer: {
+        position: 'relative',
+        marginBottom: 12,
+    },
+    emailInput: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        borderWidth: 2,
+        borderColor: '#E5E7EB',
+        color: '#111',
+    },
+    emailInputError: {
+        borderColor: '#EF4444',
+    },
+    emailCheckIcon: {
+        position: 'absolute',
+        right: 16,
+        top: 14,
+    },
+    emailHint: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        marginTop: 8,
     },
 });

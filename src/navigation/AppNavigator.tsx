@@ -39,6 +39,9 @@ import PurchasedGiftsScreen from '../screens/PurchasedGiftsScreen';
 import FeedScreen from '../screens/FeedScreen';
 import ValentinesLandingScreen from '../screens/ValentinesLandingScreen';
 import ValentinesChallengeScreen from '../screens/ValentinesChallengeScreen';
+import ValentineCheckoutScreen from '../screens/ValentineCheckoutScreen';
+import ValentineConfirmationScreen from '../screens/ValentineConfirmationScreen';
+import ValentineGoalSettingScreen from '../screens/ValentineGoalSettingScreen';
 import { logger } from '../utils/logger';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
@@ -206,6 +209,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         GoalSetting: 'goal-setting',
         ValentinesLanding: 'valentines',
         ValentinesChallenge: 'valentines/create',
+        ValentineCheckout: 'valentines/checkout',
+        ValentineGoalSetting: 'valentines/goalSetting',
       },
     },
   };
@@ -237,6 +242,9 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         <RootStack.Screen name="Cart" component={CartScreen} />
         <RootStack.Screen name="ValentinesLanding" component={ValentinesLandingScreen} />
         <RootStack.Screen name="ValentinesChallenge" component={ValentinesChallengeScreen} />
+        <RootStack.Screen name="ValentineCheckout" component={ValentineCheckoutScreen} />
+        <RootStack.Screen name="ValentineConfirmation" component={ValentineConfirmationScreen} />
+        <RootStack.Screen name="ValentineGoalSetting" component={ValentineGoalSettingScreen} />
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">

@@ -110,10 +110,20 @@ service cloud.firestore {
          =============================== */
 
       // Receiver can CREATE their own goal
-      // Allow if: user is the goal recipient AND the experience gift exists and is accessible
+      // Allow if: user is the goal recipient AND either:
+      //   - The experience gift exists (normal flow), OR
+      //   - The Valentine challenge exists (Valentine flow)
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.userId
-        && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId));
+        && (
+          // Normal gift flow: experienceGift must exist
+          ('experienceGiftId' in request.resource.data 
+           && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId)))
+          ||
+          // Valentine flow: valentineChallenge must exist
+          ('valentineChallengeId' in request.resource.data
+           && exists(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.valentineChallengeId)))
+        );
 
         // ===== Allow updates =====
       allow update: if request.auth != null && (
@@ -223,6 +233,44 @@ service cloud.firestore {
           && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.empoweredBy
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['customHint', 'customHintCreatedAt']);
       }
+    }
+
+    /** =====================
+     * 💝 VALENTINE CHALLENGES
+     * ===================== **/
+    match /valentineChallenges/{challengeId} {
+      // Allow authenticated users to query by code (for redemption)
+      // Queries: where('purchaserCode', '==', code) OR where('partnerCode', '==', code)
+      allow list: if request.auth != null;
+      
+      // Allow reading individual challenge documents
+      allow get: if request.auth != null;
+      
+      // Create: only via cloud functions (server-side after payment)
+      allow create: if false;
+      
+      // Update: only if user owns the goal they're linking to this challenge
+      // SECURITY: Prevents users from hijacking other people's challenges
+      allow update: if request.auth != null 
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed', 
+                      'purchaserGoalId', 'partnerGoalId', 'purchaserUserId', 
+                      'partnerUserId', 'status', 'updatedAt'])
+        && (
+          // If setting purchaserGoalId, verify user owns that goal
+          !('purchaserGoalId' in request.resource.data.diff(resource.data).affectedKeys())
+          || (exists(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId))
+              && get(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId)).data.userId == request.auth.uid)
+        )
+        && (
+          // If setting partnerGoalId, verify user owns that goal
+          !('partnerGoalId' in request.resource.data.diff(resource.data).affectedKeys())
+          || (exists(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId))
+              && get(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
+        );
+      
+      // Delete: never allowed from client
+      allow delete: if false;
     }
 
     /** =====================

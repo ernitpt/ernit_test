@@ -18,7 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RecipientStackParamList, ExperienceGift } from '../../types';
+import { RecipientStackParamList, ExperienceGift, ValentineChallenge } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
@@ -33,7 +33,7 @@ type CouponEntryNavigationProp =
 const CouponEntryScreen = () => {
   const navigation = useNavigation<CouponEntryNavigationProp>();
   const route = useRoute();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   const params = route.params as { code?: string } | undefined;
   const initialCode = (params?.code || '').toUpperCase();
@@ -86,6 +86,104 @@ const CouponEntryScreen = () => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
+      // ✅ FIRST: Check if it's a Valentine challenge code
+      const valentineRef = collection(db, 'valentineChallenges');
+      const valentineQuery = query(
+        valentineRef,
+        where('purchaserCode', '==', trimmedCode)
+      );
+      const valentineQuerySnapshot = await getDocs(valentineQuery);
+
+      if (!valentineQuerySnapshot.empty) {
+        // It's a Valentine purchaser code
+        const challengeDoc = valentineQuerySnapshot.docs[0];
+        const challenge = { id: challengeDoc.id, ...challengeDoc.data() } as ValentineChallenge;
+
+        logger.log('💘 Valentine purchaser code detected:', challenge.id);
+
+        // ✅ SECURITY: Validate user can redeem this code
+        const userEmail = state.user?.email;
+
+        if (!userEmail) {
+          setErrorMessage('Please sign in to redeem this code');
+          triggerShake();
+          return;
+        }
+
+        // Check if already redeemed
+        if (challenge.purchaserCodeRedeemed) {
+          setErrorMessage('This code has already been redeemed');
+          triggerShake();
+          return;
+        }
+
+        // Prevent same user from redeeming both codes
+        if (userEmail === challenge.partnerEmail) {
+          setErrorMessage('You cannot redeem both codes. Share this code with your partner!');
+          triggerShake();
+          return;
+        }
+
+        // Navigate to Valentine goal setting
+        navigation.reset({
+          index: 0,
+          routes: [{
+            name: 'ValentineGoalSetting' as any,
+            params: { challenge, isPurchaser: true }
+          }],
+        });
+        return;
+      }
+
+      // Check if it's a Valentine partner code
+      const partnerQuery = query(
+        valentineRef,
+        where('partnerCode', '==', trimmedCode)
+      );
+      const partnerQuerySnapshot = await getDocs(partnerQuery);
+
+      if (!partnerQuerySnapshot.empty) {
+        // It's a Valentine partner code
+        const challengeDoc = partnerQuerySnapshot.docs[0];
+        const challenge = { id: challengeDoc.id, ...challengeDoc.data() } as ValentineChallenge;
+
+        logger.log('💘 Valentine partner code detected:', challenge.id);
+
+        // ✅ SECURITY: Validate user can redeem this code
+        const userEmail = state.user?.email;
+
+        if (!userEmail) {
+          setErrorMessage('Please sign in to redeem this code');
+          triggerShake();
+          return;
+        }
+
+        // Check if already redeemed
+        if (challenge.partnerCodeRedeemed) {
+          setErrorMessage('This code has already been redeemed');
+          triggerShake();
+          return;
+        }
+
+        // Prevent same user from redeeming both codes
+        if (userEmail === challenge.purchaserEmail) {
+          setErrorMessage('You cannot redeem both codes. Share this code with your partner!');
+          triggerShake();
+          return;
+        }
+
+        // Navigate to Valentine goal setting
+        navigation.reset({
+          index: 0,
+          routes: [{
+            name: 'ValentineGoalSetting' as any,
+            params: { challenge, isPurchaser: false }
+          }],
+        });
+        return;
+      }
+
+      // ✅ FALLBACK: Check regular experience gifts
       const giftsRef = collection(db, 'experienceGifts');
       const q = query(
         giftsRef,
