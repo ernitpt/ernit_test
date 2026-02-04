@@ -1,4 +1,4 @@
-﻿// screens/Recipient/GoalSettingScreen.tsx
+// screens/Recipient/GoalSettingScreen.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,

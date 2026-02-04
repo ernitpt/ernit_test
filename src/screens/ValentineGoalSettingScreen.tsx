@@ -21,7 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Heart, ChevronLeft, Target, Calendar, Check, Clock } from 'lucide-react-native';
 import { RootStackParamList, ValentineChallenge, Goal } from '../types';
 import { useApp } from '../context/AppContext';
-import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { logger } from '../utils/logger';
 import { goalService } from '../services/GoalService';
@@ -130,7 +130,7 @@ const ValentineGoalSettingScreen = () => {
         const loadExperience = async () => {
             if (!challenge?.experienceId) {
                 Alert.alert('Error', 'Invalid challenge data');
-                navigation.goBack();
+                navigation.navigate('Goals');
                 return;
             }
 
@@ -140,12 +140,12 @@ const ValentineGoalSettingScreen = () => {
                     setExperience({ id: expDoc.id, ...expDoc.data() });
                 } else {
                     Alert.alert('Error', 'Experience not found');
-                    navigation.goBack();
+                    navigation.navigate('Goals');
                 }
             } catch (error) {
                 logger.error('Error loading experience:', error);
                 Alert.alert('Error', 'Failed to load experience');
-                navigation.goBack();
+                navigation.navigate('Goals');
             } finally {
                 setIsLoading(false);
             }
@@ -278,75 +278,26 @@ const ValentineGoalSettingScreen = () => {
                 initialSessionsPerWeek: customSessions,
             };
 
-            // ✅ Use goalService instead of addDoc
-            const goal = await goalService.createGoal(goalData as Goal);
-            logger.log('✅ Created Valentine goal:', goal.id);
+            // ✅ CREATE GOAL ATOMICALLY WITH TRANSACTION
+            // This eliminates race conditions and permission errors by doing everything in one atomic operation
+            const { goal, isNowActive } = await goalService.createValentineGoal(
+                state.user.id,
+                challenge.id,
+                goalData as Goal,
+                isPurchaser
+            );
 
-            // Small delay to ensure goal document is fully committed before updating challenge
-            // This prevents race conditions with Firestore security rule checks
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Update Valentine challenge document
-            const updateField = isPurchaser ? 'purchaserGoalId' : 'partnerGoalId';
-            const redeemedField = isPurchaser ? 'purchaserCodeRedeemed' : 'partnerCodeRedeemed';
-            const userIdField = isPurchaser ? 'purchaserUserId' : 'partnerUserId';
-
-            try {
-                logger.log(`Updating challenge ${challenge.id} with ${updateField}: ${goal.id}`);
-
-                await updateDoc(doc(db, 'valentineChallenges', challenge.id), {
-                    [updateField]: goal.id,
-                    [redeemedField]: true,
-                    [userIdField]: state.user.id,
-                    updatedAt: Timestamp.now(),
-
-                    // Update status if this is the second redemption
-                    ...(challengeData.purchaserCodeRedeemed || challengeData.partnerCodeRedeemed
-                        ? { status: 'active' as const }
-                        : {}),
-                });
-
-                logger.log('✅ Updated Valentine challenge document');
-            } catch (challengeUpdateError: any) {
-                logger.error('Failed to update Valentine challenge:', challengeUpdateError);
-                // Don't throw - goal was created successfully, this is just metadata
-                // The challenge can be manually linked later if needed
-                Alert.alert(
-                    'Note',
-                    'Goal created successfully, but there was an issue updating the challenge link. Your goal is ready to use!'
-                );
-            }
-
-            // Link partner goal if it exists
-            const partnerGoalId = isPurchaser
-                ? challengeData.partnerGoalId
-                : challengeData.purchaserGoalId;
-
-            if (partnerGoalId) {
-                // Link this goal to partner's goal
-                await updateDoc(doc(db, 'goals', goal.id), {
-                    partnerGoalId,
-                });
-
-                // Link partner's goal to this goal
-                await updateDoc(doc(db, 'goals', partnerGoalId), {
-                    partnerGoalId: goal.id,
-                });
-
-                logger.log('🔗 Linked Valentine partner goals');
-            }
+            logger.log('✅ Created Valentine goal atomically:', goal.id);
 
             // Success - navigate immediately
-            const isNowActive = partnerGoalId; // If partner goal exists, challenge is now active
             const mode = challenge.mode === 'secret' ? '🎁 Secret' : '👁️ Revealed';
 
-            // Navigate first
             navigation.reset({
                 index: 0,
                 routes: [{ name: 'Goals' }],
             });
 
-            // Then show success message
+            // Show success message
             setTimeout(() => {
                 Alert.alert(
                     '🎉 Goal Created!',
@@ -357,12 +308,19 @@ const ValentineGoalSettingScreen = () => {
             }, 100);
         } catch (error: any) {
             logger.error('Error creating Valentine goal:', error);
-            Alert.alert('Error', error.message || 'Failed to create goal');
+
+            // Handle specific errors
+            if (error.message === 'Code already redeemed') {
+                Alert.alert('Already Redeemed', 'You have already created a goal for this challenge');
+            } else if (error.message === 'Challenge not found') {
+                Alert.alert('Error', 'This challenge no longer exists');
+            } else {
+                Alert.alert('Error', error.message || 'Failed to create goal');
+            }
         } finally {
             setIsCreating(false);
         }
     };
-
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
@@ -377,7 +335,10 @@ const ValentineGoalSettingScreen = () => {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
+                    style={styles.backButton}
+                >
                     <ChevronLeft color="#111" size={24} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Customize Your Goal</Text>

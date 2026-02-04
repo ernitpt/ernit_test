@@ -400,8 +400,6 @@ export default function ValentinesChallengeScreen() {
                 ) : (
                     /* Step 2: Mode Selection */
                     <View style={styles.section}>
-                        <Text style={styles.questionTitle}>How will be your loved one's experience?</Text>
-
                         {/* Email Collection Section */}
                         <View style={styles.emailSection}>
                             <Text style={styles.sectionTitle}>

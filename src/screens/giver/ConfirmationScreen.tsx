@@ -255,11 +255,11 @@ Earn it. Unlock it. Enjoy it 💙
                 <Text style={styles.charCounter}>{charCount}/500</Text>
               </View>
               <Text style={styles.messageSubtitle}>
-                Add a heartfelt message to make this gift extra special
-              </Text>
+                Add a heartfelt message to make this gift extra special.
+                It will show up when they redeem the gift.              </Text>
               <TextInput
                 style={styles.messageInput}
-                placeholder="Share why this experience is perfect for them..."
+                placeholder="Your message here..."
                 placeholderTextColor="#9ca3af"
                 multiline
                 value={personalizedMessage}
@@ -278,7 +278,7 @@ Earn it. Unlock it. Enjoy it 💙
                   {isSendingMessage ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.sendMessageButtonText}>Send Message</Text>
+                    <Text style={styles.sendMessageButtonText}>Attach Message</Text>
                   )}
                 </TouchableOpacity>
               )}

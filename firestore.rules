@@ -172,7 +172,18 @@ service cloud.firestore {
 
         ||
 
-        // (2) Giver can ONLY update approval-related fields and personalized hints
+        // (2) Valentine Partner Linking
+        // Allow updating partner's goal ONLY to set partnerGoalId during atomic transaction
+        // SECURITY: Verify both goals belong to same Valentine challenge
+        (request.auth != null
+        && resource.data.valentineChallengeId != null  // Must be a Valentine goal
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerGoalId', 'updatedAt'])  // Only partnerGoalId can be set
+        && getAfter(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.valentineChallengeId == resource.data.valentineChallengeId  // Same challenge
+        && getAfter(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)  // User owns the partner goal
+
+        ||
+
+        // (3) Giver can ONLY update approval-related fields and personalized hints
         (request.auth.uid == resource.data.empoweredBy
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
@@ -251,6 +262,7 @@ service cloud.firestore {
       
       // Update: only if user owns the goal they're linking to this challenge
       // SECURITY: Prevents users from hijacking other people's challenges
+      // NOTE: Uses getAfter() to support atomic transactions - it sees writes pending in the same transaction
       allow update: if request.auth != null 
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed', 
@@ -259,14 +271,12 @@ service cloud.firestore {
         && (
           // If setting purchaserGoalId, verify user owns that goal
           !('purchaserGoalId' in request.resource.data.diff(resource.data).affectedKeys())
-          || (exists(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId))
-              && get(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId)).data.userId == request.auth.uid)
+          || (getAfter(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId)).data.userId == request.auth.uid)
         )
         && (
           // If setting partnerGoalId, verify user owns that goal
           !('partnerGoalId' in request.resource.data.diff(resource.data).affectedKeys())
-          || (exists(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId))
-              && get(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
+          || (getAfter(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
         );
       
       // Delete: never allowed from client
@@ -450,7 +460,7 @@ service cloud.firestore {
         // Goal-related notifications: must have relationship to goal
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request', 
                                          'goal_change_suggested', 'goal_approval_response', 
-                                         'personalized_hint_left'] &&
+                                         'personalized_hint_left', 'valentine_partner_progress'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data)
         ||
@@ -593,6 +603,21 @@ service cloud.firestore {
         // No client create/delete
         allow create, delete: if false;
       }
+    }
+
+    /** =====================
+     * 🔔 NOTIFICATIONS
+     * ===================== **/
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Authenticated users can create notifications for any user
+      // This is needed for features like Valentine partner notifications, friend requests, etc.
+      allow create: if request.auth != null && request.resource.data.userId is string;
+      
+      // Users can update/delete their own notifications (e.g., mark as read, clear)
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }

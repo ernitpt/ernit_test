@@ -132,7 +132,10 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     };
 
     const hasPersonalizedHint = goal?.personalizedNextHint !== null && goal?.personalizedNextHint !== undefined;
-    const isDisabled = loading || hasPersonalizedHint || !isLatest;
+    // Only show hint button if this is an actual session progress notification (has sessionNumber)
+    // Start reminders like "Today's the day!" shouldn't have hint buttons
+    const isActualProgress = notification.data?.sessionNumber != null;
+    const isDisabled = loading || hasPersonalizedHint || !isLatest || !isActualProgress;
 
     const handleClear = async () => {
         try {
@@ -153,34 +156,39 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
 
                     <Text style={styles.cardMessage}>{notification.message}</Text>
 
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isDisabled && styles.buttonDisabled
-                        ]}
-                        onPress={handleLeaveHint}
-                        disabled={isDisabled}
-                    >
-                        <Text style={styles.buttonText}>
-                            {!isLatest
-                                ? '✓ Hint Already Set'
-                                : hasPersonalizedHint
+                    {/* Only show hint button for actual progress notifications */}
+                    {isActualProgress && (
+                        <TouchableOpacity
+                            style={[
+                                styles.button,
+                                isDisabled && styles.buttonDisabled
+                            ]}
+                            onPress={handleLeaveHint}
+                            disabled={isDisabled}
+                        >
+                            <Text style={styles.buttonText}>
+                                {!isLatest
                                     ? '✓ Hint Already Set'
-                                    : loading
-                                        ? 'Loading...'
-                                        : 'Leave Hint For Next Session'}
-                        </Text>
-                    </TouchableOpacity>
+                                    : hasPersonalizedHint
+                                        ? '✓ Hint Already Set'
+                                        : loading
+                                            ? 'Loading...'
+                                            : 'Leave Hint For Next Session'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
 
-                    <TouchableOpacity
-                        style={styles.historyButton}
-                        onPress={handleViewHistory}
-                        disabled={loading}
-                    >
-                        <Text style={styles.historyButtonText}>
-                            View Hint History
-                        </Text>
-                    </TouchableOpacity>
+                    {isActualProgress && (
+                        <TouchableOpacity
+                            style={styles.historyButton}
+                            onPress={handleViewHistory}
+                            disabled={loading}
+                        >
+                            <Text style={styles.historyButtonText}>
+                                View Hint History
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <TouchableOpacity

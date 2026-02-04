@@ -255,8 +255,21 @@ async function handleValentinePayment_Test(paymentIntent: Stripe.PaymentIntent) 
   }
 
   // Generate unique codes for both partners
+  // CRITICAL: Generate sequentially to avoid race condition where both get same code
   const purchaserCode = await generateUniqueValentineCode_Test();
-  const partnerCode = await generateUniqueValentineCode_Test();
+  let partnerCode = await generateUniqueValentineCode_Test();
+
+  // Ensure partner code is different from purchaser code
+  let attempts = 0;
+  while (partnerCode === purchaserCode && attempts < 5) {
+    console.warn(`⚠️ [TEST] Partner code matched purchaser code, regenerating...`);
+    partnerCode = await generateUniqueValentineCode_Test();
+    attempts++;
+  }
+
+  if (partnerCode === purchaserCode) {
+    throw new Error('[TEST] Failed to generate distinct codes for partners');
+  }
 
   console.log("💘 [TEST] Generated codes:", { purchaserCode, partnerCode });
 

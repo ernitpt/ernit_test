@@ -15,6 +15,7 @@ import {
   setDoc,
   deleteDoc,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import type { Goal, PersonalizedHint } from '../types';
 import { feedService } from './FeedService';
@@ -135,13 +136,199 @@ export class GoalService {
         goalDescription: normalized.description,
         type: 'goal_started',
         totalSessions: normalized.targetCount,
-        createdAt: DateHelper.now(),
+        createdAt: new Date(),
       });
     } catch (error) {
       logger.error('Error creating feed post:', error);
     }
 
     return { ...normalized, id: docRef.id };
+  }
+
+  /**
+   * Create a Valentine goal with atomic transaction
+   * Eliminates race conditions by creating goal and updating challenge in single atomic operation
+   */
+  async createValentineGoal(
+    userId: string,
+    challengeId: string,
+    goalParams: Omit<Goal, 'id'>,
+    isPurchaser: boolean
+  ): Promise<{ goal: Goal; isNowActive: boolean }> {
+
+    return runTransaction(db, async (transaction) => {
+      // 1. Read and validate challenge
+      const challengeRef = doc(db, 'valentineChallenges', challengeId);
+      const challengeSnap = await transaction.get(challengeRef);
+
+      if (!challengeSnap.exists()) {
+        throw new Error('Challenge not found');
+      }
+
+      const challengeData = challengeSnap.data();
+      const alreadyRedeemed = isPurchaser
+        ? challengeData.purchaserCodeRedeemed
+        : challengeData.partnerCodeRedeemed;
+
+      if (alreadyRedeemed) {
+        throw new Error('Code already redeemed');
+      }
+
+      // 2. Create goal document atomically
+      const newGoalRef = doc(collection(db, 'goals'));
+      const normalizedGoal = normalizeGoal({
+        ...goalParams,
+        id: newGoalRef.id,
+      });
+
+      transaction.set(newGoalRef, {
+        ...normalizedGoal,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 3. Update challenge with goal link
+      const updateField = isPurchaser ? 'purchaserGoalId' : 'partnerGoalId';
+      const redeemedField = isPurchaser ? 'purchaserCodeRedeemed' : 'partnerCodeRedeemed';
+      const userIdField = isPurchaser ? 'purchaserUserId' : 'partnerUserId';
+
+      const partnerGoalId = isPurchaser
+        ? challengeData.partnerGoalId
+        : challengeData.purchaserGoalId;
+
+      const isNowActive = !!partnerGoalId; // Both codes redeemed
+
+      transaction.update(challengeRef, {
+        [updateField]: newGoalRef.id,
+        [redeemedField]: true,
+        [userIdField]: userId,
+        status: isNowActive ? 'active' : challengeData.status,
+        updatedAt: serverTimestamp(),
+      });
+
+      // 4. Cross-link partner goals if both exist (atomic linking)
+      if (partnerGoalId) {
+        transaction.update(newGoalRef, { partnerGoalId });
+        transaction.update(doc(db, 'goals', partnerGoalId), {
+          partnerGoalId: newGoalRef.id
+        });
+      }
+
+      // Return the goal data (serverTimestamp will be resolved by Firestore)
+      return {
+        goal: normalizedGoal as Goal,
+        isNowActive
+      };
+    });
+  }
+
+  /**
+   * Advance both Valentine partners to the next week atomically
+   * Called when both partners have completed their current week
+   * @deprecated No longer used - each partner progresses independently
+   */
+  async advanceBothPartners(challengeId: string): Promise<void> {
+    return runTransaction(db, async (transaction) => {
+      // 1. Fetch challenge
+      const challengeRef = doc(db, 'valentineChallenges', challengeId);
+      const challengeSnap = await transaction.get(challengeRef);
+
+      if (!challengeSnap.exists()) {
+        throw new Error('Valentine challenge not found');
+      }
+
+      const challengeData = challengeSnap.data();
+      const { purchaserGoalId, partnerGoalId } = challengeData;
+
+      if (!purchaserGoalId || !partnerGoalId) {
+        throw new Error('Both partners must have goals to advance');
+      }
+
+      // 2. Fetch both goals
+      const goal1Ref = doc(db, 'goals', purchaserGoalId);
+      const goal2Ref = doc(db, 'goals', partnerGoalId);
+
+      const [goal1Snap, goal2Snap] = await Promise.all([
+        transaction.get(goal1Ref),
+        transaction.get(goal2Ref)
+      ]);
+
+      if (!goal1Snap.exists() || !goal2Snap.exists()) {
+        throw new Error('One or both partner goals not found');
+      }
+
+      const goal1Data = goal1Snap.data();
+      const goal2Data = goal2Snap.data();
+
+      // 3. Verify both have completed their week
+      if (!goal1Data.isWeekCompleted || !goal2Data.isWeekCompleted) {
+        throw new Error('Both partners must complete their week before advancing');
+      }
+
+      // 4. Advance both goals atomically
+      const now = DateHelper.now();
+      const updates = {
+        currentCount: goal1Data.currentCount + 1, // Increment week
+        weeklyCount: 0, // Reset weekly sessions
+        weeklyLogDates: [], // Clear session logs
+        isWeekCompleted: false, // Reset completion flag
+        weekStartAt: now, // Start new week
+        updatedAt: serverTimestamp(),
+      };
+
+      transaction.update(goal1Ref, updates);
+      transaction.update(goal2Ref, updates);
+
+      logger.log(`✅ Advanced both Valentine partners for challenge ${challengeId}`);
+    });
+  }
+
+  /**
+   * Check if Valentine partner has completed their ENTIRE goal (not just current week)
+   * Used for experience unlock when both partners finish
+   */
+  async checkPartnerCompleted(goal: Goal): Promise<boolean> {
+    try {
+      if (!goal.valentineChallengeId) {
+        return false;
+      }
+
+      // Fetch challenge to get partner goal ID
+      const challengeSnap = await getDoc(doc(db, 'valentineChallenges', goal.valentineChallengeId));
+      if (!challengeSnap.exists()) {
+        logger.warn('Valentine challenge not found');
+        return false;
+      }
+
+      const challengeData = challengeSnap.data();
+
+      // Determine partner's goal ID
+      const partnerGoalId = goal.id === challengeData.purchaserGoalId
+        ? challengeData.partnerGoalId
+        : challengeData.purchaserGoalId;
+
+      // If partner hasn't redeemed code yet
+      if (!partnerGoalId) {
+        logger.log('Partner has not redeemed code yet');
+        return false;
+      }
+
+      // Get partner's goal
+      const partnerGoal = await this.getGoalById(partnerGoalId);
+      if (!partnerGoal) {
+        logger.warn(`Partner goal ${partnerGoalId} not found`);
+        return false;
+      }
+
+      // Check if partner completed ENTIRE goal
+      const isCompleted = partnerGoal.isCompleted === true;
+      logger.log(`Partner completion check: ${isCompleted ? 'COMPLETED' : 'IN PROGRESS'} (${partnerGoal.currentCount + 1}/${partnerGoal.targetCount} weeks)`);
+
+      return isCompleted;
+    } catch (error) {
+      logger.error('Error checking partner completion:', error);
+      return false;
+    }
   }
 
   /** Real-time listener */
@@ -488,37 +675,9 @@ export class GoalService {
     const totalSessions = g.targetCount * g.sessionsPerWeek;
     const progressPercentage = Math.round((totalCompletedSessions / totalSessions) * 100);
 
-    // If weekly goal reached → mark as completed but don't roll yet
+    // If weekly goal reached → mark as completed
     if (g.weeklyCount >= g.sessionsPerWeek) {
       g.isWeekCompleted = true;
-
-      // 💑 VALENTINE CHALLENGE: Check if partner has also completed their week
-      if (g.valentineChallengeId) {
-        const partnerCompleted = await this.checkPartnerProgress(goalId);
-
-        if (!partnerCompleted) {
-          // Mark week complete but set canProgress to false
-          g.canProgress = false;
-
-          await updateDoc(ref, {
-            weeklyCount: g.weeklyCount,
-            weeklyLogDates: g.weeklyLogDates,
-            isWeekCompleted: true,
-            canProgress: false,
-            weekStartAt: g.weekStartAt,
-            updatedAt: serverTimestamp(),
-          } as any);
-
-          logger.log('💑 Week complete! Waiting for partner to finish their week...');
-
-          // Return early - don't progress to next week yet
-          return { ...(g as any) } as Goal;
-        } else {
-          // Both completed - allow progression
-          g.canProgress = true;
-          logger.log('🎉 Both partners completed their week! Progressing...');
-        }
-      }
 
       // If it's the final week
       if (g.currentCount + 1 >= g.targetCount) {
@@ -559,7 +718,7 @@ export class GoalService {
             experienceImageUrl,
             partnerName,
             experienceGiftId: g.experienceGiftId,
-            createdAt: DateHelper.now(),
+            createdAt: new Date(),
           });
         } catch (error) {
           logger.error('Error creating goal completion feed post:', error);
@@ -583,7 +742,7 @@ export class GoalService {
           progressPercentage: progressPercentage,
           weeklyCount: g.weeklyCount,
           sessionsPerWeek: g.sessionsPerWeek,
-          createdAt: DateHelper.now(),
+          createdAt: new Date(),
         });
       } catch (error) {
         logger.error('Error creating progress feed post:', error);
@@ -663,7 +822,7 @@ export class GoalService {
         goalDescription: goal.description,
         type: 'goal_approved',
         totalSessions: goal.targetCount * goal.sessionsPerWeek,
-        createdAt: DateHelper.now(),
+        createdAt: new Date(),
       });
     } catch (error) {
       logger.error('Error creating goal approval feed post:', error);
@@ -772,7 +931,7 @@ export class GoalService {
         goalDescription: updatedDescription, // Use updatedDescription instead of goal.description
         type: 'goal_approved',
         totalSessions: newTargetCount * newSessionsPerWeek,
-        createdAt: DateHelper.now(),
+        createdAt: new Date(),
       });
     } catch (error) {
       logger.error('Error creating goal approval feed post:', error);

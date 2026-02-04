@@ -117,7 +117,7 @@ export interface Goal {
   experienceGiftId: string;
   title: string;
   description: string;
-  isWeekCompleted?: Boolean;
+  isWeekCompleted?: boolean;
   /** Overall (weeks) */
   targetCount: number;          // total weeks to complete
   currentCount: number;         // weeks completed so far

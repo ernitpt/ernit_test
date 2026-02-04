@@ -262,11 +262,12 @@ Earn it. Unlock it. Enjoy it 💙
                       </Text>
                     </View>
                     <Text style={styles.messageSubtitle}>
-                      Add a heartfelt message to make this gift extra special
+                      Add a heartfelt message to make this gift extra special.
+                      It will show up when they redeem the gift.
                     </Text>
                     <TextInput
                       style={styles.messageInput}
-                      placeholder="Share why this experience is perfect for them..."
+                      placeholder="Your message here..."
                       placeholderTextColor="#9ca3af"
                       multiline
                       value={personalizedMessages[item.gift.id || ''] || ''}
@@ -289,7 +290,7 @@ Earn it. Unlock it. Enjoy it 💙
                         {sendingMessageId === item.gift.id ? (
                           <ActivityIndicator color="#fff" size="small" />
                         ) : (
-                          <Text style={styles.sendMessageButtonText}>Send Message</Text>
+                          <Text style={styles.sendMessageButtonText}>Attach Message</Text>
                         )}
                       </TouchableOpacity>
                     )}
