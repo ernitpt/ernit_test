@@ -1,6 +1,11 @@
 // ✅ Firebase Functions v2 version
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+import {
+  selectHintCategory,
+  HINT_CATEGORIES,
+  HintCategory
+} from './hintCategories';
 
 type HintStyle = "neutral" | "personalized" | "motivational";
 
@@ -35,7 +40,9 @@ function buildUserPrompt({
   totalSessions,
   userName,
   style,
-  previousHints = [], // Add default value here
+  previousHints = [],
+  hintCategory,
+  categoryDefinition,
 }: {
   experienceType: string;
   experienceDescription?: string;
@@ -46,6 +53,8 @@ function buildUserPrompt({
   userName?: string | null;
   style: HintStyle;
   previousHints?: string[];
+  hintCategory: HintCategory;
+  categoryDefinition: any;
 }) {
   const progress = clamp01(sessionNumber / totalSessions);
   const band = difficultyBand(progress);
@@ -89,20 +98,49 @@ function buildUserPrompt({
     `✅ BE SUBTLE: Don't give away too much. Make them curious, not informed.`,
   ];
 
+  // 🎯 ADD CATEGORY SECTION
+  const categoryExamples = categoryDefinition.examples[band as 'vague' | 'thematic' | 'strong' | 'finale'];
+
+  promptParts.push('');
+  promptParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  promptParts.push('🎯 MANDATORY HINT CATEGORY');
+  promptParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  promptParts.push('');
+  promptParts.push(`📂 CATEGORY: ${hintCategory.toUpperCase().replace(/_/g, ' ')}`);
+  promptParts.push(`📝 DESCRIPTION: ${categoryDefinition.description}`);
+  promptParts.push('');
+  promptParts.push('🔒 STRICT REQUIREMENT:');
+  promptParts.push(`   ${categoryDefinition.promptGuidance}`);
+  promptParts.push('');
+  promptParts.push(`✅ EXAMPLES FOR THIS CATEGORY AT ${band.toUpperCase()} DIFFICULTY:`);
+  categoryExamples.forEach((ex: string) => {
+    promptParts.push(`   • "${ex}"`);
+  });
+  promptParts.push('');
+  promptParts.push('⚠️ CRITICAL: Your hint MUST fit this category ONLY.');
+  promptParts.push('   Do NOT mix topics from other categories.');
+  promptParts.push('');
+
   // 🚫 ADD ANTI-REPETITION SECTION
   if (previousHints && previousHints.length > 0) {
+    promptParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    promptParts.push('🚫 PREVIOUS HINTS - DO NOT REPEAT');
+    promptParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     promptParts.push('');
-    promptParts.push('🚫 AVOID REPETITION - CRITICAL!');
-    promptParts.push('Previous hints for this goal (DO NOT repeat themes, items, advice, or similar wording):');
     previousHints.forEach((hint: string, i: number) => {
       promptParts.push(`  ${i + 1}. "${hint}"`);
     });
     promptParts.push('');
-    promptParts.push('✅ Your hint MUST be DIFFERENT from the above:');
-    promptParts.push('   - Use a completely different angle or theme');
-    promptParts.push('   - Mention different items/preparation if applicable');
-    promptParts.push('   - Vary the tone and focus area');
-    promptParts.push('   - If previous hints mentioned physical items, try emotional/mental prep instead');
+    promptParts.push('❌ FORBIDDEN:');
+    promptParts.push('   - Repeating ANY words, phrases, or concepts from above');
+    promptParts.push('   - Paraphrasing previous hints (e.g., "shades" vs "sunglasses")');
+    promptParts.push('   - Using synonyms of previous hints');
+    promptParts.push('');
+    promptParts.push('✅ REQUIRED:');
+    promptParts.push('   - Completely NEW angle within your assigned category');
+    promptParts.push('   - Different vocabulary (no synonyms)');
+    promptParts.push('   - Different sentence structure');
+    promptParts.push('');
   }
 
   promptParts.push('');
@@ -402,7 +440,8 @@ export const aiGenerateHint = onCall(
       totalSessions,
       userName,
       style,
-      previousHints = [], // NEW: Extract previous hints
+      previousHints = [],
+      previousCategories = [], // NEW: Extract previous categories
     } = data;
 
     if (!experienceType || !sessionNumber || !totalSessions || !style) {
@@ -410,12 +449,20 @@ export const aiGenerateHint = onCall(
       throw new Error("Missing required fields.");
     }
 
+    // NEW: Select category for this hint
+    const assignedCategory = selectHintCategory(sessionNumber, previousCategories);
+    const categoryDef = HINT_CATEGORIES[assignedCategory];
+
+    console.log(`📂 Session ${sessionNumber}: Assigned category "${assignedCategory}"`);
+
     console.log("📦 Received valid data:", {
       experienceType,
       sessionNumber,
       totalSessions,
       style,
       previousHintsCount: previousHints.length,
+      previousCategoriesCount: previousCategories.length,
+      assignedCategory,
     });
 
     const prompt = buildUserPrompt({
@@ -427,7 +474,9 @@ export const aiGenerateHint = onCall(
       totalSessions,
       userName,
       style,
-      previousHints, // NEW: Pass previous hints
+      previousHints,
+      hintCategory: assignedCategory, // NEW
+      categoryDefinition: categoryDef, // NEW
     });
 
     const provider = (LLM_PROVIDER.value() || "openrouter").toLowerCase();
@@ -455,7 +504,7 @@ export const aiGenerateHint = onCall(
       const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
       const finalHint = sentences.slice(0, 3).join(' ').trim();
 
-      return { hint: finalHint, style };
+      return { hint: finalHint, style, category: assignedCategory };
     } catch (err: any) {
       console.error("aiGenerateHint error:", err?.message || err);
       throw new Error("Failed to generate hint.");

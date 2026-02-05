@@ -255,21 +255,31 @@ async function handleValentinePayment(paymentIntent: Stripe.PaymentIntent) {
     // Generate unique codes for both partners
     // CRITICAL: Generate sequentially to avoid race condition where both get same code
     const purchaserCode = await generateUniqueValentineCode();
+    console.log(`✅ Generated purchaser code: ${purchaserCode}`);
+
     let partnerCode = await generateUniqueValentineCode();
+    console.log(`✅ Generated partner code (initial): ${partnerCode}`);
 
     // Ensure partner code is different from purchaser code
     let attempts = 0;
-    while (partnerCode === purchaserCode && attempts < 5) {
-        console.warn(`⚠️ Partner code matched purchaser code, regenerating...`);
+    while (partnerCode === purchaserCode && attempts < 10) {
+        console.warn(`⚠️ Partner code matched purchaser code, regenerating (attempt ${attempts + 1}/10)...`);
         partnerCode = await generateUniqueValentineCode();
+        console.log(`✅ Generated partner code (attempt ${attempts + 1}): ${partnerCode}`);
         attempts++;
     }
 
+    // CRITICAL: Validate codes are different BEFORE saving to Firestore
     if (partnerCode === purchaserCode) {
-        throw new Error('Failed to generate distinct codes for partners');
+        console.error(`❌ CRITICAL: Failed to generate distinct codes after 10 attempts!`);
+        console.error(`   Purchaser code: ${purchaserCode}`);
+        console.error(`   Partner code: ${partnerCode}`);
+        throw new Error('Failed to generate distinct codes for partners after 10 attempts');
     }
 
-    console.log("💘 Generated codes:", { purchaserCode, partnerCode });
+    console.log(`✅ Final codes - Purchaser: ${purchaserCode}, Partner: ${partnerCode}`);
+    console.log(`✅ Codes are distinct: ${purchaserCode !== partnerCode}`);
+
 
     // Create Valentine challenge document
     const challengeId = db.collection("valentineChallenges").doc().id;
