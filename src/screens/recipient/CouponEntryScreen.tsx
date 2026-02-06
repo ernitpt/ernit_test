@@ -467,7 +467,7 @@ const CouponEntryScreen = () => {
                     <Text
                       style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}
                     >
-                      3. Receive AI-generated hints as you progress
+                      3. Receive hints as you progress
                     </Text>
                     <Text
                       style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}

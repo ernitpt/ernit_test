@@ -207,11 +207,19 @@ export default function ValentinesLandingScreen() {
                     </Text>
 
                     <TouchableOpacity
-                        style={styles.secondaryCta}
+                        style={styles.primaryCta}
                         onPress={handleCreateChallenge}
                         activeOpacity={0.9}
                     >
-                        <Text style={styles.secondaryCtaText}>Create Your Challenge</Text>
+                        <LinearGradient
+                            colors={['#FF6B9D', '#FF4081']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.ctaGradient}
+                        >
+                            <Text style={styles.ctaText}>Create Your Challenge</Text>
+                            <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
 
