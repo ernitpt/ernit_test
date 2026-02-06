@@ -124,11 +124,13 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
       // 2. On checkout page (has important state)
       // 3. URL has query parameters (might contain important data)
       // 4. On recipient redemption page (deep link)
+      // 5. On valentines pages (preserve valentines flow)
       const shouldNotReset =
         pathname === '/' ||
         pathname === '' ||
         pathname.includes('/checkout') ||
         pathname.includes('/recipient/redeem/') ||
+        pathname.includes('/valentines') ||
         hasQueryParams;
 
       if (!shouldNotReset) {
@@ -426,6 +428,17 @@ const AppNavigator = () => {
           setHasSeenOnboarding(false);
           setIsCheckingOnboarding(false);
           return;
+        }
+
+        // 💝 Skip onboarding if user is on valentines flow
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const pathname = window.location.pathname;
+          if (pathname.includes('/valentines')) {
+            logger.log('💝 User on valentines flow - skipping onboarding');
+            setHasSeenOnboarding(true);
+            setIsCheckingOnboarding(false);
+            return;
+          }
         }
 
         // If user is logged in, ONLY check Firestore (ignore AsyncStorage)

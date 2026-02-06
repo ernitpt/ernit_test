@@ -27,6 +27,8 @@ import { notificationService } from "../services/NotificationService";
 import { userService } from "../services/userService";
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import { ValentineUnlockModal } from '../components/ValentineUnlockModal';
+import { userService as userSvc } from '../services/userService';
 
 
 type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Goals'>;
@@ -39,6 +41,9 @@ const GoalsScreen: React.FC = () => {
   const [currentGoals, setCurrentGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockedGoal, setUnlockedGoal] = useState<Goal | null>(null);
+  const [partnerName, setPartnerName] = useState<string>('');
 
   const updateGiftStatus = async (experienceGiftId: string) => {
     try {
@@ -90,15 +95,89 @@ const GoalsScreen: React.FC = () => {
         }
       }
 
-      const activeGoals = goals.filter(
-        (g) => !g.isCompleted && g.currentCount < g.targetCount
-      );
+      const activeGoals = goals.filter((g) => {
+        // Regular goals: show if not completed
+        if (!g.valentineChallengeId) {
+          return !g.isCompleted && g.currentCount < g.targetCount;
+        }
+
+        // 💝 Valentine goals
+        // HIDE if completed (handles both old and new goals)
+        if (g.isCompleted) {
+          // Debug logging for Valentine goals
+          if (g.valentineChallengeId) {
+            console.log('🔍 Valentine Goal Filter:', {
+              id: g.id,
+              isCompleted: g.isCompleted,
+              isFinished: g.isFinished,
+              isUnlocked: g.isUnlocked,
+              willShow: g.isFinished && !g.isUnlocked
+            });
+          }
+
+          // Only show if actively waiting for partner (has isFinished but not isUnlocked)
+          // This handles NEW goals with the waiting state
+          // OLD goals without these fields will be hidden
+          return g.isFinished && !g.isUnlocked;
+        }
+
+        // Show if still in progress (not completed yet)
+        return true;
+      });
       setCurrentGoals(activeGoals);
       setLoading(false);
       setIsInitialLoading(false);
     });
 
     return () => unsubscribe();
+  }, [userId]);
+
+  // 💝 VALENTINE: Check for newly-unlocked goals on screen focus
+  useEffect(() => {
+    const checkUnlockedGoals = async () => {
+      if (!userId) return;
+
+      try {
+        const goalsRef = collection(db, 'goals');
+        const unlockedQuery = query(
+          goalsRef,
+          where('userId', '==', userId),
+          where('valentineChallengeId', '!=', null),
+          where('isUnlocked', '==', true),
+          where('unlockShown', '!=', true)
+        );
+
+        const snapshot = await getDocs(unlockedQuery);
+
+        if (!snapshot.empty) {
+          const goalData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Goal;
+          setUnlockedGoal(goalData);
+
+          // Fetch partner name
+          if (goalData.partnerGoalId) {
+            const partnerGoalDoc = await getDocs(
+              query(collection(db, 'goals'), where('id', '==', goalData.partnerGoalId))
+            );
+            if (!partnerGoalDoc.empty) {
+              const partnerGoalData = partnerGoalDoc.docs[0].data();
+              const name = await userSvc.getUserName(partnerGoalData.userId);
+              setPartnerName(name || 'Your partner');
+            }
+          }
+
+          setShowUnlockModal(true);
+
+          // Mark as shown
+          await updateDoc(doc(db, 'goals', goalData.id), {
+            unlockShown: true
+          });
+        }
+      } catch (error) {
+        logger.error('Error checking unlocked goals:', error);
+      }
+    };
+
+    checkUnlockedGoals();
   }, [userId]);
 
   const fabAnim = useRef(new Animated.Value(50)).current; // starts 50px below
@@ -200,6 +279,30 @@ const GoalsScreen: React.FC = () => {
           <Text style={styles.fabText}>Redeem your Ernit</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* 💝 VALENTINE: Unlock Celebration Modal */}
+      <ValentineUnlockModal
+        visible={showUnlockModal}
+        partnerName={partnerName}
+        onClaim={async () => {
+          setShowUnlockModal(false);
+
+          // Navigate to completion screen
+          if (unlockedGoal) {
+            try {
+              const experienceGift = await experienceGiftService.getExperienceGiftById(
+                unlockedGoal.experienceGiftId
+              );
+              navigation.navigate('Completion', {
+                goal: unlockedGoal,
+                experienceGift,
+              });
+            } catch (error) {
+              logger.error('Error fetching experience gift for unlocked goal:', error);
+            }
+          }
+        }}
+      />
 
     </MainScreen>
   );

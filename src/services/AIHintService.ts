@@ -4,6 +4,7 @@ import { db, functions } from "./firebase";
 import {
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   serverTimestamp,
   collection,
@@ -16,10 +17,22 @@ import { logger } from '../utils/logger';
 
 export type HintStyle = "neutral" | "personalized" | "motivational";
 
+export type HintCategory =
+  | 'what_to_bring'
+  | 'what_to_wear'
+  | 'physical_prep'
+  | 'mental_prep'
+  | 'atmosphere'
+  | 'sensory'
+  | 'activity_level'
+  | 'location_type'
+  | 'geographic_clues';
+
 export type SessionDoc = {
   sessionNumber: number;
   hint?: string;
   style?: HintStyle;
+  category?: HintCategory;
   completedAt?: any;
   timeElapsedSec?: number;
 };
@@ -64,7 +77,7 @@ export const aiHintService = {
     sessionNumber: number;
     totalSessions: number;
     userName?: string | null;
-  }): Promise<string> {
+  }): Promise<{ hint: string; category?: HintCategory }> {
     await loadLocalCache();
 
     const {
@@ -82,7 +95,7 @@ export const aiHintService = {
 
     // ✅ Check local cache first
     if (localCache[cacheKey]) {
-      return localCache[cacheKey];
+      return { hint: localCache[cacheKey] };
     }
 
     // ✅ Check Firestore stored hint (previous sessions)
@@ -94,21 +107,33 @@ export const aiHintService = {
       if (existing?.hint) {
         localCache[cacheKey] = existing.hint;
         saveLocalCache();
-        return existing.hint;
+        return { hint: existing.hint, category: existing.category };
       }
     } catch (err) {
       // Document doesn't exist or permission denied - this is expected for future sessions
       logger.log("Session document not found, will generate new hint");
     }
 
-    // ✅ Fetch previous hints for anti-repetition
+    // ✅ Fetch previous hints AND categories for anti-repetition
     let previousHints: string[] = [];
+    let previousCategories: HintCategory[] = [];
+
     try {
-      const allHints = await this.getPreviousHints(goalId);
-      // Only send last 5 hints to avoid huge payload
-      previousHints = allHints.slice(-5);
+      const sessions = await this.getAllSessions(goalId);
+
+      // Get last 15 sessions (or all if less than 15)
+      const recentSessions = sessions.slice(0, 15).reverse(); // reverse to get oldest-to-newest
+
+      previousHints = recentSessions
+        .map(s => s.hint)
+        .filter((h): h is string => !!h);
+
+      previousCategories = recentSessions
+        .map(s => s.category)
+        .filter((c): c is HintCategory => !!c);
+
     } catch (err) {
-      logger.warn('Could not fetch previous hints, proceeding without anti-repetition:', err);
+      logger.warn('Could not fetch previous hints/categories:', err);
     }
 
     // ✅ Generate remotely
@@ -124,18 +149,42 @@ export const aiHintService = {
       totalSessions,
       userName,
       style,
-      previousHints, // NEW: Pass previous hints for variety
+      previousHints,
+      previousCategories, // NEW: Send categories
     });
 
     const hint = res?.data?.hint as string;
+    const category = res?.data?.category as HintCategory | undefined;
 
     if (!hint) throw new Error("No hint returned");
 
-    // ✅ Cache locally ONLY
+    // Optional: Log category for debugging
+    if (category) {
+      logger.log(`Generated hint for category: ${category}`);
+    }
+
+    // ✅ Save hint + category to Firestore session document
+    try {
+      const sessionRef = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
+      await setDoc(sessionRef, {
+        goalId,
+        sessionNumber,
+        hint,
+        category: category || null,
+        createdAt: new Date(),
+        giverName: "Anonymous", // Hints are anonymous
+      });
+      logger.log(`✅ Saved hint + category to Firestore: ${category}`);
+    } catch (err) {
+      logger.warn('Failed to save hint to Firestore:', err);
+      // Continue anyway - hint is still in local cache
+    }
+
+    // ✅ Cache locally
     localCache[cacheKey] = hint;
     saveLocalCache();
 
-    return hint;
+    return { hint, category };
   },
 
   // Note: saveHintToFirestore function removed - hints are saved directly via goalService.appendHint()

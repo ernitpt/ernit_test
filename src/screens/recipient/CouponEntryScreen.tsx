@@ -102,24 +102,33 @@ const CouponEntryScreen = () => {
         logger.log('💘 Valentine purchaser code detected:', challenge.id);
 
         // ✅ SECURITY: Validate user can redeem this code
-        const userEmail = state.user?.email;
+        const userId = state.user?.id;
 
-        if (!userEmail) {
+        if (!userId) {
           setErrorMessage('Please sign in to redeem this code');
           triggerShake();
           return;
         }
 
-        // Check if already redeemed
+        // Check if this specific code already redeemed
         if (challenge.purchaserCodeRedeemed) {
           setErrorMessage('This code has already been redeemed');
           triggerShake();
           return;
         }
 
-        // Prevent same user from redeeming both codes
-        if (userEmail === challenge.partnerEmail) {
-          setErrorMessage('You cannot redeem both codes. Share this code with your partner!');
+        // ✅ NEW: Prevent same user from redeeming BOTH codes for this challenge
+        // Query to check if user already has a goal for this Valentine challenge
+        const goalsRef = collection(db, 'goals');
+        const existingGoalQuery = query(
+          goalsRef,
+          where('userId', '==', userId),
+          where('valentineChallengeId', '==', challenge.id)
+        );
+        const existingGoalSnapshot = await getDocs(existingGoalQuery);
+
+        if (!existingGoalSnapshot.empty) {
+          setErrorMessage('You have already redeemed a code for this challenge!');
           triggerShake();
           return;
         }
@@ -150,24 +159,33 @@ const CouponEntryScreen = () => {
         logger.log('💘 Valentine partner code detected:', challenge.id);
 
         // ✅ SECURITY: Validate user can redeem this code
-        const userEmail = state.user?.email;
+        const userId = state.user?.id;
 
-        if (!userEmail) {
+        if (!userId) {
           setErrorMessage('Please sign in to redeem this code');
           triggerShake();
           return;
         }
 
-        // Check if already redeemed
+        // Check if this specific code already redeemed
         if (challenge.partnerCodeRedeemed) {
           setErrorMessage('This code has already been redeemed');
           triggerShake();
           return;
         }
 
-        // Prevent same user from redeeming both codes
-        if (userEmail === challenge.purchaserEmail) {
-          setErrorMessage('You cannot redeem both codes. Share this code with your partner!');
+        // ✅ NEW: Prevent same user from redeeming BOTH codes for this challenge
+        // Query to check if user already has a goal for this Valentine challenge
+        const goalsRef = collection(db, 'goals');
+        const existingGoalQuery = query(
+          goalsRef,
+          where('userId', '==', userId),
+          where('valentineChallengeId', '==', challenge.id)
+        );
+        const existingGoalSnapshot = await getDocs(existingGoalQuery);
+
+        if (!existingGoalSnapshot.empty) {
+          setErrorMessage('You have already redeemed a code for this challenge!');
           triggerShake();
           return;
         }

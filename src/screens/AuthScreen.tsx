@@ -38,6 +38,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { Check } from 'lucide-react-native';
 import { logger } from '../utils/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -53,6 +54,7 @@ const AuthScreen = () => {
   const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [hasPendingRedemption, setHasPendingRedemption] = useState(false);
 
   // Success animation
   const successScaleAnim = useRef(new Animated.Value(0)).current;
@@ -81,6 +83,22 @@ const AuthScreen = () => {
   // Button gradient animation - shifts colors
   const buttonGradientAnim = useRef(new Animated.Value(0)).current;
 
+  // Storage helpers (web + native)
+  const getStorageItem = async (key: string) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return localStorage.getItem(key);
+    }
+    return await AsyncStorage.getItem(key);
+  };
+
+  const removeStorageItem = async (key: string) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      localStorage.removeItem(key);
+    } else {
+      await AsyncStorage.removeItem(key);
+    }
+  };
+
   // Helper: Transfer onboarding status from AsyncStorage to Firestore
   const transferOnboardingStatus = async (userId: string) => {
     try {
@@ -97,6 +115,22 @@ const AuthScreen = () => {
       logger.error('Error transferring onboarding status:', error);
     }
   };
+
+  // Check for pending Valentine redemption
+  useEffect(() => {
+    const checkPendingRedemption = async () => {
+      try {
+        const redemptionData = await getStorageItem('pending_valentine_redemption');
+        if (redemptionData) {
+          logger.log('💘 Detected pending Valentine redemption');
+          setHasPendingRedemption(true);
+        }
+      } catch (error) {
+        logger.error('Error checking pending redemption:', error);
+      }
+    };
+    checkPendingRedemption();
+  }, []);
 
   useEffect(() => {
     // Animate background gradient
@@ -296,7 +330,23 @@ const AuthScreen = () => {
           ]).start();
 
           // After success animation, navigate to pending route or default
-          setTimeout(() => {
+          setTimeout(async () => {
+            // Check for pending Valentine redemption
+            try {
+              const redemptionData = await getStorageItem('pending_valentine_redemption');
+              if (redemptionData) {
+                logger.log('💘 Navigating to redemption after auth');
+                await removeStorageItem('pending_valentine_redemption');
+                navigation.navigate('RecipientFlow', {
+                  screen: 'CouponEntry',
+                  params: {},
+                } as any);
+                return;
+              }
+            } catch (error) {
+              logger.error('Error handling redemption after auth:', error);
+            }
+            // Default: use auth guard to navigate
             handleAuthSuccess();
           }, 1500);
 
@@ -352,7 +402,23 @@ const AuthScreen = () => {
                     }),
                   ]).start();
 
-                  setTimeout(() => {
+                  setTimeout(async () => {
+                    // Check for pending Valentine redemption
+                    try {
+                      const redemptionData = await getStorageItem('pending_valentine_redemption');
+                      if (redemptionData) {
+                        logger.log('💘 Navigating to redemption after auth');
+                        await removeStorageItem('pending_valentine_redemption');
+                        navigation.navigate('RecipientFlow', {
+                          screen: 'CouponEntry',
+                          params: {},
+                        } as any);
+                        return;
+                      }
+                    } catch (error) {
+                      logger.error('Error handling redemption after auth:', error);
+                    }
+                    // Default: use auth guard to navigate
                     handleAuthSuccess();
                   }, 1500);
                   return;
@@ -575,8 +641,24 @@ const AuthScreen = () => {
         }),
       ]).start();
 
-      // After success animation, navigate to pending route or default
-      setTimeout(() => {
+      // After success animation, navigate to pending route or redemption
+      setTimeout(async () => {
+        // Check for pending Valentine redemption
+        try {
+          const redemptionData = await getStorageItem('pending_valentine_redemption');
+          if (redemptionData) {
+            logger.log('💘 Navigating to redemption after auth');
+            await removeStorageItem('pending_valentine_redemption');
+            navigation.navigate('RecipientFlow', {
+              screen: 'CouponEntry',
+              params: {},
+            } as any);
+            return;
+          }
+        } catch (error) {
+          logger.error('Error handling redemption after auth:', error);
+        }
+        // Default: use auth guard to navigate
         handleAuthSuccess();
       }, 1500); // Show success for 1.5 seconds
 
@@ -786,7 +868,9 @@ const AuthScreen = () => {
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
                 <Text style={{ fontSize: 18, color: '#E9D5FF', textAlign: 'center', maxWidth: 280 }}>
-                  {isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
+                  {hasPendingRedemption
+                    ? '💘 Sign in to redeem your Valentine\'s code'
+                    : isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
                 </Text>
               </View>
 

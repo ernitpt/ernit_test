@@ -117,8 +117,8 @@ self.addEventListener('message', (event) => {
 
                 self.registration.showNotification("⏰ Session Time's Up!", {
                     body: "Great job! You can now finish your session and log your progress.",
-                    icon: '/icon-192.png',
-                    badge: '/icon-192.png',
+                    icon: '/icon_192.png',
+                    badge: '/icon_192.png',
                     tag: `session-${goalId}`,
                     requireInteraction: true,
                     data: {
@@ -141,8 +141,8 @@ self.addEventListener('message', (event) => {
             console.log('[firebase-messaging-sw.js] Target time already passed, showing notification immediately');
             self.registration.showNotification("⏰ Session Time's Up!", {
                 body: "Great job! You can now finish your session and log your progress.",
-                icon: '/icon-192.png',
-                badge: '/icon-192.png',
+                icon: '/icon_192.png',
+                badge: '/icon_192.png',
                 tag: `session-${goalId}`,
                 requireInteraction: true,
                 data: {

@@ -584,9 +584,9 @@ service cloud.firestore {
     }
 
 
-    /** =========================================================
+    /** =====================================================================
      * 🧾 LEGACY partnerCoupons/{partnerId}/coupons
-     * ========================================================= **/
+     * ===================================================================== **/
     match /partnerCoupons/{partnerId} {
       match /coupons/{couponId} {
         // Partner can read their own (legacy)
@@ -603,21 +603,6 @@ service cloud.firestore {
         // No client create/delete
         allow create, delete: if false;
       }
-    }
-
-    /** =====================
-     * 🔔 NOTIFICATIONS
-     * ===================== **/
-    match /notifications/{notificationId} {
-      // Users can read their own notifications
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Authenticated users can create notifications for any user
-      // This is needed for features like Valentine partner notifications, friend requests, etc.
-      allow create: if request.auth != null && request.resource.data.userId is string;
-      
-      // Users can update/delete their own notifications (e.g., mark as read, clear)
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }

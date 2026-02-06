@@ -33,6 +33,7 @@ const GOAL_TYPES = [
     { icon: '🏋️', name: 'Gym', color: '#8B5CF6' },
     { icon: '🧘', name: 'Yoga', color: '#EC4899' },
     { icon: '🏃‍♀️', name: 'Run', color: '#3B82F6' },
+    { icon: '✨', name: 'Other', color: '#10B981' },
 ];
 
 // Beautiful Slider Component
@@ -106,7 +107,7 @@ export default function ValentinesChallengeScreen() {
     const [experiences, setExperiences] = useState<any[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
-    const [selectedGoal, setSelectedGoal] = useState(GOAL_TYPES[0].name);
+    const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
     const [customGoal, setCustomGoal] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -155,10 +156,10 @@ export default function ValentinesChallengeScreen() {
                     console.log('Sample experience:', fetched[0]);
 
                     setExperiences(fetched);
-                    setSelectedExperience(fetched[0]);
+                    // Don't auto-select first experience - let user choose
                 } else {
                     setExperiences(FALLBACK_EXPERIENCES);
-                    setSelectedExperience(FALLBACK_EXPERIENCES[0]);
+                    // Don't auto-select first experience - let user choose
                 }
             } catch (error) {
                 console.error("Error fetching experiences:", error);
@@ -203,21 +204,27 @@ export default function ValentinesChallengeScreen() {
             <View style={styles.stickyHeroContainer}>
                 {loading || !selectedExperience ? (
                     <ActivityIndicator color="#7C3AED" />
-                ) : (
+                ) : selectedExperience ? (
                     <View style={styles.heroCard}>
                         <View style={styles.heroMainRow}>
                             <View style={styles.heroIconBox}>
-                                <Image
-                                    source={{ uri: selectedExperience.coverImageUrl }}
-                                    style={styles.heroImage}
-                                    resizeMode="cover"
-                                />
+                                {selectedExperience.id === 'random' ? (
+                                    <View style={[styles.randomIconBox, { width: '100%', height: '100%' }]}>
+                                        <Sparkles color="#F59E0B" size={28} />
+                                    </View>
+                                ) : (
+                                    <Image
+                                        source={{ uri: selectedExperience.coverImageUrl }}
+                                        style={styles.heroImage}
+                                        resizeMode="cover"
+                                    />
+                                )}
                             </View>
                             <View style={styles.heroInfo}>
                                 <Text style={styles.heroTitle}>{selectedExperience.title}</Text>
                                 <View style={styles.heroPriceRow}>
                                     <Text style={styles.heroPrice}>
-                                        {selectedExperience ? `€${selectedExperience.price * 2}` : ''}
+                                        €{selectedExperience.price * 2}
                                     </Text>
                                     <Text style={styles.heroPriceLabel}>for two</Text>
                                 </View>
@@ -227,8 +234,15 @@ export default function ValentinesChallengeScreen() {
                         {/* Summary Badges */}
                         <View style={styles.heroContextRow}>
                             <View style={styles.contextBadge}>
-                                <Text style={styles.contextEmoji}>{selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Run' ? '🏃‍♀️' : '🎯'}</Text>
-                                <Text style={styles.contextText}>{selectedGoal}</Text>
+                                <Text style={styles.contextEmoji}>
+                                    {selectedGoal === 'Other' ? '✨' :
+                                     selectedGoal === 'Yoga' ? '🧘' :
+                                     selectedGoal === 'Gym' ? '🏋️' :
+                                     selectedGoal === 'Run' ? '🏃‍♀️' : '🎯'}
+                                </Text>
+                                <Text style={styles.contextText}>
+                                    {selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : (selectedGoal || 'Select goal')}
+                                </Text>
                             </View>
                             <View style={styles.contextDivider} />
                             <View style={styles.contextBadge}>
@@ -237,6 +251,20 @@ export default function ValentinesChallengeScreen() {
                             <View style={styles.contextDivider} />
                             <View style={styles.contextBadge}>
                                 <Text style={styles.contextLabel}>{sessionsPerWeek} sessions/wk</Text>
+                            </View>
+                        </View>
+                    </View>
+                ) : (
+                    <View style={styles.heroCard}>
+                        <View style={styles.heroMainRow}>
+                            <View style={styles.heroIconBox}>
+                                <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 24 }}>🎁</Text>
+                                </View>
+                            </View>
+                            <View style={styles.heroInfo}>
+                                <Text style={styles.heroTitle}>Select an experience</Text>
+                                <Text style={styles.heroPriceLabel}>Choose below to get started</Text>
                             </View>
                         </View>
                     </View>
@@ -276,6 +304,37 @@ export default function ValentinesChallengeScreen() {
                                 <ActivityIndicator size="small" color="#7C3AED" />
                             ) : (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+                                    {/* Random Option - Always shown first */}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.expCard,
+                                            selectedExperience?.id === 'random' && styles.expCardActive
+                                        ]}
+                                        onPress={() => setSelectedExperience({
+                                            id: 'random',
+                                            title: 'Surprise Me!',
+                                            price: experiences.length > 0 ? Math.round(experiences.reduce((sum, e) => sum + e.price, 0) / experiences.length) : 50,
+                                            coverImageUrl: '',
+                                            isRandom: true
+                                        })}
+                                    >
+                                        <View style={[styles.expIconBox, styles.randomIconBox]}>
+                                            <Sparkles color="#F59E0B" size={32} />
+                                        </View>
+                                        <Text style={[
+                                            styles.expTitle,
+                                            selectedExperience?.id === 'random' && styles.expTitleActive
+                                        ]} numberOfLines={2}>
+                                            Surprise Me!
+                                        </Text>
+                                        {selectedExperience?.id === 'random' && (
+                                            <View style={styles.checkBadge}>
+                                                <Check color="#fff" size={12} strokeWidth={3} />
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+
+                                    {/* Regular experiences */}
                                     {experiences
                                         .filter(exp => {
                                             if (selectedCategory === 'All') return true;
@@ -337,7 +396,9 @@ export default function ValentinesChallengeScreen() {
                                         ]}
                                         onPress={() => {
                                             setSelectedGoal(goal.name);
-                                            setCustomGoal(''); // Clear custom goal when selecting preset
+                                            if (goal.name !== 'Other') {
+                                                setCustomGoal(''); // Clear custom goal when selecting preset
+                                            }
                                         }}
                                     >
                                         <Text style={styles.goalIcon}>{goal.icon}</Text>
@@ -349,25 +410,23 @@ export default function ValentinesChallengeScreen() {
                                 ))}
                             </View>
 
-                            {/* Custom Goal Input */}
-                            <View style={styles.customGoalContainer}>
-                                <Text style={styles.customGoalLabel}>Or enter your custom goal:</Text>
-                                <View style={styles.customGoalInputWrapper}>
-                                    <Text style={styles.customGoalIcon}>✨</Text>
-                                    <TextInput
-                                        style={styles.customGoalInput}
-                                        placeholder="e.g., Cook, Paint, Write..."
-                                        placeholderTextColor="#9ca3af"
-                                        value={customGoal}
-                                        onChangeText={(text) => {
-                                            setCustomGoal(text);
-                                            if (text.trim()) {
-                                                setSelectedGoal(''); // Clear preset selection when typing custom
-                                            }
-                                        }}
-                                    />
+                            {/* Custom Goal Input - Only show when "Other" is selected */}
+                            {selectedGoal === 'Other' && (
+                                <View style={styles.customGoalContainer}>
+                                    <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
+                                    <View style={styles.customGoalInputWrapper}>
+                                        <Text style={styles.customGoalIcon}>✨</Text>
+                                        <TextInput
+                                            style={styles.customGoalInput}
+                                            placeholder="e.g., Cook, Paint, Write..."
+                                            placeholderTextColor="#9ca3af"
+                                            value={customGoal}
+                                            onChangeText={setCustomGoal}
+                                            autoFocus
+                                        />
+                                    </View>
                                 </View>
-                            </View>
+                            )}
                         </View>
 
                         {/* Challenge Intensity */}
@@ -530,6 +589,19 @@ export default function ValentinesChallengeScreen() {
                     style={[styles.ctaButton, step === 2 && !selectedMode && styles.ctaButtonDisabled]}
                     onPress={async () => {
                         if (step === 1) {
+                            // Validate selections before continuing
+                            if (!selectedExperience) {
+                                Alert.alert('Selection Required', 'Please select an experience before continuing');
+                                return;
+                            }
+                            if (!selectedGoal) {
+                                Alert.alert('Selection Required', 'Please select your goal type before continuing');
+                                return;
+                            }
+                            if (selectedGoal === 'Other' && !customGoal.trim()) {
+                                Alert.alert('Custom Goal Required', 'Please enter your custom goal before continuing');
+                                return;
+                            }
                             setStep(2);
                         } else if (step === 2 && selectedMode) {
                             // Validate emails
@@ -546,14 +618,42 @@ export default function ValentinesChallengeScreen() {
                             setIsProcessingPayment(true);
 
                             try {
+                                // Handle random experience selection
+                                let finalExperience = selectedExperience;
+                                if (selectedExperience.id === 'random') {
+                                    // Filter experiences by selected category
+                                    const availableExperiences = experiences.filter(exp => {
+                                        if (selectedCategory === 'All') return true;
+                                        if (!exp.category) return false;
+
+                                        const expCat = exp.category.toLowerCase().trim();
+                                        const filterCat = selectedCategory.toLowerCase().trim();
+
+                                        if (filterCat === 'wellness' && (expCat === 'relaxation' || expCat === 'spa' || expCat === 'health' || expCat === 'wellness')) return true;
+                                        if (filterCat === 'creative' && (expCat === 'culture' || expCat === 'arts' || expCat === 'creative' || expCat === 'workshop')) return true;
+
+                                        return expCat.includes(filterCat) || filterCat.includes(expCat);
+                                    });
+
+                                    // Randomly select one
+                                    if (availableExperiences.length > 0) {
+                                        const randomIndex = Math.floor(Math.random() * availableExperiences.length);
+                                        finalExperience = availableExperiences[randomIndex];
+                                        console.log('🎲 Randomly selected experience:', finalExperience.title);
+                                    } else {
+                                        Alert.alert('Error', 'No experiences available for random selection');
+                                        return;
+                                    }
+                                }
+
                                 // Create valentine challenge metadata
                                 const valentineData = {
                                     purchaserEmail: purchaserEmail.trim(),
                                     partnerEmail: partnerEmail.trim(),
-                                    experienceId: selectedExperience.id,
-                                    experiencePrice: selectedExperience.price,
+                                    experienceId: finalExperience.id,
+                                    experiencePrice: finalExperience.price,
                                     mode: selectedMode,
-                                    goalType: customGoal.trim() || selectedGoal,
+                                    goalType: selectedGoal === 'Other' ? customGoal.trim() : selectedGoal,
                                     weeks,
                                     sessionsPerWeek,
                                 };
@@ -561,7 +661,7 @@ export default function ValentinesChallengeScreen() {
                                 // Navigate to checkout with Valentine data
                                 navigation.navigate('ValentineCheckout', {
                                     valentineData,
-                                    totalAmount: selectedExperience.price * 2,
+                                    totalAmount: finalExperience.price * 2,
                                 });
                             } catch (error: any) {
                                 Alert.alert('Error', error.message || 'Failed to process. Please try again.');
@@ -770,6 +870,11 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginBottom: 8,
     },
+    randomIconBox: {
+        backgroundColor: '#FFFBEB',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     expImage: {
         width: '100%',
         height: '100%',
@@ -800,7 +905,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     goalChip: {
-        width: '31%', // Force 3 columns (approx 100% / 3 minus gap)
+        width: '48%', // Force 2 columns (approx 100% / 2 minus gap)
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

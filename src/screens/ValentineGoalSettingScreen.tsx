@@ -368,13 +368,13 @@ const ValentineGoalSettingScreen = () => {
                             <View style={styles.heroInfo}>
                                 <Text style={styles.heroTitle}>
                                     {challenge.mode === 'revealed'
-                                        ? experience?.name || 'Experience'
+                                        ? experience?.title || 'Experience'
                                         : 'Your reward is a surprise'
                                     }
                                 </Text>
                                 <Text style={styles.heroLocation}>
                                     {challenge.mode === 'revealed'
-                                        ? experience?.location || ''
+                                        ? experience?.subtitle || ''
                                         : 'Keep showing up to reveal it with your effort'
                                     }
                                 </Text>

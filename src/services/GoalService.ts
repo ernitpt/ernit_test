@@ -331,6 +331,98 @@ export class GoalService {
     }
   }
 
+  /**
+   * 💝 VALENTINE: Check if both partners have finished their goals
+   * If yes, atomically unlock both goals and update challenge
+   * Returns true if both are now finished and unlocked
+   */
+  async checkAndUnlockBothPartners(goal: Goal): Promise<boolean> {
+    if (!goal.valentineChallengeId) return false;
+
+    try {
+      return await runTransaction(db, async (transaction) => {
+        // 1. Fetch challenge
+        const challengeRef = doc(db, 'valentineChallenges', goal.valentineChallengeId!);
+        const challengeSnap = await transaction.get(challengeRef);
+
+        if (!challengeSnap.exists()) {
+          throw new Error('Valentine challenge not found');
+        }
+
+        const challengeData = challengeSnap.data();
+        const { purchaserGoalId, partnerGoalId } = challengeData;
+
+        if (!purchaserGoalId || !partnerGoalId) {
+          logger.log('💕 Partner has not redeemed yet');
+          return false;
+        }
+
+        // 2. Fetch both goals
+        const goal1Ref = doc(db, 'goals', purchaserGoalId);
+        const goal2Ref = doc(db, 'goals', partnerGoalId);
+
+        const [goal1Snap, goal2Snap] = await Promise.all([
+          transaction.get(goal1Ref),
+          transaction.get(goal2Ref)
+        ]);
+
+        if (!goal1Snap.exists() || !goal2Snap.exists()) {
+          logger.warn('💕 One or both partner goals not found');
+          return false;
+        }
+
+        const goal1Data = goal1Snap.data();
+        const goal2Data = goal2Snap.data();
+
+        // 3. Check if both are finished
+        // Current goal is marked as finished, check if partner is also finished
+        const goal1Finished = goal1Data.isFinished || (goal1Data.id === goal.id);
+        const goal2Finished = goal2Data.isFinished || (goal2Data.id === goal.id);
+
+        const bothFinished = goal1Finished && goal2Finished;
+
+        if (bothFinished) {
+          const now = serverTimestamp();
+
+          logger.log(`💕 Both Valentine partners finished! Unlocking completion for challenge ${goal.valentineChallengeId}`);
+
+          // 4. Unlock both goals
+          transaction.update(goal1Ref, {
+            isUnlocked: true,
+            unlockedAt: now,
+          });
+
+          transaction.update(goal2Ref, {
+            isUnlocked: true,
+            unlockedAt: now,
+          });
+
+          // 5. Update challenge
+          transaction.update(challengeRef, {
+            bothPartnersFinished: true,
+            completionUnlockedAt: now,
+          });
+
+          return true;
+        } else {
+          // Only one finished - update challenge with first finisher info
+          if (!challengeData.firstFinishedUserId) {
+            logger.log(`💕 First partner finished (${goal.userId}), waiting for other partner`);
+            transaction.update(challengeRef, {
+              firstFinishedUserId: goal.userId,
+              firstFinishedAt: serverTimestamp(),
+            });
+          }
+
+          return false;
+        }
+      });
+    } catch (error) {
+      logger.error('💕 Error checking/unlocking both partners:', error);
+      return false;
+    }
+  }
+
   /** Real-time listener */
   listenToUserGoals(userId: string, cb: (goals: Goal[]) => void) {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
@@ -539,6 +631,12 @@ export class GoalService {
     let g = normalizeGoal(goal);
     if (!g.weekStartAt || !g.id) return g;
 
+    // 💝 VALENTINE: Don't reset if goal is finished but locked (waiting for partner)
+    if (g.isFinished && !g.isUnlocked) {
+      logger.log(`💕 Goal ${g.id} is finished but locked, skipping weekly reset`);
+      return g;
+    }
+
     let anchor = new Date(g.weekStartAt);
     const now = DateHelper.now();
 
@@ -683,45 +781,69 @@ export class GoalService {
       if (g.currentCount + 1 >= g.targetCount) {
         g.isCompleted = true;
 
-        // Create feed post for goal completion
-        try {
-          const userDoc = await getDoc(doc(db, 'users', g.userId));
-          const userData = userDoc.exists() ? userDoc.data() : null;
+        // 💝 VALENTINE: Mark as finished and check if both partners ready to unlock
+        if (g.valentineChallengeId) {
+          g.isFinished = true;
+          g.finishedAt = DateHelper.now();
 
-          // Fetch experience details for the completion post
-          let experienceTitle: string | undefined;
-          let experienceImageUrl: string | undefined;
-          let partnerName: string | undefined;
+          logger.log(`💕 Valentine goal finished! Goal ID: ${g.id}, Challenge ID: ${g.valentineChallengeId}`);
+          logger.log(`💕 Setting isFinished=true, finishedAt=${g.finishedAt}`);
+          logger.log(`💕 Checking if partner also finished...`);
 
-          try {
-            const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
-            const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+          const bothFinished = await this.checkAndUnlockBothPartners(g);
 
-            experienceTitle = experience?.title;
-            experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
-            partnerName = experience?.subtitle;
-          } catch (expError) {
-            logger.warn('Could not fetch experience details for feed post:', expError);
+          if (bothFinished) {
+            g.isUnlocked = true;
+            g.unlockedAt = DateHelper.now();
+            logger.log(`💕 ✅ BOTH PARTNERS FINISHED! Setting isUnlocked=true, unlockedAt=${g.unlockedAt}`);
+            logger.log(`💕 Goal ${g.id} is now UNLOCKED and ready for completion screen`);
+          } else {
+            logger.log(`💕 ⏳ Only one partner finished. Goal ${g.id} remains LOCKED (isUnlocked=false)`);
+            logger.log(`💕 Waiting state should be displayed. Partner must finish before unlock.`);
           }
+        }
 
-          await feedService.createFeedPost({
-            userId: g.userId,
-            userName: userData?.displayName || userData?.profile?.name || 'User',
-            userProfileImageUrl: userData?.profile?.profileImageUrl,
-            goalId: g.id,
-            goalDescription: g.description,
-            type: 'goal_completed',
-            sessionNumber: totalSessions,
-            totalSessions: totalSessions,
-            progressPercentage: 100,
-            experienceTitle,
-            experienceImageUrl,
-            partnerName,
-            experienceGiftId: g.experienceGiftId,
-            createdAt: new Date(),
-          });
-        } catch (error) {
-          logger.error('Error creating goal completion feed post:', error);
+        // Create feed post for goal completion (only if NOT Valentine or if unlocked)
+        if (!g.valentineChallengeId || g.isUnlocked) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', g.userId));
+            const userData = userDoc.exists() ? userDoc.data() : null;
+
+            // Fetch experience details for the completion post
+            let experienceTitle: string | undefined;
+            let experienceImageUrl: string | undefined;
+            let partnerName: string | undefined;
+
+            try {
+              const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
+              const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+
+              experienceTitle = experience?.title;
+              experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
+              partnerName = experience?.subtitle;
+            } catch (expError) {
+              logger.warn('Could not fetch experience details for feed post:', expError);
+            }
+
+            await feedService.createFeedPost({
+              userId: g.userId,
+              userName: userData?.displayName || userData?.profile?.name || 'User',
+              userProfileImageUrl: userData?.profile?.profileImageUrl,
+              goalId: g.id,
+              goalDescription: g.description,
+              type: 'goal_completed',
+              sessionNumber: totalSessions,
+              totalSessions: totalSessions,
+              progressPercentage: 100,
+              experienceTitle,
+              experienceImageUrl,
+              partnerName,
+              experienceGiftId: g.experienceGiftId,
+              createdAt: new Date(),
+            });
+          } catch (error) {
+            logger.error('Error creating goal completion feed post:', error);
+          }
         }
       }
     } else if (previousWeeklyCount < g.weeklyCount) {
@@ -750,14 +872,28 @@ export class GoalService {
     }
 
     // Persist updates
-    await updateDoc(ref, {
+    const updateData: any = {
       weeklyCount: g.weeklyCount,
       weeklyLogDates: g.weeklyLogDates,
       isWeekCompleted: g.isWeekCompleted || false,
       isCompleted: !!g.isCompleted,
       weekStartAt: g.weekStartAt,
       updatedAt: serverTimestamp(),
-    } as any);
+    };
+
+    // 💝 VALENTINE: Persist finished/unlocked state
+    if (g.valentineChallengeId) {
+      if (g.isFinished) {
+        updateData.isFinished = true;
+        updateData.finishedAt = serverTimestamp();
+      }
+      if (g.isUnlocked) {
+        updateData.isUnlocked = true;
+        updateData.unlockedAt = serverTimestamp();
+      }
+    }
+
+    await updateDoc(ref, updateData);
 
     return { ...(g as any) } as Goal;
   }

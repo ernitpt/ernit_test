@@ -71,43 +71,84 @@ export const valentineCompletionNotifier = onDocumentUpdated(
             }
 
             const userData = userSnap.data()!;
-            const fcmToken = userData.fcmToken;
+            const fcmTokens = userData.fcmTokens || [];
 
-            if (!fcmToken) {
-                logger.warn('Partner has no FCM token');
-                return;
+            // Send push notification to all registered devices
+            if (fcmTokens.length === 0) {
+                logger.warn(`Partner user ${partnerUserId} has no FCM tokens registered`);
+            } else {
+                logger.info(`📲 Sending Valentine completion notification to ${fcmTokens.length} device(s)`);
+
+                const messaging = admin.messaging();
+                const results = await Promise.allSettled(
+                    fcmTokens.map((token: string) =>
+                        messaging.send({
+                            token,
+                            notification: {
+                                title: '🎉 Partner Finished!',
+                                body: 'Your partner has completed their goal! You can now both redeem your experience.',
+                            },
+                            data: {
+                                type: 'valentine_completion',
+                                goalId: partnerGoalId,
+                                challengeId: after.valentineChallengeId,
+                            },
+                            apns: {
+                                payload: {
+                                    aps: {
+                                        sound: 'default',
+                                        badge: 1,
+                                    },
+                                },
+                            },
+                            android: {
+                                priority: 'high',
+                                notification: {
+                                    sound: 'default',
+                                    channelId: 'default',
+                                },
+                            },
+                        })
+                    )
+                );
+
+                // Log results and clean up invalid tokens
+                let successCount = 0;
+                let failureCount = 0;
+                const invalidTokens: string[] = [];
+
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        successCount++;
+                        logger.info(`✅ Sent to device ${index + 1}`);
+                    } else {
+                        failureCount++;
+                        const error = result.reason;
+                        logger.error(`❌ Failed to send to device ${index + 1}:`, error);
+
+                        // Check if token is invalid
+                        if (
+                            error.code === 'messaging/invalid-registration-token' ||
+                            error.code === 'messaging/registration-token-not-registered'
+                        ) {
+                            invalidTokens.push(fcmTokens[index]);
+                        }
+                    }
+                });
+
+                logger.info(`📊 Push notification results: ${successCount} sent, ${failureCount} failed`);
+
+                // Remove invalid tokens from Firestore
+                if (invalidTokens.length > 0) {
+                    logger.info(`🧹 Removing ${invalidTokens.length} invalid token(s)`);
+                    await db
+                        .collection('users')
+                        .doc(partnerUserId)
+                        .update({
+                            fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+                        });
+                }
             }
-
-            // Send push notification
-            await admin.messaging().send({
-                token: fcmToken,
-                notification: {
-                    title: '🎉 Partner Finished!',
-                    body: 'Your partner has completed their goal! You can now both redeem your experience.',
-                },
-                data: {
-                    type: 'valentine_completion',
-                    goalId: partnerGoalId,
-                    challengeId: after.valentineChallengeId,
-                },
-                apns: {
-                    payload: {
-                        aps: {
-                            sound: 'default',
-                            badge: 1,
-                        },
-                    },
-                },
-                android: {
-                    priority: 'high',
-                    notification: {
-                        sound: 'default',
-                        channelId: 'default',
-                    },
-                },
-            });
-
-            logger.info(`✅ Sent completion notification to user ${partnerUserId}`);
 
             // Create in-app notification as backup
             await db.collection('notifications').add({

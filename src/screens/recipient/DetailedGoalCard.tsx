@@ -277,12 +277,16 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [currentUserProfileImage, setCurrentUserProfileImage] = useState<string | null>(null);
 
+  // 💝 VALENTINE: Partner waiting modal state
+  const [showPartnerWaitingModal, setShowPartnerWaitingModal] = useState(false);
+
   // 💝 VALENTINE: Real-time partner progress tracking
   const [partnerGoalData, setPartnerGoalData] = useState<{
     weeklyCount: number;
     sessionsPerWeek: number;
     weeklyLogDates: string[];
     isWeekCompleted: boolean;
+    isCompleted?: boolean;
     weekStartAt?: any;
     targetCount?: number;
     currentCount?: number;
@@ -441,8 +445,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       await pushNotificationService.cancelSessionNotification(goalId);
 
       if (updated.isCompleted) {
-        // ✅ VALENTINE GOAL COMPLETION
-        if (isValentineGoal && updated.valentineChallengeId) {
+        // ✅ GOAL COMPLETION - Handle both Valentine and standard goals
+        if (updated.valentineChallengeId) {
+          // 💝 VALENTINE GOAL COMPLETION
           try {
             // Fetch the Valentine challenge and its experience
             const challengeDoc = await getDoc(doc(db, 'valentineChallenges', updated.valentineChallengeId));
@@ -466,11 +471,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 mode: challengeData.mode,
               };
 
-              logger.log('💝 Navigating to completion with Valentine challenge data');
-              navigation.navigate('Completion', { goal: updated, experienceGift: valentineGift });
+              // 💝 SECURITY: Check unlock status to determine navigation
+              if (updated.isUnlocked) {
+                // ✅ Both partners finished - navigate to completion
+                logger.log('💝 Both partners finished - navigating to completion with Valentine challenge data');
+                navigation.navigate('Completion', { goal: updated, experienceGift: valentineGift });
+              } else if (updated.isFinished) {
+                // ⏳ You finished, waiting for partner
+                logger.log('💝 You finished! Waiting for partner to complete their goal');
+                setShowPartnerWaitingModal(true);
+              } else {
+                // ⚠️ This shouldn't happen - goal marked as completed but not finished
+                logger.warn('💝 Goal marked completed but not finished - unexpected state');
+                Alert.alert('Goal Progress', 'Keep going! Complete all your sessions to finish the goal.');
+              }
             } else {
               logger.error('Valentine challenge not found');
-              // Fallback to basic completion
               Alert.alert('🎉 Goal Completed!', 'Congratulations on completing your Valentine challenge!');
             }
           } catch (error) {
@@ -478,7 +494,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             Alert.alert('🎉 Goal Completed!', 'Congratulations on completing your Valentine challenge!');
           }
         } else if (gift) {
-          // STANDARD GOAL COMPLETION
+          // ✅ STANDARD GOAL COMPLETION
           // Only notify the giver if they're different from the user (don't send self-notifications)
           if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
             await notificationService.createNotification(
@@ -495,7 +511,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               }
             );
           }
-          // Don't call onFinish for completed goals - handle navigation here
+
+          // Navigate to completion screen for standard goals
           navigation.navigate('Completion', { goal: updated, experienceGift: gift });
         }
       } else {
@@ -814,6 +831,25 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     }
   };
 
+  // 💝 VALENTINE: Show waiting modal when partner hasn't finished yet
+  useEffect(() => {
+    if (showPartnerWaitingModal) {
+      Alert.alert(
+        '🎉 Goal Complete!',
+        `Congratulations! You've completed all your sessions!\n\nWaiting for ${valentinePartnerName || 'your partner'} to finish their goal. Once they complete, you'll both be able to redeem your experience together.\n\nWe'll notify you when they're done! 💕`,
+        [
+          {
+            text: 'Got it!',
+            onPress: () => {
+              setShowPartnerWaitingModal(false);
+              navigation.navigate('Profile');
+            }
+          }
+        ]
+      );
+    }
+  }, [showPartnerWaitingModal, valentinePartnerName]);
+
   const handleStart = async () => {
     if (isTimerRunning || loading) return;
 
@@ -863,41 +899,37 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
         const timeSinceLastSession = nowCheck - lastSessionTime;
 
-        if (timeSinceLastSession < MIN_SESSION_INTERVAL_MS) {
+        // Only enforce delay if the previous session was in the PAST (positive time difference)
+        // If timeSinceLastSession is negative, it means the last session date is in the future 
+        // (likely due to dev/test time skipping), so we should allow it.
+        if (timeSinceLastSession > 0 && timeSinceLastSession < MIN_SESSION_INTERVAL_MS) {
           const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSinceLastSession) / 1000);
           Alert.alert(
             'Too Fast!',
             `Please wait ${secondsRemaining} seconds between sessions to ensure quality completion.`,
             [{ text: 'OK' }]
           );
-          setLoading(false); // Ensure loading state is reset if we return early
+          setLoading(false);
           return;
         }
       }
 
       // CRITICAL FIX: Use weeklyCount, not weeklyLogDates.length.
-      // weeklyLogDates only stores unique dates, so it undercounts if multiple sessions happen in one day.
       const funcTotalSessionsDone =
         (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       const funcTotalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
 
-      // Only generate AI hint if:
-      // 1. Not the last session
-      // 2. No personalized hint exists for the next session
-      // 3. Not a Valentine goal (Valentine goals don't have hints)
-      // We want to generate a hint for the session AFTER the one we are about to start.
-      // So if we are starting Session 1 (totalSessionsDone=0), we want hint for Session 2.
-      const nextSessionNumber = totalSessionsDone + 2;
+      // ✅ START TIMER IMMEDIATELY (non-blocking)
+      await startTimer(currentGoal.id, null);
+
+      // ✅ Generate hint in background (don't await - don't block timer)
+      // Skip hint generation for Valentine goals
+      const nextSessionNumber = funcTotalSessionsDone + 2;
       const hasPersonalizedHintForNextSession =
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
 
-      // ✅ START TIMER IMMEDIATELY (non-blocking)
-      startTimer(currentGoal.id, null);
-
-      // ✅ Generate hint in background (don't await - don't block timer)
-      // Skip hint generation for Valentine goals
-      if (!isValentineGoal && totalSessionsDone != totalSessions && !hasPersonalizedHintForNextSession && experience) {
+      if (!isValentineGoal && funcTotalSessionsDone != funcTotalSessions && !hasPersonalizedHintForNextSession && experience) {
         // Fire and forget - hint will be saved when ready
         aiHintService.generateHint({
           goalId,
@@ -906,19 +938,19 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           experienceCategory: experience?.category || undefined,
           experienceSubtitle: experience?.subtitle || undefined,
           sessionNumber: nextSessionNumber,
-          totalSessions,
+          totalSessions: funcTotalSessions,
           userName: recipientName || undefined,
-        }).then((hint) => {
-          logger.log(`✅ Background hint generated for session ${nextSessionNumber}`);
-          // The hint is already cached by aiHintService, no need to do anything else
+        }).then(({ hint, category }) => {
+          logger.log(`✅ Background hint generated for session ${nextSessionNumber}${category ? ` (category: ${category})` : ''}`);
         }).catch((err) => {
           logger.warn('Background hint generation failed:', err);
-          // This is fine - hint is optional
         });
       }
 
       // Schedule push notification for when timer completes
       // Only schedule if there's a defined target duration
+      const totalGoalSeconds = (currentGoal.targetHours || 0) * 3600 + (currentGoal.targetMinutes || 0) * 60;
+
       if (totalGoalSeconds > 0) {
         const notifId = await pushNotificationService.scheduleSessionCompletionNotification(
           goalId,
@@ -1146,6 +1178,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
             sessionsPerWeek: data.sessionsPerWeek || 1,
             weeklyLogDates: data.weeklyLogDates || [],
             isWeekCompleted: data.isWeekCompleted || false,
+            isCompleted: data.isCompleted || false,
             weekStartAt: data.weekStartAt,
             targetCount: data.targetCount || 1,
             currentCount: data.currentCount || 0,
@@ -1163,6 +1196,60 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
     return () => unsubscribe();
   }, [currentGoal.valentineChallengeId, currentGoal.partnerGoalId, partnerGoalData?.weeklyCount]);
+
+  // 💝 VALENTINE: Listen for goal unlock when waiting for partner
+  useEffect(() => {
+    if (!currentGoal.id || !currentGoal.isFinished || currentGoal.isUnlocked || !currentGoal.valentineChallengeId) {
+      return;
+    }
+
+    logger.log('💕 Setting up unlock listener for finished goal');
+
+    const unsubscribe = onSnapshot(
+      doc(db, 'goals', currentGoal.id),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+
+          // Partner just finished! Both goals unlocked
+          if (data.isUnlocked && !currentGoal.isUnlocked) {
+            logger.log('💕 Partner finished! Goal unlocked.');
+
+            // Update local state
+            setCurrentGoal((prev) => ({
+              ...prev,
+              isUnlocked: true,
+              unlockedAt: data.unlockedAt?.toDate(),
+            }));
+
+            // Show alert and navigate to completion
+            Alert.alert(
+              '🎉 Partner Finished!',
+              `${valentinePartnerName || 'Your partner'} has completed their goal! You can both now redeem your experience together.`,
+              [
+                {
+                  text: 'View Experience',
+                  onPress: async () => {
+                    try {
+                      const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+                      navigation.navigate('Completion', { goal: currentGoal, experienceGift: gift });
+                    } catch (error) {
+                      logger.error('Error navigating to completion:', error);
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }
+      },
+      (error) => {
+        logger.error('Error listening to goal unlock:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentGoal.id, currentGoal.isFinished, currentGoal.isUnlocked, currentGoal.valentineChallengeId, valentinePartnerName]);
 
   // Real-time listener for goal updates (especially for Valentine partner linking)
   useEffect(() => {
@@ -1188,7 +1275,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           plannedStartDate: toDate(data.plannedStartDate),
           approvalDeadline: toDate(data.approvalDeadline),
           approvalRequestedAt: toDate(data.approvalRequestedAt),
-        } as Goal;
+        } as unknown as Goal;
 
         logger.log('Goal updated from Firestore listener', {
           id: updatedGoal.id,
@@ -1434,19 +1521,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               <Text style={[styles.heartIcon, { top: 22, right: 35, fontSize: 14, transform: [{ rotate: '-25deg' }], opacity: 0.25 }]}>❤️</Text>
               <Text style={[styles.heartIcon, { top: 38, right: 20, fontSize: 20, transform: [{ rotate: '18deg' }], opacity: 0.2 }]}>❤️</Text>
 
-              {/* Top left cluster - medium hearts */}
-              <Text style={[styles.heartIcon, { top: 12, left: 10, fontSize: 16, transform: [{ rotate: '-18deg' }], opacity: 0.28 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { top: 45, left: 25, fontSize: 22, transform: [{ rotate: '22deg' }], opacity: 0.22 }]}>❤️</Text>
 
-              {/* Bottom scattered hearts - varying sizes, below title area */}
-              <Text style={[styles.heartIcon, { bottom: 120, left: 8, fontSize: 15, transform: [{ rotate: '-12deg' }], opacity: 0.26 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 140, right: 12, fontSize: 19, transform: [{ rotate: '28deg' }], opacity: 0.24 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 85, left: 30, fontSize: 17, transform: [{ rotate: '15deg' }], opacity: 0.3 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 95, right: 40, fontSize: 21, transform: [{ rotate: '-20deg' }], opacity: 0.2 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 60, left: 15, fontSize: 14, transform: [{ rotate: '25deg' }], opacity: 0.27 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 50, right: 25, fontSize: 16, transform: [{ rotate: '-15deg' }], opacity: 0.23 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 25, left: 20, fontSize: 18, transform: [{ rotate: '10deg' }], opacity: 0.25 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { bottom: 30, right: 18, fontSize: 15, transform: [{ rotate: '-22deg' }], opacity: 0.28 }]}>❤️</Text>
             </View>
           )}
           <Text style={styles.title}>{currentGoal.title}</Text>
@@ -1466,28 +1541,6 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           {/* 💝 VALENTINE: Partner Progress Display */}
           {!!currentGoal.valentineChallengeId && partnerGoalData && (
             <View style={styles.valentineProgressContainer}>
-              {/* Waiting State Banner - Shows when you've finished but partner hasn't */}
-              {currentGoal.isCompleted && !partnerGoalData.isCompleted && (
-                <LinearGradient
-                  colors={['#FFF4ED', '#FFE5EF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.waitingBanner}
-                >
-                  <Text style={styles.waitingEmoji}>🎉</Text>
-                  <View style={styles.waitingTextContainer}>
-                    <Text style={styles.waitingTitle}>
-                      You've Completed Your Goal!
-                    </Text>
-                    <Text style={styles.waitingSubtext}>
-                      ⏳ Waiting for {valentinePartnerName || 'partner'} to finish...
-                    </Text>
-                    <Text style={styles.waitingSubtext}>
-                      Their progress: Week {partnerGoalData.currentCount + 1}/{partnerGoalData.sessionsPerWeek} ({partnerGoalData.weeklyCount}/{partnerGoalData.sessionsPerWeek} sessions this week)
-                    </Text>
-                  </View>
-                </LinearGradient>
-              )}
 
               {/* Side-by-side Progress - Clickable to switch view */}
               <View style={styles.partnerProgressRow}>
@@ -1521,15 +1574,6 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                     ellipsizeMode="tail"
                   >
                     Your Progress
-                  </Text>
-                  <View style={styles.partnerProgressBar}>
-                    <View style={[styles.partnerProgressFill, {
-                      width: `${(currentGoal.weeklyCount / currentGoal.sessionsPerWeek) * 100}%`,
-                      backgroundColor: '#FF6B9D'
-                    }]} />
-                  </View>
-                  <Text style={styles.partnerProgressCount}>
-                    {currentGoal.weeklyCount}/{currentGoal.sessionsPerWeek} sessions
                   </Text>
                 </Pressable>
 
@@ -1567,15 +1611,6 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                   >
                     {valentinePartnerName || 'Partner'}
                   </Text>
-                  <View style={styles.partnerProgressBar}>
-                    <View style={[styles.partnerProgressFill, {
-                      width: `${(partnerGoalData.weeklyCount / partnerGoalData.sessionsPerWeek) * 100}%`,
-                      backgroundColor: '#C084FC'
-                    }]} />
-                  </View>
-                  <Text style={styles.partnerProgressCount}>
-                    {partnerGoalData.weeklyCount}/{partnerGoalData.sessionsPerWeek} sessions
-                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -1592,9 +1627,6 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               ]}
             >
               <View style={styles.calendarOwnerContent}>
-                <Text style={styles.calendarOwnerIcon}>
-                  {selectedView === 'user' ? '❤️' : '💜'}
-                </Text>
                 <Text style={styles.calendarOwnerText}>
                   {displayedName}'s Calendar
                 </Text>
@@ -1723,10 +1755,34 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                   </View>
                 )}
                 {/* Disable start button for 1 day/1 week goals when approval is pending or suggested change */}
-                {(isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1)
+                {(currentGoal.valentineChallengeId && currentGoal.isFinished && !currentGoal.isUnlocked) ? (
+                  // 💝 VALENTINE: Waiting for partner state - Show simplified waiting box
+                  <LinearGradient
+                    colors={['#FFF4ED', '#FFE5EF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.waitingBanner}
+                  >
+                    <View style={styles.waitingTextContainer}>
+                      <Text style={styles.waitingTitle}>
+                        You've Completed Your Goal! 🎉
+                      </Text>
+                      <Text style={styles.waitingSubtext}>
+                        Waiting for {valentinePartnerName || 'partner'} to finish...
+                      </Text>
+                    </View>
+                  </LinearGradient>
+                ) : (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1)
                   || (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) ? (
                   <View style={styles.disabledStartContainer}>
                     <Text style={styles.disabledStartText}>Waiting for approval</Text>
+                  </View>
+                ) : (currentGoal.valentineChallengeId && !currentGoal.partnerGoalId) ? (
+                  <View style={styles.disabledStartContainer}>
+                    <Text style={styles.disabledStartText}>Waiting for Partner</Text>
+                    <Text style={[styles.disabledStartText, { fontSize: 13, marginTop: 4 }]}>
+                      Your partner needs to redeem their code first
+                    </Text>
                   </View>
                 ) : alreadyLoggedToday && !DEBUG_ALLOW_MULTIPLE_PER_DAY ? (
                   <View style={styles.disabledStartContainer}>
@@ -2019,19 +2075,7 @@ const styles = StyleSheet.create({
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14 },
   selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600' },
   valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600' },
-  heartsBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 0,
-    opacity: 0.15,
-  },
-  heartIcon: {
-    position: 'absolute',
-    fontSize: 32,
-  },
+
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600' },
   calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   dayCell: { alignItems: 'center', width: CIRCLE },
@@ -2304,11 +2348,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   waitingBanner: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
-    gap: 12,
     borderWidth: 1,
     borderColor: '#FFD6E8',
   },
@@ -2316,19 +2359,21 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   waitingTextContainer: {
-    flex: 1,
+    alignItems: 'center',
     gap: 4,
   },
   waitingTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#BE185D',
+    textAlign: 'center',
   },
   waitingSubtext: {
     fontSize: 13,
     fontWeight: '500',
     color: '#9F1239',
     opacity: 0.8,
+    textAlign: 'center',
   },
   partnerProgressRow: {
     flexDirection: 'row',
@@ -2394,14 +2439,7 @@ const styles = StyleSheet.create({
   partnerAvatarEmoji: {
     fontSize: 24,
   },
-  partnerProgressLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+
   partnerProgressBar: {
     height: 8,
     backgroundColor: '#E5E7EB',

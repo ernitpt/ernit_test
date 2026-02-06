@@ -34,6 +34,36 @@ type NotificationNavigationProp = NativeStackNavigationProp<
   'Notification'
 >;
 
+// Format notification date (shared utility)
+const formatNotificationDate = (createdAt: any) => {
+  // Handle Firestore Timestamp or Date
+  const date =
+    createdAt && typeof createdAt.toDate === 'function'
+      ? createdAt.toDate()
+      : new Date(createdAt);
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) {
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1) {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
+    }
+    return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
+  } else if (diffDays < 7) {
+    return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
+  } else {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+};
 
 const NotificationsScreen = () => {
   const { state } = useApp();
@@ -223,35 +253,6 @@ const NotificationsScreen = () => {
 
     // Handle post reaction notifications with enhanced design
     if (item.type === 'post_reaction') {
-      const formatNotificationDate = (createdAt: any) => {
-        const date =
-          createdAt && typeof createdAt.toDate === 'function'
-            ? createdAt.toDate()
-            : new Date(createdAt);
-
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 1) {
-          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-          if (diffHours < 1) {
-            const diffMinutes = Math.floor(diffMs / (1000 * 60));
-            return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
-          }
-          return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
-        } else if (diffDays < 7) {
-          return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
-        } else {
-          return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-        }
-      };
-
       const mostRecentReaction = (item.data?.mostRecentReaction as 'muscle' | 'heart' | 'like') || 'like';
 
       return (
@@ -335,51 +336,6 @@ const NotificationsScreen = () => {
     if (item.type === 'personalized_hint_left') {
       // Falls through to default rendering with clear button
     }
-
-
-    const createdAtDate =
-      item.createdAt instanceof Date
-        ? item.createdAt
-        : item.createdAt?.toDate
-          ? item.createdAt.toDate()
-          : new Date();
-
-    const formatNotificationDate = (createdAt: any) => {
-      // Handle Firestore Timestamp or Date
-      const date =
-        createdAt && typeof createdAt.toDate === 'function'
-          ? createdAt.toDate()
-          : new Date(createdAt);
-
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-
-      if (diffDays < 1) {
-        // Less than 1 day → show hours
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        if (diffHours < 1) {
-          // Less than 1 hour -> show minutes
-          const diffMinutes = Math.floor(diffMs / (1000 * 60));
-          return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
-        }
-        return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
-      } else if (diffDays < 7) {
-        // Less than a week → show days
-        return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
-      } else {
-        // Otherwise show formatted date
-        return date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      }
-    };
-
 
     return (
       <View style={[styles.card, !item.read && styles.unreadCard]}>

@@ -71,6 +71,19 @@ export interface UserSearchResult {
   hasPendingRequest: boolean;
 }
 
+// Hint categories for AI-generated hints
+export type HintCategory =
+  | 'what_to_bring'
+  | 'what_to_wear'
+  | 'physical_prep'
+  | 'mental_prep'
+  | 'atmosphere'
+  | 'sensory'
+  | 'activity_level'
+  | 'duration_hints'
+  | 'location_type'
+  | 'geographic_clues';
+
 // Experience categories
 export type ExperienceCategory = 'adventure' | 'relaxation' | 'food-culture' | 'romantic-getaway' | 'foreign-trip';
 
@@ -164,6 +177,13 @@ export interface Goal {
   partnerGoalId?: string;
   isLeader?: boolean;
   canProgress?: boolean;
+
+  // Valentine's completion synchronization
+  isFinished?: boolean;           // User completed all sessions (locked state)
+  finishedAt?: Date;              // When user finished their goal
+  isUnlocked?: boolean;           // Both partners finished, can access reward
+  unlockedAt?: Date;              // When both partners finished
+  unlockShown?: boolean;          // Unlock celebration modal has been shown
 }
 
 export interface PersonalizedHint {

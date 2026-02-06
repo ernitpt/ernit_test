@@ -251,28 +251,28 @@ export const HINT_CATEGORIES: Record<HintCategory, HintCategoryDefinition> = {
 
     geographic_clues: {
         name: 'geographic_clues',
-        description: 'Regional or geographic hints without exact location',
-        promptGuidance: 'Focus on regional characteristics. Keep very vague early, can mention city/area later.',
+        description: 'Hints about nearby regions/areas (not exact location from subtitle)',
+        promptGuidance: 'Reference the SURROUNDING REGION or nearby areas, NOT the exact location shown in the subtitle. The subtitle shows the specific location (e.g., "Sesimbra"), so hints should mention the broader area (e.g., "shores of Setúbal"). Keep vague early, can be more specific about the region later.',
         examples: {
             vague: [
-                'Not far from home.',
-                'Local adventure.',
-                'Closer than you think.',
+                'Not too far from Lisbon.',
+                'Coastal region.',
+                'South of the capital.',
             ],
             thematic: [
-                'Urban setting.',
-                'City limits.',
-                'Accessible location.',
+                'Near the Atlantic coast.',
+                'In the Setúbal peninsula.',
+                'A scenic area outside the city.',
             ],
             strong: [
-                'Local climbing scene.',
-                'Popular spot in the area.',
-                'Well-known among locals.',
+                'Popular spot along the western shore.',
+                'In the beaches area south of Lisbon.',
+                'Known region for outdoor activities.',
             ],
             finale: [
-                'One of the best climbing gyms in the city.',
-                'Located in the downtown district.',
-                'Easy to reach from anywhere.',
+                'Along the beautiful shores of Setúbal.',
+                'In one of the most scenic coastal areas near Lisbon.',
+                'A gem in the Arrábida natural park region.',
             ],
         },
     },

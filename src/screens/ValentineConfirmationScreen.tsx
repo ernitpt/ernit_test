@@ -14,23 +14,65 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { Heart, Mail, ArrowRight, Home } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../types";
+import { useApp } from "../context/AppContext";
+import { logger } from "../utils/logger";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "ValentineConfirmation">;
+
+// Storage helpers (web + native)
+const getStorageItem = async (key: string) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+        return localStorage.getItem(key);
+    }
+    return await AsyncStorage.getItem(key);
+};
+
+const setStorageItem = async (key: string, value: string) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+        localStorage.setItem(key, value);
+    } else {
+        await AsyncStorage.setItem(key, value);
+    }
+};
 
 const ValentineConfirmationScreen = () => {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute();
+    const { state } = useApp();
 
     const params = route.params as { purchaserEmail: string; partnerEmail: string };
     const { purchaserEmail, partnerEmail } = params || { purchaserEmail: "", partnerEmail: "" };
 
-    const handleRedeemCode = () => {
-        // Navigate to CouponEntryScreen (RecipientFlow)
-        navigation.navigate("RecipientFlow", {
-            screen: "CouponEntry",
-            params: {},
-        } as any);
+    const handleRedeemCode = async () => {
+        // Check if user is authenticated
+        if (state.user?.id) {
+            // User is authenticated - navigate directly to redemption
+            logger.log("💘 User authenticated - navigating to redemption");
+            navigation.navigate("RecipientFlow", {
+                screen: "CouponEntry",
+                params: {},
+            } as any);
+        } else {
+            // User not authenticated - store redemption intent and navigate to auth
+            logger.log("💘 User not authenticated - storing redemption intent");
+            try {
+                const redemptionIntent = JSON.stringify({
+                    purchaserEmail,
+                    partnerEmail,
+                    timestamp: new Date().toISOString(),
+                });
+                await setStorageItem("pending_valentine_redemption", redemptionIntent);
+
+                // Navigate to auth screen
+                navigation.navigate("Auth");
+            } catch (error) {
+                logger.error("Error storing redemption intent:", error);
+                // Fallback - still navigate to auth
+                navigation.navigate("Auth");
+            }
+        }
     };
 
     const handleGoHome = () => {
