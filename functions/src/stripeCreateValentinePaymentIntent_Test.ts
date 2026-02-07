@@ -63,7 +63,6 @@ export const stripeCreateValentinePaymentIntent_Test = onRequest(
 
             if (
                 !metadata.purchaserEmail ||
-                !metadata.partnerEmail ||
                 !metadata.experienceId
             ) {
                 res.status(400).json({

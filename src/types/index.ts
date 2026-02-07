@@ -461,7 +461,7 @@ export type RootStackParamList = {
   ValentinesLanding: undefined;
   ValentinesChallenge: undefined;
   ValentineCheckout: { valentineData: any; totalAmount: number };
-  ValentineConfirmation: { purchaserEmail: string; partnerEmail: string };
+  ValentineConfirmation: { purchaserEmail: string; partnerEmail: string; paymentIntentId: string };
   ValentineRedemption: { code: string };
   ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
 };

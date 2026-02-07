@@ -416,11 +416,13 @@ const styles = StyleSheet.create({
     width: 175,
     backgroundColor: '#ffffff',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 3,
     overflow: 'hidden',
     height: 200, // <-- 2. ADDED FIXED HEIGHT
   },
@@ -466,7 +468,7 @@ const styles = StyleSheet.create({
   },
 
   cardPrice: {
-    color: "#166534",
+    color: "#8B5CF6",
     fontSize: 14,
     fontWeight: "bold",
     textAlign: "right",

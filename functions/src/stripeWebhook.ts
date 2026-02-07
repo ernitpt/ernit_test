@@ -3,6 +3,8 @@ import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
 import { getFirestore, Transaction } from "firebase-admin/firestore";
+import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
+import { generateValentineEmail } from "./templates/valentineEmail";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -14,7 +16,7 @@ const getDbProd = () => getFirestore();
 export const stripeWebhook = onRequest(
     {
         region: "europe-west1",
-        secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET],
+        secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
     },
     async (req, res) => {
         console.log("🔔 [PROD] Webhook received");
@@ -239,7 +241,7 @@ async function handleValentinePayment(paymentIntent: Stripe.PaymentIntent) {
     const db = getDbProd();
 
     // Validate Valentine metadata
-    if (!metadata.purchaserEmail || !metadata.partnerEmail || !metadata.experienceId) {
+    if (!metadata.purchaserEmail || !metadata.experienceId) {
         throw new Error("Missing required Valentine metadata");
     }
 
@@ -316,8 +318,24 @@ async function handleValentinePayment(paymentIntent: Stripe.PaymentIntent) {
         challengeId,
     });
 
-    // TODO: Send emails (will implement email function next)
-    console.log("📧 [TODO] Send emails to:", metadata.purchaserEmail, metadata.partnerEmail);
+    // Send single email to purchaser with both codes
+    try {
+        const emailHtml = generateValentineEmail(
+            metadata.purchaserEmail,
+            purchaserCode,
+            partnerCode
+        );
+        await sendEmail(
+            metadata.purchaserEmail,
+            "💕 Your Valentine's Challenge Codes",
+            emailHtml
+        );
+        console.log("📧 Email sent to purchaser:", metadata.purchaserEmail);
+    } catch (emailError) {
+        // Log but don't fail the payment flow if email fails
+        console.error("❌ Failed to send valentine email:", emailError);
+    }
+
     console.log("✅ Valentine challenge created:", challengeId);
 
     return { challengeId, purchaserCode, partnerCode };

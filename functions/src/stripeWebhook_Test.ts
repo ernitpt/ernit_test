@@ -241,7 +241,7 @@ async function handleValentinePayment_Test(paymentIntent: Stripe.PaymentIntent) 
   const paymentIntentId = paymentIntent.id;
 
   // Validate Valentine metadata
-  if (!metadata.purchaserEmail || !metadata.partnerEmail || !metadata.experienceId) {
+  if (!metadata.purchaserEmail || !metadata.experienceId) {
     throw new Error("Missing required Valentine metadata");
   }
 
@@ -288,7 +288,6 @@ async function handleValentinePayment_Test(paymentIntent: Stripe.PaymentIntent) 
   const challengeData = {
     id: challengeId,
     purchaserEmail: metadata.purchaserEmail,
-    partnerEmail: metadata.partnerEmail,
     experienceId: metadata.experienceId,
     experiencePrice: parseFloat(metadata.experiencePrice || "0"),
     mode: metadata.mode as 'revealed' | 'secret',
@@ -318,37 +317,24 @@ async function handleValentinePayment_Test(paymentIntent: Stripe.PaymentIntent) 
     challengeId,
   });
 
-  // Send emails to both partners
+  // Send single email to purchaser with both codes
   try {
     const { sendEmail } = await import('./services/emailService.js');
     const { generateValentineEmail } = await import('./templates/valentineEmail.js');
 
-    await Promise.all([
-      sendEmail(
+    await sendEmail(
+      metadata.purchaserEmail,
+      "💕 Your Valentine's Challenge Codes",
+      generateValentineEmail(
         metadata.purchaserEmail,
-        "💕 Your Valentine's Challenge Code",
-        generateValentineEmail(
-          metadata.purchaserEmail,
-          purchaserCode,
-          metadata.partnerEmail,
-          true // isPurchaser
-        )
-      ),
-      sendEmail(
-        metadata.partnerEmail,
-        "💕 Your Valentine's Challenge Code",
-        generateValentineEmail(
-          metadata.partnerEmail,
-          partnerCode,
-          metadata.purchaserEmail,
-          false // not purchaser
-        )
-      ),
-    ]);
+        purchaserCode,
+        partnerCode
+      )
+    );
 
-    console.log("✅ [TEST] Valentine emails sent successfully to both partners");
+    console.log("✅ [TEST] Valentine email sent to purchaser:", metadata.purchaserEmail);
   } catch (emailError) {
-    console.error("❌ [TEST] Failed to send emails:", emailError);
+    console.error("❌ [TEST] Failed to send email:", emailError);
     // Don't fail the webhook - codes are still saved in Firestore
   }
 

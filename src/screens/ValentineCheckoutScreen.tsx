@@ -119,6 +119,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                     navigationProp.navigate("ValentineConfirmation", {
                         purchaserEmail: valentineData.purchaserEmail,
                         partnerEmail: valentineData.partnerEmail,
+                        paymentIntentId,
                     });
                 } else if (paymentIntent?.status === "processing") {
                     Alert.alert(
@@ -175,6 +176,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                 navigationProp.navigate("ValentineConfirmation", {
                     purchaserEmail: valentineData.purchaserEmail,
                     partnerEmail: valentineData.partnerEmail,
+                    paymentIntentId,
                 });
             } else if (paymentIntent.status === "processing") {
                 Alert.alert(
@@ -223,13 +225,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                     <Text style={styles.summaryTitle}>Valentine's Challenge</Text>
 
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Your Email:</Text>
+                        <Text style={styles.detailLabel}>Email:</Text>
                         <Text style={styles.detailValue}>{valentineData.purchaserEmail}</Text>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Partner's Email:</Text>
-                        <Text style={styles.detailValue}>{valentineData.partnerEmail}</Text>
                     </View>
 
                     <View style={styles.divider} />
@@ -271,8 +268,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
                 {/* Info Text */}
                 <Text style={styles.infoText}>
-                    💌 After payment, redemption codes will be sent to both email addresses. Download the
-                    Ernit app and enter your code to begin!
+                    💌 After payment, both redemption codes will be sent to your email. Share your partner's code with them to get started!
                 </Text>
             </ScrollView>
 

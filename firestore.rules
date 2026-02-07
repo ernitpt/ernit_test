@@ -250,11 +250,12 @@ service cloud.firestore {
      * 💝 VALENTINE CHALLENGES
      * ===================== **/
     match /valentineChallenges/{challengeId} {
-      // Allow authenticated users to query by code (for redemption)
-      // Queries: where('purchaserCode', '==', code) OR where('partnerCode', '==', code)
-      allow list: if request.auth != null;
+      // Allow querying in two scenarios:
+      // 1. Unauthenticated with limit 1 (for confirmation screen - paymentIntentId is secret)
+      // 2. Authenticated users (for redemption - querying by code)
+      allow list: if request.query.limit == 1 || request.auth != null;
       
-      // Allow reading individual challenge documents
+      // Allow reading individual challenge documents if authenticated
       allow get: if request.auth != null;
       
       // Create: only via cloud functions (server-side after payment)
@@ -457,10 +458,26 @@ service cloud.firestore {
         // Friend requests: always allowed (spam prevention via client-side logic)
         request.resource.data.type == 'friend_request'
         ||
+        // Valentine partner notifications: verify both users are in same challenge
+        (request.resource.data.type == 'valentine_partner_progress' &&
+         request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
+         'goalId' in request.resource.data.data &&
+         'challengeId' in request.resource.data.data &&
+         exists(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.data.challengeId)) &&
+         (
+           // Check if current user is the purchaser and notification is for partner
+           (get(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.data.challengeId)).data.purchaserUserId == request.auth.uid &&
+            get(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.data.challengeId)).data.partnerUserId == request.resource.data.userId)
+           ||
+           // Check if current user is the partner and notification is for purchaser
+           (get(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.data.challengeId)).data.partnerUserId == request.auth.uid &&
+            get(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.data.challengeId)).data.purchaserUserId == request.resource.data.userId)
+         ))
+        ||
         // Goal-related notifications: must have relationship to goal
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request', 
                                          'goal_change_suggested', 'goal_approval_response', 
-                                         'personalized_hint_left', 'valentine_partner_progress'] &&
+                                         'personalized_hint_left'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data)
         ||

@@ -14,6 +14,7 @@ import {
     TextInput,
     Image,
     Dimensions,
+    Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -120,6 +121,10 @@ const ValentineGoalSettingScreen = () => {
     const [customHours, setCustomHours] = useState('0');
     const [customMinutes, setCustomMinutes] = useState('30');
 
+    // Animation state for goal details
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const summaryAnim = React.useRef(new Animated.Value(0)).current;
+
     // Validation warnings
     const [showWeeksWarning, setShowWeeksWarning] = useState(false);
     const [showSessionsWarning, setShowSessionsWarning] = useState(false);
@@ -166,6 +171,19 @@ const ValentineGoalSettingScreen = () => {
     }, [state.user]);
 
     const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
+
+    // Trigger animation on first interaction
+    const triggerInteractionAnimation = () => {
+        if (!hasInteracted) {
+            setHasInteracted(true);
+            Animated.spring(summaryAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            }).start();
+        }
+    };
 
     const handleCreateGoal = async () => {
         // ✅ SECURITY: Prevent duplicate submissions
@@ -345,72 +363,6 @@ const ValentineGoalSettingScreen = () => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {/* Sticky Hero Card */}
-            <View style={styles.stickyHeroContainer}>
-                {isLoading || !experience ? (
-                    <ActivityIndicator color="#FF6B9D" />
-                ) : (
-                    <View style={styles.heroCard}>
-                        <View style={styles.heroMainRow}>
-                            <View style={styles.heroIconBox}>
-                                {challenge.mode === 'revealed' && experience?.coverImageUrl ? (
-                                    <Image
-                                        source={{ uri: experience.coverImageUrl }}
-                                        style={styles.heroImage}
-                                        resizeMode="cover"
-                                    />
-                                ) : (
-                                    <View style={styles.secretIconContainer}>
-                                        <Heart color="#FF6B9D" size={32} fill="#FF6B9D" />
-                                    </View>
-                                )}
-                            </View>
-                            <View style={styles.heroInfo}>
-                                <Text style={styles.heroTitle}>
-                                    {challenge.mode === 'revealed'
-                                        ? experience?.title || 'Experience'
-                                        : 'Your reward is a surprise'
-                                    }
-                                </Text>
-                                <Text style={styles.heroLocation}>
-                                    {challenge.mode === 'revealed'
-                                        ? experience?.subtitle || ''
-                                        : 'Keep showing up to reveal it with your effort'
-                                    }
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Summary Badges */}
-                        <View style={styles.heroContextRow}>
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextEmoji}>
-                                    {customGoal.trim() ? '✨' :
-                                        customCategory === 'Yoga' ? '🧘' :
-                                            customCategory === 'Gym' ? '🏋️' :
-                                                customCategory === 'Run' ? '🏃‍♀️' : '🎯'}
-                                </Text>
-                                <Text style={styles.contextText}>
-                                    {customGoal.trim() || customCategory}
-                                </Text>
-                            </View>
-                            <View style={styles.contextDivider} />
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextLabel}>{customWeeks} weeks</Text>
-                            </View>
-                            <View style={styles.contextDivider} />
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextLabel}>{customSessions} sessions/wk</Text>
-                            </View>
-                            <View style={styles.contextDivider} />
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextLabel}>{customHours}h {customMinutes}m</Text>
-                            </View>
-                        </View>
-                    </View>
-                )}
-            </View>
-
             <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
                 {/* Goal Type - EXACTLY like ValentinesChallengeScreen.tsx */}
                 <View style={styles.section}>
@@ -425,6 +377,7 @@ const ValentineGoalSettingScreen = () => {
                                 onPress={() => {
                                     setCustomCategory(goal.name);
                                     setCustomGoal(''); // Clear custom goal when selecting preset
+                                    triggerInteractionAnimation();
                                 }}
                             >
                                 <Text style={styles.goalIcon}>{goal.icon}</Text>
@@ -451,6 +404,7 @@ const ValentineGoalSettingScreen = () => {
                                     if (text.trim()) {
                                         setCustomCategory(''); // Clear preset selection when typing custom
                                     }
+                                    triggerInteractionAnimation();
                                 }}
                             />
                         </View>
@@ -552,8 +506,88 @@ const ValentineGoalSettingScreen = () => {
                 </View>
             </ScrollView>
 
-            {/* Create Goal Button */}
+            {/* Footer with Hero Card and Button */}
             <View style={styles.footer}>
+                {/* Hero Card - Now in footer */}
+                {isLoading || !experience ? (
+                    <ActivityIndicator color="#FF6B9D" style={{ marginBottom: 16 }} />
+                ) : (
+                    <View style={styles.heroCard}>
+                        <View style={styles.heroMainRow}>
+                            <View style={styles.heroIconBox}>
+                                {challenge.mode === 'revealed' && experience?.coverImageUrl ? (
+                                    <Image
+                                        source={{ uri: experience.coverImageUrl }}
+                                        style={styles.heroImage}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <View style={styles.secretIconContainer}>
+                                        <Heart color="#FF6B9D" size={32} fill="#FF6B9D" />
+                                    </View>
+                                )}
+                            </View>
+                            <View style={styles.heroInfo}>
+                                <Text style={styles.heroTitle}>
+                                    {challenge.mode === 'revealed'
+                                        ? experience?.title || 'Experience'
+                                        : 'Your reward is a surprise'
+                                    }
+                                </Text>
+                                <Text style={styles.heroLocation}>
+                                    {challenge.mode === 'revealed'
+                                        ? experience?.subtitle || ''
+                                        : 'Keep showing up to reveal it with your effort'
+                                    }
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Animated Summary Badges - Show after first interaction */}
+                        {hasInteracted && (
+                            <Animated.View
+                                style={[
+                                    styles.heroContextRow,
+                                    {
+                                        opacity: summaryAnim,
+                                        transform: [{
+                                            translateY: summaryAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [20, 0],
+                                            }),
+                                        }],
+                                    },
+                                ]}
+                            >
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextEmoji}>
+                                        {customGoal.trim() ? '✨' :
+                                            customCategory === 'Yoga' ? '🧘' :
+                                                customCategory === 'Gym' ? '🏋️' :
+                                                    customCategory === 'Run' ? '🏃‍♀️' : '🎯'}
+                                    </Text>
+                                    <Text style={styles.contextText}>
+                                        {customGoal.trim() || customCategory || 'Select goal'}
+                                    </Text>
+                                </View>
+                                <View style={styles.contextDivider} />
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextLabel}>{customWeeks} weeks</Text>
+                                </View>
+                                <View style={styles.contextDivider} />
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextLabel}>{customSessions} sessions/wk</Text>
+                                </View>
+                                <View style={styles.contextDivider} />
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextLabel}>{customHours}h {customMinutes}m</Text>
+                                </View>
+                            </Animated.View>
+                        )}
+                    </View>
+                )}
+
+                {/* Create Goal Button */}
                 <TouchableOpacity
                     style={[styles.createButton, isCreating && styles.createButtonDisabled]}
                     onPress={handleCreateGoal}
@@ -603,19 +637,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#111',
     },
-    // Sticky Hero Card Styles
-    stickyHeroContainer: {
-        backgroundColor: '#F9FAFB',
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-    },
+    // Hero Card Styles (now in footer)
     heroCard: {
         backgroundColor: '#fff',
         borderRadius: 20,
         padding: 16,
+        marginBottom: 16,
         borderWidth: 1,
         borderColor: '#F3F4F6',
         shadowColor: '#000',

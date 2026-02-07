@@ -7,7 +7,6 @@ import {
     Animated,
     Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Bell, ShoppingCart } from 'lucide-react-native';
@@ -136,18 +135,13 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
 
     return (
         <View style={styles.headerWrapper}>
-            <LinearGradient
-                colors={['#5f23beff', '#7c3aed', '#8b5cf6', '#e5e7eb']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.gradientBackground}
-            >
+            <View style={styles.solidBackground}>
                 <View style={styles.header}>
                     <View style={styles.headerTop}>
                         <View style={styles.headerLeft}>
                             {showBack && (
                                 <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-                                    <ChevronLeft color="#ffffff" size={26} strokeWidth={2.5} />
+                                    <ChevronLeft color="#1F2937" size={26} strokeWidth={2.5} />
                                 </TouchableOpacity>
                             )}
                             <View style={styles.headerTextContainer}>
@@ -161,21 +155,21 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             {shouldShowCart && (
                                 <ActionButton
                                     onPress={handleCartPress}
-                                    icon={<ShoppingCart color="#ffffff" size={22} strokeWidth={2} />}
+                                    icon={<ShoppingCart color="#8B5CF6" size={22} strokeWidth={2} />}
                                     badge={cartItemCount}
                                 />
                             )}
                             {shouldShowNotifications && (
                                 <ActionButton
                                     onPress={handleNotificationsPress}
-                                    icon={<Bell color="#ffffff" size={22} strokeWidth={2} />}
+                                    icon={<Bell color="#8B5CF6" size={22} strokeWidth={2} />}
                                     badge={unreadCount}
                                 />
                             )}
                         </View>
                     </View>
                 </View>
-            </LinearGradient>
+            </View>
         </View>
     );
 };
@@ -184,11 +178,12 @@ const styles = StyleSheet.create({
     headerWrapper: {
         zIndex: 100,
     },
-    gradientBackground: {
-        shadowColor: '#7c3aed',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 16,
+    solidBackground: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
         elevation: 8,
     },
     header: {
@@ -211,10 +206,15 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerTextContainer: {
         flex: 1,
@@ -222,15 +222,12 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 26,
         fontWeight: '800',
-        color: '#ffffff',
+        color: '#111827',
         letterSpacing: -0.5,
-        textShadowColor: 'rgba(0, 0, 0, 0.1)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.9)',
+        color: '#6B7280',
         marginTop: 2,
         fontWeight: '500',
     },
@@ -246,11 +243,14 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 14,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        backgroundColor: '#F5F3FF',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        elevation: 2,
     },
     badge: {
         position: 'absolute',

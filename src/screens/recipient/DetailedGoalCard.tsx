@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
   Image,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -36,6 +37,7 @@ import { db } from '../../services/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 import { config } from '../../config/environment';
+import { X } from 'lucide-react-native';
 
 interface DetailedGoalCardProps {
   goal: Goal;
@@ -299,6 +301,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // 💝 VALENTINE: View switcher - toggle between user and partner calendar/progress
   const [selectedView, setSelectedView] = useState<'user' | 'partner'>('user');
   const viewTransitionAnim = useRef(new Animated.Value(1)).current;
+
+  // 💝 VALENTINE: Experience data for revealed mode
+  const [valentineExperience, setValentineExperience] = useState<any | null>(null);
+  const [valentineChallengeMode, setValentineChallengeMode] = useState<'revealed' | 'secret' | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const isSelfGift = isSelfGifted(currentGoal); // Detect self-gifted goals
   const [loading, setLoading] = useState(false);
@@ -1251,6 +1258,37 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     return () => unsubscribe();
   }, [currentGoal.id, currentGoal.isFinished, currentGoal.isUnlocked, currentGoal.valentineChallengeId, valentinePartnerName]);
 
+  // 💝 VALENTINE: Fetch challenge and experience data for revealed mode
+  useEffect(() => {
+    const fetchValentineExperience = async () => {
+      if (!currentGoal.valentineChallengeId) {
+        setValentineExperience(null);
+        setValentineChallengeMode(null);
+        return;
+      }
+
+      try {
+        const challengeDoc = await getDoc(doc(db, 'valentineChallenges', currentGoal.valentineChallengeId));
+        if (challengeDoc.exists()) {
+          const challengeData = challengeDoc.data();
+          setValentineChallengeMode(challengeData.mode);
+
+          // Only fetch experience if in revealed mode
+          if (challengeData.mode === 'revealed' && challengeData.experienceId) {
+            const experience = await experienceService.getExperienceById(challengeData.experienceId);
+            setValentineExperience(experience);
+            logger.log('💝 Fetched Valentine experience for revealed mode:', experience?.title);
+          }
+        }
+      } catch (error) {
+        logger.error('Error fetching Valentine challenge/experience:', error);
+      }
+    };
+
+    fetchValentineExperience();
+  }, [currentGoal.valentineChallengeId]);
+
+
   // Real-time listener for goal updates (especially for Valentine partner linking)
   useEffect(() => {
     if (!currentGoal.id) return;
@@ -1532,7 +1570,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           {/* Show Valentine badge for Valentine goals with partner name */}
           {!!currentGoal.valentineChallengeId && (
             <Text style={styles.valentineChallengeText}>
-              💝 Valentine's Challenge{valentinePartnerName ? ` with ${valentinePartnerName}` : ''}
+              Valentine's Challenge{valentinePartnerName ? ` with ${valentinePartnerName}` : ''}
             </Text>
           )}
           {/* Show planned start date */}
@@ -1615,6 +1653,35 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               </View>
             </View>
           )}
+
+          {/* 💝 VALENTINE: Experience Details for Revealed Mode */}
+          {valentineChallengeMode === 'revealed' && valentineExperience && (
+            <View style={styles.valentineExperienceSection}>
+              <View style={styles.valentineExperienceHeader}>
+                <Image
+                  source={{ uri: valentineExperience.coverImageUrl }}
+                  style={styles.valentineExperienceThumbnail}
+                />
+                <View style={styles.valentineExperienceInfo}>
+                  <Text style={styles.valentineExperienceTitle} numberOfLines={1}>
+                    {valentineExperience.title}
+                  </Text>
+                  {valentineExperience.subtitle && (
+                    <Text style={styles.valentineExperienceSubtitle} numberOfLines={1}>
+                      {valentineExperience.subtitle}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.viewExperienceButton}
+                onPress={() => setShowDetailsModal(true)}
+              >
+                <Text style={styles.viewExperienceButtonText}>View Experience Details</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
 
           {/* 💝 VALENTINE: Calendar Owner Label */}
           {!!currentGoal.valentineChallengeId && partnerGoalData && (
@@ -2051,6 +2118,75 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           </Animated.View>
         </View>
       </Modal>
+
+      {/* 💝 VALENTINE: Experience Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowDetailsModal(false)}
+              >
+                <X color="#6B7280" size={24} />
+              </TouchableOpacity>
+
+              {/* Cover Image */}
+              {valentineExperience && (
+                <>
+                  <Image
+                    source={{ uri: valentineExperience.coverImageUrl }}
+                    style={styles.modalImage}
+                    resizeMode="cover"
+                  />
+
+                  {/* Title & Subtitle */}
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{valentineExperience.title}</Text>
+                    {valentineExperience.subtitle && (
+                      <Text style={styles.modalSubtitle}>{valentineExperience.subtitle}</Text>
+                    )}
+                  </View>
+
+                  {/* Info Pills */}
+                  <View style={styles.modalInfoPills}>
+                    {valentineExperience.location && (
+                      <View style={styles.infoPill}>
+                        <Text style={styles.infoPillIcon}>📍</Text>
+                        <Text style={styles.infoPillText}>{valentineExperience.location}</Text>
+                      </View>
+                    )}
+                    {valentineExperience.duration && (
+                      <View style={styles.infoPill}>
+                        <Text style={styles.infoPillIcon}>⏱️</Text>
+                        <Text style={styles.infoPillText}>{valentineExperience.duration}</Text>
+                      </View>
+                    )}
+                    {valentineExperience.price && (
+                      <View style={styles.infoPill}>
+                        <Text style={styles.infoPillIcon}>💰</Text>
+                        <Text style={styles.infoPillText}>€{valentineExperience.price * 2} for two</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Description */}
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>About This Experience</Text>
+                    <Text style={styles.modalDescription}>{valentineExperience.description}</Text>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Animated.View >
   );
 };
@@ -2071,12 +2207,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6 },
-  empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14 },
-  selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600' },
-  valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600' },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6, textAlign: 'center' },
+  empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14, textAlign: 'center' },
+  selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
+  valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
 
-  startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600' },
+  startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   dayCell: { alignItems: 'center', width: CIRCLE },
   emptyCircle: {
@@ -2540,6 +2676,155 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     marginTop: 6,
     opacity: 0.6,
+  },
+
+  // 💝 VALENTINE: Experience details for revealed mode
+  valentineExperienceSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  valentineExperienceHeader: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  valentineExperienceThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  valentineExperienceInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  valentineExperienceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  valentineExperienceSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  viewExperienceButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  viewExperienceButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+
+  // 💝 VALENTINE: Experience Details Modal Styles (from ValentinesChallengeScreen)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modalImage: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#F3F4F6',
+  },
+  modalHeader: {
+    padding: 20,
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+  modalInfoPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 8,
+    marginBottom: 12,
+  },
+  infoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  infoPillIcon: {
+    fontSize: 14,
+  },
+  infoPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  modalSection: {
+    padding: 20,
+    paddingTop: 12,
+  },
+  modalSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: '#6B7280',
+    lineHeight: 22,
   },
 });
 

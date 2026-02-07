@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -14,13 +14,18 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Sparkles, Heart, Check, Flame, Mail, CheckCircle, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sparkles, Heart, Check, Flame, Mail, CheckCircle, X } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Experience } from '../types';
-import { Image, ActivityIndicator, Animated } from 'react-native';
+import { Image, ActivityIndicator, Animated, LayoutAnimation, UIManager } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const { width } = Dimensions.get('window');
 
@@ -124,8 +129,55 @@ export default function ValentinesChallengeScreen() {
 
     // Surprise Me state
     const [isSurpriseMode, setIsSurpriseMode] = useState(false);
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 250]);
     const [showPriceSlider, setShowPriceSlider] = useState(false);
+    const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
+
+    // Animation refs
+    const priceSliderAnim = useRef(new Animated.Value(0)).current;
+    const goalStripAnim = useRef(new Animated.Value(0)).current;
+    const prevGoalRef = useRef<string | null>(null);
+    const scrollRef = useRef<ScrollView>(null);
+
+    // Validation errors
+    const [validationErrors, setValidationErrors] = useState({
+        experience: false,
+        goal: false,
+        email: false,
+        mode: false,
+    });
+
+    // Animate price slider popover in/out
+    useEffect(() => {
+        if (showPriceSlider && isSurpriseMode) {
+            Animated.spring(priceSliderAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 65,
+                useNativeDriver: true,
+            }).start();
+        } else {
+            Animated.timing(priceSliderAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [showPriceSlider, isSurpriseMode]);
+
+    // Animate goal strip when goal first selected
+    useEffect(() => {
+        if (selectedGoal && !prevGoalRef.current) {
+            goalStripAnim.setValue(0);
+            Animated.spring(goalStripAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 50,
+                useNativeDriver: true,
+            }).start();
+        }
+        prevGoalRef.current = selectedGoal;
+    }, [selectedGoal]);
 
     // Experience details modal
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -197,6 +249,7 @@ export default function ValentinesChallengeScreen() {
     };
 
     // Get filtered experiences based on category and price range
+    // priceRange is stored as price-for-two values (0-400), so divide by 2 for per-person comparison
     const getFilteredExperiences = () => {
         return experiences.filter(exp => {
             // Category filter
@@ -214,9 +267,10 @@ export default function ValentinesChallengeScreen() {
             }
 
             // Price filter (only when surprise mode is active)
+            // priceRange stores price-for-two, exp.price is per-person
             if (isSurpriseMode) {
-                const price = exp.price || 0;
-                if (price < priceRange[0] || price > priceRange[1]) {
+                const priceForTwo = (exp.price || 0) * 2;
+                if (priceForTwo < priceRange[0] || priceForTwo > priceRange[1]) {
                     return false;
                 }
             }
@@ -274,12 +328,12 @@ export default function ValentinesChallengeScreen() {
         }
     }, [selectedCategory]);
 
-    // Auto-reroll when price range changes in surprise mode
-    React.useEffect(() => {
+    // Reroll on slider release (called from onResponderRelease)
+    const handlePriceRangeCommit = () => {
         if (isSurpriseMode) {
             handleReroll();
         }
-    }, [priceRange[0], priceRange[1]]);
+    };
 
     return (
         <View style={styles.container}>
@@ -294,92 +348,8 @@ export default function ValentinesChallengeScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            {/* Sticky Hero Card */}
-            <View style={styles.stickyHeroContainer}>
-                {loading ? (
-                    <ActivityIndicator color="#7C3AED" />
-                ) : !selectedExperience ? (
-                    <View style={styles.heroCard}>
-                        <View style={styles.heroMainRow}>
-                            <View style={styles.heroIconBox}>
-                                <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ fontSize: 24 }}>🎁</Text>
-                                </View>
-                            </View>
-                            <View style={styles.heroInfo}>
-                                <Text style={styles.heroTitle}>Select an experience</Text>
-                                <Text style={styles.heroPriceLabel}>Choose below to get started</Text>
-                            </View>
-                        </View>
-                    </View>
-                ) : (
-                    <View style={styles.heroCard}>
-                        <View style={styles.heroMainRow}>
-                            <View style={styles.heroIconBox}>
-                                {isSurpriseMode ? (
-                                    <View style={[styles.randomIconBox, { width: '100%', height: '100%' }]}>
-                                        <Sparkles color="#F59E0B" size={28} />
-                                    </View>
-                                ) : (
-                                    <Image
-                                        source={{ uri: selectedExperience.coverImageUrl }}
-                                        style={styles.heroImage}
-                                        resizeMode="cover"
-                                    />
-                                )}
-                            </View>
-                            <View style={styles.heroInfo}>
-                                <Text style={styles.heroTitle}>
-                                    {isSurpriseMode ? '🎁 Surprise Experience' : selectedExperience.title}
-                                </Text>
-                                <View style={styles.heroPriceRow}>
-                                    <Text style={styles.heroPrice}>
-                                        €{isSurpriseMode && selectedExperience.actualExperience
-                                            ? selectedExperience.actualExperience.price * 2
-                                            : selectedExperience.price * 2}
-                                    </Text>
-                                    <Text style={styles.heroPriceLabel}>for two</Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Summary Badges */}
-                        <View style={styles.heroContextRow}>
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextEmoji}>
-                                    {selectedGoal === 'Other' ? '✨' :
-                                        selectedGoal === 'Yoga' ? '🧘' :
-                                            selectedGoal === 'Gym' ? '🏋️' :
-                                                selectedGoal === 'Run' ? '🏃‍♀️' : '🎯'}
-                                </Text>
-                                <Text style={styles.contextText}>
-                                    {selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : (selectedGoal || 'Select goal')}
-                                </Text>
-                            </View>
-                            <View style={styles.contextDivider} />
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextLabel}>{weeks} weeks</Text>
-                            </View>
-                            <View style={styles.contextDivider} />
-                            <View style={styles.contextBadge}>
-                                <Text style={styles.contextLabel}>{sessionsPerWeek} sessions/wk</Text>
-                            </View>
-                        </View>
-
-                        {/* View Details Button - Only for non-surprise experiences */}
-                        {!isSurpriseMode && (
-                            <TouchableOpacity
-                                style={styles.viewDetailsButton}
-                                onPress={() => setShowDetailsModal(true)}
-                            >
-                                <Text style={styles.viewDetailsText}>View Experience Details</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                )}
-            </View>
-
             <ScrollView
+                ref={scrollRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -388,25 +358,51 @@ export default function ValentinesChallengeScreen() {
                     <>
                         {/* Experience Selection */}
                         <View style={styles.section}>
+                            {validationErrors.experience && (
+                                <View style={styles.errorBanner}>
+                                    <Text style={styles.errorText}>Please select an experience to continue</Text>
+                                </View>
+                            )}
                             <View style={styles.sectionHeaderRow}>
-                                <Text style={styles.sectionTitle}>Choose Experience</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                                    {['All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
-                                        <TouchableOpacity
-                                            key={cat}
-                                            onPress={() => setSelectedCategory(cat)}
-                                            style={[
-                                                styles.filterChip,
-                                                selectedCategory === cat && styles.filterChipActive
-                                            ]}
-                                        >
-                                            <Text style={[
-                                                styles.filterText,
-                                                selectedCategory === cat && styles.filterTextActive
-                                            ]}>{cat}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
+                                <Text style={[styles.sectionTitle, validationErrors.experience && styles.errorTitle]}>Choose Experience</Text>
+                                <View style={styles.filterScrollContainer}>
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        style={styles.filterScroll}
+                                        contentContainerStyle={styles.filterScrollContent}
+                                        onScroll={(e) => {
+                                            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                                            const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
+                                            if (showFilterScrollHint === atEnd) {
+                                                setShowFilterScrollHint(!atEnd);
+                                            }
+                                        }}
+                                        scrollEventThrottle={100}
+                                    >
+                                        {['All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
+                                            <TouchableOpacity
+                                                key={cat}
+                                                onPress={() => setSelectedCategory(cat)}
+                                                style={[
+                                                    styles.filterChip,
+                                                    selectedCategory === cat && styles.filterChipActive
+                                                ]}
+                                            >
+                                                <Text style={[
+                                                    styles.filterText,
+                                                    selectedCategory === cat && styles.filterTextActive
+                                                ]}>{cat}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                    {showFilterScrollHint && (
+                                        <View style={styles.categoryFadeIndicator} pointerEvents="none">
+                                            <View style={styles.categoryGradient} />
+                                            <ChevronRight color="#9CA3AF" size={14} style={styles.scrollHintChevron} />
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                             {loading ? (
                                 <ActivityIndicator size="small" color="#7C3AED" />
@@ -416,9 +412,13 @@ export default function ValentinesChallengeScreen() {
                                     <TouchableOpacity
                                         style={[
                                             styles.expCard,
-                                            isSurpriseMode && styles.expCardActive
+                                            isSurpriseMode && styles.expCardActive,
+                                            validationErrors.experience && !isSurpriseMode && styles.expCardError
                                         ]}
-                                        onPress={handleSurpriseMeClick}
+                                        onPress={() => {
+                                            handleSurpriseMeClick();
+                                            setValidationErrors({ ...validationErrors, experience: false });
+                                        }}
                                     >
                                         <View style={[styles.expIconBox, styles.randomIconBox]}>
                                             <Sparkles color="#F59E0B" size={32} />
@@ -461,13 +461,15 @@ export default function ValentinesChallengeScreen() {
                                                     key={exp.id}
                                                     style={[
                                                         styles.expCard,
-                                                        isSelected && styles.expCardActive
+                                                        isSelected && styles.expCardActive,
+                                                        validationErrors.experience && !isSelected && !isSurpriseMode && styles.expCardError,
                                                     ]}
                                                     onPress={() => {
                                                         setSelectedExperience(exp);
                                                         setIsSurpriseMode(false);
                                                         setShowPriceSlider(false);
                                                         setSelectedMode(null); // Reset mode selection
+                                                        setValidationErrors(prev => ({ ...prev, experience: false }));
                                                     }}
                                                 >
                                                     <View style={styles.expIconBox}>
@@ -494,15 +496,31 @@ export default function ValentinesChallengeScreen() {
                                 </ScrollView>
                             )}
 
-                            {/* Price Slider Popover - Shown when Surprise Me is active */}
-                            {showPriceSlider && isSurpriseMode && (
-                                <View style={styles.priceSliderPopover}>
-                                    {/* Popover Arrow */}
-                                    <View style={styles.popoverArrow} />
-
+                            {/* Price Slider Popover - Animated appearance */}
+                            {(showPriceSlider && isSurpriseMode) && (
+                                <Animated.View style={[
+                                    styles.priceSliderPopover,
+                                    {
+                                        opacity: priceSliderAnim,
+                                        transform: [{
+                                            translateY: priceSliderAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [-12, 0],
+                                            }),
+                                        }, {
+                                            scale: priceSliderAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0.95, 1],
+                                            }),
+                                        }],
+                                    },
+                                ]}>
                                     <View style={styles.popoverContent}>
                                         <View style={styles.popoverHeader}>
-                                            <Text style={styles.popoverTitle}>Set Price Range</Text>
+                                            <View>
+                                                <Text style={styles.popoverTitle}>Budget (for two)</Text>
+                                                <Text style={styles.popoverSubtitle}>Set your price range per couple</Text>
+                                            </View>
                                             <TouchableOpacity
                                                 style={styles.closePopoverButton}
                                                 onPress={() => setShowPriceSlider(false)}
@@ -511,19 +529,29 @@ export default function ValentinesChallengeScreen() {
                                             </TouchableOpacity>
                                         </View>
 
-                                        <View style={styles.priceLabelsRow}>
-                                            <Text style={styles.priceLabel}>€{priceRange[0]}</Text>
-                                            <TouchableOpacity style={styles.rerollButtonCompact} onPress={handleReroll}>
+                                        {/* Price display row */}
+                                        <View style={styles.priceDisplayRow}>
+                                            <View style={styles.priceTag}>
+                                                <Text style={styles.priceTagLabel}>From</Text>
+                                                <Text style={styles.priceTagValue}>€{priceRange[0]}</Text>
+                                            </View>
+                                            <View style={styles.priceDash} />
+                                            <View style={styles.priceTag}>
+                                                <Text style={styles.priceTagLabel}>To</Text>
+                                                <Text style={styles.priceTagValue}>€{priceRange[1]}</Text>
+                                            </View>
+                                            <TouchableOpacity style={styles.rerollButton} onPress={handleReroll}>
                                                 <Sparkles color="#F59E0B" size={14} />
+                                                <Text style={styles.rerollButtonText}>Reroll</Text>
                                             </TouchableOpacity>
-                                            <Text style={styles.priceLabel}>€{priceRange[1]}</Text>
                                         </View>
 
-                                        {/* Single Range Slider with two thumbs */}
+                                        {/* Range Slider */}
                                         <View style={styles.rangeSliderContainer}>
                                             {(() => {
-                                                const minPercent = (priceRange[0] / 200) * 100;
-                                                const maxPercent = (priceRange[1] / 200) * 100;
+                                                const maxPrice = 250;
+                                                const minPercent = (priceRange[0] / maxPrice) * 100;
+                                                const maxPercent = (priceRange[1] / maxPrice) * 100;
                                                 const rangeWidth = maxPercent - minPercent;
 
                                                 return (
@@ -532,11 +560,10 @@ export default function ValentinesChallengeScreen() {
                                                         onStartShouldSetResponder={() => true}
                                                         onResponderGrant={(event) => {
                                                             const { locationX } = event.nativeEvent;
-                                                            const trackWidth = width - 80;
+                                                            const trackWidth = width - 96;
                                                             const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
-                                                            const clickedValue = Math.round(percentage * 200);
+                                                            const clickedValue = Math.round(percentage * maxPrice / 10) * 10;
 
-                                                            // Determine which thumb to move based on proximity
                                                             const distToMin = Math.abs(clickedValue - priceRange[0]);
                                                             const distToMax = Math.abs(clickedValue - priceRange[1]);
 
@@ -548,9 +575,9 @@ export default function ValentinesChallengeScreen() {
                                                         }}
                                                         onResponderMove={(event) => {
                                                             const { locationX } = event.nativeEvent;
-                                                            const trackWidth = width - 80;
+                                                            const trackWidth = width - 96;
                                                             const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
-                                                            const clickedValue = Math.round(percentage * 200);
+                                                            const clickedValue = Math.round(percentage * maxPrice / 10) * 10;
 
                                                             const distToMin = Math.abs(clickedValue - priceRange[0]);
                                                             const distToMax = Math.abs(clickedValue - priceRange[1]);
@@ -561,6 +588,7 @@ export default function ValentinesChallengeScreen() {
                                                                 setPriceRange([priceRange[0], clickedValue]);
                                                             }
                                                         }}
+                                                        onResponderRelease={handlePriceRangeCommit}
                                                     >
                                                         {/* Background track */}
                                                         <View style={styles.rangeTrackBackground} />
@@ -590,27 +618,43 @@ export default function ValentinesChallengeScreen() {
                                             })()}
                                         </View>
 
-                                        <Text style={styles.popoverHint}>
-                                            ⚠️ This is a mystery experience. It cannot be changed at any point
-                                        </Text>
+                                        {/* Scale labels */}
+                                        <View style={styles.rangeScaleRow}>
+                                            <Text style={styles.rangeScaleLabel}>€0</Text>
+                                            <Text style={styles.rangeScaleLabel}>€125</Text>
+                                            <Text style={styles.rangeScaleLabel}>€250</Text>
+                                        </View>
+
+                                        <View style={styles.popoverHintBox}>
+                                            <Text style={styles.popoverHint}>
+                                                This is a mystery experience — it cannot be changed after purchase
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
+                                </Animated.View>
                             )}
                         </View>
 
                         {/* Goal Type */}
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Your Goal Type</Text>
+                            {validationErrors.goal && (
+                                <View style={styles.errorBanner}>
+                                    <Text style={styles.errorText}>Please select a goal type{selectedGoal === 'Other' ? ' and enter your custom goal' : ''}</Text>
+                                </View>
+                            )}
+                            <Text style={[styles.sectionTitle, { marginBottom: 16 }, validationErrors.goal && styles.errorTitle]}>Your Goal Type</Text>
                             <View style={styles.goalGrid}>
                                 {GOAL_TYPES.map((goal) => (
                                     <TouchableOpacity
                                         key={goal.name}
                                         style={[
                                             styles.goalChip,
-                                            selectedGoal === goal.name && { backgroundColor: goal.color }
+                                            selectedGoal === goal.name && { backgroundColor: goal.color },
+                                            validationErrors.goal && !selectedGoal && styles.goalChipError,
                                         ]}
                                         onPress={() => {
                                             setSelectedGoal(goal.name);
+                                            setValidationErrors(prev => ({ ...prev, goal: false }));
                                             if (goal.name !== 'Other') {
                                                 setCustomGoal(''); // Clear custom goal when selecting preset
                                             }
@@ -628,15 +672,23 @@ export default function ValentinesChallengeScreen() {
                             {/* Custom Goal Input - Only show when "Other" is selected */}
                             {selectedGoal === 'Other' && (
                                 <View style={styles.customGoalContainer}>
-                                    <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
-                                    <View style={styles.customGoalInputWrapper}>
+                                    <Text style={[styles.customGoalLabel, validationErrors.goal && styles.errorTitle]}>Enter your custom goal:</Text>
+                                    <View style={[
+                                        styles.customGoalInputWrapper,
+                                        validationErrors.goal && !customGoal.trim() && { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+                                    ]}>
                                         <Text style={styles.customGoalIcon}>✨</Text>
                                         <TextInput
                                             style={styles.customGoalInput}
                                             placeholder="e.g., Cook, Paint, Write..."
                                             placeholderTextColor="#9ca3af"
                                             value={customGoal}
-                                            onChangeText={setCustomGoal}
+                                            onChangeText={(text) => {
+                                                setCustomGoal(text);
+                                                if (validationErrors.goal && text.trim()) {
+                                                    setValidationErrors(prev => ({ ...prev, goal: false }));
+                                                }
+                                            }}
                                             autoFocus
                                         />
                                     </View>
@@ -646,7 +698,7 @@ export default function ValentinesChallengeScreen() {
 
                         {/* Challenge Intensity */}
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Challenge Intensity</Text>
+                            <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Challenge Intensity</Text>
 
                             <ModernSlider
                                 label="Duration"
@@ -676,20 +728,33 @@ export default function ValentinesChallengeScreen() {
                     <View style={styles.section}>
                         {/* Email Collection Section */}
                         <View style={styles.emailSection}>
-                            <Text style={styles.sectionTitle}>
-                                <Mail size={20} color="#FF6B9D" /> Who's taking the challenge?
-                            </Text>
+                            {validationErrors.email && (
+                                <View style={styles.errorBanner}>
+                                    <Text style={styles.errorText}>Please enter a valid email address</Text>
+                                </View>
+                            )}
+                            <View style={styles.sectionTitleRow}>
+                                <Mail size={22} color={validationErrors.email ? '#DC2626' : '#FF6B9D'} />
+                                <Text style={[styles.sectionTitle, validationErrors.email && styles.errorTitle]}>Your Email</Text>
+                            </View>
+                            <Text style={styles.emailSectionDesc}>We'll send both redemption codes to this email</Text>
 
                             <View style={styles.emailInputContainer}>
                                 <TextInput
                                     style={[
                                         styles.emailInput,
-                                        purchaserEmail && !isEmailValid(purchaserEmail) && styles.emailInputError
+                                        (purchaserEmail && !isEmailValid(purchaserEmail)) && styles.emailInputError,
+                                        validationErrors.email && styles.emailInputValidationError,
                                     ]}
                                     placeholder="Your email"
                                     placeholderTextColor="#999"
                                     value={purchaserEmail}
-                                    onChangeText={setPurchaserEmail}
+                                    onChangeText={(text) => {
+                                        setPurchaserEmail(text);
+                                        if (validationErrors.email) {
+                                            setValidationErrors(prev => ({ ...prev, email: false }));
+                                        }
+                                    }}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -702,44 +767,17 @@ export default function ValentinesChallengeScreen() {
                                     />
                                 )}
                             </View>
-
-                            <View style={styles.emailInputContainer}>
-                                <TextInput
-                                    style={[
-                                        styles.emailInput,
-                                        partnerEmail && !isEmailValid(partnerEmail) && styles.emailInputError
-                                    ]}
-                                    placeholder="Your partner's email"
-                                    placeholderTextColor="#999"
-                                    value={partnerEmail}
-                                    onChangeText={setPartnerEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                                {partnerEmail && isEmailValid(partnerEmail) && (
-                                    <CheckCircle
-                                        size={20}
-                                        color="#10B981"
-                                        style={styles.emailCheckIcon}
-                                    />
-                                )}
-                            </View>
-
-                            <Text style={styles.emailHint}>
-                                💌 You'll both receive redemption codes via email
-                            </Text>
                         </View>
 
                         {isSurpriseMode ? (
                             <>
-                                <Text style={styles.sectionTitle}>Surprise Mode - Hidden Only</Text>
+                                <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Surprise Mode</Text>
                                 <View style={styles.surpriseModeCard}>
                                     <View style={[styles.modeIconBox, styles.secretBox]}>
                                         <Sparkles color="#F59E0B" size={24} />
                                     </View>
                                     <View style={styles.modeContent}>
-                                        <Text style={styles.modeTitle}>🎁 Secret Mode (Required)</Text>
+                                        <Text style={styles.modeTitle}>Secret Mode</Text>
                                         <Text style={styles.modeDesc}>
                                             Since you chose "Surprise Me", the experience will remain hidden throughout the challenge. Our hints will keep you guessing!
                                         </Text>
@@ -748,23 +786,27 @@ export default function ValentinesChallengeScreen() {
                                         <View style={styles.radioDot} />
                                     </View>
                                 </View>
-                                <View style={styles.surpriseWarning}>
-                                    <Text style={styles.surpriseWarningText}>
-                                        ⚠️ Revealed mode is not available when using "Surprise Me". The mystery is part of the fun!
-                                    </Text>
-                                </View>
                             </>
                         ) : (
                             <>
-                                <Text style={styles.sectionTitle}>Choose Your Mode</Text>
+                                {validationErrors.mode && (
+                                    <View style={styles.errorBanner}>
+                                        <Text style={styles.errorText}>Please choose a mode to continue</Text>
+                                    </View>
+                                )}
+                                <Text style={[styles.sectionTitle, { marginBottom: 16 }, validationErrors.mode && styles.errorTitle]}>Choose Your Mode</Text>
 
                                 {/* Secret Mode */}
                                 <TouchableOpacity
                                     style={[
                                         styles.modeCard,
-                                        selectedMode === 'secret' && styles.modeCardActive
+                                        selectedMode === 'secret' && styles.modeCardActive,
+                                        validationErrors.mode && styles.modeCardError,
                                     ]}
-                                    onPress={() => setSelectedMode('secret')}
+                                    onPress={() => {
+                                        setSelectedMode('secret');
+                                        setValidationErrors(prev => ({ ...prev, mode: false }));
+                                    }}
                                 >
                                     <View style={styles.popularBadge}>
                                         <Flame color="#fff" size={12} fill="#fff" />
@@ -777,7 +819,7 @@ export default function ValentinesChallengeScreen() {
                                     <View style={styles.modeContent}>
                                         <Text style={styles.modeTitle}>Secret Mode</Text>
                                         <Text style={styles.modeDesc}>
-                                            The experience is hidden! Our hints will keep them guessing throughout the challenge to keep them motivated.
+                                            The experience is hidden! Our hints will keep your partner guessing throughout the challenge to keep them motivated.
                                         </Text>
                                     </View>
                                     <View style={[
@@ -792,9 +834,13 @@ export default function ValentinesChallengeScreen() {
                                 <TouchableOpacity
                                     style={[
                                         styles.modeCard,
-                                        selectedMode === 'revealed' && styles.modeCardActive
+                                        selectedMode === 'revealed' && styles.modeCardActive,
+                                        validationErrors.mode && styles.modeCardError,
                                     ]}
-                                    onPress={() => setSelectedMode('revealed')}
+                                    onPress={() => {
+                                        setSelectedMode('revealed');
+                                        setValidationErrors(prev => ({ ...prev, mode: false }));
+                                    }}
                                 >
                                     <View style={styles.modeIconBox}>
                                         <Image
@@ -822,56 +868,156 @@ export default function ValentinesChallengeScreen() {
                 {/* Summary */}
 
 
-                <View style={{ height: 100 }} />
-            </ScrollView >
+                <View style={{ height: 200 }} />
+            </ScrollView>
 
-            {/* Fixed Footer */}
-            <View style={styles.footer} >
+            {/* Fixed Footer with Hero Preview + CTA */}
+            <View style={styles.footer}>
+                {/* Hero Card Preview */}
+                {loading ? (
+                    <ActivityIndicator color="#7C3AED" style={{ marginBottom: 12 }} />
+                ) : !selectedExperience ? (
+                    <View style={styles.footerHeroCard}>
+                        <View style={styles.footerHeroRow}>
+                            <View style={styles.heroIconBox}>
+                                <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 20 }}>🎁</Text>
+                                </View>
+                            </View>
+                            <View style={styles.heroInfo}>
+                                <Text style={styles.footerHeroTitle}>Select an experience</Text>
+                                <Text style={styles.heroPriceLabel}>Choose above to get started</Text>
+                            </View>
+                        </View>
+                    </View>
+                ) : (
+                    <View style={styles.footerHeroCard}>
+                        <View style={styles.footerHeroRow}>
+                            <View style={styles.heroIconBox}>
+                                {isSurpriseMode ? (
+                                    <View style={[styles.randomIconBox, { width: '100%', height: '100%' }]}>
+                                        <Sparkles color="#F59E0B" size={24} />
+                                    </View>
+                                ) : (
+                                    <Image
+                                        source={{ uri: selectedExperience.coverImageUrl }}
+                                        style={styles.heroImage}
+                                        resizeMode="cover"
+                                    />
+                                )}
+                            </View>
+                            <View style={styles.heroInfo}>
+                                <Text style={styles.footerHeroTitle} numberOfLines={1}>
+                                    {isSurpriseMode ? '🎁 Surprise Experience' : selectedExperience.title}
+                                </Text>
+                                <View style={styles.heroPriceRow}>
+                                    <Text style={styles.heroPrice}>
+                                        €{isSurpriseMode && selectedExperience.actualExperience
+                                            ? selectedExperience.actualExperience.price * 2
+                                            : selectedExperience.price * 2}
+                                    </Text>
+                                    <Text style={styles.heroPriceLabel}>for two</Text>
+                                </View>
+                            </View>
+                            {!isSurpriseMode && (
+                                <TouchableOpacity
+                                    style={styles.detailsLink}
+                                    onPress={() => setShowDetailsModal(true)}
+                                >
+                                    <Text style={styles.detailsLinkText}>Details</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Summary Badges - Animated, only show when goal type is selected */}
+                        {selectedGoal && (
+                            <Animated.View style={[
+                                styles.heroContextRow,
+                                {
+                                    opacity: goalStripAnim,
+                                    transform: [{
+                                        translateY: goalStripAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [8, 0],
+                                        }),
+                                    }],
+                                },
+                            ]}>
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextEmoji}>
+                                        {selectedGoal === 'Other' ? '✨' :
+                                            selectedGoal === 'Yoga' ? '🧘' :
+                                                selectedGoal === 'Gym' ? '🏋️' :
+                                                    selectedGoal === 'Run' ? '🏃‍♀️' : '🎯'}
+                                    </Text>
+                                    <Text style={styles.contextText}>
+                                        {selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}
+                                    </Text>
+                                </View>
+                                <View style={styles.contextDivider} />
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextLabel}>{weeks} wks</Text>
+                                </View>
+                                <View style={styles.contextDivider} />
+                                <View style={styles.contextBadge}>
+                                    <Text style={styles.contextLabel}>{sessionsPerWeek}×/wk</Text>
+                                </View>
+                            </Animated.View>
+                        )}
+                    </View>
+                )}
+
+                {/* CTA Button */}
                 <TouchableOpacity
-                    style={[styles.ctaButton, step === 2 && !selectedMode && !isSurpriseMode && styles.ctaButtonDisabled]}
+                    style={styles.ctaButton}
                     onPress={async () => {
                         if (step === 1) {
-                            // Validate selections before continuing
-                            if (!selectedExperience) {
-                                Alert.alert('Selection Required', 'Please select an experience before continuing');
-                                return;
-                            }
-                            if (!selectedGoal) {
-                                Alert.alert('Selection Required', 'Please select your goal type before continuing');
-                                return;
-                            }
-                            if (selectedGoal === 'Other' && !customGoal.trim()) {
-                                Alert.alert('Custom Goal Required', 'Please enter your custom goal before continuing');
-                                return;
-                            }
-                            setStep(2);
-                        } else if (step === 2 && (selectedMode || isSurpriseMode)) {
-                            // Validate emails
-                            if (!isEmailValid(purchaserEmail) || !isEmailValid(partnerEmail)) {
-                                Alert.alert('Invalid Email', 'Please enter valid email addresses for both you and your partner');
+                            // Validate step 1 (experience + goal)
+                            const errors = {
+                                experience: !selectedExperience,
+                                goal: !selectedGoal || (selectedGoal === 'Other' && !customGoal.trim()),
+                                email: false,
+                                mode: false,
+                            };
+
+                            setValidationErrors(errors);
+
+                            if (errors.experience || errors.goal) {
+                                scrollRef.current?.scrollTo({ y: 0, animated: true });
                                 return;
                             }
 
-                            if (purchaserEmail.toLowerCase().trim() === partnerEmail.toLowerCase().trim()) {
-                                Alert.alert('Same Email', 'Please use different email addresses for you and your partner');
+                            // Clear errors and advance
+                            setValidationErrors({ experience: false, goal: false, email: false, mode: false });
+                            setStep(2);
+                        } else if (step === 2) {
+                            // Validate step 2 (email + mode)
+                            const errors = {
+                                experience: false,
+                                goal: false,
+                                email: !isEmailValid(purchaserEmail),
+                                mode: !isSurpriseMode && !selectedMode,
+                            };
+
+                            setValidationErrors(errors);
+
+                            if (errors.email || errors.mode) {
+                                scrollRef.current?.scrollTo({ y: 0, animated: true });
                                 return;
                             }
 
                             setIsProcessingPayment(true);
 
                             try {
-                                // Handle surprise mode experience selection
                                 let finalExperience = selectedExperience;
                                 if (isSurpriseMode && selectedExperience?.actualExperience) {
-                                    // Use the pre-selected random experience
                                     finalExperience = selectedExperience.actualExperience;
                                     console.log('🎁 Using surprise experience:', finalExperience.title);
                                 }
 
-                                // Create valentine challenge metadata
                                 const valentineData = {
                                     purchaserEmail: purchaserEmail.trim(),
-                                    partnerEmail: partnerEmail.trim(),
+                                    partnerEmail: '',
                                     experienceId: finalExperience.id,
                                     experiencePrice: finalExperience.price,
                                     mode: selectedMode,
@@ -880,7 +1026,6 @@ export default function ValentinesChallengeScreen() {
                                     sessionsPerWeek,
                                 };
 
-                                // Navigate to checkout with Valentine data
                                 navigation.navigate('ValentineCheckout', {
                                     valentineData,
                                     totalAmount: finalExperience.price * 2,
@@ -892,7 +1037,7 @@ export default function ValentinesChallengeScreen() {
                             }
                         }
                     }}
-                    disabled={(step === 2 && !selectedMode && !isSurpriseMode) || isProcessingPayment}
+                    disabled={isProcessingPayment}
                 >
                     <Text style={styles.ctaText}>
                         {isProcessingPayment ? 'Processing...' : (step === 1 ? 'Continue' : 'Proceed to Payment')}
@@ -900,10 +1045,10 @@ export default function ValentinesChallengeScreen() {
                 </TouchableOpacity>
                 {step === 2 && isSurpriseMode && (
                     <Text style={styles.footerWarning}>
-                        🎁 Surprise mode: You'll buy a mystery experience
+                        You are committing to a mystery experience
                     </Text>
                 )}
-            </View >
+            </View>
 
             {/* Experience Details Modal */}
             <Modal
@@ -1011,30 +1156,35 @@ const styles = StyleSheet.create({
         padding: 24,
         paddingTop: 16,
     },
-    stickyHeroContainer: {
-        backgroundColor: '#F9FAFB',
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+    filterScrollContainer: {
+        position: 'relative',
+        flex: 1,
     },
-    heroCard: {
+    filterScrollContent: {
+        paddingRight: 28,
+    },
+    footerHeroCard: {
         backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 16,
+        borderRadius: 16,
+        padding: 12,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#F3F4F6',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
     },
-    heroMainRow: {
+    footerHeroRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+    },
+    footerHeroTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: 2,
     },
     heroInfo: {
         flex: 1,
@@ -1051,19 +1201,13 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    heroTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#1F2937',
-        marginBottom: 4,
-    },
     heroPriceRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
     },
     heroPrice: {
-        fontSize: 28,
+        fontSize: 22,
         fontWeight: '900',
         color: '#FF6B9D',
     },
@@ -1076,8 +1220,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F9FAFB',
-        borderRadius: 12,
-        padding: 10,
+        borderRadius: 10,
+        padding: 8,
+        marginTop: 10,
         justifyContent: 'space-between',
     },
     contextBadge: {
@@ -1137,6 +1282,34 @@ const styles = StyleSheet.create({
     },
     filterTextActive: {
         color: '#fff',
+    },
+    categoryFadeIndicator: {
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 40,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+    },
+    categoryGradient: {
+        position: 'absolute',
+        left: -12,
+        top: 0,
+        bottom: 0,
+        width: 52,
+        ...Platform.select({
+            web: {
+                background: 'linear-gradient(to right, rgba(249,250,251,0), rgba(249,250,251,1) 60%)',
+            },
+            default: {
+                backgroundColor: 'rgba(249, 250, 251, 0.9)',
+            },
+        }),
+    },
+    scrollHintChevron: {
+        marginRight: 2,
     },
     cardScroll: {
         marginLeft: -4,
@@ -1355,10 +1528,27 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         backgroundColor: '#fff',
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: Platform.OS === 'ios' ? 36 : 20,
         borderTopWidth: 1,
         borderTopColor: '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    detailsLink: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: '#F3F4F6',
+    },
+    detailsLinkText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#6B7280',
     },
     ctaButton: {
         backgroundColor: '#1F2937',
@@ -1389,12 +1579,18 @@ const styles = StyleSheet.create({
     modeCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
         backgroundColor: '#fff',
-        borderRadius: 20,
+        borderRadius: 18,
+        padding: 20,
         borderWidth: 2,
-        borderColor: '#F3F4F6',
+        borderColor: '#E5E7EB',
         marginBottom: 16,
+        position: 'relative',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
     },
     modeCardActive: {
         borderColor: '#8B5CF6',
@@ -1477,21 +1673,34 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     emailSection: {
-        marginBottom: 24,
+        marginBottom: 32,
+    },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 8,
+    },
+    emailSectionDesc: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 20,
+        lineHeight: 20,
     },
     emailInputContainer: {
         position: 'relative',
         marginBottom: 12,
     },
     emailInput: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        backgroundColor: '#FAFAFA',
+        borderRadius: 14,
+        paddingHorizontal: 18,
+        paddingVertical: 16,
         fontSize: 16,
         borderWidth: 2,
         borderColor: '#E5E7EB',
         color: '#111',
+        fontWeight: '500',
     },
     emailInputError: {
         borderColor: '#EF4444',
@@ -1501,86 +1710,122 @@ const styles = StyleSheet.create({
         right: 16,
         top: 14,
     },
+    emailHintBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#F0F9FF',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+    },
+    emailHintIcon: {
+        fontSize: 16,
+    },
     emailHint: {
-        fontSize: 14,
-        color: '#6B7280',
-        textAlign: 'center',
-        marginTop: 8,
+        fontSize: 13,
+        color: '#1E40AF',
+        lineHeight: 18,
+        flex: 1,
+        fontWeight: '500',
     },
     priceSliderPopover: {
         backgroundColor: '#fff',
-        borderRadius: 12,
-        marginTop: 12,
-        marginHorizontal: 8,
+        borderRadius: 16,
+        marginTop: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
         elevation: 8,
-        position: 'relative',
-    },
-    popoverArrow: {
-        position: 'absolute',
-        top: -6,
-        left: 50,
-        width: 12,
-        height: 12,
-        backgroundColor: '#fff',
-        transform: [{ rotate: '45deg' }],
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#FEF3C7',
     },
     popoverContent: {
-        padding: 16,
+        padding: 20,
     },
     popoverHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
+        alignItems: 'flex-start',
+        marginBottom: 20,
     },
     popoverTitle: {
-        fontSize: 14,
-        fontWeight: '700',
+        fontSize: 16,
+        fontWeight: '800',
         color: '#1F2937',
+        marginBottom: 2,
+    },
+    popoverSubtitle: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        fontWeight: '500',
     },
     closePopoverButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         backgroundColor: '#F3F4F6',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    priceLabelsRow: {
+    priceDisplayRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 20,
+        gap: 10,
     },
-    priceLabel: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#F59E0B',
+    priceTag: {
+        flex: 1,
+        backgroundColor: '#FFFBEB',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderWidth: 1,
+        borderColor: '#FDE68A',
     },
-    rerollButtonCompact: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+    priceTagLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#92400E',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    priceTagValue: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#D97706',
+    },
+    priceDash: {
+        width: 12,
+        height: 2,
+        backgroundColor: '#D1D5DB',
+        borderRadius: 1,
+    },
+    rerollButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
         backgroundColor: '#FFFBEB',
         borderWidth: 1.5,
         borderColor: '#F59E0B',
-        justifyContent: 'center',
-        alignItems: 'center',
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    rerollButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#D97706',
     },
     rangeSliderContainer: {
-        marginBottom: 12,
+        marginBottom: 8,
+        paddingHorizontal: 4,
     },
     rangeSliderTrack: {
-        height: 6,
+        height: 28,
         position: 'relative',
         width: '100%',
         justifyContent: 'center',
@@ -1600,19 +1845,19 @@ const styles = StyleSheet.create({
     },
     rangeThumb: {
         position: 'absolute',
-        top: -5,
-        marginLeft: -11,
-        width: 22,
-        height: 22,
-        borderRadius: 11,
+        top: 2,
+        marginLeft: -12,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
+        borderWidth: 2.5,
         borderColor: '#F59E0B',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
         elevation: 4,
     },
@@ -1622,11 +1867,28 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: '#F59E0B',
     },
-    popoverHint: {
+    rangeScaleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+        paddingHorizontal: 2,
+    },
+    rangeScaleLabel: {
         fontSize: 11,
+        fontWeight: '600',
+        color: '#9CA3AF',
+    },
+    popoverHintBox: {
+        backgroundColor: '#FEF3C7',
+        borderRadius: 10,
+        padding: 10,
+    },
+    popoverHint: {
+        fontSize: 12,
         color: '#92400E',
         textAlign: 'center',
         fontWeight: '600',
+        lineHeight: 16,
     },
     surpriseWarning: {
         backgroundColor: '#FEF3C7',
@@ -1658,19 +1920,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 8,
         fontWeight: '600',
-    },
-    viewDetailsButton: {
-        marginTop: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    viewDetailsText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#1F2937',
     },
     modalOverlay: {
         flex: 1,
@@ -1767,5 +2016,41 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#6B7280',
         lineHeight: 22,
+    },
+    errorBanner: {
+        backgroundColor: '#FEF2F2',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#DC2626',
+        lineHeight: 18,
+    },
+    errorTitle: {
+        color: '#DC2626',
+    },
+    expCardError: {
+        borderColor: '#FECACA',
+        backgroundColor: '#FEF2F2',
+    },
+    goalChipError: {
+        borderColor: '#FECACA',
+        backgroundColor: '#FEF2F2',
+    },
+    emailInputValidationError: {
+        borderColor: '#EF4444',
+        backgroundColor: '#FEF2F2',
+    },
+    modeCardError: {
+        borderColor: '#FECACA',
+        backgroundColor: '#FEF2F2',
     },
 });

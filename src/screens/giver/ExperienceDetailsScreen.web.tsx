@@ -319,7 +319,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 activeOpacity={0.9}
                 onPress={() => setSelectedImage(url)}
               >
-                <Image source={{ uri: url }} style={styles.heroImage} resizeMode="cover" />
+                <Image source={{ uri: url }} style={styles.heroImage} resizeMode="contain" />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -504,6 +504,9 @@ const styles = StyleSheet.create({
   heroContainer: {
     position: "relative",
     height: 400,
+    maxWidth: Platform.OS === "web" ? 800 : undefined,
+    width: "100%",
+    alignSelf: "center",
   },
   heroGradient: {
     position: "absolute",
@@ -524,9 +527,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   heroImage: {
-    width,
+    width: Platform.OS === "web" ? Math.min(width, 800) : width,
     height: 400,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#1f2937",
   },
   dotsContainer: {
     position: "absolute",
