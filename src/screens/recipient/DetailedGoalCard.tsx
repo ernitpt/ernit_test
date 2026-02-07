@@ -307,6 +307,27 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [valentineChallengeMode, setValentineChallengeMode] = useState<'revealed' | 'secret' | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  const buildValentineGift = async (goalData: Goal) => {
+    if (!goalData.valentineChallengeId) return null;
+    const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goalData.valentineChallengeId));
+    if (!challengeDoc.exists()) return null;
+    const challengeData = challengeDoc.data();
+
+    return {
+      id: goalData.valentineChallengeId,
+      experienceId: challengeData.experienceId,
+      giverId: challengeData.purchaserUserId,
+      giverName: challengeData.purchaserName || '',
+      status: 'completed' as const,
+      createdAt: challengeData.createdAt?.toDate() || new Date(),
+      deliveryDate: new Date(),
+      payment: challengeData.purchaseId || '',
+      claimCode: '',
+      isValentineChallenge: true,
+      mode: challengeData.mode,
+    };
+  };
+
   const isSelfGift = isSelfGifted(currentGoal); // Detect self-gifted goals
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -457,27 +478,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           // 💝 VALENTINE GOAL COMPLETION
           try {
             // Fetch the Valentine challenge and its experience
-            const challengeDoc = await getDoc(doc(db, 'valentineChallenges', updated.valentineChallengeId));
+            const valentineGift = await buildValentineGift(updated);
 
-            if (challengeDoc.exists()) {
-              const challengeData = challengeDoc.data();
-              const experience = await experienceService.getExperienceById(challengeData.experienceId);
-
-              // Create a gift-like object with Valentine challenge data
-              const valentineGift = {
-                id: updated.valentineChallengeId,
-                experienceId: challengeData.experienceId,
-                giverId: challengeData.purchaserUserId,
-                giverName: challengeData.purchaserName || '',
-                status: 'completed' as const,
-                createdAt: challengeData.createdAt?.toDate() || new Date(),
-                deliveryDate: new Date(),
-                payment: challengeData.purchaseId || '',
-                claimCode: '',
-                isValentineChallenge: true,
-                mode: challengeData.mode,
-              };
-
+            if (valentineGift) {
               // 💝 SECURITY: Check unlock status to determine navigation
               if (updated.isUnlocked) {
                 // ✅ Both partners finished - navigate to completion
@@ -613,10 +616,28 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           // The hint was generated for session totalSessionsDone + 2 at start time
           // After completing, we want to show it for the current session
           const aiHintSessionNumber = totalSessionsDone + 1;
+          const isSecretValentine = isValentineGoal && !updated.isRevealed;
+          const hintExperience = isValentineGoal ? valentineExperience : experience;
 
           try {
             // Fetch from cache (should be available since we generated it in background)
-            const cachedHint = await aiHintService.getHint(goalId, aiHintSessionNumber);
+            let cachedHint = await aiHintService.getHint(goalId, aiHintSessionNumber);
+
+            // If cache miss for secret Valentine goals, generate on demand
+            if (!cachedHint && isSecretValentine) {
+              const generated = await aiHintService.generateHint({
+                goalId,
+                experienceType: hintExperience?.title || 'experience',
+                experienceDescription: hintExperience?.description || undefined,
+                experienceCategory: hintExperience?.category || undefined,
+                experienceSubtitle: hintExperience?.subtitle || undefined,
+                sessionNumber: aiHintSessionNumber,
+                totalSessions: updated.targetCount * updated.sessionsPerWeek,
+                userName: recipientName || undefined,
+              });
+              cachedHint = generated.hint;
+            }
+
             hintToShow = cachedHint || "Keep going! You're doing great 💪";
 
             if (cachedHint) {
@@ -649,7 +670,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         // Show hint popup for:
         // 1. Normal gifts (not self-gifted)
         // 2. Valentine goals that are in Secret mode (not revealed)
-        const isValentineGoal = !!updated.valentineChallengeId;
         const isSecretValentine = isValentineGoal && !updated.isRevealed;
 
         if (!isSelfGift || isSecretValentine) {
@@ -930,20 +950,28 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       await startTimer(currentGoal.id, null);
 
       // ✅ Generate hint in background (don't await - don't block timer)
-      // Skip hint generation for Valentine goals
+      // Allow hint generation for secret Valentine goals
       const nextSessionNumber = funcTotalSessionsDone + 2;
       const hasPersonalizedHintForNextSession =
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
 
-      if (!isValentineGoal && funcTotalSessionsDone != funcTotalSessions && !hasPersonalizedHintForNextSession && experience) {
+      const hintExperience = isValentineGoal ? valentineExperience : experience;
+      const hasHintExperience = isValentineGoal ? true : !!experience;
+      const canGenerateHints =
+        funcTotalSessionsDone != funcTotalSessions &&
+        !hasPersonalizedHintForNextSession &&
+        hasHintExperience &&
+        (!isValentineGoal || currentGoal.isRevealed === false);
+
+      if (canGenerateHints) {
         // Fire and forget - hint will be saved when ready
         aiHintService.generateHint({
           goalId,
-          experienceType: experience?.title || 'experience',
-          experienceDescription: experience?.description || undefined,
-          experienceCategory: experience?.category || undefined,
-          experienceSubtitle: experience?.subtitle || undefined,
+          experienceType: hintExperience?.title || 'experience',
+          experienceDescription: hintExperience?.description || undefined,
+          experienceCategory: hintExperience?.category || undefined,
+          experienceSubtitle: hintExperience?.subtitle || undefined,
           sessionNumber: nextSessionNumber,
           totalSessions: funcTotalSessions,
           userName: recipientName || undefined,
@@ -1235,10 +1263,14 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               `${valentinePartnerName || 'Your partner'} has completed their goal! You can both now redeem your experience together.`,
               [
                 {
-                  text: 'View Experience',
+                  text: 'View Completion',
                   onPress: async () => {
                     try {
-                      const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+                      const gift = await buildValentineGift(currentGoal);
+                      if (!gift) {
+                        logger.error('Valentine challenge not found for completion navigation');
+                        return;
+                      }
                       navigation.navigate('Completion', { goal: currentGoal, experienceGift: gift });
                     } catch (error) {
                       logger.error('Error navigating to completion:', error);
@@ -1273,11 +1305,13 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
           const challengeData = challengeDoc.data();
           setValentineChallengeMode(challengeData.mode);
 
-          // Only fetch experience if in revealed mode
-          if (challengeData.mode === 'revealed' && challengeData.experienceId) {
+          // Fetch experience for both modes (secret uses it for hints, revealed for UI)
+          if (challengeData.experienceId) {
             const experience = await experienceService.getExperienceById(challengeData.experienceId);
             setValentineExperience(experience);
-            logger.log('💝 Fetched Valentine experience for revealed mode:', experience?.title);
+            logger.log('💝 Fetched Valentine experience:', experience?.title);
+          } else {
+            setValentineExperience(null);
           }
         }
       } catch (error) {

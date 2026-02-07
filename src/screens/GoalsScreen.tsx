@@ -22,7 +22,7 @@ import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
 import MainScreen from './MainScreen';
 import { db } from '../services/firebase';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { notificationService } from "../services/NotificationService";
 import { userService } from "../services/userService";
 import SharedHeader from '../components/SharedHeader';
@@ -44,6 +44,27 @@ const GoalsScreen: React.FC = () => {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockedGoal, setUnlockedGoal] = useState<Goal | null>(null);
   const [partnerName, setPartnerName] = useState<string>('');
+
+  const buildValentineGift = async (goalData: Goal) => {
+    if (!goalData.valentineChallengeId) return null;
+    const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goalData.valentineChallengeId));
+    if (!challengeDoc.exists()) return null;
+    const challengeData = challengeDoc.data();
+
+    return {
+      id: goalData.valentineChallengeId,
+      experienceId: challengeData.experienceId,
+      giverId: challengeData.purchaserUserId,
+      giverName: challengeData.purchaserName || '',
+      status: 'completed' as const,
+      createdAt: challengeData.createdAt?.toDate() || new Date(),
+      deliveryDate: new Date(),
+      payment: challengeData.purchaseId || '',
+      claimCode: '',
+      isValentineChallenge: true,
+      mode: challengeData.mode,
+    };
+  };
 
   const updateGiftStatus = async (experienceGiftId: string) => {
     try {
@@ -290,15 +311,17 @@ const GoalsScreen: React.FC = () => {
           // Navigate to completion screen
           if (unlockedGoal) {
             try {
-              const experienceGift = await experienceGiftService.getExperienceGiftById(
-                unlockedGoal.experienceGiftId
-              );
+              const experienceGift = await buildValentineGift(unlockedGoal);
+              if (!experienceGift) {
+                logger.error('Valentine challenge not found for unlocked goal navigation');
+                return;
+              }
               navigation.navigate('Completion', {
                 goal: unlockedGoal,
                 experienceGift,
               });
             } catch (error) {
-              logger.error('Error fetching experience gift for unlocked goal:', error);
+              logger.error('Error fetching Valentine challenge for unlocked goal:', error);
             }
           }
         }}

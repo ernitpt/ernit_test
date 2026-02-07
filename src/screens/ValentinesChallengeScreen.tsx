@@ -341,7 +341,16 @@ export default function ValentinesChallengeScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity
+                    onPress={() => {
+                        if (step === 2) {
+                            setStep(1);
+                        } else {
+                            navigation.goBack();
+                        }
+                    }}
+                    style={styles.backBtn}
+                >
                     <ChevronLeft color="#1F2937" size={24} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Create Challenge</Text>
