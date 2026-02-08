@@ -191,9 +191,13 @@ const ValentineConfirmationScreen = () => {
 
     const handleShareCode = async (code: string, isForPartner: boolean) => {
         try {
+            const message = isForPartner
+                ? `I got us a Valentine's Challenge on Ernit!\n\nHere's your redemption code:\n${code}\n\nDownload Ernit and enter your code to set your fitness goals. Once we both complete them, we unlock a surprise experience together!\n\nGet started: https://ernit.app`
+                : `My Ernit Valentine's Challenge code:\n\n${code}\n\nRedeem at https://ernit.app`;
+
             await Share.share({
-                title: "Valentine's Challenge Code",
-                message: `Hey! Here's ${isForPartner ? "your" : "my"} Valentine's Challenge redemption code for Ernit:\n\n${code}\n\nRedeem it at https://ernit.app to set up your goals and start the challenge together!\n\nEarn it. Unlock it. Enjoy it`,
+                title: "Valentine's Challenge",
+                message,
             });
         } catch (error: any) {
             logger.error("Share error:", error);
@@ -302,32 +306,34 @@ const ValentineConfirmationScreen = () => {
         <View style={styles.container}>
             <StatusBar style="dark" />
 
+            {/* Fixed Success Header */}
+            <View style={styles.heroSection}>
+                <Animated.View
+                    style={[
+                        styles.iconCircle,
+                        {
+                            transform: [{ scale: scaleAnim }],
+                            opacity: fadeAnim,
+                        },
+                    ]}
+                >
+                    <CheckCircle color="#10b981" size={64} strokeWidth={2.5} />
+                </Animated.View>
+
+                <Animated.View style={{ opacity: fadeAnim }}>
+                    <Text style={styles.title}>Payment Successful!</Text>
+                    <Text style={styles.subtitle}>
+                        Your Valentine's Challenge is ready to share
+                    </Text>
+                </Animated.View>
+            </View>
+
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                bounces={false}
+                overScrollMode="never"
             >
-                {/* Success Header */}
-                <View style={styles.heroSection}>
-                    <Animated.View
-                        style={[
-                            styles.iconCircle,
-                            {
-                                transform: [{ scale: scaleAnim }],
-                                opacity: fadeAnim,
-                            },
-                        ]}
-                    >
-                        <CheckCircle color="#10b981" size={64} strokeWidth={2.5} />
-                    </Animated.View>
-
-                    <Animated.View style={{ opacity: fadeAnim }}>
-                        <Text style={styles.title}>Payment Successful!</Text>
-                        <Text style={styles.subtitle}>
-                            Your Valentine's Challenge is ready to share
-                        </Text>
-                    </Animated.View>
-                </View>
-
                 {/* Coupon Cards */}
                 <Animated.View
                     style={{
@@ -458,8 +464,6 @@ const ValentineConfirmationScreen = () => {
                         ))}
                     </View>
                 </Animated.View>
-
-                <View style={{ height: 120 }} />
             </ScrollView>
 
             {/* Fixed Footer */}
@@ -496,14 +500,16 @@ const styles = StyleSheet.create({
         backgroundColor: "#F9FAFB",
     },
     scrollContent: {
-        paddingBottom: 160,
+        paddingBottom: 140,
     },
     heroSection: {
         backgroundColor: "#fff",
         paddingTop: Platform.OS === "ios" ? 60 : 50,
-        paddingBottom: 32,
+        paddingBottom: 24,
         paddingHorizontal: 24,
         alignItems: "center",
+        borderBottomWidth: 1,
+        borderBottomColor: "#F3F4F6",
     },
     iconCircle: {
         marginBottom: 24,

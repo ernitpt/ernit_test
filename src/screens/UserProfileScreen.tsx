@@ -35,6 +35,7 @@ import { doc, updateDoc, arrayRemove, getDoc } from 'firebase/firestore';
 import { experienceService } from '../services/ExperienceService';
 import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
+import { serializeNav } from '../utils/serializeNav';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -379,7 +380,10 @@ const UserProfileScreen: React.FC = () => {
 
     const handlePress = () => {
       if (!gift) return;
-      navigation.navigate("Completion", { goal, experienceGift: gift });
+      navigation.navigate("Completion", {
+        goal: serializeNav(goal),
+        experienceGift: serializeNav(gift),
+      });
     };
 
     return (

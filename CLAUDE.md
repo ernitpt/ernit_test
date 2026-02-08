@@ -1,3 +1,13 @@
+# 🤖 AI & Agent Protocols (CLAUDE.md)
+
+> **Core Rule**: This file is the Source of Truth for all AI interactions. Read this first.
+
+## 🧠 Memory & Knowledge
+- **ALWAYS** check `.agent/knowledge/system-map.md` before starting a task.
+- **ALWAYS** use the `accessing-knowledge` skill to retrieve context instead of reading code files blindly.
+- **MAINTENANCE**: If you modify a core system (Goals, Auth, Notifications, etc.), you **MUST** update the corresponding file in `.agent/knowledge/` before finishing the task.
+    - *Example*: If you add a new Notification Type, update `notifications-system.md`.
+
 ## 🚀 Deployment Protocol
 - I deploy Cloud Functions and Firestore Rules MANUALLY.
 - Provide specific `firebase deploy --only...` commands when infrastructure changes.
@@ -8,23 +18,28 @@
 - Example: `npm run log "feat: added new login screen"`
 - This automatically updates `CHANGELOG.md` without consuming many tokens.
 
-## 💎 Aesthetics & UX
-  1. Use "Skeleton" loaders for all async data fetching.
-  2. Implement "Glassmorphism" or "Neumorphism" where appropriate.
-  3. Ensure all forms have inline validation and haptic-style visual feedback.
-  4. Use professional typography (Inter, Geist, or SF Pro).
-  5. Always implement with best UI/UX practices.
+## 💎 Aesthetics & UX (Strict)
+1.  **Skeleton Loaders**: MUST be used for all async/loading states. No spinning wheels.
+2.  **Typography**: Use system fonts (Inter/SF Pro) properly scaled.
+3.  **Feedback**: Actions (save, delete, update) must have haptic or visual feedback (toast/animation).
+4.  Implement "Glassmorphism" or "Neumorphism" where appropriate.
+5.  Ensure all forms have inline validation.
+
+## 🛠️ Code Standards
+- **Functional React**: Use Hooks (`useEffect`, `useCallback`) properly. Avoid Class components.
+- **Types**: Strict TypeScript. No `any` unless absolutely necessary (and commented why).
+- **Imports**: Use absolute paths or consistent relative paths. Avoid circular dependencies.
+- **Security**:
+    - **Firestore**: Never bypass security rules.
+    - **Cloud Functions**: Validate all inputs (`httpsCallable`).
+
+## 🚀 Workflow
+1.  **Plan**: Use `writing-plans` skill for complex tasks.
+2.  **Debug**: Use `systematic-debugging` for bugs.
+3.  **Log**: ALWAYS run `npm run log`.
 
 ## General Instructions
 - Analyse the current codebase and understand the existing architecture.
 - Implement new features following the existing architecture.
 - Reuse code whenever it makes sense.
-- Always implement with best security practices.
-- Always implement with best performance practices.
-- Always implement with best scalability practices.
-- Always implement with best maintainability practices.
-- Always implement with best testability practices.
-- Always implement with best accessibility practices.
-- Always implement with best SEO practices.
-
-
+- Always implement with best security, performance, scalability, maintainability, testability, accessibility, and SEO practices.

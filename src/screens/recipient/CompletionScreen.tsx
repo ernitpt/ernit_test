@@ -64,6 +64,7 @@ const CompletionScreen = () => {
   const floatAnim1 = useRef(new Animated.Value(0)).current;
   const floatAnim2 = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<any>(null);
+  const couponRequestedRef = useRef(false);
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { goal?: any; experienceGift?: any } | undefined;
@@ -90,11 +91,27 @@ const CompletionScreen = () => {
   // If isUnlocked is already true in nav params, trust it (set by unlock flow).
   // If not, fetch fresh from Firestore to verify actual state.
   const [isValidating, setIsValidating] = useState(true);
+  const [unlockVerified, setUnlockVerified] = useState(false);
+
+  const [experience, setExperience] = useState<any>(null);
+  const [partner, setPartner] = useState<any>(null);
+  const [userName, setUserName] = useState<string>('User');
+
+  // Date selection for booking
+  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
 
   useEffect(() => {
-    if (hasValidData && rawGoal?.valentineChallengeId) {
+    if (!hasValidData) {
+      setIsValidating(false);
+      return;
+    }
+
+    if (rawGoal?.valentineChallengeId) {
       if (rawGoal?.isUnlocked) {
         // Already unlocked in nav params — trust the navigation source
+        setUnlockVerified(true);
         setIsValidating(false);
       } else {
         // Not unlocked in params — fetch fresh from Firestore to verify
@@ -103,7 +120,7 @@ const CompletionScreen = () => {
             const freshGoalDoc = await getDoc(doc(db, 'goals', rawGoal.id));
             if (freshGoalDoc.exists() && freshGoalDoc.data().isUnlocked) {
               // Goal IS unlocked in Firestore, nav params were just stale
-              rawGoal.isUnlocked = true;
+              setUnlockVerified(true);
               setIsValidating(false);
             } else {
               logger.error('💝 SECURITY: Attempted unauthorized access to locked Valentine goal');
@@ -123,23 +140,11 @@ const CompletionScreen = () => {
     } else {
       setIsValidating(false);
     }
-  }, [hasValidData, rawGoal, navigation]);
+  }, [hasValidData, rawGoal?.id, rawGoal?.isUnlocked, rawGoal?.valentineChallengeId, navigation]);
 
   // Early return if data is missing, invalid, locked Valentine goal, or still validating
-  const isLockedValentineGoal = rawGoal?.valentineChallengeId && !rawGoal?.isUnlocked;
-
-  if (!hasValidData || (isLockedValentineGoal && !isValidating) || isValidating) {
-    return (
-      <MainScreen activeRoute="Goals">
-        <StatusBar style="light" />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>
-            {!hasValidData ? 'Redirecting...' : isValidating ? 'Validating access...' : 'Checking access...'}
-          </Text>
-        </View>
-      </MainScreen>
-    );
-  }
+  const isUnlocked = !!(rawGoal?.isUnlocked || unlockVerified);
+  const isLockedValentineGoal = rawGoal?.valentineChallengeId && !isUnlocked;
 
   const toDate = (value: any): Date | undefined => {
     if (!value) return undefined;
@@ -148,40 +153,36 @@ const CompletionScreen = () => {
     return isNaN(date.getTime()) ? undefined : date;
   };
 
-  const goal: Goal = {
-    ...rawGoal,
-    startDate: toDate(rawGoal.startDate)!,
-    endDate: toDate(rawGoal.endDate)!,
-    createdAt: toDate(rawGoal.createdAt)!,
-    updatedAt: toDate(rawGoal.updatedAt),
-    completedAt: toDate(rawGoal.completedAt),
-  };
+  const goal: Goal | null = hasValidData
+    ? {
+      ...rawGoal,
+      startDate: toDate(rawGoal.startDate)!,
+      endDate: toDate(rawGoal.endDate)!,
+      createdAt: toDate(rawGoal.createdAt)!,
+      updatedAt: toDate(rawGoal.updatedAt),
+      completedAt: toDate(rawGoal.completedAt),
+    }
+    : null;
 
-  const experienceGift: ExperienceGift = {
-    ...rawGift,
-    createdAt: toDate(rawGift.createdAt)!,
-    deliveryDate: toDate(rawGift.deliveryDate)!,
-    claimedAt: toDate(rawGift.claimedAt),
-    completedAt: toDate(rawGift.completedAt),
-  };
+  const experienceGift: ExperienceGift | null = hasValidData
+    ? {
+      ...rawGift,
+      createdAt: toDate(rawGift.createdAt)!,
+      deliveryDate: toDate(rawGift.deliveryDate)!,
+      claimedAt: toDate(rawGift.claimedAt),
+      completedAt: toDate(rawGift.completedAt),
+    }
+    : null;
 
   // 💝 FINAL DEFENSIVE CHECK: This should NEVER be reached if navigation checks are correct
-  if (goal.valentineChallengeId && !goal.isUnlocked) {
+  if (goal?.valentineChallengeId && !isUnlocked) {
     logger.error('💝 CRITICAL SECURITY BYPASS: Unauthorized access to locked Valentine goal detected!');
     throw new Error('Unauthorized access to locked Valentine goal');
   }
 
-
-  const [experience, setExperience] = useState<any>(null);
-  const [partner, setPartner] = useState<any>(null);
-  const [userName, setUserName] = useState<string>('User');
-
-  // Date selection for booking
-  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
-
   useEffect(() => {
+    if (!goal || !experienceGift) return;
+
     const fetchExperience = async () => {
       try {
         logger.log('🔍 Fetching experience with ID:', experienceGift.experienceId);
@@ -190,7 +191,7 @@ const CompletionScreen = () => {
         setExperience(exp);
 
         // 💝 VALENTINE: Check if both partners finished before allowing access
-        if (goal.valentineChallengeId && !goal.isUnlocked) {
+        if (goal.valentineChallengeId && !isUnlocked) {
           Alert.alert(
             'Not Yet! 💕',
             'Both partners must complete their goals before accessing the experience.',
@@ -225,7 +226,7 @@ const CompletionScreen = () => {
       }
     };
     fetchExperience();
-  }, [experienceGift.experienceId, goal.userId]);
+  }, [experienceGift?.experienceId, goal?.userId, isUnlocked, goal?.valentineChallengeId]);
 
   useEffect(() => {
     // Pick random celebration message
@@ -327,17 +328,21 @@ const CompletionScreen = () => {
     ).start();
 
     // Only fetch/generate coupon after experience is loaded
-    if (experience) {
+    if (experience && !couponRequestedRef.current && !couponCode) {
+      couponRequestedRef.current = true;
       fetchExistingCoupon();
     }
-  }, [experience]);
+  }, [experience, couponCode]);
 
   // ✅ SECURITY FIX: Use Firestore transaction to prevent race conditions
   const fetchExistingCoupon = async () => {
+    if (!goal || !experienceGift) return;
+
     try {
       setIsLoading(true);
       await generateCouponWithTransaction();
     } catch (error) {
+      couponRequestedRef.current = false;
       logger.error('Error fetching/generating coupon:', error);
       Alert.alert('Error', 'Could not load or generate your coupon. Please try again.');
     } finally {
@@ -350,6 +355,8 @@ const CompletionScreen = () => {
    * Prevents race conditions and duplicate coupons
    */
   const generateCouponWithTransaction = async () => {
+    if (!goal || !experienceGift) return;
+
     logger.log('🎫 Starting coupon generation...');
     logger.log('experienceGift.partnerId:', experienceGift?.partnerId);
     logger.log('experience.partnerId:', experience?.partnerId);
@@ -577,6 +584,19 @@ const CompletionScreen = () => {
     }
   };
 
+  if (!hasValidData || !goal || !experienceGift || (isLockedValentineGoal && !isValidating) || isValidating) {
+    return (
+      <MainScreen activeRoute="Goals">
+        <StatusBar style="light" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: '#6b7280', fontSize: 16 }}>
+            {!hasValidData ? 'Redirecting...' : isValidating ? 'Validating access...' : 'Checking access...'}
+          </Text>
+        </View>
+      </MainScreen>
+    );
+  }
+
   const experienceImage = experience
     ? Array.isArray(experience.imageUrl)
       ? experience.imageUrl[0]
@@ -789,60 +809,24 @@ const CompletionScreen = () => {
             </View>
           ) : couponCode ? (
             <View>
-              {/* Premium Ticket-Style Coupon */}
-              <LinearGradient
-                colors={['#fef3c7', '#fde68a', '#fbbf24']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.couponTicket}
-              >
-                {/* Perforated edge decoration */}
-                <View style={styles.perforation}>
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={i} style={styles.perforationDot} />
-                  ))}
-                </View>
-
-                {/* Holographic shimmer overlay */}
-                <LinearGradient
-                  colors={['rgba(139, 92, 246, 0.1)', 'rgba(236, 72, 153, 0.1)', 'rgba(139, 92, 246, 0.1)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.holographicOverlay}
-                />
-
-                <View style={styles.ticketContent}>
-                  <Sparkles color="#d97706" size={24} />
+              <View style={styles.couponCard}>
+                <View style={styles.couponDisplay}>
                   <Text style={styles.couponCode}>{couponCode}</Text>
-                  <Sparkles color="#d97706" size={24} />
                 </View>
 
-                {/* Bottom perforation */}
-                <View style={[styles.perforation, styles.perforationBottom]}>
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={i} style={styles.perforationDot} />
-                  ))}
+                <View style={styles.couponActions}>
+                  <TouchableOpacity
+                    style={styles.copyCodeButton}
+                    onPress={handleCopy}
+                    activeOpacity={0.7}
+                  >
+                    <Copy color={isCopied ? "#10b981" : "#8b5cf6"} size={20} />
+                    <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
+                      {isCopied ? 'Copied!' : 'Copy Code'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </LinearGradient>
-
-              {/* Enhanced Copy Button */}
-              <TouchableOpacity
-                style={styles.copyButton}
-                onPress={handleCopy}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={isCopied ? ['#10b981', '#059669'] : ['#8b5cf6', '#7c3aed']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.copyButtonGradient}
-                >
-                  <Copy color="#FFFFFF" size={22} />
-                  <Text style={styles.copyButtonText}>
-                    {isCopied ? '✓ Copied!' : 'Copy Code'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              </View>
 
               <View style={styles.validityBox}>
                 <CheckCircle color="#10b981" size={18} />
@@ -851,10 +835,9 @@ const CompletionScreen = () => {
                 </Text>
               </View>
 
-              {/* Enhanced Contact Info & Schedule Buttons */}
+              {/* Contact Info & Schedule Buttons */}
               {partner && (partner.phone || partner.contactEmail || partner.email) && (
                 <View style={{ marginTop: 20 }}>
-                  {/* Contact Info Display */}
                   <View style={styles.contactInfoSection}>
                     <Text style={styles.contactInfoTitle}>Partner Contact</Text>
 
@@ -901,7 +884,6 @@ const CompletionScreen = () => {
                     )}
                   </View>
 
-                  {/* Enhanced Schedule Buttons */}
                   <View style={styles.scheduleButtonsContainer}>
                     {partner.phone && (
                       <TouchableOpacity
@@ -1168,81 +1150,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6b7280',
   },
-  // Premium Ticket Styles
-  couponTicket: {
-    borderRadius: 20,
-    padding: 0,
-    marginBottom: 20,
-    overflow: 'hidden',
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+  couponCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 16,
   },
-  perforation: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 8,
-  },
-  perforationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  perforationBottom: {
-    marginTop: 0,
-  },
-  holographicOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
-  },
-  ticketContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+  couponDisplay: {
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
   },
   couponCode: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#92400e',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#8b5cf6',
     textAlign: 'center',
     letterSpacing: 6,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
-  // Enhanced Copy Button
-  copyButton: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+  couponActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  copyButtonGradient: {
+  copyCodeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
+    gap: 8,
+    backgroundColor: '#f5f3ff',
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
   },
-  copyButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  copyCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8b5cf6',
+  },
+  copiedText: {
+    color: '#10b981',
   },
   validityBox: {
     backgroundColor: '#f0fdf4',

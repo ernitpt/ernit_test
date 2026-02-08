@@ -34,6 +34,7 @@ const GOAL_TYPES = [
     { icon: '🏋️', name: 'Gym', color: '#8B5CF6' },
     { icon: '🧘', name: 'Yoga', color: '#EC4899' },
     { icon: '🏃‍♀️', name: 'Run', color: '#3B82F6' },
+    { icon: '✨', name: 'Other', color: '#10B981' },
 ];
 
 // Modern Slider Component - copied from ValentinesChallengeScreen.tsx
@@ -116,8 +117,10 @@ const ValentineGoalSettingScreen = () => {
     // ✅ Customization state (pre-filled from purchase)
     const [customWeeks, setCustomWeeks] = useState(challenge?.weeks || 3);
     const [customSessions, setCustomSessions] = useState(challenge?.sessionsPerWeek || 2);
-    const [customCategory, setCustomCategory] = useState(challenge?.goalType || 'Yoga');
-    const [customGoal, setCustomGoal] = useState(''); // For custom goal input
+    const initialGoalType = challenge?.goalType || 'Yoga';
+    const isPresetGoal = GOAL_TYPES.some(g => g.name === initialGoalType && g.name !== 'Other');
+    const [selectedGoal, setSelectedGoal] = useState<string>(isPresetGoal ? initialGoalType : 'Other');
+    const [customGoal, setCustomGoal] = useState(isPresetGoal ? '' : initialGoalType);
     const [customHours, setCustomHours] = useState('0');
     const [customMinutes, setCustomMinutes] = useState('30');
 
@@ -249,7 +252,7 @@ const ValentineGoalSettingScreen = () => {
             endDate.setDate(now.getDate() + durationInDays);
 
             // Use custom goal if provided, otherwise use selected category
-            const finalGoalType = customGoal.trim() || customCategory;
+            const finalGoalType = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
 
             const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
                 // User & metadata
@@ -364,51 +367,54 @@ const ValentineGoalSettingScreen = () => {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-                {/* Goal Type - EXACTLY like ValentinesChallengeScreen.tsx */}
+                {/* Goal Type - matches ValentinesChallengeScreen */}
                 <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Your Goal</Text>
                     <View style={styles.goalGrid}>
                         {GOAL_TYPES.map((goal) => (
                             <TouchableOpacity
                                 key={goal.name}
                                 style={[
                                     styles.goalChip,
-                                    customCategory === goal.name && { backgroundColor: goal.color }
+                                    selectedGoal === goal.name && { backgroundColor: goal.color },
                                 ]}
                                 onPress={() => {
-                                    setCustomCategory(goal.name);
-                                    setCustomGoal(''); // Clear custom goal when selecting preset
+                                    setSelectedGoal(goal.name);
+                                    if (goal.name !== 'Other') {
+                                        setCustomGoal('');
+                                    }
                                     triggerInteractionAnimation();
                                 }}
                             >
                                 <Text style={styles.goalIcon}>{goal.icon}</Text>
                                 <Text style={[
                                     styles.goalName,
-                                    customCategory === goal.name && styles.goalNameActive
+                                    selectedGoal === goal.name && styles.goalNameActive
                                 ]}>{goal.name}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
-                    {/* Custom Goal Input */}
-                    <View style={styles.customGoalContainer}>
-                        <Text style={styles.customGoalLabel}>Or enter your custom goal:</Text>
-                        <View style={styles.customGoalInputWrapper}>
-                            <Text style={styles.customGoalIcon}>✨</Text>
-                            <TextInput
-                                style={styles.customGoalInput}
-                                placeholder="e.g., Cook, Paint, Write..."
-                                placeholderTextColor="#9ca3af"
-                                value={customGoal}
-                                onChangeText={(text) => {
-                                    setCustomGoal(text);
-                                    if (text.trim()) {
-                                        setCustomCategory(''); // Clear preset selection when typing custom
-                                    }
-                                    triggerInteractionAnimation();
-                                }}
-                            />
+                    {/* Custom Goal Input - Only show when "Other" is selected */}
+                    {selectedGoal === 'Other' && (
+                        <View style={styles.customGoalContainer}>
+                            <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
+                            <View style={styles.customGoalInputWrapper}>
+                                <Text style={styles.customGoalIcon}>✨</Text>
+                                <TextInput
+                                    style={styles.customGoalInput}
+                                    placeholder="e.g., Cook, Paint, Write..."
+                                    placeholderTextColor="#9ca3af"
+                                    value={customGoal}
+                                    onChangeText={(text) => {
+                                        setCustomGoal(text);
+                                        triggerInteractionAnimation();
+                                    }}
+                                    autoFocus
+                                />
+                            </View>
                         </View>
-                    </View>
+                    )}
                 </View>
 
                 {/* Challenge Intensity - Modern Sliders */}
@@ -486,24 +492,6 @@ const ValentineGoalSettingScreen = () => {
                     </View>
                 </View>
 
-                {/* Info Boxes */}
-                <View style={styles.infoSection}>
-                    <View style={styles.infoBox}>
-                        <Text style={styles.infoTitle}>💪 Coupled Progress</Text>
-                        <Text style={styles.infoText}>
-                            Both partners must complete their weekly goals before either can advance to the next week. Stay motivated together!
-                        </Text>
-                    </View>
-
-                    {challenge.mode === 'secret' && (
-                        <View style={[styles.infoBox, styles.secretInfoBox]}>
-                            <Text style={styles.infoTitle}>🎁 Secret Mode Active</Text>
-                            <Text style={styles.infoText}>
-                                The experience will remain hidden! You'll discover it at the end as you complete sessions.
-                            </Text>
-                        </View>
-                    )}
-                </View>
             </ScrollView>
 
             {/* Footer with Hero Card and Button */}
@@ -561,22 +549,22 @@ const ValentineGoalSettingScreen = () => {
                             >
                                 <View style={styles.contextBadge}>
                                     <Text style={styles.contextEmoji}>
-                                        {customGoal.trim() ? '✨' :
-                                            customCategory === 'Yoga' ? '🧘' :
-                                                customCategory === 'Gym' ? '🏋️' :
-                                                    customCategory === 'Run' ? '🏃‍♀️' : '🎯'}
+                                        {selectedGoal === 'Other' ? '✨' :
+                                            selectedGoal === 'Yoga' ? '🧘' :
+                                                selectedGoal === 'Gym' ? '🏋️' :
+                                                    selectedGoal === 'Run' ? '🏃‍♀️' : '🎯'}
                                     </Text>
                                     <Text style={styles.contextText}>
-                                        {customGoal.trim() || customCategory || 'Select goal'}
+                                        {selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}
                                     </Text>
                                 </View>
                                 <View style={styles.contextDivider} />
                                 <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{customWeeks} weeks</Text>
+                                    <Text style={styles.contextLabel}>{customWeeks} {customWeeks === 1 ? 'week' : 'weeks'}</Text>
                                 </View>
                                 <View style={styles.contextDivider} />
                                 <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{customSessions} sessions/wk</Text>
+                                    <Text style={styles.contextLabel}>{customSessions} {customSessions === 1 ? 'session' : 'sessions'}/wk</Text>
                                 </View>
                                 <View style={styles.contextDivider} />
                                 <View style={styles.contextBadge}>
@@ -740,7 +728,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     goalChip: {
-        width: '31%', // Force 3 columns (approx 100% / 3 minus gap)
+        width: '48%',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -905,29 +893,6 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 40,
-    },
-    infoSection: {
-        marginTop: 16,
-        gap: 16,
-    },
-    infoBox: {
-        backgroundColor: '#EEF2FF',
-        borderRadius: 16,
-        padding: 18,
-    },
-    secretInfoBox: {
-        backgroundColor: '#FFF7ED',
-    },
-    infoTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111',
-        marginBottom: 8,
-    },
-    infoText: {
-        fontSize: 13,
-        color: '#6B7280',
-        lineHeight: 18,
     },
     footer: {
         padding: 16,

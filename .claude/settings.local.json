@@ -3,7 +3,8 @@
     "allow": [
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx expo export:*)"
+      "Bash(npx expo export:*)",
+      "Bash(grep:*)"
     ]
   }
 }

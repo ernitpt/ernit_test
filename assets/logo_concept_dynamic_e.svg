@@ -1,0 +1,69 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#F3F4F6"/>
+  
+  <!-- Concept: Two paths merging into one 'e' -->
+  <defs>
+    <linearGradient id="grad1" x1="100" y1="400" x2="400" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+  </defs>
+
+  <!-- Lower path (The Hand / Support) -->
+  <path d="M120 280 
+           C 120 380, 240 420, 360 380
+           C 420 360, 420 280, 360 240
+           L 180 240" 
+        stroke="url(#grad1)" 
+        stroke-width="60" 
+        stroke-linecap="round"
+        fill="none"/>
+
+  <!-- Upper path (The Rise / Progress) -->
+  <path d="M360 240
+           C 300 180, 180 180, 120 280"
+        stroke="url(#grad1)"
+        stroke-width="60"
+        stroke-linecap="round"
+        fill="none"
+        stroke-dasharray="20 400"
+        stroke-dashoffset="-20"/>
+        
+   <!-- Dynamic 'e' shape refined -->
+   <!-- A more fluid single stroke that splits -->
+   <path d="M380 320
+            C 380 380, 320 420, 256 420
+            C 160 420, 100 340, 100 256
+            C 100 160, 180 100, 256 100
+            C 320 100, 380 140, 400 200
+            L 410 240
+            L 110 240"
+         stroke="white"
+         stroke-width="0"
+         fill="none"/>
+         
+   <!-- Actual Drawing of the "Rising e" -->
+   <!-- Bottom Swoosh (Partner) -->
+   <path d="M400 340
+            C 380 400, 320 440, 256 440
+            C 150 440, 100 350, 100 256
+            C 100 240, 102 220, 105 200"
+         stroke="url(#grad1)"
+         stroke-width="50"
+         stroke-linecap="round"/>
+
+   <!-- Top Swoosh (You) - Merging -->
+   <path d="M400 200
+            C 380 120, 300 80, 256 80
+            C 180 80, 120 120, 105 200
+            L 420 200"
+         stroke="url(#grad1)"
+         stroke-width="50"
+         stroke-linecap="round"
+         stroke-linejoin="round"/>
+         
+    <!-- The "Help" Connection Detail -->
+    <circle cx="105" cy="200" r="25" fill="#8B5CF6"/>
+
+</svg>

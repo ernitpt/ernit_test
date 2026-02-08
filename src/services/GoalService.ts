@@ -377,12 +377,30 @@ export class GoalService {
         const goal1Data = goal1Snap.data();
         const goal2Data = goal2Snap.data();
 
+        logger.log('💕 checkAndUnlockBothPartners — goal ids:', {
+          currentGoalId: goal.id,
+          purchaserGoalId,
+          partnerGoalId,
+          goal1DataId: goal1Data.id,
+          goal2DataId: goal2Data.id,
+        });
+
         // 3. Check if both are finished
         // Current goal is marked as finished, check if partner is also finished
         const goal1Finished = goal1Data.isFinished || (goal1Data.id === goal.id);
         const goal2Finished = goal2Data.isFinished || (goal2Data.id === goal.id);
 
         const bothFinished = goal1Finished && goal2Finished;
+
+        logger.log('💕 checkAndUnlockBothPartners — finish flags:', {
+          goal1IsFinished: goal1Data.isFinished,
+          goal2IsFinished: goal2Data.isFinished,
+          goal1MatchesCurrent: goal1Data.id === goal.id,
+          goal2MatchesCurrent: goal2Data.id === goal.id,
+          goal1Finished,
+          goal2Finished,
+          bothFinished,
+        });
 
         if (bothFinished) {
           const now = serverTimestamp();

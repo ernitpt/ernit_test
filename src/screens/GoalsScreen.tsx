@@ -27,6 +27,7 @@ import { notificationService } from "../services/NotificationService";
 import { userService } from "../services/userService";
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import { serializeNav } from '../utils/serializeNav';
 import { ValentineUnlockModal } from '../components/ValentineUnlockModal';
 import { userService as userSvc } from '../services/userService';
 
@@ -242,8 +243,8 @@ const GoalsScreen: React.FC = () => {
 
       if (updatedGoal.isCompleted) {
         navigation.navigate('Completion', {
-          goal: updatedGoal,
-          experienceGift,
+          goal: serializeNav(updatedGoal),
+          experienceGift: serializeNav(experienceGift),
         });
       }
       // Don't show Alert here - the hint popup from DetailedGoalCard already provides feedback
@@ -339,8 +340,8 @@ const GoalsScreen: React.FC = () => {
                 return;
               }
               navigation.navigate('Completion', {
-                goal: { ...unlockedGoal, isUnlocked: true },
-                experienceGift,
+                goal: serializeNav({ ...unlockedGoal, isUnlocked: true }),
+                experienceGift: serializeNav(experienceGift),
               });
             } catch (error) {
               logger.error('Error fetching Valentine challenge for unlocked goal:', error);

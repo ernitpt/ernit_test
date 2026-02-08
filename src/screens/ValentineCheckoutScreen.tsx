@@ -254,7 +254,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total:</Text>
-                        <Text style={styles.totalValue}>${(totalAmount).toFixed(2)}</Text>
+                        <Text style={styles.totalValue}>€{(totalAmount).toFixed(2)}</Text>
                     </View>
                 </View>
 
@@ -282,7 +282,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                     {isProcessing ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text style={styles.payButtonText}>Pay ${(totalAmount).toFixed(2)}</Text>
+                        <Text style={styles.payButtonText}>Pay €{(totalAmount).toFixed(2)}</Text>
                     )}
                 </TouchableOpacity>
             </View>

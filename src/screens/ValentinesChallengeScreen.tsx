@@ -14,7 +14,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, ChevronRight, Sparkles, Heart, Check, Flame, Mail, CheckCircle, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sparkles, Heart, Check, Flame, Mail, CheckCircle, X, RefreshCw } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -526,19 +526,16 @@ export default function ValentinesChallengeScreen() {
                                 ]}>
                                     <View style={styles.popoverContent}>
                                         <View style={styles.popoverHeader}>
-                                            <View>
-                                                <Text style={styles.popoverTitle}>Budget (for two)</Text>
-                                                <Text style={styles.popoverSubtitle}>Set your price range per couple</Text>
-                                            </View>
+                                            <Text style={styles.popoverTitle}>Budget (for two)</Text>
                                             <TouchableOpacity
                                                 style={styles.closePopoverButton}
                                                 onPress={() => setShowPriceSlider(false)}
                                             >
-                                                <X color="#6B7280" size={16} />
+                                                <X color="#6B7280" size={14} />
                                             </TouchableOpacity>
                                         </View>
 
-                                        {/* Price display row */}
+                                        {/* Price display + Shuffle button */}
                                         <View style={styles.priceDisplayRow}>
                                             <View style={styles.priceTag}>
                                                 <Text style={styles.priceTagLabel}>From</Text>
@@ -550,8 +547,8 @@ export default function ValentinesChallengeScreen() {
                                                 <Text style={styles.priceTagValue}>€{priceRange[1]}</Text>
                                             </View>
                                             <TouchableOpacity style={styles.rerollButton} onPress={handleReroll}>
-                                                <Sparkles color="#F59E0B" size={14} />
-                                                <Text style={styles.rerollButtonText}>Reroll</Text>
+                                                <RefreshCw color="#fff" size={14} />
+                                                <Text style={styles.rerollButtonText}>Shuffle</Text>
                                             </TouchableOpacity>
                                         </View>
 
@@ -634,11 +631,9 @@ export default function ValentinesChallengeScreen() {
                                             <Text style={styles.rangeScaleLabel}>€250</Text>
                                         </View>
 
-                                        <View style={styles.popoverHintBox}>
-                                            <Text style={styles.popoverHint}>
-                                                This is a mystery experience — it cannot be changed after purchase
-                                            </Text>
-                                        </View>
+                                        <Text style={styles.popoverHint}>
+                                            Mystery experience — cannot be changed after purchase
+                                        </Text>
                                     </View>
                                 </Animated.View>
                             )}
@@ -651,7 +646,7 @@ export default function ValentinesChallengeScreen() {
                                     <Text style={styles.errorText}>Please select a goal type{selectedGoal === 'Other' ? ' and enter your custom goal' : ''}</Text>
                                 </View>
                             )}
-                            <Text style={[styles.sectionTitle, { marginBottom: 16 }, validationErrors.goal && styles.errorTitle]}>Your Goal Type</Text>
+                            <Text style={[styles.sectionTitle, { marginBottom: 16 }, validationErrors.goal && styles.errorTitle]}>Your Goal</Text>
                             <View style={styles.goalGrid}>
                                 {GOAL_TYPES.map((goal) => (
                                     <TouchableOpacity
@@ -965,11 +960,11 @@ export default function ValentinesChallengeScreen() {
                                 </View>
                                 <View style={styles.contextDivider} />
                                 <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{weeks} wks</Text>
+                                    <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
                                 </View>
                                 <View style={styles.contextDivider} />
                                 <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{sessionsPerWeek}×/wk</Text>
+                                    <Text style={styles.contextLabel}>{sessionsPerWeek} {sessionsPerWeek === 1 ? 'session' : 'sessions'}/wk</Text>
                                 </View>
                             </Animated.View>
                         )}
@@ -1752,29 +1747,23 @@ const styles = StyleSheet.create({
         borderColor: '#FEF3C7',
     },
     popoverContent: {
-        padding: 20,
+        padding: 14,
     },
     popoverHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
+        alignItems: 'center',
+        marginBottom: 12,
     },
     popoverTitle: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '800',
         color: '#1F2937',
-        marginBottom: 2,
-    },
-    popoverSubtitle: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        fontWeight: '500',
     },
     closePopoverButton: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         backgroundColor: '#F3F4F6',
         justifyContent: 'center',
         alignItems: 'center',
@@ -1782,15 +1771,15 @@ const styles = StyleSheet.create({
     priceDisplayRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
-        gap: 10,
+        marginBottom: 14,
+        gap: 8,
     },
     priceTag: {
         flex: 1,
         backgroundColor: '#FFFBEB',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
+        borderRadius: 10,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
         borderWidth: 1,
         borderColor: '#FDE68A',
     },
@@ -1803,7 +1792,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     priceTagValue: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: '900',
         color: '#D97706',
     },
@@ -1817,20 +1806,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 5,
-        backgroundColor: '#FFFBEB',
-        borderWidth: 1.5,
-        borderColor: '#F59E0B',
+        backgroundColor: '#F59E0B',
         borderRadius: 20,
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         paddingVertical: 8,
     },
     rerollButtonText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#D97706',
+        color: '#fff',
     },
     rangeSliderContainer: {
-        marginBottom: 8,
+        marginBottom: 4,
         paddingHorizontal: 4,
     },
     rangeSliderTrack: {
@@ -1879,7 +1866,7 @@ const styles = StyleSheet.create({
     rangeScaleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 10,
         paddingHorizontal: 2,
     },
     rangeScaleLabel: {
@@ -1887,17 +1874,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#9CA3AF',
     },
-    popoverHintBox: {
-        backgroundColor: '#FEF3C7',
-        borderRadius: 10,
-        padding: 10,
-    },
     popoverHint: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#92400E',
         textAlign: 'center',
         fontWeight: '600',
-        lineHeight: 16,
+        lineHeight: 15,
     },
     surpriseWarning: {
         backgroundColor: '#FEF3C7',

@@ -32,6 +32,7 @@ import { pushNotificationService } from '../../services/PushNotificationService'
 import { useApp } from '../../context/AppContext';
 import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
+import { serializeNav } from '../../utils/serializeNav';
 import { DateHelper } from '../../utils/DateHelper';
 import { db } from '../../services/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -292,6 +293,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     weekStartAt?: any;
     targetCount?: number;
     currentCount?: number;
+    title?: string;
   } | null>(null);
 
   // 💝 VALENTINE: Pulse animation for partner updates
@@ -502,7 +504,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               if (updated.isUnlocked) {
                 // ✅ Both partners finished - navigate to completion
                 logger.log('💝 Both partners finished - navigating to completion with Valentine challenge data');
-                navigation.navigate('Completion', { goal: updated, experienceGift: valentineGift });
+                navigation.navigate('Completion', {
+                  goal: serializeNav(updated),
+                  experienceGift: serializeNav(valentineGift),
+                });
               } else if (updated.isFinished) {
                 // ⏳ You finished, waiting for partner
                 logger.log('💝 You finished! Waiting for partner to complete their goal');
@@ -540,7 +545,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           }
 
           // Navigate to completion screen for standard goals
-          navigation.navigate('Completion', { goal: updated, experienceGift: gift });
+          navigation.navigate('Completion', {
+            goal: serializeNav(updated),
+            experienceGift: serializeNav(gift),
+          });
         }
       } else {
         // Check if there's a personalized hint for the NEXT session
@@ -1181,6 +1189,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
             weekStartAt: data.weekStartAt,
             targetCount: data.targetCount || 1,
             currentCount: data.currentCount || 0,
+            title: data.title || undefined,
           });
           logger.log('💕 Partner progress updated:', {
             weeklyCount: newCount,
@@ -1235,7 +1244,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                         logger.error('Valentine challenge not found for completion navigation');
                         return;
                       }
-                      navigation.navigate('Completion', { goal: { ...currentGoal, isUnlocked: true }, experienceGift: gift });
+                      navigation.navigate('Completion', {
+                        goal: serializeNav({ ...currentGoal, isUnlocked: true }),
+                        experienceGift: serializeNav(gift),
+                      });
                     } catch (error) {
                       logger.error('Error navigating to completion:', error);
                     }
@@ -1492,6 +1504,10 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
     ? (currentUserName || 'You')
     : (valentinePartnerName || 'Partner');
 
+  const displayedTitle = selectedView === 'user'
+    ? currentGoal.title
+    : (partnerGoalData?.title || currentGoal.title);
+
   const displayedColor = selectedView === 'user' ? '#FF6B9D' : '#C084FC';
 
   // 💝 VALENTINE: Compute calendar and progress data for selected view
@@ -1560,7 +1576,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
             </View>
           )}
-          <Text style={styles.title}>{currentGoal.title}</Text>
+          <Text style={styles.title}>{currentGoal.valentineChallengeId ? displayedTitle : currentGoal.title}</Text>
           {/* Show empowered text only if NOT self-gifted */}
           {!!empoweredName && !isSelfGift && <Text style={styles.empoweredText}>⚡ Empowered by {empoweredName}</Text>}
           {/* Show self-challenge badge for self-gifted goals */}

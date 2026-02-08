@@ -199,7 +199,20 @@ service cloud.firestore {
             ]))
         
         ||
-        
+
+        // (4) Valentine completion unlock
+        // Allow either partner to unlock both goals once both are finished
+        (request.auth != null
+        && resource.data.valentineChallengeId != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isUnlocked', 'unlockedAt'])
+        && exists(/databases/$(database)/documents/valentineChallenges/$(resource.data.valentineChallengeId))
+        && (
+          get(/databases/$(database)/documents/valentineChallenges/$(resource.data.valentineChallengeId)).data.purchaserUserId == request.auth.uid ||
+          get(/databases/$(database)/documents/valentineChallenges/$(resource.data.valentineChallengeId)).data.partnerUserId == request.auth.uid
+        ))
+
+        ||
+
         // (3) Giver can set personalized hint even without other approval fields
         ('empoweredBy' in resource.data &&
         request.auth.uid == resource.data.empoweredBy
@@ -268,7 +281,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed', 
                       'purchaserGoalId', 'partnerGoalId', 'purchaserUserId', 
-                      'partnerUserId', 'status', 'updatedAt'])
+                      'partnerUserId', 'status', 'updatedAt',
+                      'bothPartnersFinished', 'completionUnlockedAt', 'firstFinishedUserId', 'firstFinishedAt'])
         && (
           // If setting purchaserGoalId, verify user owns that goal
           !('purchaserGoalId' in request.resource.data.diff(resource.data).affectedKeys())
@@ -278,6 +292,14 @@ service cloud.firestore {
           // If setting partnerGoalId, verify user owns that goal
           !('partnerGoalId' in request.resource.data.diff(resource.data).affectedKeys())
           || (getAfter(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
+        )
+        && (
+          // If marking completion unlock, ensure caller is a participant
+          !('bothPartnersFinished' in request.resource.data.diff(resource.data).affectedKeys())
+          || (
+            request.auth.uid == resource.data.purchaserUserId ||
+            request.auth.uid == resource.data.partnerUserId
+          )
         );
       
       // Delete: never allowed from client
