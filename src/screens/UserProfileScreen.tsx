@@ -29,7 +29,7 @@ import { notificationService } from '../services/NotificationService';
 import MainScreen from './MainScreen';
 import { storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayRemove, getDoc } from 'firebase/firestore';
 
 //👇 you'll need these services in your project for partner & experience lookups
 import { experienceService } from '../services/ExperienceService';
@@ -102,7 +102,14 @@ const UserProfileScreen: React.FC = () => {
           (!g.startDate || new Date(g.startDate) <= new Date())
       );
       const completed = userGoals.filter(
-        (g) => g.isCompleted || g.currentCount >= g.targetCount
+        (g) => {
+          const isDone = g.isCompleted || g.currentCount >= g.targetCount;
+          // Valentine goals: only show in achievements when fully unlocked
+          if (g.valentineChallengeId) {
+            return isDone && g.isUnlocked;
+          }
+          return isDone;
+        }
       );
 
       setActiveGoals(active);
@@ -303,6 +310,41 @@ const UserProfileScreen: React.FC = () => {
     useEffect(() => {
       const loadAchievementData = async () => {
         try {
+          // Valentine goals: load from valentineChallengeId instead of experienceGiftId
+          if (goal.valentineChallengeId) {
+            try {
+              const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goal.valentineChallengeId));
+              if (challengeDoc.exists()) {
+                const challengeData = challengeDoc.data();
+                const valentineGift = {
+                  id: goal.valentineChallengeId,
+                  experienceId: challengeData.experienceId,
+                  giverId: challengeData.purchaserUserId,
+                  giverName: challengeData.purchaserName || '',
+                  status: 'completed' as const,
+                  createdAt: challengeData.createdAt?.toDate() || new Date(),
+                  deliveryDate: new Date(),
+                  payment: challengeData.purchaseId || '',
+                  claimCode: '',
+                  isValentineChallenge: true,
+                  mode: challengeData.mode,
+                };
+                setGift(valentineGift);
+
+                if (challengeData.experienceId) {
+                  const exp = await experienceService.getExperienceById(challengeData.experienceId);
+                  setExperience(exp || null);
+                  setPartnerName(exp?.subtitle || 'Partner');
+                }
+              }
+            } catch (dataErr) {
+              logger.warn('Error fetching Valentine challenge data:', dataErr);
+            }
+            setLoadingCard(false);
+            return;
+          }
+
+          // Standard goals: load from experienceGiftId
           if (!goal.experienceGiftId) return;
 
           try {
@@ -315,7 +357,6 @@ const UserProfileScreen: React.FC = () => {
             setPartnerName(exp?.subtitle)
           } catch (dataErr) {
             logger.warn('Error fetching gift/experience data:', dataErr);
-            // Set defaults if data fetch fails
           }
         } catch (err) {
           logger.error('Error loading achievement data:', err);
@@ -325,7 +366,7 @@ const UserProfileScreen: React.FC = () => {
       };
 
       loadAchievementData();
-    }, [goal.experienceGiftId]);
+    }, [goal.experienceGiftId, goal.valentineChallengeId]);
 
     const weeks = goal.targetCount || 0;
     const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);

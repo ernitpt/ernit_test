@@ -432,6 +432,21 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       const updated = await goalService.tickWeeklySession(goalId);
 
+      // 🔍 DIAGNOSTIC: Log Valentine goal state after tickWeeklySession
+      if (updated.valentineChallengeId) {
+        logger.log('💝 handleFinish — tickWeeklySession returned:', {
+          isCompleted: updated.isCompleted,
+          isFinished: updated.isFinished,
+          isUnlocked: updated.isUnlocked,
+          isWeekCompleted: updated.isWeekCompleted,
+          weeklyCount: updated.weeklyCount,
+          sessionsPerWeek: updated.sessionsPerWeek,
+          currentCount: updated.currentCount,
+          targetCount: updated.targetCount,
+          valentineChallengeId: updated.valentineChallengeId,
+        });
+      }
+
       pulse.setValue(0);
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 220, useNativeDriver: true }),
@@ -476,9 +491,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         // ✅ GOAL COMPLETION - Handle both Valentine and standard goals
         if (updated.valentineChallengeId) {
           // 💝 VALENTINE GOAL COMPLETION
+          logger.log('💝 handleFinish — Valentine goal COMPLETED! Building valentine gift...');
           try {
             // Fetch the Valentine challenge and its experience
             const valentineGift = await buildValentineGift(updated);
+            logger.log('💝 handleFinish — buildValentineGift result:', valentineGift ? 'FOUND' : 'NULL');
 
             if (valentineGift) {
               // 💝 SECURITY: Check unlock status to determine navigation
@@ -496,7 +513,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 Alert.alert('Goal Progress', 'Keep going! Complete all your sessions to finish the goal.');
               }
             } else {
-              logger.error('Valentine challenge not found');
+              logger.error('💝 Valentine challenge document not found in Firestore for ID:', updated.valentineChallengeId);
               Alert.alert('🎉 Goal Completed!', 'Congratulations on completing your Valentine challenge!');
             }
           } catch (error) {
@@ -685,6 +702,17 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           }, 3000);
         }
 
+        // 💝 VALENTINE: Show week-completion alert when a week is done but goal isn't
+        if (isValentineGoal && updated.isWeekCompleted) {
+          const weeksComplete = updated.currentCount + 1;
+          const weeksRemaining = updated.targetCount - weeksComplete;
+          Alert.alert(
+            '🎉 Week Complete!',
+            `Great job! You finished week ${weeksComplete} of ${updated.targetCount}.\n\n${weeksRemaining > 0 ? `${weeksRemaining} week${weeksRemaining > 1 ? 's' : ''} remaining. Your next week starts in 7 days!` : ''}`,
+            [{ text: 'Awesome!' }]
+          );
+        }
+
         // Note: We don't invalidate old notifications here because recipients
         // don't have permission to update notifications that belong to givers.
         // The UI handles stale state checking client-side instead.
@@ -714,70 +742,6 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
               sessionNumber: totalSessionsDone,
             }
           );
-        }
-
-        // 💝 VALENTINE: Independent progression with shared completion
-        // Each partner completes their goal independently
-        // Experience unlocks when BOTH finish their entire goals
-        if (updated.valentineChallengeId) {
-          try {
-            // Check if USER just completed their ENTIRE goal
-            if (updated.isCompleted) {
-              logger.log('🎉 You completed your Valentine goal!');
-
-              // Check if partner also completed THEIR entire goal
-              const partnerAlsoComplete = await goalService.checkPartnerCompleted(updated);
-
-              if (partnerAlsoComplete) {
-                // 🚀 BOTH COMPLETE - Experience unlocked!
-                logger.log('🚀 Both partners completed! Unlocking experience...');
-                Alert.alert(
-                  '🎊 Experience Unlocked!',
-                  `Congratulations! You and ${valentinePartnerName || 'your partner'} have both completed your goals!\n\nYour experience is ready to book! 💝`,
-                  [{ text: 'View Completion', onPress: () => navigation.navigate('Roadmap', { goal: updated }) as any }]
-                );
-
-                // Send celebration notification to partner
-                if (updated.partnerGoalId) {
-                  const partnerGoalDoc = await getDoc(doc(db, 'goals', updated.partnerGoalId));
-                  if (partnerGoalDoc.exists()) {
-                    const partnerUserId = partnerGoalDoc.data().userId;
-                    await notificationService.createNotification(
-                      partnerUserId,
-                      'valentine_both_completed',
-                      '🎊 Experience Unlocked!',
-                      `You both finished your goals! Your experience awaits! 💝`,
-                      {
-                        goalId: updated.id,
-                        partnerGoalId: updated.partnerGoalId,
-                        valentineChallengeId: updated.valentineChallengeId,
-                      }
-                    );
-                  }
-                }
-              } else {
-                // ⏳ Waiting for partner to finish
-                const sessionsRemaining = partnerGoalData
-                  ? (partnerGoalData.targetCount - partnerGoalData.currentCount)
-                  : 0;
-
-                Alert.alert(
-                  '🎉 Goal Complete!',
-                  `Amazing work! You've completed your goal!\n\n⏳ Waiting for ${valentinePartnerName || 'your partner'} to finish (${partnerGoalData?.currentCount + 1}/${partnerGoalData?.targetCount || '?'} weeks completed).\n\nWe'll notify you when they're done! 💕`
-                );
-              }
-            } else if (updated.isWeekCompleted) {
-              // Week completed but goal not done - auto-advance to next week
-              logger.log(`✅ Week ${updated.currentCount + 1} complete, advancing independently`);
-
-              Alert.alert(
-                '✅ Week Complete!',
-                `Great progress! Week ${updated.currentCount + 1}/${updated.targetCount} done.\n\nYour next week starts now! Keep up the amazing work! 💪`
-              );
-            }
-          } catch (error) {
-            logger.error('Error in Valentine completion logic:', error);
-          }
         }
 
         // 💝 VALENTINE: Enhanced partner notifications with milestones
@@ -869,7 +833,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
             text: 'Got it!',
             onPress: () => {
               setShowPartnerWaitingModal(false);
-              navigation.navigate('Profile');
+              // Stay on GoalsScreen so user can watch partner's progress
             }
           }
         ]
@@ -1271,7 +1235,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                         logger.error('Valentine challenge not found for completion navigation');
                         return;
                       }
-                      navigation.navigate('Completion', { goal: currentGoal, experienceGift: gift });
+                      navigation.navigate('Completion', { goal: { ...currentGoal, isUnlocked: true }, experienceGift: gift });
                     } catch (error) {
                       logger.error('Error navigating to completion:', error);
                     }

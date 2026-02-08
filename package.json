@@ -11,7 +11,8 @@
     "build": "expo export --platform web",
     "deploy": "firebase deploy --only functions",
     "migrate:feed:preview": "tsc && node dist/utils/feedBackfillMigration.js",
-    "migrate:feed": "tsc && node dist/utils/feedBackfillMigration.js execute"
+    "migrate:feed": "tsc && node dist/utils/feedBackfillMigration.js execute",
+    "log": "node scripts/log-change.js"
   },
   "devDependencies": {
     "@types/react": "^19.1.10",

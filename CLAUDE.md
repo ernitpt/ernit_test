@@ -2,6 +2,12 @@
 - I deploy Cloud Functions and Firestore Rules MANUALLY.
 - Provide specific `firebase deploy --only...` commands when infrastructure changes.
 
+## 📝 Changelog Protocol
+- After completing a task (bug fix, feature, refactor, etc.), ALWAYS run: `npm run log "type: message"`
+- Types: `feat`, `fix`, `chore`, `refactor`, `style`, `docs`, `perf`, `test`.
+- Example: `npm run log "feat: added new login screen"`
+- This automatically updates `CHANGELOG.md` without consuming many tokens.
+
 ## 💎 Aesthetics & UX
   1. Use "Skeleton" loaders for all async data fetching.
   2. Implement "Glassmorphism" or "Neumorphism" where appropriate.

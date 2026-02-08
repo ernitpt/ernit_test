@@ -86,30 +86,40 @@ const CompletionScreen = () => {
     }
   }, [hasValidData, navigation]);
 
-  // 💝 SECURITY: Block access to locked Valentine goals with small delay to allow flag updates
+  // 💝 SECURITY: Block access to locked Valentine goals
+  // If isUnlocked is already true in nav params, trust it (set by unlock flow).
+  // If not, fetch fresh from Firestore to verify actual state.
   const [isValidating, setIsValidating] = useState(true);
 
   useEffect(() => {
     if (hasValidData && rawGoal?.valentineChallengeId) {
-      // Small delay to allow isUnlocked flag to propagate from GoalService
-      const timer = setTimeout(() => {
-        if (!rawGoal?.isUnlocked) {
-          logger.error('💝 SECURITY: Attempted unauthorized access to locked Valentine goal');
-          Alert.alert(
-            'Not Yet! 💕',
-            'Both partners must complete their goals before accessing the experience. Keep going!',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack()
-              }
-            ]
-          );
-        }
+      if (rawGoal?.isUnlocked) {
+        // Already unlocked in nav params — trust the navigation source
         setIsValidating(false);
-      }, 150); // 150ms delay for flag propagation
-
-      return () => clearTimeout(timer);
+      } else {
+        // Not unlocked in params — fetch fresh from Firestore to verify
+        const checkUnlock = async () => {
+          try {
+            const freshGoalDoc = await getDoc(doc(db, 'goals', rawGoal.id));
+            if (freshGoalDoc.exists() && freshGoalDoc.data().isUnlocked) {
+              // Goal IS unlocked in Firestore, nav params were just stale
+              rawGoal.isUnlocked = true;
+              setIsValidating(false);
+            } else {
+              logger.error('💝 SECURITY: Attempted unauthorized access to locked Valentine goal');
+              Alert.alert(
+                'Not Yet! 💕',
+                'Both partners must complete their goals before accessing the experience. Keep going!',
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
+              );
+            }
+          } catch (error) {
+            logger.error('Error validating Valentine goal unlock:', error);
+            navigation.goBack();
+          }
+        };
+        checkUnlock();
+      }
     } else {
       setIsValidating(false);
     }
