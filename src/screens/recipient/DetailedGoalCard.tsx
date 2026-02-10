@@ -2140,7 +2140,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
         animationType="fade"
         onRequestClose={() => setShowDetailsModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.valentineModalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Close Button */}
@@ -2162,9 +2162,9 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
                   {/* Title & Subtitle */}
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{valentineExperience.title}</Text>
+                    <Text style={styles.valentineModalTitle}>{valentineExperience.title}</Text>
                     {valentineExperience.subtitle && (
-                      <Text style={styles.modalSubtitle}>{valentineExperience.subtitle}</Text>
+                      <Text style={styles.valentineModalSubtitle}>{valentineExperience.subtitle}</Text>
                     )}
                   </View>
 
@@ -2744,7 +2744,7 @@ const styles = StyleSheet.create({
   },
 
   // 💝 VALENTINE: Experience Details Modal Styles (from ValentinesChallengeScreen)
-  modalOverlay: {
+  valentineModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
@@ -2790,13 +2790,13 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 12,
   },
-  modalTitle: {
+  valentineModalTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#1F2937',
     marginBottom: 8,
   },
-  modalSubtitle: {
+  valentineModalSubtitle: {
     fontSize: 16,
     color: '#6B7280',
     lineHeight: 22,

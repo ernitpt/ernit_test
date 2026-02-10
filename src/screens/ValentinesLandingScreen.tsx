@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Heart, Sparkles, Users, ChevronRight } from 'lucide-react-native';
+import { Heart, Sparkles, Users, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { RootStackParamList } from '../types';
 
 const { width, height } = Dimensions.get('window');
@@ -60,11 +60,22 @@ export default function ValentinesLandingScreen() {
                 <View style={styles.hero}>
                     {/* Header */}
                     <View style={styles.topHeader}>
-                        <Image
-                            source={require('../assets/icon.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
+                        <View style={styles.headerLeft}>
+                            {navigation.canGoBack() && (
+                                <TouchableOpacity
+                                    style={styles.backButton}
+                                    onPress={() => navigation.goBack()}
+                                    activeOpacity={0.8}
+                                >
+                                    <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
+                                </TouchableOpacity>
+                            )}
+                            <Image
+                                source={require('../assets/icon.png')}
+                                style={styles.logo}
+                                resizeMode="contain"
+                            />
+                        </View>
                         <Text style={styles.brandTitle}>Ernit</Text>
                     </View>
 
@@ -264,6 +275,24 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         zIndex: 10,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     logo: {
         width: 38,

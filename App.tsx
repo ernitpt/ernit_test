@@ -10,8 +10,23 @@ import { Platform } from 'react-native';
 import { PWAInstaller } from './src/components/PWAInstaller';
 import { pushNotificationService } from './src/services/PushNotificationService';
 
+import {
+  useFonts,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from '@expo-google-fonts/outfit';
+
 export default function App() {
   console.log('[App] Component mounting...');
+
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
 
   useEffect(() => {
     console.log('[App] useEffect running...');
@@ -75,6 +90,10 @@ export default function App() {
       };
     }
   }, []);
+
+  if (!fontsLoaded) {
+    return null; // Or a splash screen component
+  }
 
   console.log('[App] Rendering AppProvider and AppNavigator');
 

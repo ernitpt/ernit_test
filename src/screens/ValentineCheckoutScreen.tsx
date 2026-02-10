@@ -21,6 +21,7 @@ import { stripeService } from "../services/stripeService";
 import { logger } from "../utils/logger";
 import { db } from "../services/firebase";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { ValentineCheckoutSkeleton } from "../components/SkeletonLoader";
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -340,11 +341,7 @@ const ValentineCheckoutScreen = () => {
     }, []);
 
     if (isLoading || !clientSecret) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#FF6B9D" />
-            </View>
-        );
+        return <ValentineCheckoutSkeleton />;
     }
 
     return (

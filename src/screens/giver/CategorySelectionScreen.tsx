@@ -9,15 +9,20 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
+  UIManager,
+  LayoutAnimation,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MainScreen from '../MainScreen'; // Assuming this path is correct
+import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase'; // Assuming this path is correct
-import { Heart, ShoppingCart, LogIn } from 'lucide-react-native';
+import { db } from '../../services/firebase';
+import { Heart, ShoppingCart, LogIn, Search, X, Sparkles, ArrowRight } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
 import { ExperienceCardSkeleton } from '../../components/SkeletonLoader';
@@ -26,6 +31,8 @@ import { cartService } from '../../services/CartService';
 import { RootStackParamList } from '../../types';
 import SharedHeader from '../../components/SharedHeader';
 import { logger } from '../../utils/logger';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -92,8 +99,6 @@ const ExperienceCard = ({
 
       <Text style={styles.cardPrice}>{experience.price.toFixed(0)} €</Text>
     </View>
-
-
   </TouchableOpacity>
 );
 
@@ -130,6 +135,63 @@ const CategoryCarousel = ({
   </View>
 );
 
+// Valentine Banner Component
+const ValentinePromoBanner = ({ onPress }: { onPress: () => void }) => {
+  const slideAnim = useRef(new Animated.Value(-60)).current; // Start slightly higher up
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.quad), // Slightly snappier
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 400, // Fade in slightly faster
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY: slideAnim }], opacity: opacityAnim, zIndex: -1 }}>
+      <TouchableOpacity activeOpacity={0.95} onPress={onPress}>
+        <LinearGradient
+          colors={['#FF5277', '#FF8E53']} // Passions/Sunset gradient
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.valentineBanner}
+        >
+          {/* Decorative background circles - scaled down */}
+          <View style={[styles.decoCircle, { right: -10, top: -30, width: 100, height: 100 }]} />
+          <View style={[styles.decoCircle, { left: -20, bottom: -40, width: 120, height: 120 }]} />
+
+          <View style={styles.valentineContent}>
+            <View style={styles.iconContainer}>
+              <Heart fill="#FFF" color="#FFF" size={20} />
+              <View style={styles.sparkleBadge}>
+                <Sparkles size={10} color="#FF5277" fill="#FF5277" />
+              </View>
+            </View>
+
+            <View style={styles.textContainer}>
+              <Text style={styles.bannerTitle}>Valentine's Challenge</Text>
+              <Text style={styles.bannerSubtitle}>Bring your other half and push each other</Text>
+            </View>
+
+            <View style={styles.arrowButton}>
+              <ArrowRight size={16} color="#FF5277" />
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const CategorySelectionScreen = () => {
   logger.log('[CategorySelectionScreen] Rendering...');
   const navigation = useNavigation<GiverNavigationProp>();
@@ -137,6 +199,8 @@ const CategorySelectionScreen = () => {
   const { state, dispatch } = useApp();
   logger.log('[CategorySelectionScreen] State loaded:', { hasUser: !!state?.user, hasState: !!state });
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const searchAnim = useRef(new Animated.Value(0)).current;
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -144,6 +208,17 @@ const CategorySelectionScreen = () => {
   const auth = getAuth();
   const user = auth.currentUser;
   const isAuthenticated = !!state.user;
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  const handleValentinePress = () => {
+    // @ts-ignore - Navigate to Valentines landing
+    rootNavigation.navigate('ValentinesLanding');
+  };
 
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
@@ -251,6 +326,25 @@ const CategorySelectionScreen = () => {
     }, [user])
   );
 
+  const toggleSearch = () => {
+    if (showSearch) {
+      Animated.timing(searchAnim, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start(() => setShowSearch(false));
+    } else {
+      setShowSearch(true);
+      Animated.timing(searchAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
   const toggleWishlist = async (experienceId: string) => {
     if (!user || !state.user) {
       Alert.alert('Please log in to use wishlist.');
@@ -300,22 +394,53 @@ const CategorySelectionScreen = () => {
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
-      <SharedHeader
-        title="Gift Experiences"
-        subtitle="Empower your friends"
-      />
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search experiences..."
-            placeholderTextColor="#9ca3af"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+      <View style={{ zIndex: 100 }}>
+        <SharedHeader
+          title="Gift Experiences"
+          subtitle="Empower your friends"
+          rightActions={
+            <TouchableOpacity
+              onPress={toggleSearch}
+              style={styles.headerActionButton}
+              activeOpacity={0.85}
+            >
+              <View style={styles.headerActionIcon}>
+                <Search color="#8B5CF6" size={20} strokeWidth={2} />
+              </View>
+            </TouchableOpacity>
+          }
+        />
+        {showSearch && (
+          <Animated.View style={[
+            styles.searchContainer,
+            {
+              opacity: searchAnim,
+              height: searchAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 80]
+              }),
+              transform: [{
+                translateY: searchAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0]
+                })
+              }],
+              overflow: 'hidden'
+            }
+          ]}>
+            <View style={styles.searchBar}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search experiences..."
+                placeholderTextColor="#9ca3af"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+            </View>
+          </Animated.View>
+        )}
       </View>
 
       {isLoading ? (
@@ -346,6 +471,17 @@ const CategorySelectionScreen = () => {
         <FlatList
           style={styles.listContainer}
           data={filteredCategories}
+          ListHeaderComponent={
+            <>
+              {!searchQuery.trim() && (
+                <View style={styles.bannerContainer}>
+                  <ValentinePromoBanner
+                    onPress={handleValentinePress}
+                  />
+                </View>
+              )}
+            </>
+          }
           renderItem={({ item }) => (
             <CategoryCarousel
               category={item}
@@ -359,8 +495,6 @@ const CategorySelectionScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-
 
     </MainScreen>
   );
@@ -391,8 +525,24 @@ const styles = StyleSheet.create({
     color: '#111827',
     paddingVertical: 10,
   },
+  headerActionButton: {
+    // marginRight: 6  <-- Removed to let SharedHeader gap handle spacing
+  },
+  headerActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#F5F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   categoriesListMoved: {
-    paddingTop: 10,
+    paddingTop: 0, // REMOVED GAP
     paddingBottom: 80,
   },
   categorySection: {
@@ -482,6 +632,83 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
+  },
+
+  // Valentine Banner Styles
+  bannerContainer: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 16, // Reduced spacing
+    marginBottom: -4,
+    zIndex: 0, // Ensure it sits correctly in stack context
+  },
+  valentineBanner: {
+    paddingHorizontal: 20,
+    paddingVertical: 12, // Significant reduction from 20
+    position: 'relative',
+    width: '100%',
+  },
+  decoCircle: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  valentineContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12, // Tighter gap
+    justifyContent: 'space-between',
+  },
+  iconContainer: {
+    width: 38, // Reduced from 52
+    height: 38,
+    borderRadius: 12, // Adjusted radius
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  sparkleBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    color: '#fff',
+    fontSize: 16, // Reduced from 20
+    fontWeight: '800',
+    marginBottom: 2,
+    letterSpacing: -0.3,
+  },
+  bannerSubtitle: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 13, // Reduced from 14
+    fontWeight: '500',
+  },
+  arrowButton: {
+    width: 32, // Reduced from 40
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(0,0,0,0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
   },
 });
 

@@ -21,6 +21,8 @@ import type { Goal, PersonalizedHint } from '../types';
 import { feedService } from './FeedService';
 import { experienceGiftService } from './ExperienceGiftService';
 import { experienceService } from './ExperienceService';
+import { userService } from './userService';
+import { notificationService } from './NotificationService';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 
@@ -159,7 +161,7 @@ export class GoalService {
     isPurchaser: boolean
   ): Promise<{ goal: Goal; isNowActive: boolean }> {
 
-    return runTransaction(db, async (transaction) => {
+    const transactionResult = await runTransaction(db, async (transaction) => {
       // 1. Read and validate challenge
       const challengeRef = doc(db, 'valentineChallenges', challengeId);
       const challengeSnap = await transaction.get(challengeRef);
@@ -199,6 +201,11 @@ export class GoalService {
         ? challengeData.partnerGoalId
         : challengeData.purchaserGoalId;
 
+      // Determine the OTHER user's ID (the partner in this context)
+      const partnerUserId = isPurchaser
+        ? challengeData.partnerUserId
+        : challengeData.purchaserUserId;
+
       const isNowActive = !!partnerGoalId; // Both codes redeemed
 
       transaction.update(challengeRef, {
@@ -217,12 +224,65 @@ export class GoalService {
         });
       }
 
-      // Return the goal data (serverTimestamp will be resolved by Firestore)
+      // Return data needed for post-transaction side effects
       return {
         goal: normalizedGoal as Goal,
-        isNowActive
+        isNowActive,
+        partnerUserId
       };
     });
+
+    // === Post-Transaction Side Effects ===
+
+    const { goal, isNowActive, partnerUserId } = transactionResult;
+
+    // 1. Create Feed Post (Bug Fix: Was missing for Valentine goals)
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
+      await feedService.createFeedPost({
+        userId,
+        userName: userData?.displayName || userData?.profile?.name || 'User',
+        userProfileImageUrl: userData?.profile?.profileImageUrl,
+        goalId: goal.id,
+        goalDescription: goal.description,
+        type: 'goal_started',
+        totalSessions: goal.targetCount, // Total weeks for Valentine goals
+        createdAt: new Date(),
+        isValentineChallenge: true
+      });
+    } catch (error) {
+      logger.error('Error creating Valentine feed post:', error);
+    }
+
+    // 2. Send Notifications if Challenge is Now Active (Both partners joined)
+    if (isNowActive && partnerUserId) {
+      try {
+        const currentUserName = await userService.getUserName(userId);
+        const partnerName = await userService.getUserName(partnerUserId);
+
+        // Notify Partner (User A): "User B has joined!"
+        await notificationService.createValentineStartNotification(
+          partnerUserId,
+          currentUserName,
+          challengeId
+        );
+
+        // Notify Current User (User B): "Challenge Started with User A!"
+        await notificationService.createValentineStartNotification(
+          userId,
+          partnerName,
+          challengeId
+        );
+
+        logger.log(`✅ Sent Valentine start notifications to both partners (${userId}, ${partnerUserId})`);
+      } catch (error) {
+        logger.error('Error sending Valentine start notifications:', error);
+      }
+    }
+
+    return { goal, isNowActive };
   }
 
   /**
@@ -906,11 +966,41 @@ export class GoalService {
                       experienceImageUrl,
                       createdAt: new Date(),
                     });
+
+                    // 💝 Notification for Partner (User A)
+                    await notificationService.createValentineUnlockNotification(
+                      partnerGoalData.userId,
+                      userData?.displayName || 'your partner',
+                      g.valentineChallengeId!,
+                      experienceTitle
+                    );
                   }
                 } catch (partnerFeedError) {
                   logger.error('Error creating partner feed post:', partnerFeedError);
                 }
               }
+
+              // 💝 Notification for Current User (User B)
+              // (Need partner name for notification)
+              let partnerName = 'your partner';
+              if (g.partnerGoalId) {
+                try {
+                  const partnerGoalDoc = await getDoc(doc(db, 'goals', g.partnerGoalId));
+                  if (partnerGoalDoc.exists()) {
+                    const partnerUserId = partnerGoalDoc.data().userId;
+                    const name = await userService.getUserName(partnerUserId);
+                    if (name) partnerName = name;
+                  }
+                } catch (e) { }
+              }
+
+              await notificationService.createValentineUnlockNotification(
+                g.userId,
+                partnerName,
+                g.valentineChallengeId!,
+                experienceTitle
+              );
+
             } catch (feedError) {
               logger.error('Error creating Valentine completion feed posts:', feedError);
             }
@@ -1272,4 +1362,3 @@ export class GoalService {
 
 export const goalService = new GoalService();
 (goalService as any).appendHint = goalService.appendHint.bind(goalService);
-

@@ -269,7 +269,7 @@ const GoalsScreen: React.FC = () => {
       <StatusBar style="light" />
       <SharedHeader
         title="Current Goals"
-        subtitle="Tap goal to for more details"
+        subtitle="Tap goal for more details"
       />
       {isInitialLoading ? (
         <ScrollView contentContainerStyle={styles.listContainer}>

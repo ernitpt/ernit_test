@@ -144,6 +144,55 @@ export const NotificationSkeleton: React.FC = () => {
     );
 };
 
+// Valentine Checkout Skeleton
+export const ValentineCheckoutSkeleton: React.FC = () => {
+    return (
+        <View style={styles.valentineCheckoutSkeleton}>
+            {/* Header Placeholder (Back button + Title) */}
+            <View style={styles.checkoutHeaderSkeleton}>
+                <SkeletonBox width={40} height={40} borderRadius={20} />
+                <SkeletonBox width={150} height={24} style={{ marginLeft: 16 }} />
+            </View>
+
+            <View style={styles.checkoutContentSkeleton}>
+                {/* Summary Card Skeleton */}
+                <View style={styles.checkoutSummaryCardSkeleton}>
+                    {/* Heart Icon */}
+                    <View style={{ alignSelf: 'center', marginBottom: 20 }}>
+                        <SkeletonBox width={40} height={40} borderRadius={20} />
+                    </View>
+
+                    {/* Title */}
+                    <SkeletonBox width={180} height={24} style={{ alignSelf: 'center', marginBottom: 24 }} />
+
+                    {/* Detail Rows */}
+                    {[1, 2, 3, 4].map((_, i) => (
+                        <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <SkeletonBox width={60} height={16} />
+                            <SkeletonBox width={120} height={16} />
+                        </View>
+                    ))}
+
+                    {/* Divider */}
+                    <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: 16 }} />
+
+                    {/* Total Row */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <SkeletonBox width={60} height={24} />
+                        <SkeletonBox width={80} height={32} />
+                    </View>
+                </View>
+
+                {/* Payment Section Skeleton */}
+                <View style={{ marginBottom: 24 }}>
+                    <SkeletonBox width={160} height={20} style={{ marginBottom: 12 }} />
+                    <SkeletonBox width="100%" height={200} borderRadius={12} />
+                </View>
+            </View>
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
     skeleton: {
         backgroundColor: '#e5e7eb',
@@ -231,6 +280,35 @@ const styles = StyleSheet.create({
     notificationContent: {
         marginLeft: 12,
         flex: 1,
+    },
+    valentineCheckoutSkeleton: {
+        flex: 1,
+        backgroundColor: "#F9FAFB",
+    },
+    checkoutHeaderSkeleton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 60, // Match typical iOS header padding or Platform specific logic if imported
+        paddingBottom: 16,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    checkoutContentSkeleton: {
+        padding: 16,
+        paddingTop: 24,
+    },
+    checkoutSummaryCardSkeleton: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
 });
 

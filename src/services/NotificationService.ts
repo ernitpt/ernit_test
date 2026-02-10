@@ -64,6 +64,46 @@ export class NotificationService {
     );
   }
 
+  /** 💝 Create notification when Valentine challenge starts (second partner joins) */
+  async createValentineStartNotification(
+    recipientId: string,
+    partnerName: string,
+    challengeId: string
+  ) {
+    await this.createNotification(
+      recipientId,
+      'valentine_start',
+      'Valentine Challenge Started! 💘',
+      `${partnerName} has joined your challenge! You're now linked and ready to go.`,
+      {
+        challengeId,
+        partnerName,
+      },
+      true
+    );
+  }
+
+  /** 💝 Create notification when Valentine reward unlocks (both finished) */
+  async createValentineUnlockNotification(
+    recipientId: string,
+    partnerName: string,
+    challengeId: string,
+    experienceTitle?: string
+  ) {
+    await this.createNotification(
+      recipientId,
+      'valentine_unlock',
+      'Reward Unlocked! 🎁',
+      `You and ${partnerName} have both finished! Your ${experienceTitle || 'experience'} is ready to redeem.`,
+      {
+        challengeId,
+        partnerName,
+        experienceTitle,
+      },
+      false // Important! Don't let them accidentally clear this before clicking
+    );
+  }
+
   /** Create a personalized hint notification */
   async createPersonalizedHintNotification(
     recipientId: string,

@@ -220,8 +220,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     headerTitle: {
-        fontSize: 26,
-        fontWeight: '800',
+        fontSize: 24,
+        fontWeight: '700',
         color: '#111827',
         letterSpacing: -0.5,
     },
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     headerButtons: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        gap: 12,
     },
     actionButton: {
         position: 'relative',
