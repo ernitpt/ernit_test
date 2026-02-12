@@ -20,7 +20,7 @@ import { RootStackParamList } from "../types";
 import { stripeService } from "../services/stripeService";
 import { logger } from "../utils/logger";
 import { db } from "../services/firebase";
-import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ValentineCheckoutSkeleton } from "../components/SkeletonLoader";
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
@@ -328,6 +328,29 @@ const ValentineCheckoutScreen = () => {
 
                 setClientSecret(result.clientSecret);
                 setPaymentIntentId(result.paymentIntentId);
+
+                // 📧 Save lead data to Firestore (even if payment not completed)
+                try {
+                    await setDoc(doc(db, "valentineLeads", result.paymentIntentId), {
+                        paymentIntentId: result.paymentIntentId,
+                        purchaserEmail: valentineData.purchaserEmail,
+                        partnerEmail: valentineData.partnerEmail || "",
+                        experienceId: valentineData.experienceId,
+                        experiencePrice: valentineData.experiencePrice,
+                        totalAmount: totalAmount,
+                        goalType: valentineData.goalType,
+                        weeks: valentineData.weeks,
+                        sessionsPerWeek: valentineData.sessionsPerWeek,
+                        mode: valentineData.mode,
+                        paymentCompleted: false,
+                        createdAt: serverTimestamp(),
+                        completedAt: null,
+                    });
+                    logger.log("✅ Valentine lead saved to Firestore");
+                } catch (leadError) {
+                    logger.error("Failed to save Valentine lead:", leadError);
+                    // Don't block the flow if lead saving fails
+                }
             } catch (error: any) {
                 logger.error("Error creating payment intent:", error);
                 Alert.alert("Error", error.message || "Failed to initialize payment");

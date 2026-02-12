@@ -12,6 +12,7 @@ import { db } from './firebase';
 import { User, Goal, Experience, UserProfile, CartItem } from '../types';
 import { experienceService } from './ExperienceService';
 import { logger } from '../utils/logger';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 export class UserService {
   private static instance: UserService;
@@ -103,6 +104,11 @@ export class UserService {
       return 'Unknown';
     } catch (error) {
       logger.error('Error fetching user name:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'UserService',
+        feature: 'GetUserName',
+        additionalData: { targetUserId: userId }
+      });
       return 'Unknown';
     }
   }

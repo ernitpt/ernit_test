@@ -22,6 +22,7 @@ import { GiverStackParamList, Experience, CartItem } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -33,10 +34,10 @@ export default function CartScreen() {
   const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
-  
+
   // Track loaded experience IDs to prevent unnecessary reloads
   const loadedExperienceIds = useRef<string[]>([]);
-  
+
   // Get cart from user or guest cart
   const currentCart = state.user?.cart || state.guestCart || [];
 
@@ -61,7 +62,7 @@ export default function CartScreen() {
   useEffect(() => {
     const currentIds = currentCart.map(item => item.experienceId).sort().join(',');
     const loadedIds = loadedExperienceIds.current.sort().join(',');
-    
+
     // Only reload if the cart items changed (not just quantities)
     if (currentIds !== loadedIds && !loading) {
       loadItems();
@@ -86,13 +87,13 @@ export default function CartScreen() {
     setLoading(true);
     const list: Experience[] = [];
     const ids: string[] = [];
-    
+
     for (const item of currentCart) {
       ids.push(item.experienceId);
       const exp = await experienceService.getExperienceById(item.experienceId);
       if (exp) list.push(exp);
     }
-    
+
     setCartExperiences(list);
     loadedExperienceIds.current = ids;
     setLoading(false);
@@ -119,13 +120,19 @@ export default function CartScreen() {
 
       // Update context immediately for instant UI feedback
       dispatch({ type: "SET_CART", payload: updated });
-      
+
       // Update database in background if authenticated
       if (state.user) {
         await userService.updateCart(state.user.id, updated);
       }
     } catch (error) {
       logger.error("Error updating quantity:", error);
+      await logErrorToFirestore(error, {
+        screenName: 'CartScreen',
+        feature: 'UpdateQuantity',
+        userId: state.user?.id,
+        additionalData: { experienceId, newQty }
+      });
       Alert.alert("Error", "Failed to update quantity. Please try again.");
     } finally {
       // Remove updating flag
@@ -148,17 +155,23 @@ export default function CartScreen() {
 
       // Update context immediately
       dispatch({ type: "SET_CART", payload: updated });
-      
+
       // Remove from experiences list immediately for smooth UX
       setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
       loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
-      
+
       // Update database in background if authenticated
       if (state.user) {
         await userService.removeFromCart(state.user.id, experienceId);
       }
     } catch (error) {
       logger.error("Error removing item:", error);
+      await logErrorToFirestore(error, {
+        screenName: 'CartScreen',
+        feature: 'RemoveItem',
+        userId: state.user?.id,
+        additionalData: { experienceId }
+      });
       Alert.alert("Error", "Failed to remove item. Please try again.");
       // Reload to ensure consistency
       loadItems();
@@ -183,13 +196,13 @@ export default function CartScreen() {
       Alert.alert("Empty Cart", "Your cart is empty. Add items to cart first.");
       return;
     }
-    
+
     // Require authentication to proceed to checkout
     // Pass route name and params for post-auth navigation
     if (!requireAuth("Please log in to proceed to checkout.", "ExperienceCheckout", { cartItems: currentCart })) {
       return;
     }
-    
+
     navigation.navigate("ExperienceCheckout", {
       cartItems: currentCart,
     });

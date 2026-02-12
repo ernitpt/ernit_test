@@ -147,9 +147,9 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
                 const id = db.collection("experienceGifts").doc().id;
                 const claimCode = await generateUniqueClaimCode();
 
-                // ✅ Set expiration date (30 days from now)
+                // ✅ Set expiration date (365 days from now)
                 const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + 30);
+                expiresAt.setDate(expiresAt.getDate() + 365);
 
                 const newGift = {
                     id,
@@ -317,6 +317,26 @@ async function handleValentinePayment(paymentIntent: Stripe.PaymentIntent) {
         type: 'valentine_challenge',
         challengeId,
     });
+
+    // Update lead to mark payment as completed
+    try {
+        const leadRef = db.collection("valentineLeads").doc(paymentIntentId);
+        const leadDoc = await leadRef.get();
+
+        if (leadDoc.exists) {
+            await leadRef.update({
+                paymentCompleted: true,
+                completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                challengeId, // Link to the challenge document
+            });
+            console.log("✅ Valentine lead marked as completed");
+        } else {
+            console.warn("⚠️ No lead found for paymentIntentId:", paymentIntentId);
+        }
+    } catch (leadError) {
+        console.error("❌ Failed to update lead:", leadError);
+        // Don't throw - payment succeeded, this is just analytics
+    }
 
     // Send single email to purchaser with both codes
     try {

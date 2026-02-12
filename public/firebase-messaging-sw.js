@@ -61,12 +61,9 @@ self.addEventListener('notificationclick', (event) => {
                 for (let i = 0; i < clientList.length; i++) {
                     const client = clientList[i];
                     if (client.url.includes(self.location.origin) && 'focus' in client) {
-                        return client.focus().then(client => {
-                            // Navigate to the notification URL
-                            if ('navigate' in client) {
-                                return client.navigate(urlToOpen);
-                            }
-                        });
+                        // Just focus the window - let React Navigation handle routing
+                        // Using client.navigate() is unreliable and causes 404 errors
+                        return client.focus();
                     }
                 }
                 // If app is not open, open a new window

@@ -3,6 +3,7 @@
 import { auth } from './firebase';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 // Use environment-based URL and function names
 const STRIPE_FUNCTIONS_URL = config.functionsUrl;
@@ -66,6 +67,19 @@ export const stripeService = {
       };
     } catch (error: any) {
       logger.error("Error creating payment intent:", error);
+
+      // Log to Firestore with full context
+      await logErrorToFirestore(error, {
+        feature: 'PaymentIntent',
+        additionalData: {
+          amount,
+          giverId,
+          partnerId,
+          cartItemsCount: cartItems?.length || 0,
+          errorType: error.name,
+        },
+      });
+
       throw new Error(error.message || "Failed to create payment intent");
     }
   },
@@ -180,7 +194,20 @@ export const stripeService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        const errorMsg = errorData.error || `HTTP ${response.status}`;
+
+        // Log to Firestore
+        await logErrorToFirestore(new Error(errorMsg), {
+          feature: 'ValentinePaymentIntent',
+          additionalData: {
+            amount,
+            currency,
+            statusCode: response.status,
+            url: `${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.createValentinePaymentIntent}`,
+          },
+        });
+
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
@@ -194,6 +221,18 @@ export const stripeService = {
       };
     } catch (error: any) {
       logger.error("Error creating Valentine payment intent:", error);
+
+      // Log to Firestore with full context
+      await logErrorToFirestore(error, {
+        feature: 'ValentinePaymentIntent',
+        additionalData: {
+          amount,
+          currency,
+          metadata,
+          errorType: error.name,
+        },
+      });
+
       throw new Error(error.message || "Failed to create payment intent");
     }
   },

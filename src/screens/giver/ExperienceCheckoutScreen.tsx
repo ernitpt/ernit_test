@@ -36,6 +36,7 @@ import LoginPrompt from "../../components/LoginPrompt";
 import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -145,7 +146,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   totalQuantity,
 }) => {
   const navigation = useNavigation<NavigationProp>();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   const stripe = useStripe();
   const elements = useElements();
@@ -230,6 +231,15 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         }
       } catch (err: any) {
         logger.error("Error handling redirect return:", err);
+        await logErrorToFirestore(err, {
+          screenName: 'ExperienceCheckoutScreen',
+          feature: 'RedirectReturn',
+          userId: state.user?.id,
+          additionalData: {
+            clientSecret,
+            paymentIntentId: redirectClientSecret
+          }
+        });
         Alert.alert("Error", "Failed to verify payment status. Please contact support.");
       } finally {
         setIsCheckingRedirect(false);
@@ -295,6 +305,18 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     } catch (err: any) {
       await removeStorageItem(`pending_payment_${clientSecret}`);
       const errorMessage = err.message || "Something went wrong.";
+
+      await logErrorToFirestore(err, {
+        screenName: 'ExperienceCheckoutScreen',
+        feature: 'HandlePurchase',
+        userId: state.user?.id,
+        additionalData: {
+          totalAmount,
+          totalQuantity,
+          experienceIds: cartItems.map(i => i.experienceId)
+        }
+      });
+
       Alert.alert("Payment Failed", errorMessage);
       logger.error("Payment error:", err);
     } finally {
@@ -526,6 +548,14 @@ const ExperienceCheckoutScreen: React.FC = () => {
         setPaymentIntentId(response.paymentIntentId);
       } catch (err: any) {
         logger.error("Error creating payment intent:", err);
+        await logErrorToFirestore(err, {
+          screenName: 'ExperienceCheckoutScreen',
+          feature: 'InitCheckout',
+          userId: state.user?.id,
+          additionalData: {
+            itemCount: cartItems.length
+          }
+        });
         Alert.alert("Error", err.message || "Failed to initialize payment.");
         initRef.current = false; // Allow retry
         navigation.goBack();

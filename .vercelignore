@@ -1,0 +1,3 @@
+# Allow everything in dist for Vercel deployment
+# Specifically, DO NOT ignore node_modules in dist/assets
+!dist/assets/node_modules

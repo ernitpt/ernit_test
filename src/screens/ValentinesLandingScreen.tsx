@@ -57,7 +57,12 @@ export default function ValentinesLandingScreen() {
                 contentContainerStyle={styles.scrollContent}
             >
                 {/* Hero Section */}
-                <View style={styles.hero}>
+                <LinearGradient
+                    colors={['#FFF5F8', '#FFE5EF', '#FFFFFF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.hero}
+                >
                     {/* Header */}
                     <View style={styles.topHeader}>
                         <View style={styles.headerLeft}>
@@ -128,7 +133,7 @@ export default function ValentinesLandingScreen() {
                         <Heart color="#FFD1E3" size={80} fill="#FFD1E3" opacity={0.4} style={styles.heart2} />
                         <Heart color="#FFC0D9" size={60} fill="#FFC0D9" opacity={0.5} style={styles.heart3} />
                     </View>
-                </View>
+                </LinearGradient>
 
                 {/* How It Works Section */}
                 <View style={styles.howSection}>
@@ -201,7 +206,7 @@ export default function ValentinesLandingScreen() {
                 <View style={styles.testimonialSection}>
                     <View style={styles.testimonialCard}>
                         <Text style={styles.quoteText}>
-                            "The challenge brought us closer. By the time we unlocked our dinner, we'd already won."
+                            "The challenge brought us closer. By the time we unlocked our rock climbing class, we'd already won."
                         </Text>
                         <View style={styles.authorRow}>
                             <View style={styles.authorDot} />

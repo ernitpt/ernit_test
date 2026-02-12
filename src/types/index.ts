@@ -34,6 +34,7 @@ export interface UserProfile {
   followingCount: number;
   createdAt: Date;
   updatedAt: Date;
+  badges?: ('founder' | 'pioneer')[];
 }
 
 // Friend Request types
@@ -100,6 +101,8 @@ export interface Experience {
   duration?: string;
   location?: string;
   partnerId: string;
+  isRecommendedForValentines?: boolean; // Flag for Valentine's recommended experiences
+  recommendedOrder?: number; // Optional: Order for recommended experiences (1, 2, 3, etc.)
 }
 
 // Gift/Experience Gift

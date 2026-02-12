@@ -26,6 +26,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { logger } from '../utils/logger';
 import { goalService } from '../services/GoalService';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 const { width } = Dimensions.get('window');
 
@@ -152,6 +153,12 @@ const ValentineGoalSettingScreen = () => {
                 }
             } catch (error) {
                 logger.error('Error loading experience:', error);
+                await logErrorToFirestore(error, {
+                    screenName: 'ValentineGoalSettingScreen',
+                    feature: 'LoadExperience',
+                    userId: state.user?.id,
+                    additionalData: { challengeId: challenge?.id }
+                });
                 Alert.alert('Error', 'Failed to load experience');
                 navigation.navigate('Goals');
             } finally {
@@ -329,6 +336,15 @@ const ValentineGoalSettingScreen = () => {
             }, 100);
         } catch (error: any) {
             logger.error('Error creating Valentine goal:', error);
+            await logErrorToFirestore(error, {
+                screenName: 'ValentineGoalSettingScreen',
+                feature: 'CreateValentineGoal',
+                userId: state.user?.id,
+                additionalData: {
+                    challengeId: challenge.id,
+                    isPurchaser
+                }
+            });
 
             // Handle specific errors
             if (error.message === 'Code already redeemed') {

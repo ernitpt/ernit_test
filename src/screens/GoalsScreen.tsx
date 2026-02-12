@@ -30,6 +30,9 @@ import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import { ValentineUnlockModal } from '../components/ValentineUnlockModal';
 import { userService as userSvc } from '../services/userService';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { logErrorToFirestore } from '../utils/errorLogger';
+
 
 
 type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Goals'>;
@@ -103,52 +106,57 @@ const GoalsScreen: React.FC = () => {
 
     setLoading(true);
     const unsubscribe = goalService.listenToUserGoals(userId, async (goals) => {
-      // Check for pending goals that need auto-approval
-      for (const goal of goals) {
-        if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
-          const now = new Date();
-          if (now >= goal.approvalDeadline) {
-            try {
-              await goalService.checkAndAutoApprove(goal.id);
-            } catch (error) {
-              logger.error('Error auto-approving goal:', error);
+      try {
+        // Check for pending goals that need auto-approval
+        for (const goal of goals) {
+          if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
+            const now = new Date();
+            if (now >= goal.approvalDeadline) {
+              try {
+                await goalService.checkAndAutoApprove(goal.id);
+              } catch (error) {
+                logger.error('Error auto-approving goal:', error);
+              }
             }
           }
         }
-      }
 
-      const activeGoals = goals.filter((g) => {
-        // Regular goals: show if not completed
-        if (!g.valentineChallengeId) {
-          return !g.isCompleted && g.currentCount < g.targetCount;
-        }
-
-        // 💝 Valentine goals
-        // HIDE if completed (handles both old and new goals)
-        if (g.isCompleted) {
-          // Debug logging for Valentine goals
-          if (g.valentineChallengeId) {
-            console.log('🔍 Valentine Goal Filter:', {
-              id: g.id,
-              isCompleted: g.isCompleted,
-              isFinished: g.isFinished,
-              isUnlocked: g.isUnlocked,
-              willShow: g.isFinished && !g.isUnlocked
-            });
+        const activeGoals = goals.filter((g) => {
+          // Regular goals: show if not completed
+          if (!g.valentineChallengeId) {
+            return !g.isCompleted && g.currentCount < g.targetCount;
           }
 
-          // Only show if actively waiting for partner (has isFinished but not isUnlocked)
-          // This handles NEW goals with the waiting state
-          // OLD goals without these fields will be hidden
-          return g.isFinished && !g.isUnlocked;
-        }
+          // 💝 Valentine goals
+          // HIDE if completed (handles both old and new goals)
+          if (g.isCompleted) {
+            // Debug logging for Valentine goals
+            if (g.valentineChallengeId) {
+              console.log('🔍 Valentine Goal Filter:', {
+                id: g.id,
+                isCompleted: g.isCompleted,
+                isFinished: g.isFinished,
+                isUnlocked: g.isUnlocked,
+                willShow: g.isFinished && !g.isUnlocked
+              });
+            }
 
-        // Show if still in progress (not completed yet)
-        return true;
-      });
-      setCurrentGoals(activeGoals);
-      setLoading(false);
-      setIsInitialLoading(false);
+            // Only show if actively waiting for partner (has isFinished but not isUnlocked)
+            return g.isFinished && !g.isUnlocked;
+          }
+
+          // Show if still in progress (not completed yet)
+          return true;
+        });
+        setCurrentGoals(activeGoals);
+      } catch (error) {
+        logger.error('Error processing goals in GoalsScreen:', error);
+        // Show whatever goals we can rather than crashing
+        setCurrentGoals([]);
+      } finally {
+        setLoading(false);
+        setIsInitialLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -250,6 +258,12 @@ const GoalsScreen: React.FC = () => {
       // Don't show Alert here - the hint popup from DetailedGoalCard already provides feedback
     } catch (err) {
       logger.error('Error finishing goal:', err);
+      await logErrorToFirestore(err, {
+        screenName: 'GoalsScreen',
+        feature: 'FinishGoal',
+        userId,
+        additionalData: { goalId: updatedGoal.id }
+      });
       Alert.alert('Error', 'Failed to update goal progress.');
     }
   };
@@ -265,92 +279,94 @@ const GoalsScreen: React.FC = () => {
     </View>
   );
   return (
-    <MainScreen activeRoute="Goals">
-      <StatusBar style="light" />
-      <SharedHeader
-        title="Current Goals"
-        subtitle="Tap goal for more details"
-      />
-      {isInitialLoading ? (
-        <ScrollView contentContainerStyle={styles.listContainer}>
-          <GoalCardSkeleton />
-          <GoalCardSkeleton />
-        </ScrollView>
-      ) : currentGoals.length === 0 ? (
-        <Text style={styles.emptyText}>No active goals yet.</Text>
-      ) : (
-        <FlatList
-          data={currentGoals}
-          renderItem={renderGoal}
-          keyExtractor={(item) => item.id!}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No active goals yet.</Text>
-          }
+    <ErrorBoundary screenName="GoalsScreen" userId={userId}>
+      <MainScreen activeRoute="Goals">
+        <StatusBar style="light" />
+        <SharedHeader
+          title="Current Goals"
+          subtitle="Tap goal for more details"
         />
-      )}
-
-      {/* ---------- FLOATING REDEEM COUPON BUTTON ---------- */}
-      <Animated.View
-        style={[
-          styles.fabContainer,
-          {
-            transform: [{ translateY: fabAnim }],
-            opacity: fabOpacity,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
-        >
-          <Image
-            source={require('../assets/icon.png')}
-            style={styles.fabIcon}
-            resizeMode="contain"
+        {isInitialLoading ? (
+          <ScrollView contentContainerStyle={styles.listContainer}>
+            <GoalCardSkeleton />
+            <GoalCardSkeleton />
+          </ScrollView>
+        ) : currentGoals.length === 0 ? (
+          <Text style={styles.emptyText}>No active goals yet.</Text>
+        ) : (
+          <FlatList
+            data={currentGoals}
+            renderItem={renderGoal}
+            keyExtractor={(item) => item.id!}
+            contentContainerStyle={styles.listContainer}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No active goals yet.</Text>
+            }
           />
-          <Text style={styles.fabText}>Redeem your Ernit</Text>
-        </TouchableOpacity>
-      </Animated.View>
+        )}
 
-      {/* 💝 VALENTINE: Unlock Celebration Modal */}
-      <ValentineUnlockModal
-        visible={showUnlockModal}
-        partnerName={partnerName}
-        onClaim={async () => {
-          setShowUnlockModal(false);
+        {/* ---------- FLOATING REDEEM COUPON BUTTON ---------- */}
+        <Animated.View
+          style={[
+            styles.fabContainer,
+            {
+              transform: [{ translateY: fabAnim }],
+              opacity: fabOpacity,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.fab}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
+          >
+            <Image
+              source={require('../assets/icon.png')}
+              style={styles.fabIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.fabText}>Redeem your Ernit</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-          if (unlockedGoal) {
-            // Mark as shown AFTER user actually interacts with the modal
-            // (so it reappears if app crashes before they click "Claim Reward")
-            try {
-              await updateDoc(doc(db, 'goals', unlockedGoal.id), {
-                unlockShown: true,
-              });
-            } catch (error) {
-              logger.error('Error marking unlock as shown:', error);
-            }
+        {/* 💝 VALENTINE: Unlock Celebration Modal */}
+        <ValentineUnlockModal
+          visible={showUnlockModal}
+          partnerName={partnerName}
+          onClaim={async () => {
+            setShowUnlockModal(false);
 
-            // Navigate to completion screen
-            try {
-              const experienceGift = await buildValentineGift(unlockedGoal);
-              if (!experienceGift) {
-                logger.error('Valentine challenge not found for unlocked goal navigation');
-                return;
+            if (unlockedGoal) {
+              // Mark as shown AFTER user actually interacts with the modal
+              // (so it reappears if app crashes before they click "Claim Reward")
+              try {
+                await updateDoc(doc(db, 'goals', unlockedGoal.id), {
+                  unlockShown: true,
+                });
+              } catch (error) {
+                logger.error('Error marking unlock as shown:', error);
               }
-              navigation.navigate('Completion', {
-                goal: serializeNav({ ...unlockedGoal, isUnlocked: true }),
-                experienceGift: serializeNav(experienceGift),
-              });
-            } catch (error) {
-              logger.error('Error fetching Valentine challenge for unlocked goal:', error);
-            }
-          }
-        }}
-      />
 
-    </MainScreen>
+              // Navigate to completion screen
+              try {
+                const experienceGift = await buildValentineGift(unlockedGoal);
+                if (!experienceGift) {
+                  logger.error('Valentine challenge not found for unlocked goal navigation');
+                  return;
+                }
+                navigation.navigate('Completion', {
+                  goal: serializeNav({ ...unlockedGoal, isUnlocked: true }),
+                  experienceGift: serializeNav(experienceGift),
+                });
+              } catch (error) {
+                logger.error('Error fetching Valentine challenge for unlocked goal:', error);
+              }
+            }
+          }}
+        />
+
+      </MainScreen>
+    </ErrorBoundary>
   );
 };
 

@@ -26,6 +26,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useModalAnimation } from '../../hooks/useModalAnimation';
 import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -238,6 +239,12 @@ const CouponEntryScreen = () => {
       }
     } catch (error) {
       logger.error('Error claiming experience gift:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'CouponEntryScreen',
+        feature: 'ClaimCode',
+        userId: state.user?.id,
+        additionalData: { claimCode: trimmedCode }
+      });
       setErrorMessage('An error occurred. Please try again.');
       triggerShake();
     } finally {

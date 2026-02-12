@@ -40,6 +40,7 @@ import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
@@ -167,6 +168,12 @@ const GoalSettingScreen = () => {
         setExperience(exp);
       } catch (error) {
         logger.error("Error fetching experience:", error);
+        await logErrorToFirestore(error, {
+          screenName: 'GoalSettingScreen',
+          feature: 'FetchExperience',
+          userId: state.user?.id,
+          additionalData: { experienceId: experienceGift?.experienceId }
+        });
         Alert.alert("Error", "Could not load experience details.");
       }
     };
@@ -223,7 +230,7 @@ const GoalSettingScreen = () => {
       userName: recipientName,
     });
 
-    setHintPromise(promise);
+    setHintPromise(promise.then(res => res.hint));
 
     openModal();
   };
@@ -266,6 +273,13 @@ const GoalSettingScreen = () => {
         } else if (claimError.message === 'User not authenticated') {
           Alert.alert('Error', 'Please sign in to continue.');
         } else {
+          // Log unknown claim errors
+          await logErrorToFirestore(claimError, {
+            screenName: 'GoalSettingScreen',
+            feature: 'ClaimGift',
+            userId: state.user?.id,
+            additionalData: { giftId: experienceGift.id }
+          });
           Alert.alert('Error', 'Failed to claim this gift. Please try again.');
         }
         return; // Stop here - don't create goal
@@ -293,7 +307,7 @@ const GoalSettingScreen = () => {
         location: experience.location || 'Unknown location',
         targetHours: hoursNum,
         targetMinutes: minutesNum,
-        segments: [],
+
         createdAt: now,
         weeklyLogDates: [],
         empoweredBy: experienceGift.giverId,
@@ -382,6 +396,15 @@ const GoalSettingScreen = () => {
 
     } catch (error) {
       logger.error('Error creating goal:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'GoalSettingScreen',
+        feature: 'CreateGoal',
+        userId: state.user?.id,
+        additionalData: {
+          giftId: experienceGift.id,
+          category: selectedCategory === 'Other' ? customCategory : selectedCategory
+        }
+      });
       Alert.alert('Error', 'Failed to create goal. Please try again.');
     } finally {
       setIsSubmitting(false);

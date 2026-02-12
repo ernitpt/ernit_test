@@ -17,8 +17,8 @@ export const stripeCreateValentinePaymentIntent = onRequest(
         const origin = req.headers.origin || "";
 
         const allowedOrigins: string[] = [
-            "https://ernit.pt",
-            "https://www.ernit.pt",
+            "https://ernit.app",
+            "https://www.ernit.app",
         ];
 
         const allowOrigin = allowedOrigins.includes(origin);
@@ -60,7 +60,6 @@ export const stripeCreateValentinePaymentIntent = onRequest(
 
             if (
                 !metadata.purchaserEmail ||
-                !metadata.partnerEmail ||
                 !metadata.experienceId
             ) {
                 res.status(400).json({

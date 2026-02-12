@@ -25,6 +25,7 @@ import { userService } from './userService';
 import { notificationService } from './NotificationService';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 // ===== Helpers =====
 const isoDateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -120,34 +121,47 @@ export class GoalService {
 
   /** Create a new goal */
   async createGoal(goal: Goal) {
-    const normalized = normalizeGoal(goal);
-    const docRef = await addDoc(this.goalsCollection, {
-      ...normalized,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Create feed post for goal started
     try {
-      // Fetch user data to get name and profile image
-      const userDoc = await getDoc(doc(db, 'users', normalized.userId));
-      const userData = userDoc.exists() ? userDoc.data() : null;
-
-      await feedService.createFeedPost({
-        userId: normalized.userId,
-        userName: userData?.displayName || userData?.profile?.name || 'User',
-        userProfileImageUrl: userData?.profile?.profileImageUrl,
-        goalId: docRef.id,
-        goalDescription: normalized.description,
-        type: 'goal_started',
-        totalSessions: normalized.targetCount,
-        createdAt: new Date(),
+      const normalized = normalizeGoal(goal);
+      const docRef = await addDoc(this.goalsCollection, {
+        ...normalized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
-    } catch (error) {
-      logger.error('Error creating feed post:', error);
-    }
 
-    return { ...normalized, id: docRef.id };
+      // Create feed post for goal started
+      try {
+        // Fetch user data to get name and profile image
+        const userDoc = await getDoc(doc(db, 'users', normalized.userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+
+        await feedService.createFeedPost({
+          userId: normalized.userId,
+          userName: userData?.displayName || userData?.profile?.name || 'User',
+          userProfileImageUrl: userData?.profile?.profileImageUrl,
+          goalId: docRef.id,
+          goalDescription: normalized.description,
+          type: 'goal_started',
+          totalSessions: normalized.targetCount,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        logger.error('Error creating feed post:', error);
+      }
+
+      return { ...normalized, id: docRef.id };
+    } catch (error) {
+      // Log error to Firestore
+      await logErrorToFirestore(error, {
+        feature: 'GoalCreation',
+        userId: goal.userId,
+        additionalData: {
+          goalDescription: goal.description,
+          targetCount: goal.targetCount,
+        },
+      });
+      throw error;
+    }
   }
 
   /**
@@ -160,8 +174,8 @@ export class GoalService {
     goalParams: Omit<Goal, 'id'>,
     isPurchaser: boolean
   ): Promise<{ goal: Goal; isNowActive: boolean }> {
-
-    const transactionResult = await runTransaction(db, async (transaction) => {
+    try {
+      const transactionResult = await runTransaction(db, async (transaction) => {
       // 1. Read and validate challenge
       const challengeRef = doc(db, 'valentineChallenges', challengeId);
       const challengeSnap = await transaction.get(challengeRef);
@@ -283,6 +297,19 @@ export class GoalService {
     }
 
     return { goal, isNowActive };
+    } catch (error) {
+      // Log error to Firestore
+      await logErrorToFirestore(error, {
+        feature: 'ValentineGoalCreation',
+        userId,
+        additionalData: {
+          challengeId,
+          isPurchaser,
+          goalDescription: goalParams.description,
+        },
+      });
+      throw error;
+    }
   }
 
   /**
@@ -508,14 +535,25 @@ export class GoalService {
   listenToUserGoals(userId: string, cb: (goals: Goal[]) => void) {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
     const unsub = onSnapshot(qy, async (snap) => {
-      const goals = await Promise.all(
-        snap.docs.map(async (d) => {
-          const data = normalizeGoal({ id: d.id, ...d.data() });
-          // Apply week sweep to ensure isWeekCompleted is current
-          return await this.applyExpiredWeeksSweep(data);
-        })
-      );
-      cb(goals);
+      try {
+        const goals = await Promise.all(
+          snap.docs.map(async (d) => {
+            const data = normalizeGoal({ id: d.id, ...d.data() });
+            try {
+              return await this.applyExpiredWeeksSweep(data);
+            } catch (sweepError) {
+              logger.error(`Error in applyExpiredWeeksSweep for goal ${data.id}:`, sweepError);
+              return data; // Return un-swept goal rather than crashing
+            }
+          })
+        );
+        cb(goals);
+      } catch (error) {
+        logger.error('Error processing goals in listenToUserGoals:', error);
+        // Still try to return basic normalized goals
+        const fallbackGoals = snap.docs.map((d) => normalizeGoal({ id: d.id, ...d.data() }));
+        cb(fallbackGoals);
+      }
     });
     return unsub;
   }
@@ -711,6 +749,9 @@ export class GoalService {
   async applyExpiredWeeksSweep(goal: Goal): Promise<Goal> {
     let g = normalizeGoal(goal);
     if (!g.weekStartAt || !g.id) return g;
+
+    // ✅ Skip completed goals - no need to sweep them
+    if (g.isCompleted) return g;
 
     // 💝 VALENTINE: Don't reset if goal is finished but locked (waiting for partner)
     if (g.isFinished && !g.isUnlocked) {

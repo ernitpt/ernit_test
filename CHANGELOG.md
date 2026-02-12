@@ -7,5 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
+
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -115,7 +115,7 @@ export default function ValentinesChallengeScreen() {
     const [loading, setLoading] = useState(true);
     const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
     const [customGoal, setCustomGoal] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedCategory, setSelectedCategory] = useState('Recommended');
 
     // New state for multi-step flow
     const [step, setStep] = useState(1);
@@ -138,6 +138,8 @@ export default function ValentinesChallengeScreen() {
     const goalStripAnim = useRef(new Animated.Value(0)).current;
     const prevGoalRef = useRef<string | null>(null);
     const scrollRef = useRef<ScrollView>(null);
+    const categoryTransitionAnim = useRef(new Animated.Value(1)).current;
+    const prevCategoryRef = useRef(selectedCategory);
 
     // Validation errors
     const [validationErrors, setValidationErrors] = useState({
@@ -335,6 +337,26 @@ export default function ValentinesChallengeScreen() {
         }
     };
 
+    // Animate category transitions
+    React.useEffect(() => {
+        if (prevCategoryRef.current !== selectedCategory) {
+            // Fade out
+            Animated.timing(categoryTransitionAnim, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }).start(() => {
+                prevCategoryRef.current = selectedCategory;
+                // Fade in
+                Animated.timing(categoryTransitionAnim, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                }).start();
+            });
+        }
+    }, [selectedCategory]);
+
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
@@ -389,7 +411,7 @@ export default function ValentinesChallengeScreen() {
                                         }}
                                         scrollEventThrottle={100}
                                     >
-                                        {['All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
+                                        {['Recommended', 'All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
                                             <TouchableOpacity
                                                 key={cat}
                                                 onPress={() => setSelectedCategory(cat)}
@@ -418,36 +440,44 @@ export default function ValentinesChallengeScreen() {
                             ) : (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
                                     {/* Random Option - Always shown first */}
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.expCard,
-                                            isSurpriseMode && styles.expCardActive,
-                                            validationErrors.experience && !isSurpriseMode && styles.expCardError
-                                        ]}
-                                        onPress={() => {
-                                            handleSurpriseMeClick();
-                                            setValidationErrors({ ...validationErrors, experience: false });
-                                        }}
-                                    >
-                                        <View style={[styles.expIconBox, styles.randomIconBox]}>
-                                            <Sparkles color="#F59E0B" size={32} />
-                                        </View>
-                                        <Text style={[
-                                            styles.expTitle,
-                                            isSurpriseMode && styles.expTitleActive
-                                        ]} numberOfLines={2}>
-                                            Surprise Me!
-                                        </Text>
-                                        {isSurpriseMode && (
-                                            <View style={styles.checkBadge}>
-                                                <Check color="#fff" size={12} strokeWidth={3} />
+                                    <Animated.View style={{ opacity: categoryTransitionAnim, transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.expCard,
+                                                isSurpriseMode && styles.expCardActive,
+                                                validationErrors.experience && !isSurpriseMode && styles.expCardError
+                                            ]}
+                                            onPress={() => {
+                                                handleSurpriseMeClick();
+                                                setValidationErrors({ ...validationErrors, experience: false });
+                                            }}
+                                        >
+                                            <View style={[styles.expIconBox, styles.randomIconBox]}>
+                                                <Sparkles color="#F59E0B" size={32} />
                                             </View>
-                                        )}
-                                    </TouchableOpacity>
+                                            <Text style={[
+                                                styles.expTitle,
+                                                isSurpriseMode && styles.expTitleActive
+                                            ]} numberOfLines={2}>
+                                                Surprise Me!
+                                            </Text>
+                                            {isSurpriseMode && (
+                                                <View style={styles.checkBadge}>
+                                                    <Check color="#fff" size={12} strokeWidth={3} />
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    </Animated.View>
 
                                     {/* Regular experiences */}
                                     {experiences
                                         .filter(exp => {
+                                            // Recommended category - filter by isRecommendedForValentines flag
+                                            if (selectedCategory === 'Recommended') {
+                                                return exp.isRecommendedForValentines === true;
+                                            }
+
+                                            // All category - show everything
                                             if (selectedCategory === 'All') return true;
                                             if (!exp.category) return false;
 
@@ -461,45 +491,72 @@ export default function ValentinesChallengeScreen() {
                                             // General fallback
                                             return expCat.includes(filterCat) || filterCat.includes(expCat);
                                         })
-                                        .map((exp) => {
+                                        .sort((a, b) => {
+                                            // For recommended category, sort by recommendedOrder
+                                            if (selectedCategory === 'Recommended') {
+                                                const aOrder = a.recommendedOrder ?? Number.MAX_SAFE_INTEGER;
+                                                const bOrder = b.recommendedOrder ?? Number.MAX_SAFE_INTEGER;
+                                                return aOrder - bOrder;
+                                            }
+                                            // For other categories, keep default order
+                                            return 0;
+                                        })
+                                        .map((exp, index) => {
                                             // Don't show as selected if in surprise mode (to avoid spoiling the surprise)
                                             const isSelected = !isSurpriseMode && selectedExperience?.id === exp.id;
 
                                             return (
-                                                <TouchableOpacity
+                                                <Animated.View
                                                     key={exp.id}
-                                                    style={[
-                                                        styles.expCard,
-                                                        isSelected && styles.expCardActive,
-                                                        validationErrors.experience && !isSelected && !isSurpriseMode && styles.expCardError,
-                                                    ]}
-                                                    onPress={() => {
-                                                        setSelectedExperience(exp);
-                                                        setIsSurpriseMode(false);
-                                                        setShowPriceSlider(false);
-                                                        setSelectedMode(null); // Reset mode selection
-                                                        setValidationErrors(prev => ({ ...prev, experience: false }));
+                                                    style={{
+                                                        opacity: categoryTransitionAnim,
+                                                        transform: [{
+                                                            translateY: categoryTransitionAnim.interpolate({
+                                                                inputRange: [0, 1],
+                                                                outputRange: [10, 0],
+                                                            }),
+                                                        }],
                                                     }}
                                                 >
-                                                    <View style={styles.expIconBox}>
-                                                        <Image
-                                                            source={{ uri: exp.coverImageUrl }}
-                                                            style={styles.expImage}
-                                                            resizeMode="cover"
-                                                        />
-                                                    </View>
-                                                    <Text style={[
-                                                        styles.expTitle,
-                                                        isSelected && styles.expTitleActive
-                                                    ]} numberOfLines={2}>
-                                                        {exp.title}
-                                                    </Text>
-                                                    {isSelected && (
-                                                        <View style={styles.checkBadge}>
-                                                            <Check color="#fff" size={12} strokeWidth={3} />
+                                                    <TouchableOpacity
+                                                        style={[
+                                                            styles.expCard,
+                                                            isSelected && styles.expCardActive,
+                                                            validationErrors.experience && !isSelected && !isSurpriseMode && styles.expCardError,
+                                                        ]}
+                                                        onPress={() => {
+                                                            setSelectedExperience(exp);
+                                                            setIsSurpriseMode(false);
+                                                            setShowPriceSlider(false);
+                                                            setSelectedMode(null); // Reset mode selection
+                                                            setValidationErrors(prev => ({ ...prev, experience: false }));
+                                                        }}
+                                                    >
+                                                        <View style={styles.expIconBox}>
+                                                            <Image
+                                                                source={{ uri: exp.coverImageUrl }}
+                                                                style={styles.expImage}
+                                                                resizeMode="cover"
+                                                            />
                                                         </View>
-                                                    )}
-                                                </TouchableOpacity>
+                                                        <View style={styles.expTextContainer}>
+                                                            <Text style={[
+                                                                styles.expTitle,
+                                                                isSelected && styles.expTitleActive
+                                                            ]} numberOfLines={2}>
+                                                                {exp.title}
+                                                            </Text>
+                                                            <Text style={styles.expPrice}>
+                                                                €{exp.price}
+                                                            </Text>
+                                                        </View>
+                                                        {isSelected && (
+                                                            <View style={styles.checkBadge}>
+                                                                <Check color="#fff" size={12} strokeWidth={3} />
+                                                            </View>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </Animated.View>
                                             );
                                         })}
                                 </ScrollView>
@@ -1326,6 +1383,7 @@ const styles = StyleSheet.create({
         padding: 16,
         marginRight: 12,
         width: 110,
+        height: 155, // Fixed height to ensure uniform sizing
         alignItems: 'center',
         position: 'relative',
     },
@@ -1358,6 +1416,19 @@ const styles = StyleSheet.create({
     },
     expTitleActive: {
         color: '#FF6B9D',
+    },
+    expPrice: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#1F2937',
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    expTextContainer: {
+        flex: 1,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
     },
     checkBadge: {
         position: 'absolute',

@@ -39,6 +39,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { Check } from 'lucide-react-native';
 import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -429,6 +430,12 @@ const AuthScreen = () => {
             }
           }
 
+          await logErrorToFirestore(error, {
+            screenName: 'AuthScreen',
+            feature: 'GoogleSignIn',
+            additionalData: { errorCode: error.code }
+          });
+
           Alert.alert('Google Sign-In Failed', 'Unable to sign in with Google. Please try again.');
           setIsLoading(false);
         });
@@ -664,6 +671,16 @@ const AuthScreen = () => {
 
     } catch (error: any) {
       logger.error('Auth error:', error);
+
+      // Log for all auth errors except common user mistakes (wrong password, etc)
+      if (error.code !== 'auth/wrong-password' && error.code !== 'auth/user-not-found' && error.code !== 'auth/invalid-email') {
+        await logErrorToFirestore(error, {
+          screenName: 'AuthScreen',
+          feature: isLogin ? 'Login' : 'Signup',
+          additionalData: { email: sanitizedEmail }
+        });
+      }
+
       let errorMessage = 'An unexpected error occurred. Please try again.';
 
       // Clear previous errors
@@ -695,46 +712,46 @@ const AuthScreen = () => {
       // Standard error messages with inline error display
       if (isLogin) {
         switch (error.code) {
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email address.';
-          setEmailError(errorMessage);
-          break;
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
-          setPasswordError('Email or password is incorrect.');
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
-          setEmailError(errorMessage);
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
-          setPasswordError(errorMessage);
-          break;
-        default:
-          // For other errors, show in alert
-          Alert.alert('Sign In Failed', errorMessage);
-          return;
+          case 'auth/user-not-found':
+            errorMessage = 'No account found with this email address.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
+            setPasswordError('Email or password is incorrect.');
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
+            setPasswordError(errorMessage);
+            break;
+          default:
+            // For other errors, show in alert
+            Alert.alert('Sign In Failed', errorMessage);
+            return;
         }
       } else {
         // Sign up errors
         switch (error.code) {
-        case 'auth/email-already-in-use':
-          errorMessage = 'An account with this email already exists.';
-          setEmailError(errorMessage);
-          break;
-        case 'auth/weak-password':
-          errorMessage = 'Password is too weak. Please choose a stronger password.';
-          setPasswordError(errorMessage);
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
-          setEmailError(errorMessage);
-          break;
-        default:
-          Alert.alert('Sign Up Failed', errorMessage);
-          return;
+          case 'auth/email-already-in-use':
+            errorMessage = 'An account with this email already exists.';
+            setEmailError(errorMessage);
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password is too weak. Please choose a stronger password.';
+            setPasswordError(errorMessage);
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            setEmailError(errorMessage);
+            break;
+          default:
+            Alert.alert('Sign Up Failed', errorMessage);
+            return;
         }
       }
 
@@ -760,6 +777,11 @@ const AuthScreen = () => {
       await sendPasswordResetEmail(auth, email);
       Alert.alert('Email Sent', 'A password reset link has been sent to your email. Please check your spam folder.');
     } catch (error: any) {
+      await logErrorToFirestore(error, {
+        screenName: 'AuthScreen',
+        feature: 'PasswordReset',
+        additionalData: { email }
+      });
       let message = 'Failed to send reset email.';
       if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
       if (error.code === 'auth/user-not-found') message = 'No account found with that email.';

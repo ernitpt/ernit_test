@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { PWAInstaller } from './src/components/PWAInstaller';
 import { pushNotificationService } from './src/services/PushNotificationService';
+import { initializeAnalytics } from './src/utils/analytics';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 import {
   useFonts,
@@ -77,6 +79,9 @@ export default function App() {
         });
       }
 
+      // Initialize Google Analytics 4 (web only)
+      initializeAnalytics();
+
       // Also use a fallback interval to ensure title stays "Ernit"
       const titleInterval = setInterval(() => {
         if (document.title !== 'Ernit') {
@@ -98,7 +103,7 @@ export default function App() {
   console.log('[App] Rendering AppProvider and AppNavigator');
 
   return (
-    <>
+    <ErrorBoundary screenName="App">
       <AppProvider>
         <AuthGuardProvider>
           <TimerProvider>
@@ -107,6 +112,6 @@ export default function App() {
         </AuthGuardProvider>
       </AppProvider>
       <PWAInstaller />
-    </>
+    </ErrorBoundary>
   );
 }

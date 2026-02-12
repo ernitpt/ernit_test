@@ -2,11 +2,12 @@
 import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy } from 'firebase/firestore';
 import { ExperienceGift } from '../types';
 import { logger } from '../utils/logger';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 export class ExperienceGiftService {
 
   private experiencesCollection = collection(db, 'experienceGifts');
-  
+
   /** Create a new experienceGift */
   async createExperienceGift(experienceGift: ExperienceGift) {
     const docRef = await addDoc(this.experiencesCollection, {
@@ -15,7 +16,7 @@ export class ExperienceGiftService {
     });
     return { ...experienceGift, id: docRef.id };
   }
-  
+
   async getExperienceGiftById(id: string): Promise<ExperienceGift | null> {
     if (!id) return null;
 
@@ -62,6 +63,11 @@ export class ExperienceGiftService {
       });
     } catch (error) {
       logger.error('Error fetching gifts by user:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'ExperienceGiftService',
+        feature: 'GetGiftsByUser',
+        additionalData: { userId }
+      });
       return [];
     }
   }
@@ -72,7 +78,7 @@ export class ExperienceGiftService {
       // Try as document ID first
       const docRef = doc(db, 'experienceGifts', giftId);
       const snapshot = await getDoc(docRef);
-      
+
       if (snapshot.exists()) {
         await updateDoc(docRef, {
           personalizedMessage,
@@ -96,6 +102,11 @@ export class ExperienceGiftService {
       });
     } catch (error) {
       logger.error('Error updating personalized message:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'ExperienceGiftService',
+        feature: 'UpdatePersonalizedMessage',
+        additionalData: { giftId }
+      });
       throw error;
     }
   }

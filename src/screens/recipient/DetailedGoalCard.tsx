@@ -32,6 +32,7 @@ import { pushNotificationService } from '../../services/PushNotificationService'
 import { useApp } from '../../context/AppContext';
 import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 import { serializeNav } from '../../utils/serializeNav';
 import { DateHelper } from '../../utils/DateHelper';
 import { db } from '../../services/firebase';
@@ -523,6 +524,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             }
           } catch (error) {
             logger.error('Error fetching Valentine challenge for completion:', error);
+            await logErrorToFirestore(error, {
+              screenName: 'DetailedGoalCard',
+              feature: 'ValentineCompletion',
+              additionalData: {
+                goalId: updated.id,
+                valentineChallengeId: updated.valentineChallengeId,
+              },
+            });
             Alert.alert('🎉 Goal Completed!', 'Congratulations on completing your Valentine challenge!');
           }
         } else if (gift) {
@@ -824,6 +833,14 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       }
     } catch (err) {
       logger.error(err);
+      await logErrorToFirestore(err, {
+        screenName: 'DetailedGoalCard',
+        feature: 'UpdateGoalProgress',
+        additionalData: {
+          goalId: currentGoal.id,
+          isValentineGoal: !!currentGoal.valentineChallengeId,
+        },
+      });
       Alert.alert('Error', 'Could not update goal progress.');
     } finally {
       setLoading(false);
@@ -987,18 +1004,37 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
 
         // Show browser notification if permission granted
         if (Platform.OS === 'web' && 'Notification' in window && Notification.permission === 'granted') {
-          const notification = new Notification("⏰ Session Time's Up!", {
-            body: "Great job! You can now finish your session and log your progress.",
-            icon: '/icon-192.png',
-            badge: '/icon-192.png',
-            tag: `session-${currentGoal.id}`,
-            requireInteraction: true,
-          });
+          try {
+            // Samsung Internet PWA throws "Illegal constructor" for new Notification()
+            // We need to use ServiceWorkerRegistration.showNotification() instead, 
+            // but for now, just try-catch to prevent crash
+            const notification = new Notification("⏰ Session Time's Up!", {
+              body: "Great job! You can now finish your session and log your progress.",
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              tag: `session-${currentGoal.id}`,
+              requireInteraction: true,
+            });
 
-          notification.onclick = () => {
-            window.focus();
-            notification.close();
-          };
+            notification.onclick = () => {
+              window.focus();
+              notification.close();
+            };
+          } catch (e) {
+            // Fallback: try service worker notification if available, or just ignore
+            logger.warn('Failed to create browser notification:', e);
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification("⏰ Session Time's Up!", {
+                  body: "Great job! You can now finish your session and log your progress.",
+                  icon: '/icon-192.png',
+                  badge: '/icon-192.png',
+                  tag: `session-${currentGoal.id}`,
+                  requireInteraction: true,
+                });
+              }).catch(err => logger.warn('Service worker notification failed:', err));
+            }
+          }
         }
       }
     };
@@ -1054,6 +1090,13 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
       await pushNotificationService.cancelSessionNotification(currentGoal.id);
     } catch (error) {
       logger.error('Error cancelling session:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'DetailedGoalCard',
+        feature: 'SessionCancellation',
+        additionalData: {
+          goalId: currentGoal.id,
+        },
+      });
     } finally {
       closeCancelPopup();
     }

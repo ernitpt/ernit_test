@@ -148,9 +148,9 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         const id = db.collection("experienceGifts").doc().id;
         const claimCode = await generateUniqueClaimCode();
 
-        // ✅ Set expiration date (30 days from now)
+        // ✅ Set expiration date (365 days from now)
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
+        expiresAt.setDate(expiresAt.getDate() + 365);
 
         const newGift = {
           id,

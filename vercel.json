@@ -9,7 +9,15 @@
             "destination": "/public/manifest.json"
         },
         {
-            "source": "/(.*)",
+            "source": "/assets/node_modules/(.*)",
+            "destination": "/assets/_fonts/$1"
+        },
+        {
+            "source": "/assets/(.*)\\.(ttf|otf|woff|woff2)",
+            "destination": "/assets/$1"
+        },
+        {
+            "source": "/((?!assets/|static/|favicon.ico|manifest.json|firebase-messaging-sw.js).*)",
             "destination": "/index.html"
         }
     ],
