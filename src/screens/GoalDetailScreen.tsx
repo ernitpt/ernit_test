@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Goal } from '../types';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
+import Colors from '../config/colors';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
-  backText: { fontSize: 16, color: '#8b5cf6', fontWeight: '500' },
+  backText: { fontSize: 16, color: Colors.secondary, fontWeight: '500' },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginTop: 6 },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
   value: { fontSize: 14, color: '#111827', fontWeight: '600' },
 
   progressBg: { backgroundColor: '#e5e7eb', borderRadius: 8, height: 12 },
-  progressFill: { backgroundColor: '#8b5cf6', height: 12, borderRadius: 8 },
+  progressFill: { backgroundColor: Colors.secondary, height: 12, borderRadius: 8 },
   progressFillAlt: { backgroundColor: '#10b981', height: 12, borderRadius: 8 },
 
   completedBox: {
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   completedText: { color: '#fff', fontWeight: '600' },
 
   dayLetter: { color: '#6b7280', fontWeight: '600' },
-  dayLetterToday: { color: '#7c3aed', textDecorationLine: 'underline' },
+  dayLetterToday: { color: Colors.primary, textDecorationLine: 'underline' },
   weekWindowText: { marginTop: 6, fontSize: 12, color: '#374151' },
   weekWindowTextDim: { marginTop: 6, fontSize: 12, color: '#9ca3af' },
 });

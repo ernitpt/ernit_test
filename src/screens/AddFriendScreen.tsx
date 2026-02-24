@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import MainScreen from './MainScreen';
 import { commonStyles } from '../themes/commonStyles';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
@@ -167,7 +168,7 @@ const AddFriendScreen: React.FC = () => {
           {isSearching && (
             <ActivityIndicator
               size="small"
-              color="#8b5cf6"
+              color={Colors.secondary}
               style={styles.searchLoader}
             />
           )}
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   addButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
@@ -353,7 +354,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { color: '#4f46e5', fontSize: 20, fontWeight: '700' },
+  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
 
 });
 

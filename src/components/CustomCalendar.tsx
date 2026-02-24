@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions } from 'react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import Colors from '../config/colors';
 
 interface CustomCalendarProps {
     visible: boolean;
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     },
     navButtonText: {
         fontSize: 28,
-        color: '#8b5cf6',
+        color: Colors.secondary,
         fontWeight: '600',
     },
     monthYear: {
@@ -253,11 +254,11 @@ const styles = StyleSheet.create({
         marginVertical: 2,
     },
     selectedDay: {
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
     },
     todayDay: {
         borderWidth: 2,
-        borderColor: '#8b5cf6',
+        borderColor: Colors.secondary,
     },
     dayText: {
         fontSize: 15,
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     todayDayText: {
-        color: '#8b5cf6',
+        color: Colors.secondary,
         fontWeight: '700',
     },
     footer: {
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     todayText: {
-        color: '#8b5cf6',
+        color: Colors.secondary,
         fontSize: 15,
         fontWeight: '600',
     },

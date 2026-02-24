@@ -10,6 +10,7 @@ import {
 import { SmilePlus } from 'lucide-react-native';
 import type { ReactionType } from '../types';
 import ReactionPicker from './ReactionPicker';
+import Colors from '../config/colors';
 
 interface CompactReactionBarProps {
     reactionCounts: {
@@ -190,7 +191,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                         activeOpacity={0.8}
                     >
                         <SmilePlus
-                            color={(showPicker || userReaction) ? "#8b5cf6" : "#6b7280"}
+                            color={(showPicker || userReaction) ? Colors.secondary : "#6b7280"}
                             size={20}
                         />
                     </TouchableOpacity>
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     reactButtonActive: {
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primaryTint,
     },
     countsContainer: {
         flexDirection: 'row',
@@ -299,9 +300,9 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     userReactionCount: {
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primaryTint,
         borderWidth: 1,
-        borderColor: '#8b5cf6',
+        borderColor: Colors.secondary,
     },
     reactionImage: {
         width: 28,
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     userCountText: {
-        color: '#8b5cf6',
+        color: Colors.secondary,
     },
 });
 

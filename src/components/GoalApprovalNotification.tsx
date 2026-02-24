@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface GoalApprovalNotificationProps {
   notification: Notification;
@@ -59,7 +60,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_approval_response',
-        '✅ Your goal has been approved!',
+        '? Your goal has been approved!',
         `Message from ${giverName}: ${approveMessage.trim()}` || `${giverName} approved your goal. You can now continue with all sessions!`,
         {
           goalId: notification.data.goalId,
@@ -136,7 +137,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_change_suggested',
-        `📝 ${giverNameForSuggestion} suggested a goal change`,
+        `?? ${giverNameForSuggestion} suggested a goal change`,
         '', //suggestMessage.trim() || `${giverName} suggested: ${weeks} weeks, ${sessions} sessions per week`,
         {
           goalId: notification.data.goalId,
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   confirmButton: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: Colors.primary,
   },
   cancelButtonText: {
     color: '#374151',

@@ -6,6 +6,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
 import { commonStyles } from '../styles/commonStyles';
 import AudioPlayer from './AudioPlayer';
+import Colors from '../config/colors';
 
 
 interface Props {
@@ -398,12 +399,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 4,
-    borderColor: '#FAF5FF',
+    borderColor: Colors.primaryTint,
   },
   h1: {
     fontSize: 22,
@@ -422,7 +423,7 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: Colors.primary,
     marginTop: 8,
     marginBottom: 12,
     textAlign: 'center',
@@ -505,8 +506,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     borderWidth: 2,
-    borderColor: '#7C3AED',
-    shadowColor: '#7C3AED',
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -515,17 +516,17 @@ const styles = StyleSheet.create({
   swipeText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#7C3AED',
+    color: Colors.primary,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   btn: {
     width: '100%',
-    backgroundColor: '#7C3AED',
+    backgroundColor: Colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C3AED',
+    shadowColor: Colors.primary,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -539,19 +540,19 @@ const styles = StyleSheet.create({
   },
   firstHintMessageContainer: {
     width: '100%',
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: Colors.primaryTint,
   },
   firstHintMessage: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: Colors.primary,
     textAlign: 'center',
     lineHeight: 20,
   },

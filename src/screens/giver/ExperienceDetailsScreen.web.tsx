@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { loadStripe } from "@stripe/stripe-js";
-import { ChevronLeft, MapPin, Clock, ShoppingCart, Info } from "lucide-react-native";
+import { ChevronLeft, MapPin, Clock, ShoppingCart, Info, Target } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
 import { getAuth } from "firebase/auth";
@@ -38,6 +38,7 @@ import { useApp } from "../../context/AppContext";
 import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
+import Colors from '../../config/colors';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -54,7 +55,7 @@ const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) =
     <Modal visible transparent animationType="fade">
       <View style={styles.zoomModalContainer}>
         <TouchableOpacity style={styles.zoomCloseButton} onPress={onClose}>
-          <Text style={styles.zoomCloseText}>✕</Text>
+          <Text style={styles.zoomCloseText}>?</Text>
         </TouchableOpacity>
 
         <ScrollView
@@ -257,6 +258,14 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     navigation.navigate("Cart");
   };
 
+  const handleSetAsGoal = () => {
+    if (!requireAuth("Please log in to set this as a goal.")) {
+      return;
+    }
+    // Navigate to PledgeGoalSetting via root navigator
+    (navigation as any).navigate("PledgeGoalSetting", { experience });
+  };
+
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
@@ -360,13 +369,13 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             <View style={styles.quickInfoContainer}>
               {experience.duration && (
                 <View style={styles.quickInfoItem}>
-                  <Clock color="#8b5cf6" size={18} />
+                  <Clock color={Colors.secondary} size={18} />
                   <Text style={styles.quickInfoText}>{experience.duration}</Text>
                 </View>
               )}
               {experience.location && (
                 <View style={styles.quickInfoItem}>
-                  <MapPin color="#8b5cf6" size={18} />
+                  <MapPin color={Colors.secondary} size={18} />
                   <Text style={styles.quickInfoText}>{experience.location}</Text>
                 </View>
               )}
@@ -381,7 +390,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 onPress={() => setShowHowItWorks(true)}
                 style={styles.howItWorksButton}
               >
-                <Info color="#8b5cf6" size={18} />
+                <Info color={Colors.secondary} size={18} />
               </TouchableOpacity>
             </View>
             <View style={styles.descriptionCard}>
@@ -437,7 +446,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               onPress={decreaseQuantity}
               disabled={quantity === 1}
             >
-              <Text style={[styles.quantityButtonText, quantity === 1 && styles.quantityButtonTextDisabled]}>−</Text>
+              <Text style={[styles.quantityButtonText, quantity === 1 && styles.quantityButtonTextDisabled]}>-</Text>
             </TouchableOpacity>
             <Text style={styles.quantityValue}>{quantity}</Text>
             <TouchableOpacity
@@ -468,6 +477,16 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             <Text style={styles.buyNowButtonText}>Buy Now</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Set as Goal (Free Pledge) */}
+        <TouchableOpacity
+          style={styles.setAsGoalButton}
+          onPress={handleSetAsGoal}
+          activeOpacity={0.8}
+        >
+          <Target color="#16a34a" size={20} />
+          <Text style={styles.setAsGoalText}>Set as Goal</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Zoomable Image Modal */}
@@ -603,7 +622,7 @@ const styles = StyleSheet.create({
   priceAmount: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#8b5cf6",
+    color: Colors.secondary,
   },
   priceLabel: {
     fontSize: 12,
@@ -772,7 +791,7 @@ const styles = StyleSheet.create({
   quantityButtonText: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#8b5cf6",
+    color: Colors.secondary,
   },
   quantityButtonTextDisabled: {
     color: "#9ca3af",
@@ -795,16 +814,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#8b5cf6",
+    borderColor: Colors.secondary,
   },
   addToCartButtonText: {
-    color: "#8b5cf6",
+    color: Colors.secondary,
     fontSize: 18,
     fontWeight: "700",
   },
   buyNowButton: {
     flex: 1,
-    backgroundColor: "#8b5cf6",
+    backgroundColor: Colors.secondary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -816,6 +835,23 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  setAsGoalButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1.5,
+    borderColor: "#bbf7d0",
+  },
+  setAsGoalText: {
+    color: "#16a34a",
+    fontSize: 16,
+    fontWeight: "700",
   },
   zoomModalContainer: {
     flex: 1,

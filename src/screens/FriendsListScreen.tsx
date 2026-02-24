@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import PersonAddIcon from '../assets/icons/PersonAdd';
 import { commonStyles } from '../themes/commonStyles';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -42,7 +43,7 @@ const FriendsListScreen: React.FC = () => {
   const [showRemovePopup, setShowRemovePopup] = useState(false);
 
   const currentUserId = state.user?.id;
-  const headerColors = ['#462088ff', '#235c9eff'] as const;
+  const headerColors = Colors.gradientPrimary;
   const [imageLoadError, setImageLoadError] = useState(false);
 
   // Animations
@@ -125,7 +126,7 @@ const FriendsListScreen: React.FC = () => {
       await friendService.removeFriend(currentUserId, selectedFriend.friendId);
       await loadFriends();
     } catch (error) {
-      logger.error('❌ Error removing friend:', error);
+      logger.error('? Error removing friend:', error);
     } finally {
       setRemovingFriendId(null);
       closeRemovePopup();
@@ -190,7 +191,7 @@ const FriendsListScreen: React.FC = () => {
 
       {isLoading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color={Colors.secondary} />
           <Text style={styles.loadingText}>Loading friends...</Text>
         </View>
       ) : friends.length > 0 ? (
@@ -219,15 +220,15 @@ const FriendsListScreen: React.FC = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                colors={['#8b5cf6']}
-                tintColor="#8b5cf6"
+                colors={[Colors.secondary]}
+                tintColor={Colors.secondary}
               />
             }
           />
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>👥</Text>
+          <Text style={styles.emptyStateIcon}>??</Text>
           <Text style={styles.emptyStateTitle}>No Friends Yet</Text>
           <Text style={styles.emptyStateText}>
             Start building your network by adding friends!
@@ -348,11 +349,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   emptyStateButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: '#8b5cf6',
+    shadowColor: Colors.secondary,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { color: '#4f46e5', fontSize: 20, fontWeight: '700' },
+  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
 
   modalOverlay: {
     position: 'absolute',
@@ -396,7 +397,7 @@ const styles = StyleSheet.create({
     elevation: 38,
     alignItems: 'center',
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#4c1d95', marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.primaryDeep, marginBottom: 8 },
   modalSubtitle: {
     fontSize: 15,
     color: '#374151',

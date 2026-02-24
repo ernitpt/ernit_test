@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { X, MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
 import { Goal, PersonalizedHint } from '../types';
+import Colors from '../config/colors';
 
 interface HintHistoryModalProps {
     visible: boolean;
@@ -64,11 +65,11 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
                     <View style={styles.hintHeader}>
                         <View style={styles.hintTypeIcon}>
                             {pHint.type === 'audio' || pHint.type === 'mixed' ? (
-                                <Mic size={16} color="#7C3AED" />
+                                <Mic size={16} color={Colors.primary} />
                             ) : pHint.type === 'image' ? (
-                                <ImageIcon size={16} color="#7C3AED" />
+                                <ImageIcon size={16} color={Colors.primary} />
                             ) : (
-                                <MessageCircle size={16} color="#7C3AED" />
+                                <MessageCircle size={16} color={Colors.primary} />
                             )}
                         </View>
                         <View style={{ flex: 1 }}>
@@ -105,7 +106,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
                 <View key={index} style={styles.hintCard}>
                     <View style={styles.hintHeader}>
                         <View style={styles.hintTypeIcon}>
-                            <MessageCircle size={16} color="#7C3AED" />
+                            <MessageCircle size={16} color={Colors.primary} />
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.sessionLabel}>Session {legacyHint.session}</Text>
@@ -128,7 +129,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
             case 'image':
                 return '#DBEAFE';
             case 'mixed':
-                return '#F3E8FF';
+                return Colors.primarySurface;
             default:
                 return '#E0E7FF';
         }

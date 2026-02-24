@@ -42,6 +42,10 @@ import ValentinesChallengeScreen from '../screens/ValentinesChallengeScreen';
 import ValentineCheckoutScreen from '../screens/ValentineCheckoutScreen';
 import ValentineConfirmationScreen from '../screens/ValentineConfirmationScreen';
 import ValentineGoalSettingScreen from '../screens/ValentineGoalSettingScreen';
+import PledgeGoalSettingScreen from '../screens/recipient/PledgeGoalSettingScreen';
+import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScreen';
+import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
+import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import { logger } from '../utils/logger';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
@@ -65,6 +69,8 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'FriendProfile',
   'FriendsList',
   'PurchasedGifts',
+  'PledgeGoalSetting',
+  'FreeGoalCompletion',
 ];
 
 // Helper function to detect incognito mode
@@ -131,6 +137,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         pathname.includes('/checkout') ||
         pathname.includes('/recipient/redeem/') ||
         pathname.includes('/valentines') ||
+        pathname.includes('/challenge') ||
         hasQueryParams;
 
       if (!shouldNotReset) {
@@ -213,6 +220,10 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         ValentinesChallenge: 'valentines/create',
         ValentineCheckout: 'valentines/checkout',
         ValentineGoalSetting: 'valentines/goalSetting',
+        PledgeGoalSetting: 'pledge-goal',
+        FreeGoalCompletion: 'free-goal-completion',
+        ChallengeLanding: 'challenge',
+        ChallengeSetup: 'challenge/create',
       },
     },
   };
@@ -247,6 +258,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         <RootStack.Screen name="ValentineCheckout" component={ValentineCheckoutScreen} />
         <RootStack.Screen name="ValentineConfirmation" component={ValentineConfirmationScreen} />
         <RootStack.Screen name="ValentineGoalSetting" component={ValentineGoalSettingScreen} />
+        <RootStack.Screen name="ChallengeLanding" component={ChallengeLandingScreen} />
+        <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
@@ -381,6 +394,22 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
           {(props) => (
             <ProtectedRoute>
               <GoalSettingScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="PledgeGoalSetting">
+          {(props) => (
+            <ProtectedRoute>
+              <PledgeGoalSettingScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="FreeGoalCompletion">
+          {(props) => (
+            <ProtectedRoute>
+              <FreeGoalCompletionScreen {...props} />
             </ProtectedRoute>
           )}
         </RootStack.Screen>

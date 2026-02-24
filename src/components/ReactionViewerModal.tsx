@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -16,6 +16,7 @@ import { reactionService } from '../services/ReactionService';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface ReactionViewerModalProps {
     visible: boolean;
@@ -24,9 +25,9 @@ interface ReactionViewerModalProps {
 }
 
 const REACTION_EMOJIS: Record<ReactionType, string> = {
-    like: '👍',
-    heart: '❤️',
-    muscle: '💪',
+    like: '??',
+    heart: '??',
+    muscle: '??',
 };
 
 const REACTION_LABELS: Record<ReactionType, string> = {
@@ -174,7 +175,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                         <ScrollView style={styles.reactionsList}>
                             {loading ? (
                                 <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color="#8b5cf6" />
+                                    <ActivityIndicator size="large" color={Colors.secondary} />
                                 </View>
                             ) : filteredReactions.length === 0 ? (
                                 <View style={styles.emptyContainer}>
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
     tabActive: {
         backgroundColor: '#e0e7ff',
         borderWidth: 1.5,
-        borderColor: '#8b5cf6',
+        borderColor: Colors.secondary,
     },
     tabEmoji: {
         fontSize: 16,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     tabTextActive: {
-        color: '#8b5cf6',
+        color: Colors.secondary,
     },
     reactionsList: {
         paddingHorizontal: 20,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#4f46e5',
+        color: Colors.accentDark,
     },
     userInfo: {
         flex: 1,

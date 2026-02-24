@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Colors from '../config/colors';
 import {
   View,
   Text,
@@ -107,10 +108,10 @@ const AuthScreen = () => {
       const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
 
       if (hasSeenOnboarding === 'true') {
-        logger.log('✅ Transferring onboarding status from AsyncStorage to Firestore');
+        logger.log('? Transferring onboarding status from AsyncStorage to Firestore');
         await userService.updateOnboardingStatus(userId, 'completed');
       } else {
-        logger.log('🎯 No onboarding status in AsyncStorage - keeping Firestore default');
+        logger.log('?? No onboarding status in AsyncStorage - keeping Firestore default');
       }
     } catch (error) {
       logger.error('Error transferring onboarding status:', error);
@@ -123,7 +124,7 @@ const AuthScreen = () => {
       try {
         const redemptionData = await getStorageItem('pending_valentine_redemption');
         if (redemptionData) {
-          logger.log('💘 Detected pending Valentine redemption');
+          logger.log('?? Detected pending Valentine redemption');
           setHasPendingRedemption(true);
         }
       } catch (error) {
@@ -252,20 +253,20 @@ const AuthScreen = () => {
   // const [verificationEmail, setVerificationEmail] = useState('');
   // const [isSendingVerification, setIsSendingVerification] = useState(false);
 
-  // ✅ Use makeRedirectUri for proper OAuth configuration
+  // ? Use makeRedirectUri for proper OAuth configuration
   const redirectUri = makeRedirectUri({
     scheme: 'ernit',
   });
 
-  // ✅ SECURITY FIX: No fallback - fail if env var missing
+  // ? SECURITY FIX: No fallback - fail if env var missing
   const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   // Log OAuth config for debugging
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
-      logger.error('🚨 CRITICAL: Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID environment variable');
+      logger.error('?? CRITICAL: Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID environment variable');
     } else {
-      logger.log('🔐 Google OAuth Configuration:');
+      logger.log('?? Google OAuth Configuration:');
       logger.log('  Client ID:', GOOGLE_CLIENT_ID?.substring(0, 30) + '...');
       logger.log('  Redirect URI:', redirectUri);
     }
@@ -298,7 +299,7 @@ const AuthScreen = () => {
               wishlist: [],
             });
 
-            // ✅ Transfer onboarding status from AsyncStorage to Firestore
+            // ? Transfer onboarding status from AsyncStorage to Firestore
             await transferOnboardingStatus(user.uid);
           }
 
@@ -336,7 +337,7 @@ const AuthScreen = () => {
             try {
               const redemptionData = await getStorageItem('pending_valentine_redemption');
               if (redemptionData) {
-                logger.log('💘 Navigating to redemption after auth');
+                logger.log('?? Navigating to redemption after auth');
                 await removeStorageItem('pending_valentine_redemption');
                 navigation.navigate('RecipientFlow', {
                   screen: 'CouponEntry',
@@ -347,6 +348,19 @@ const AuthScreen = () => {
             } catch (error) {
               logger.error('Error handling redemption after auth:', error);
             }
+            // Check for pending free challenge
+            try {
+              const challengeData = await getStorageItem('pending_free_challenge');
+              if (challengeData) {
+                logger.log('?? Navigating to challenge setup after auth');
+                await removeStorageItem('pending_free_challenge');
+                const config = JSON.parse(challengeData);
+                navigation.navigate('ChallengeSetup', { prefill: config } as any);
+                return;
+              }
+            } catch (error) {
+              logger.error('Error handling pending challenge after auth:', error);
+            }
             // Default: use auth guard to navigate
             handleAuthSuccess();
           }, 1500);
@@ -355,7 +369,7 @@ const AuthScreen = () => {
         .catch(async (error) => {
           logger.error('Google Sign-In Error:', error);
 
-          // ✅ Handle account linking when email already exists with password provider
+          // ? Handle account linking when email already exists with password provider
           if (error.code === 'auth/account-exists-with-different-credential') {
             try {
               const email = error.customData?.email;
@@ -408,7 +422,7 @@ const AuthScreen = () => {
                     try {
                       const redemptionData = await getStorageItem('pending_valentine_redemption');
                       if (redemptionData) {
-                        logger.log('💘 Navigating to redemption after auth');
+                        logger.log('?? Navigating to redemption after auth');
                         await removeStorageItem('pending_valentine_redemption');
                         navigation.navigate('RecipientFlow', {
                           screen: 'CouponEntry',
@@ -418,6 +432,19 @@ const AuthScreen = () => {
                       }
                     } catch (error) {
                       logger.error('Error handling redemption after auth:', error);
+                    }
+                    // Check for pending free challenge
+                    try {
+                      const challengeData = await getStorageItem('pending_free_challenge');
+                      if (challengeData) {
+                        logger.log('?? Navigating to challenge setup after auth');
+                        await removeStorageItem('pending_free_challenge');
+                        const config = JSON.parse(challengeData);
+                        navigation.navigate('ChallengeSetup', { prefill: config } as any);
+                        return;
+                      }
+                    } catch (error) {
+                      logger.error('Error handling pending challenge after auth:', error);
                     }
                     // Default: use auth guard to navigate
                     handleAuthSuccess();
@@ -447,7 +474,7 @@ const AuthScreen = () => {
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   /**
-   * ✅ Comprehensive input sanitization
+   * ? Comprehensive input sanitization
    * Removes HTML tags, limits length, handles special characters
    */
   const sanitizeInput = (input: string, maxLength: number = 500): string => {
@@ -588,10 +615,10 @@ const AuthScreen = () => {
         userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
         await updateProfile(userCredential.user, { displayName: sanitizedDisplayName.trim() });
 
-        // ✅ Send email verification immediately after signup
+        // ? Send email verification immediately after signup
         try {
           await sendEmailVerification(userCredential.user);
-          logger.log('✅ Verification email sent to:', sanitizedEmail);
+          logger.log('? Verification email sent to:', sanitizedEmail);
         } catch (verifyError) {
           logger.error('Error sending verification email:', verifyError);
           // Don't block signup if verification email fails
@@ -607,10 +634,10 @@ const AuthScreen = () => {
           cart: [],
         });
 
-        // ✅ Transfer onboarding status from AsyncStorage to Firestore
+        // ? Transfer onboarding status from AsyncStorage to Firestore
         await transferOnboardingStatus(userCredential.user.uid);
 
-        // ✅ Show verification message to user
+        // ? Show verification message to user
         Alert.alert(
           'Account Created!',
           'A verification email has been sent to ' + sanitizedEmail + '. Please verify your email to secure your account.',
@@ -654,7 +681,7 @@ const AuthScreen = () => {
         try {
           const redemptionData = await getStorageItem('pending_valentine_redemption');
           if (redemptionData) {
-            logger.log('💘 Navigating to redemption after auth');
+            logger.log('?? Navigating to redemption after auth');
             await removeStorageItem('pending_valentine_redemption');
             navigation.navigate('RecipientFlow', {
               screen: 'CouponEntry',
@@ -664,6 +691,19 @@ const AuthScreen = () => {
           }
         } catch (error) {
           logger.error('Error handling redemption after auth:', error);
+        }
+        // Check for pending free challenge
+        try {
+          const challengeData = await getStorageItem('pending_free_challenge');
+          if (challengeData) {
+            logger.log('?? Navigating to challenge setup after auth');
+            await removeStorageItem('pending_free_challenge');
+            const config = JSON.parse(challengeData);
+            navigation.navigate('ChallengeSetup', { prefill: config } as any);
+            return;
+          }
+        } catch (error) {
+          logger.error('Error handling pending challenge after auth:', error);
         }
         // Default: use auth guard to navigate
         handleAuthSuccess();
@@ -813,7 +853,7 @@ const AuthScreen = () => {
     <View style={{ flex: 1 }}>
       {/* Base gradient */}
       <LinearGradient
-        colors={['#7C3AED', '#3B82F6']}
+        colors={Colors.gradientPrimary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -832,7 +872,7 @@ const AuthScreen = () => {
         }}
       >
         <LinearGradient
-          colors={['#9333EA', '#2563EB', '#3B82F6']}
+          colors={Colors.gradientAuth}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{ flex: 1 }}
@@ -889,9 +929,9 @@ const AuthScreen = () => {
                 <Text style={{ fontSize: 48, fontWeight: 'bold', color: 'white', textAlign: 'center', marginBottom: 16 }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
-                <Text style={{ fontSize: 18, color: '#E9D5FF', textAlign: 'center', maxWidth: 280 }}>
+                <Text style={{ fontSize: 18, color: Colors.primaryTint, textAlign: 'center', maxWidth: 280 }}>
                   {hasPendingRedemption
-                    ? '💘 Sign in to redeem your Valentine\'s code'
+                    ? '?? Sign in to redeem your Valentine\'s code'
                     : isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
                 </Text>
               </View>
@@ -911,7 +951,7 @@ const AuthScreen = () => {
                   }}
                 >
                   <LinearGradient
-                    colors={['#7C3AED', '#3B82F6', '#9333EA']}
+                    colors={Colors.gradientTriple}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{ flex: 1, borderRadius: 34 }}
@@ -1071,7 +1111,7 @@ const AuthScreen = () => {
                         <View style={{ gap: 4 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
-                              {passwordChecks.minLength ? '✔' : '✖'}
+                              {passwordChecks.minLength ? '?' : '?'}
                             </Text>
                             <Text style={{ fontSize: 12, color: passwordChecks.minLength ? '#10B981' : '#6B7280' }}>
                               At least 8 characters
@@ -1079,7 +1119,7 @@ const AuthScreen = () => {
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
-                              {passwordChecks.hasUpperCase ? '✔' : '✖'}
+                              {passwordChecks.hasUpperCase ? '?' : '?'}
                             </Text>
                             <Text style={{ fontSize: 12, color: passwordChecks.hasUpperCase ? '#10B981' : '#6B7280' }}>
                               One uppercase letter
@@ -1087,7 +1127,7 @@ const AuthScreen = () => {
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
-                              {passwordChecks.hasLowerCase ? '✔' : '✖'}
+                              {passwordChecks.hasLowerCase ? '?' : '?'}
                             </Text>
                             <Text style={{ fontSize: 12, color: passwordChecks.hasLowerCase ? '#10B981' : '#6B7280' }}>
                               One lowercase letter
@@ -1095,7 +1135,7 @@ const AuthScreen = () => {
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
-                              {passwordChecks.hasNumber ? '✔' : '✖'}
+                              {passwordChecks.hasNumber ? '?' : '?'}
                             </Text>
                             <Text style={{ fontSize: 12, color: passwordChecks.hasNumber ? '#10B981' : '#6B7280' }}>
                               One number
@@ -1103,7 +1143,7 @@ const AuthScreen = () => {
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
-                              {passwordChecks.hasSpecialChar ? '✔' : '✖'}
+                              {passwordChecks.hasSpecialChar ? '?' : '?'}
                             </Text>
                             <Text style={{ fontSize: 12, color: passwordChecks.hasSpecialChar ? '#10B981' : '#6B7280' }}>
                               One special character
@@ -1115,7 +1155,7 @@ const AuthScreen = () => {
 
                     {isLogin && (
                       <TouchableOpacity onPress={handlePasswordReset} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
-                        <Text style={{ color: '#7C3AED', fontSize: 14, fontWeight: '500' }}>Forgot password?</Text>
+                        <Text style={{ color: Colors.primary, fontSize: 14, fontWeight: '500' }}>Forgot password?</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1190,7 +1230,7 @@ const AuthScreen = () => {
                             }}
                           >
                             <LinearGradient
-                              colors={['rgba(124, 58, 237, 0.8)', 'rgba(147, 51, 234, 0.8)']}
+                              colors={['rgba(5, 150, 105, 0.8)', 'rgba(4, 120, 87, 0.8)']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={{ flex: 1, borderRadius: 18 }}
@@ -1208,13 +1248,13 @@ const AuthScreen = () => {
                         activeOpacity={0.9}
                       >
                         <LinearGradient
-                          colors={isButtonDisabled ? ['#D1D5DB', '#D1D5DB'] : ['#7C3AED', '#9333EA', '#7C3AED']}
+                          colors={isButtonDisabled ? ['#D1D5DB', '#D1D5DB'] : Colors.gradientTriple}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={{
                             borderRadius: 12,
                             paddingVertical: 16,
-                            shadowColor: isButtonDisabled ? '#000' : '#7C3AED',
+                            shadowColor: isButtonDisabled ? '#000' : Colors.primary,
                             shadowOffset: { width: 0, height: 8 },
                             shadowOpacity: isButtonDisabled ? 0.1 : 0.5,
                             shadowRadius: 16,
@@ -1273,7 +1313,7 @@ const AuthScreen = () => {
                     }}
                     style={{ alignItems: 'center' }}
                   >
-                    <Text style={{ fontSize: 16, color: '#7C3AED', fontWeight: '600' }}>
+                    <Text style={{ fontSize: 16, color: Colors.primary, fontWeight: '600' }}>
                       {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
                     </Text>
                   </TouchableOpacity>

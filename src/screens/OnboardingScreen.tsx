@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import Colors from '../config/colors';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { userService } from '../services/userService';
 import { auth } from '../services/firebase';
@@ -40,8 +41,8 @@ const slides: Slide[] = [
         title: 'Welcome to Ernit',
         description: 'Gift experiences your friends can earn. They set a challenge, achieve goals and unlock their surprise reward.',
         emoji: '🎁',
-        color1: '#8B5CF6',
-        color2: '#6366F1',
+        color1: Colors.secondary,
+        color2: Colors.accentDark,
     },
     {
         id: 2,
@@ -49,14 +50,14 @@ const slides: Slide[] = [
         description: 'The surprise stays hidden, and they\'ll discover it piece by piece through motivating hints.',
         emoji: '🎯',
         color1: '#EC4899',
-        color2: '#8B5CF6',
+        color2: Colors.secondary,
     },
     {
         id: 3,
         title: 'Earn Your Reward',
         description: 'Set goals, track your progress, and prove you\'ve earned it. The harder you work, the closer you get.',
         emoji: '📈',
-        color1: '#3B82F6',
+        color1: Colors.accent,
         color2: '#06B6D4',
     },
     {
@@ -284,7 +285,7 @@ const OnboardingScreen = () => {
             <StatusBar style="light" />
 
             <LinearGradient
-                colors={['#0F0728', '#1a0f3d', '#2d1b69']}
+                colors={['#064E3B', '#065F46', '#0D9488']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -342,7 +343,7 @@ const OnboardingScreen = () => {
                         activeOpacity={0.85}
                     >
                         <LinearGradient
-                            colors={['#8B5CF6', '#6D28D9', '#5B21B6']}
+                            colors={Colors.gradientOnboarding}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.buttonGradient}
@@ -361,7 +362,7 @@ const OnboardingScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0F0728',
+        backgroundColor: '#064E3B',
         overflow: 'hidden',
     },
     contentContainer: {
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
         width: 400,
         height: 400,
         borderRadius: 200,
-        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+        backgroundColor: 'rgba(16, 185, 129, 0.15)',
         zIndex: 0,
     },
     bgCircle2: {
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
         width: 350,
         height: 350,
         borderRadius: 175,
-        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+        backgroundColor: 'rgba(20, 184, 166, 0.12)',
         zIndex: 0,
     },
     bgCircle3: {
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
         borderRadius: 80,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#8B5CF6',
+        shadowColor: Colors.secondary,
         shadowOffset: { width: 0, height: 20 },
         shadowOpacity: 0.5,
         shadowRadius: 30,
@@ -511,7 +512,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 56,
         borderRadius: 28,
-        shadowColor: '#8B5CF6',
+        shadowColor: Colors.secondary,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.5,
         shadowRadius: 20,

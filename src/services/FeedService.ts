@@ -76,6 +76,16 @@ class FeedService {
             if (post.experienceGiftId !== undefined) {
                 feedPost.experienceGiftId = post.experienceGiftId;
             }
+            // Free Goal fields
+            if (post.isFreeGoal !== undefined) {
+                feedPost.isFreeGoal = post.isFreeGoal;
+            }
+            if (post.pledgedExperienceId !== undefined) {
+                feedPost.pledgedExperienceId = post.pledgedExperienceId;
+            }
+            if (post.pledgedExperiencePrice !== undefined) {
+                feedPost.pledgedExperiencePrice = post.pledgedExperiencePrice;
+            }
 
             const docRef = await addDoc(this.feedPostsCollection, feedPost);
             logger.log('✅ Feed post created:', docRef.id);

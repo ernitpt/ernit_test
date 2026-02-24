@@ -117,12 +117,26 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.userId
         && (
           // Normal gift flow: experienceGift must exist
-          ('experienceGiftId' in request.resource.data 
+          ('experienceGiftId' in request.resource.data
+           && request.resource.data.experienceGiftId != ''
            && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId)))
           ||
           // Valentine flow: valentineChallenge must exist
           ('valentineChallengeId' in request.resource.data
            && exists(/databases/$(database)/documents/valentineChallenges/$(request.resource.data.valentineChallengeId)))
+          ||
+          // Free Goal flow: must have isFreeGoal flag; pledgedExperience is optional
+          ('isFreeGoal' in request.resource.data
+           && request.resource.data.isFreeGoal == true
+           && (
+             // No experience selected: field missing OR null
+             !('pledgedExperience' in request.resource.data)
+             || request.resource.data.pledgedExperience == null
+             ||
+             // Experience selected — must be a real experience doc
+             (request.resource.data.pledgedExperience.experienceId is string
+              && exists(/databases/$(database)/documents/experiences/$(request.resource.data.pledgedExperience.experienceId)))
+           ))
         );
 
         // ===== Allow updates =====
@@ -217,6 +231,18 @@ service cloud.firestore {
         ('empoweredBy' in resource.data &&
         request.auth.uid == resource.data.empoweredBy
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalizedNextHint', 'updatedAt']))
+
+        ||
+
+        // (5) Attaching a gift to a free goal (goal owner only)
+        (request.auth.uid == resource.data.userId
+         && 'isFreeGoal' in resource.data
+         && resource.data.isFreeGoal == true
+         && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'updatedAt'])
+         && request.resource.data.experienceGiftId is string
+         && request.resource.data.experienceGiftId != ''
+         && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId)))
       );
 
       /* ===============================
@@ -238,6 +264,27 @@ service cloud.firestore {
       match /hints/{hintId} {
         allow read, write: if request.auth != null &&
           request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+      }
+
+      /* ===============================
+         NESTED MOTIVATIONS (Free Goals)
+         =============================== */
+      match /motivations/{motivationId} {
+        // Goal owner can read all motivations
+        allow read: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+
+        // Any authenticated user can leave a motivation (except the goal owner - you motivate others, not yourself)
+        allow create: if request.auth != null
+          && request.auth.uid != get(/databases/$(database)/documents/goals/$(goalId)).data.userId
+          && request.auth.uid == request.resource.data.authorId
+          && request.resource.data.message is string
+          && request.resource.data.message.size() <= 500;
+
+        // Goal owner can mark motivations as seen
+        allow update: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen']);
       }
     }
     

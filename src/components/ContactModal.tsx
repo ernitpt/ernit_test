@@ -18,6 +18,7 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { contactService } from '../services/ContactService';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface ContactModalProps {
     visible: boolean;
@@ -113,7 +114,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                         {/* Header */}
                         <View style={styles.header}>
                             <View style={styles.headerTitleContainer}>
-                                <Icon color="#8b5cf6" size={24} />
+                                <Icon color={Colors.secondary} size={24} />
                                 <Text style={styles.headerTitle}>{title}</Text>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -296,10 +297,10 @@ const styles = StyleSheet.create({
     },
     emailText: {
         fontWeight: '600',
-        color: '#8b5cf6',
+        color: Colors.secondary,
     },
     submitButton: {
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
         borderRadius: 12,
         paddingVertical: 16,
         paddingHorizontal: 24,

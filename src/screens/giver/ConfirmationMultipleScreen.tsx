@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
+import Colors from '../../config/colors';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -156,7 +157,7 @@ const ConfirmationMultipleScreen = () => {
 
   const handleCopyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
-    Alert.alert('✓ Copied!', 'Claim code copied to clipboard.');
+    Alert.alert('? Copied!', 'Claim code copied to clipboard.');
   };
 
   const handleShareCode = async (code: string, experienceTitle?: string) => {
@@ -166,9 +167,9 @@ const ConfirmationMultipleScreen = () => {
         message: `
 Hey! Got you an Ernit experience, a little boost for your goals.
 
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you 😎
+Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you ??
 
-Earn it. Unlock it. Enjoy it 💙
+Earn it. Unlock it. Enjoy it ??
         `
       };
 
@@ -315,7 +316,7 @@ Earn it. Unlock it. Enjoy it 💙
                         onPress={() => handleCopyCode(item.gift.claimCode)}
                         activeOpacity={0.7}
                       >
-                        <Copy color="#8b5cf6" size={18} />
+                        <Copy color={Colors.secondary} size={18} />
                         <Text style={styles.copyCodeText}>Copy</Text>
                       </TouchableOpacity>
 
@@ -482,7 +483,7 @@ const styles = StyleSheet.create({
   },
   priceTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#faf5ff',
+    backgroundColor: Colors.primarySurface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -491,7 +492,7 @@ const styles = StyleSheet.create({
   priceAmount: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   messageSection: {
     marginTop: 16,
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
   messageLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sendMessageButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
@@ -579,7 +580,7 @@ const styles = StyleSheet.create({
   codeText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#8b5cf6',
+    color: Colors.secondary,
     textAlign: 'center',
     letterSpacing: 4,
   },
@@ -593,16 +594,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: Colors.primarySurface,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e9d5ff',
+    borderColor: Colors.primaryTint,
   },
   copyCodeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   shareCodeButton: {
     flex: 1,
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 10,
     borderRadius: 8,
   },
@@ -651,19 +652,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ede9fe',
+    backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepNumber: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   stepLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#e9d5ff',
+    backgroundColor: Colors.primaryTint,
     marginVertical: 4,
   },
   stepContent: {
@@ -700,7 +701,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   homeButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -713,14 +714,3 @@ const styles = StyleSheet.create({
 });
 
 export default ConfirmationMultipleScreen;
-
-
-
-
-
-
-
-
-
-
-

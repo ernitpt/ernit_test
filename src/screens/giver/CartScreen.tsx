@@ -1,4 +1,4 @@
-﻿// screens/CartScreen.tsx
+// screens/CartScreen.tsx
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
@@ -23,6 +23,7 @@ import { useNavigation } from "@react-navigation/native";
 import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import Colors from '../../config/colors';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -220,7 +221,7 @@ export default function CartScreen() {
     return (
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color={Colors.secondary} />
         </View>
       </MainScreen>
     );
@@ -258,7 +259,7 @@ export default function CartScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.keepShoppingText}>Start Shopping</Text>
-              <ArrowRight size={20} color="#8b5cf6" />
+              <ArrowRight size={20} color={Colors.secondary} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -326,7 +327,7 @@ export default function CartScreen() {
                             disabled={item.quantity === 1 || isUpdating}
                             activeOpacity={0.7}
                           >
-                            <Minus size={16} color={item.quantity === 1 ? "#d1d5db" : "#8b5cf6"} />
+                            <Minus size={16} color={item.quantity === 1 ? "#d1d5db" : Colors.secondary} />
                           </TouchableOpacity>
 
                           <Text style={styles.quantityValue}>{item.quantity}</Text>
@@ -340,7 +341,7 @@ export default function CartScreen() {
                             disabled={item.quantity === 10 || isUpdating}
                             activeOpacity={0.7}
                           >
-                            <Plus size={16} color={item.quantity === 10 ? "#d1d5db" : "#8b5cf6"} />
+                            <Plus size={16} color={item.quantity === 10 ? "#d1d5db" : Colors.secondary} />
                           </TouchableOpacity>
                         </View>
 
@@ -525,7 +526,7 @@ const styles = StyleSheet.create({
   cartItemPrice: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#8b5cf6",
+    color: Colors.secondary,
   },
   bottomContainer: {
     backgroundColor: "#fff",
@@ -548,10 +549,10 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#8b5cf6",
+    color: Colors.secondary,
   },
   checkoutButton: {
-    backgroundColor: "#8b5cf6",
+    backgroundColor: Colors.secondary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 12,
-    shadowColor: "#8b5cf6",
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -580,11 +581,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     borderWidth: 1.5,
-    borderColor: "#8b5cf6",
+    borderColor: Colors.secondary,
     backgroundColor: "#fff",
   },
   keepShoppingText: {
-    color: "#8b5cf6",
+    color: Colors.secondary,
     fontWeight: "600",
     fontSize: 16,
   },

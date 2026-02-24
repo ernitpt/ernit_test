@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Colors from '../config/colors';
 import {
     View,
     Text,
@@ -155,14 +156,14 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             {shouldShowCart && (
                                 <ActionButton
                                     onPress={handleCartPress}
-                                    icon={<ShoppingCart color="#8B5CF6" size={22} strokeWidth={2} />}
+                                    icon={<ShoppingCart color={Colors.secondary} size={22} strokeWidth={2} />}
                                     badge={cartItemCount}
                                 />
                             )}
                             {shouldShowNotifications && (
                                 <ActionButton
                                     onPress={handleNotificationsPress}
-                                    icon={<Bell color="#8B5CF6" size={22} strokeWidth={2} />}
+                                    icon={<Bell color={Colors.secondary} size={22} strokeWidth={2} />}
                                     badge={unreadCount}
                                 />
                             )}
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 14,
-        backgroundColor: '#F5F3FF',
+        backgroundColor: Colors.primarySurface,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',

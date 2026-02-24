@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Svg, { G, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Colors from '../../config/colors';
 
 export default function LoginIcon({ width = 24, height = 21 }) {
   const gradId = React.useId(); // unique gradient id
@@ -26,8 +27,8 @@ export default function LoginIcon({ width = 24, height = 21 }) {
           y2="0"
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor="#6316A5" />
-          <Stop offset="1" stopColor="#2577CA" />
+          <Stop stopColor={Colors.primaryDeep} />
+          <Stop offset="1" stopColor={Colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

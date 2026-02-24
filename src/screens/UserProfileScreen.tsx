@@ -36,6 +36,7 @@ import { experienceService } from '../services/ExperienceService';
 import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
+import Colors from '../config/colors';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -241,7 +242,7 @@ const UserProfileScreen: React.FC = () => {
           flex: 1,
           height: 8,
           borderRadius: 50,
-          backgroundColor: filled ? '#7c3aed' : '#e5e7eb',
+          backgroundColor: filled ? Colors.primary : '#e5e7eb',
           marginHorizontal: 2,
         }}
       />
@@ -504,7 +505,7 @@ const UserProfileScreen: React.FC = () => {
       return (
         <ActivityIndicator
           size="large"
-          color="#8b5cf6"
+          color={Colors.secondary}
           style={{ marginTop: 20 }}
         />
       );
@@ -555,7 +556,7 @@ const UserProfileScreen: React.FC = () => {
               </View>
             )}
             <TouchableOpacity style={styles.editIconButton} onPress={openEditModal}>
-              <Edit2 color="#8b5cf6" size={18} />
+              <Edit2 color={Colors.secondary} size={18} />
             </TouchableOpacity>
           </View>
 
@@ -587,7 +588,7 @@ const UserProfileScreen: React.FC = () => {
             style={styles.friendsButton}
             onPress={() => navigation.navigate('FriendsList')}
           >
-            <Users color="#8b5cf6" size={20} />
+            <Users color={Colors.secondary} size={20} />
             <Text style={styles.friendsButtonText}>View Friends</Text>
             {unreadFriendRequests > 0 && (
               <View style={styles.notificationBadge}>
@@ -796,7 +797,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -830,21 +831,21 @@ const styles = StyleSheet.create({
   },
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 24 },
   statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '700', color: '#8b5cf6', marginBottom: 4 },
+  statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
   statLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: Colors.primarySurface,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e9d5ff',
+    borderColor: Colors.primaryTint,
     position: 'relative',
   },
-  friendsButtonText: { fontSize: 16, fontWeight: '600', color: '#8b5cf6' },
+  friendsButtonText: { fontSize: 16, fontWeight: '600', color: Colors.secondary },
   notificationBadge: {
     position: 'absolute',
     top: -6,
@@ -867,7 +868,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
   },
-  tabButtonActive: { backgroundColor: '#8b5cf6' },
+  tabButtonActive: { backgroundColor: Colors.secondary },
   tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   tabTextActive: { color: '#fff' },
 
@@ -919,7 +920,7 @@ const styles = StyleSheet.create({
   experienceContent: { padding: 16 },
   experienceTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
   experienceDescription: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 8 },
-  experiencePrice: { fontSize: 18, fontWeight: '700', color: '#8b5cf6' },
+  experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
 
   // ACHIEVEMENT CARD (copied from UserProfileScreen)
   achievementCard: {
@@ -989,10 +990,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   modalCancelButton: { paddingVertical: 8 },
-  modalCancelText: { fontSize: 16, color: '#8b5cf6' },
+  modalCancelText: { fontSize: 16, color: Colors.secondary },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   modalSaveButton: { paddingVertical: 8 },
-  modalSaveText: { fontSize: 16, color: '#8b5cf6', fontWeight: '600' },
+  modalSaveText: { fontSize: 16, color: Colors.secondary, fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: '#9ca3af' },
   modalContent: { flex: 1, padding: 20 },
@@ -1003,7 +1004,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     width: 36,
     height: 36,
     borderRadius: 18,

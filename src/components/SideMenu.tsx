@@ -28,12 +28,13 @@ import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
 import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
 const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
   width = 26,
   height = 26,
-  color = '#7C3AED'
+  color = Colors.primary
 }) => {
   return <LogIn size={width} color={color} />;
 };
@@ -193,7 +194,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       activeOpacity={0.8}
     >
       <View style={styles.iconWrapper}>
-        <Icon width={26} height={26} color="#7C3AED" />
+        <Icon width={26} height={26} color={Colors.primary} />
       </View>
       <Text style={styles.menuTitle}>{title}</Text>
     </TouchableOpacity>
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },

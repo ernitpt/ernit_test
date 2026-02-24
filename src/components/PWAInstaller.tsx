@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { Share, X } from 'lucide-react-native';
+import Colors from '../config/colors';
 
 const ErnitLogo = require('../assets/favicon.png');
 
@@ -152,7 +153,7 @@ export const PWAInstaller: React.FC = () => {
                                 <View style={styles.stepContent}>
                                     <Text style={styles.stepTitle}>Tap the Share button</Text>
                                     <View style={styles.shareIconDemo}>
-                                        <Share size={20} color="#3B82F6" />
+                                        <Share size={20} color={Colors.accent} />
                                     </View>
                                     <Text style={styles.stepDescription}>
                                         Look for the share icon in your Safari toolbar (bottom of screen)
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#8B5CF6',
+        backgroundColor: Colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -363,7 +364,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     installButton: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: Colors.secondary,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',

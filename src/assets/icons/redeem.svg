@@ -3,12 +3,12 @@
 <path d="M14.8438 10.1562H16.4062V14.8438H14.8438V10.1562Z" fill="url(#redeem_grad2)"/>
 <defs>
 <linearGradient id="redeem_grad1" x1="12.5" y1="20.3125" x2="12.5" y2="4.6875" gradientUnits="userSpaceOnUse">
-<stop stop-color="#6316A5"/>
-<stop offset="1" stop-color="#2577CA"/>
+<stop stop-color="#065F46"/>
+<stop offset="1" stop-color="#14B8A6"/>
 </linearGradient>
 <linearGradient id="redeem_grad2" x1="15.625" y1="14.8438" x2="15.625" y2="10.1562" gradientUnits="userSpaceOnUse">
-<stop stop-color="#6316A5"/>
-<stop offset="1" stop-color="#2577CA"/>
+<stop stop-color="#065F46"/>
+<stop offset="1" stop-color="#14B8A6"/>
 </linearGradient>
 </defs>
 </svg>

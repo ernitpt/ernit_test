@@ -1,5 +1,6 @@
 import React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Colors from '../config/colors';
 
 interface ReactionIconProps {
     size?: number;
@@ -9,8 +10,8 @@ export const ReactionLike: React.FC<ReactionIconProps> = ({ size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Defs>
             <LinearGradient id="likeGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <Stop offset="0%" stopColor="#8b5cf6" />
-                <Stop offset="100%" stopColor="#6366f1" />
+                <Stop offset="0%" stopColor={Colors.secondary} />
+                <Stop offset="100%" stopColor={Colors.accentDark} />
             </LinearGradient>
         </Defs>
         <Path

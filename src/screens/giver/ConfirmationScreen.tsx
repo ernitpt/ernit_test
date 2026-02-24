@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
+import Colors from '../../config/colors';
 
 type ConfirmationNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -86,8 +87,6 @@ const ConfirmationScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-
-
   }, []);
 
   const [experience, setExperience] = useState<any>(null);
@@ -136,7 +135,6 @@ const ConfirmationScreen = () => {
     }
   };
 
-
   const handleCopyCode = async () => {
     await Clipboard.setStringAsync(experienceGift.claimCode);
     setIsCopied(true);
@@ -150,24 +148,19 @@ const ConfirmationScreen = () => {
         message: `
 Hey! Got you an Ernit experience, a little boost for your goals.
 
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to set up your goals. Once you complete your goals, you'll see what I got you 😎
+Sign up and redeem your gift at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to set up your goals. Once you complete your goals, you'll see what I got you ??
 
-Earn it. Unlock it. Enjoy it 💙
+Earn it. Unlock it. Enjoy it ??
         `
       };
 
       const result = await Share.share(shareOptions);
 
-      // Optional: handle what happens after sharing
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
-          // Shared successfully via specific app (e.g., 'com.whatsapp')
           logger.log('Shared via', result.activityType);
-        } else {
-          // Shared successfully (user might have copied or saved)
         }
       } else if (result.action === Share.dismissedAction) {
-        // User dismissed the share sheet
         logger.log('Share dismissed');
       }
     } catch (error: any) {
@@ -312,7 +305,7 @@ Earn it. Unlock it. Enjoy it 💙
                 onPress={handleCopyCode}
                 activeOpacity={0.7}
               >
-                <Copy color={isCopied ? "#10b981" : "#8b5cf6"} size={20} />
+                <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
                 <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                   {isCopied ? 'Copied!' : 'Copy Code'}
                 </Text>
@@ -464,7 +457,7 @@ const styles = StyleSheet.create({
   },
   priceTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#faf5ff',
+    backgroundColor: Colors.primarySurface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
@@ -473,7 +466,7 @@ const styles = StyleSheet.create({
   priceAmount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   messageSection: {
     marginTop: 16,
@@ -487,7 +480,7 @@ const styles = StyleSheet.create({
   messageLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -513,7 +506,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sendMessageButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -579,7 +572,7 @@ const styles = StyleSheet.create({
   codeText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#8b5cf6',
+    color: Colors.secondary,
     textAlign: 'center',
     letterSpacing: 6,
   },
@@ -593,16 +586,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: Colors.primarySurface,
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e9d5ff',
+    borderColor: Colors.primaryTint,
   },
   copyCodeText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   copiedText: {
     color: '#10b981',
@@ -613,7 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 14,
     borderRadius: 10,
   },
@@ -654,19 +647,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ede9fe',
+    backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepNumber: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   stepLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#e9d5ff',
+    backgroundColor: Colors.primaryTint,
     marginVertical: 4,
   },
   stepContent: {
@@ -703,7 +696,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   homeButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

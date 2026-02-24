@@ -27,6 +27,7 @@ import { NotificationSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -449,8 +450,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   unreadCard: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#f5f3ff',
+    borderColor: Colors.secondary,
+    backgroundColor: Colors.primarySurface,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 10,
     height: 10,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     borderRadius: 5,
   },
   cardMessage: {
@@ -486,7 +487,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hintText: {
-    color: '#8b5cf6',
+    color: Colors.secondary,
     fontSize: 11,
     fontWeight: '600',
     fontStyle: 'italic',
@@ -526,7 +527,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   reactionCardUnread: {
-    shadowColor: '#8b5cf6',
+    shadowColor: Colors.secondary,
     shadowOpacity: 0.15,
     elevation: 4,
   },
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#4f46e5',
+    color: Colors.accentDark,
   },
   reactionContent: {
     flex: 1,
@@ -585,7 +586,7 @@ const styles = StyleSheet.create({
   reactionUnreadDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
     marginTop: 6,
   },
@@ -602,7 +603,7 @@ const styles = StyleSheet.create({
   reactionCta: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   reactionBadge: {
     position: 'absolute',

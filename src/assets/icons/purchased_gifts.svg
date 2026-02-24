@@ -5,12 +5,12 @@
     stroke="url(#purchase_grad2_fixed)" strokeWidth="2" strokeLinecap="round" />
   <defs>
     <linearGradient id="purchase_grad1_fixed" x1="9" y1="17" x2="9" y2="6" gradientUnits="userSpaceOnUse">
-      <stop stopColor="#6316A5" />
-      <stop offset="1" stopColor="#2577CA" />
+      <stop stopColor="#065F46" />
+      <stop offset="1" stopColor="#14B8A6" />
     </linearGradient>
     <linearGradient id="purchase_grad2_fixed" x1="9" y1="8" x2="9" y2="1" gradientUnits="userSpaceOnUse">
-      <stop stopColor="#6316A5" />
-      <stop offset="1" stopColor="#2577CA" />
+      <stop stopColor="#065F46" />
+      <stop offset="1" stopColor="#14B8A6" />
     </linearGradient>
   </defs>
 </svg>

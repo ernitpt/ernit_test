@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Comment as CommentType } from '../types';
+import Colors from '../config/colors';
 
 interface CommentSectionProps {
     comments: CommentType[];
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     viewAllText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#8b5cf6',
+        color: Colors.secondary,
     },
     commentItem: {
         flexDirection: 'row',
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#4f46e5',
+        color: Colors.accentDark,
     },
     commentContent: {
         flex: 1,

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } fr
 import { Audio } from 'expo-av';
 import { logger } from '../utils/logger';
 import { Play, Pause } from 'lucide-react-native';
+import Colors from '../config/colors';
 
 function formatDuration(seconds: number) {
     const m = Math.floor(seconds / 60);
@@ -97,12 +98,12 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     audioPlayerPopup: {
-        backgroundColor: '#7C3AED',
+        backgroundColor: Colors.primary,
         borderRadius: 24,
         padding: 12,
         paddingRight: 20,
         alignSelf: 'stretch',
-        shadowColor: '#7C3AED',
+        shadowColor: Colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 4 },

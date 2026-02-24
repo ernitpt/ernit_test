@@ -12,6 +12,7 @@ import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import { commonStyles } from '../styles/commonStyles';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface GoalProgressNotificationProps {
     notification: Notification;
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     button: {
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: 'center',
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#7c3aed',
+        backgroundColor: Colors.primary,
         marginLeft: 8,
     },
 });
@@ -446,7 +447,7 @@ const historyStyles = StyleSheet.create({
     sessionLabel: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#7c3aed',
+        color: Colors.primary,
     },
     dateLabel: {
         fontSize: 12,

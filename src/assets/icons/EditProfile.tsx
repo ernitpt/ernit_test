@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Colors from '../../config/colors';
 
 export default function EditProfile({ width = 24, height = 24 }) {
   const grad1 = React.useId();
@@ -30,8 +31,8 @@ export default function EditProfile({ width = 24, height = 24 }) {
           y2="3"
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor="#6316A5" />
-          <Stop offset="1" stopColor="#2577CA" />
+          <Stop stopColor={Colors.primaryDeep} />
+          <Stop offset="1" stopColor={Colors.accent} />
         </LinearGradient>
         <LinearGradient
           id={grad2}
@@ -41,8 +42,8 @@ export default function EditProfile({ width = 24, height = 24 }) {
           y2="2.00391"
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor="#6316A5" />
-          <Stop offset="1" stopColor="#2577CA" />
+          <Stop stopColor={Colors.primaryDeep} />
+          <Stop offset="1" stopColor={Colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

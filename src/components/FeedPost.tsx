@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -6,8 +6,12 @@ import {
     TouchableOpacity,
     Image,
     Animated,
+    Modal,
+    TextInput,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
-import { MessageCircle } from 'lucide-react-native';
+import { MessageCircle, Heart, Send } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -17,8 +21,12 @@ import CommentModal from './CommentModal';
 import ReactionViewerModal from './ReactionViewerModal';
 import { reactionService } from '../services/ReactionService';
 import { commentService } from '../services/CommentService';
+import { experienceService } from '../services/ExperienceService';
+import { motivationService } from '../services/MotivationService';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
+import { commonStyles } from '../styles/commonStyles';
 
 interface FeedPostProps {
     post: FeedPostType;
@@ -34,6 +42,9 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [commentCount, setCommentCount] = useState(post.commentCount);
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [showReactionModal, setShowReactionModal] = useState(false);
+    const [showMotivationModal, setShowMotivationModal] = useState(false);
+    const [motivationText, setMotivationText] = useState('');
+    const [sendingMotivation, setSendingMotivation] = useState(false);
 
     // Animated value for highlight effect
     const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -128,6 +139,40 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             setReactionCounts(previousCounts);
         }
     };
+    const handleSendMotivation = async () => {
+        if (!motivationText.trim() || !state.user?.id) return;
+        setSendingMotivation(true);
+        try {
+            await motivationService.leaveMotivation(
+                post.goalId,
+                state.user.id,
+                state.user.displayName || state.user.profile?.name || 'A friend',
+                motivationText.trim(),
+                state.user.profile?.profileImageUrl,
+            );
+            setMotivationText('');
+            setShowMotivationModal(false);
+            Alert.alert('Sent!', 'Your motivation has been sent!');
+        } catch (error) {
+            logger.error('Error sending motivation:', error);
+            Alert.alert('Error', 'Failed to send motivation. Please try again.');
+        } finally {
+            setSendingMotivation(false);
+        }
+    };
+
+    const handleEmpower = async () => {
+        if (!post.pledgedExperienceId) return;
+        try {
+            const experience = await experienceService.getExperienceById(post.pledgedExperienceId);
+            if (experience) {
+                navigation.navigate('ExperienceDetails', { experience });
+            }
+        } catch (error) {
+            logger.error('Error navigating to experience:', error);
+        }
+    };
+
     // get third word from goal description
     const getActivityType = (text) => {
         if (!text) return '';
@@ -140,7 +185,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             case 'goal_started':
                 return {
                     text: 'set a new goal',
-                    color: '#3b82f6',
+                    color: Colors.accent,
                 };
             case 'goal_approved':
                 return {
@@ -151,7 +196,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             case 'goal_progress': // Support migrated posts with this type
                 return {
                     text: (<>completed <Text style={{ fontWeight: '500' }}>{getActivityType(post.goalDescription)}</Text> session</>),
-                    color: '#8b5cf6',
+                    color: Colors.secondary,
                 };
             case 'goal_completed':
                 return {
@@ -197,7 +242,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             styles.container,
             {
                 // iOS shadow
-                shadowColor: isHighlighted ? '#8b5cf6' : '#000',
+                shadowColor: isHighlighted ? Colors.secondary : '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowRadius: animatedShadowRadius,
                 shadowOpacity: animatedShadowOpacity,
@@ -294,7 +339,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                             <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} />
                         ) : (
                             <View style={[styles.experienceImage, styles.experienceImagePlaceholder]}>
-                                <Text style={styles.experienceImagePlaceholderText}>🎁</Text>
+                                <Text style={styles.experienceImagePlaceholderText}>??</Text>
                             </View>
                         )}
                         <View style={styles.experienceContent}>
@@ -303,7 +348,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                             </Text>
                             {post.partnerName && (
                                 <Text style={styles.partnerName} numberOfLines={1}>
-                                    👤 {post.partnerName}
+                                    ?? {post.partnerName}
                                 </Text>
                             )}
                             <Text style={styles.goalDescriptionText} numberOfLines={2}>
@@ -345,6 +390,62 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 </TouchableOpacity>
             </View>
 
+            {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
+            {post.isFreeGoal && post.pledgedExperienceId && post.userId !== state.user?.id &&
+                (post.type === 'session_progress' || post.type === 'goal_completed') &&
+                post.experienceTitle && (
+                    <TouchableOpacity style={styles.experiencePreviewCard} onPress={handleEmpower} activeOpacity={0.85}>
+                        {post.experienceImageUrl && (
+                            <Image source={{ uri: post.experienceImageUrl }} style={styles.experiencePreviewImage} />
+                        )}
+                        <View style={styles.experiencePreviewInfo}>
+                            <Text style={styles.experiencePreviewTitle} numberOfLines={1}>{post.experienceTitle}</Text>
+                            {post.pledgedExperiencePrice && (
+                                <Text style={styles.experiencePreviewPrice}>{'\u20AC'}{post.pledgedExperiencePrice}</Text>
+                            )}
+                        </View>
+                        <View style={styles.experiencePreviewCta}>
+                            <Text style={styles.experiencePreviewCtaText}>Gift</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
+
+            {/* Free Goal Action Buttons */}
+            {post.isFreeGoal && post.userId !== state.user?.id && (
+                <View style={styles.freeGoalActions}>
+                    {post.pledgedExperienceId && (
+                        <TouchableOpacity
+                            style={[
+                                styles.empowerButton,
+                                (post.type === 'session_progress' || post.type === 'goal_completed') && styles.prominentEmpowerButton,
+                            ]}
+                            onPress={handleEmpower}
+                            activeOpacity={0.8}
+                        >
+                            <Heart
+                                color={(post.type === 'session_progress' || post.type === 'goal_completed') ? '#fff' : '#ec4899'}
+                                size={16}
+                                fill={(post.type === 'session_progress' || post.type === 'goal_completed') ? '#fff' : '#ec4899'}
+                            />
+                            <Text style={[
+                                styles.empowerButtonText,
+                                (post.type === 'session_progress' || post.type === 'goal_completed') && styles.prominentEmpowerButtonText,
+                            ]}>
+                                {post.type === 'goal_completed' ? '?? Gift This Experience' : post.type === 'session_progress' ? '?? Empower Now' : 'Empower'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                        style={styles.motivateButton}
+                        onPress={() => setShowMotivationModal(true)}
+                        activeOpacity={0.8}
+                    >
+                        <Send color={Colors.secondary} size={16} />
+                        <Text style={styles.motivateButtonText}>Motivate</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             {comments.length > 0 && (
                 <>
                     <View style={styles.divider} />
@@ -355,6 +456,62 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     />
                 </>
             )}
+
+            {/* Motivation Modal */}
+            <Modal
+                visible={showMotivationModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowMotivationModal(false)}
+            >
+                <TouchableOpacity
+                    style={commonStyles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMotivationModal(false)}
+                >
+                    <View style={styles.motivationModal}>
+                        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                            <Text style={styles.motivationModalTitle}>Send Motivation</Text>
+                            <Text style={styles.motivationModalSubtitle}>
+                                Leave an encouraging message for {post.userName}
+                            </Text>
+                            <TextInput
+                                style={styles.motivationInput}
+                                placeholder="You've got this! Keep going..."
+                                value={motivationText}
+                                onChangeText={setMotivationText}
+                                multiline
+                                maxLength={500}
+                            />
+                            <Text style={styles.motivationCharCount}>
+                                {motivationText.length}/500
+                            </Text>
+                            <View style={styles.motivationModalButtons}>
+                                <TouchableOpacity
+                                    style={styles.motivationCancelButton}
+                                    onPress={() => setShowMotivationModal(false)}
+                                >
+                                    <Text style={styles.motivationCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.motivationSendButton,
+                                        (!motivationText.trim() || sendingMotivation) && { opacity: 0.5 },
+                                    ]}
+                                    onPress={handleSendMotivation}
+                                    disabled={!motivationText.trim() || sendingMotivation}
+                                >
+                                    {sendingMotivation ? (
+                                        <ActivityIndicator color="#fff" size="small" />
+                                    ) : (
+                                        <Text style={styles.motivationSendText}>Send</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             <CommentModal
                 visible={showCommentModal}
@@ -401,8 +558,8 @@ const styles = StyleSheet.create({
     },
     highlightedContainer: {
         borderWidth: 2,
-        borderColor: '#8b5cf6',
-        backgroundColor: '#f5f3ff',
+        borderColor: Colors.secondary,
+        backgroundColor: Colors.primarySurface,
         shadowOpacity: 0.15,
     },
     header: {
@@ -426,7 +583,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#4f46e5',
+        color: Colors.accentDark,
     },
     headerInfo: {
         marginLeft: 12,
@@ -558,6 +715,172 @@ const styles = StyleSheet.create({
     experienceMeta: {
         fontSize: 13,
         color: '#9ca3af',
+    },
+    // Free Goal Action Buttons
+    freeGoalActions: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 8,
+        marginBottom: 4,
+    },
+    empowerButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: '#fdf2f8',
+        borderWidth: 1,
+        borderColor: '#fbcfe8',
+    },
+    empowerButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#ec4899',
+    },
+    motivateButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: Colors.primarySurface,
+        borderWidth: 1,
+        borderColor: Colors.primaryTint,
+    },
+    motivateButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.secondary,
+    },
+    experiencePreviewCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primarySurface,
+        borderRadius: 12,
+        padding: 10,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: Colors.primarySurface,
+    },
+    experiencePreviewImage: {
+        width: 44,
+        height: 44,
+        borderRadius: 8,
+        backgroundColor: '#E5E7EB',
+    },
+    experiencePreviewInfo: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    experiencePreviewTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    experiencePreviewPrice: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: Colors.primary,
+        marginTop: 2,
+    },
+    experiencePreviewCta: {
+        backgroundColor: Colors.primary,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    experiencePreviewCtaText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    prominentEmpowerButton: {
+        backgroundColor: Colors.primarySurface,
+        borderColor: Colors.primaryTint,
+        paddingVertical: 12,
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    prominentEmpowerButtonText: {
+        color: '#fff',
+        fontSize: 15,
+    },
+    // Motivation Modal
+    motivationModal: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        width: '90%',
+        maxWidth: 360,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    motivationModalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    motivationModalSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginBottom: 16,
+    },
+    motivationInput: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        fontSize: 16,
+        backgroundColor: '#f9fafb',
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    motivationCharCount: {
+        fontSize: 12,
+        color: '#9ca3af',
+        textAlign: 'right',
+        marginTop: 4,
+        marginBottom: 16,
+    },
+    motivationModalButtons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    motivationCancelButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: '#f3f4f6',
+        alignItems: 'center',
+    },
+    motivationCancelText: {
+        color: '#374151',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    motivationSendButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: Colors.secondary,
+        alignItems: 'center',
+    },
+    motivationSendText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 16,
     },
 });
 

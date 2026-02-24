@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity
 } from 'react-native';
@@ -19,6 +19,7 @@ import HintPopup from '../../components/HintPopup';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { logger } from '../../utils/logger';
+import Colors from '../../config/colors';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Roadmap'>;
 
@@ -33,7 +34,7 @@ const RoadmapScreen = () => {
   const [experienceGift, setExperienceGift] = useState<ExperienceGift | null>(null);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
-  // 🔹 Redirect if no goal passed (e.g., on browser refresh)
+  // ?? Redirect if no goal passed (e.g., on browser refresh)
   useEffect(() => {
     if (!passedGoal) {
       logger.warn('No goal passed to RoadmapScreen, redirecting to Goals');
@@ -41,7 +42,7 @@ const RoadmapScreen = () => {
     }
   }, [passedGoal, navigation]);
 
-  // 🔹 Keep goal synced with Firestore
+  // ?? Keep goal synced with Firestore
   useEffect(() => {
     if (!currentGoal?.id) return;
 
@@ -63,7 +64,7 @@ const RoadmapScreen = () => {
     return () => unsub();
   }, [currentGoal?.id]);
 
-  // 🔹 Fetch experience gift to get personalized message
+  // ?? Fetch experience gift to get personalized message
   useEffect(() => {
     const fetchExperienceGift = async () => {
       if (currentGoal?.experienceGiftId) {
@@ -226,7 +227,7 @@ const RoadmapScreen = () => {
 
           {hintsArray.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>💡</Text>
+              <Text style={styles.emptyIcon}>??</Text>
               <Text style={styles.emptyText}>No hints revealed yet</Text>
               <Text style={styles.emptySubText}>
                 Hints will appear here as you progress through your sessions.
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   messageCard: {
-    backgroundColor: '#ede9fe',
+    backgroundColor: Colors.primarySurface,
     padding: 20,
     borderRadius: 18,
     marginBottom: 20,
@@ -297,7 +298,7 @@ const styles = StyleSheet.create({
   },
   messageFrom: {
     fontSize: 14,
-    color: '#6d28d9',
+    color: Colors.primaryDeep,
     marginTop: 10,
     fontWeight: '600',
   },
@@ -349,9 +350,9 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     borderWidth: 2,
-    borderColor: '#ede9fe',
+    borderColor: Colors.primarySurface,
   },
   timelineLine: {
     position: 'absolute',
@@ -406,7 +407,7 @@ const styles = StyleSheet.create({
   audioPlayer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     borderRadius: 20,
     padding: 8,
     paddingRight: 16,

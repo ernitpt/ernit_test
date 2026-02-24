@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Colors from '../../config/colors';
 
 export default function GoalsActive({ width = 24, height = 24 }) {
     const grad0 = React.useId();
@@ -29,8 +30,8 @@ export default function GoalsActive({ width = 24, height = 24 }) {
                     y2="2"
                     gradientUnits="userSpaceOnUse"
                 >
-                    <Stop stopColor="#6316A5" />
-                    <Stop offset="1" stopColor="#2577CA" />
+                    <Stop stopColor={Colors.primaryDeep} />
+                    <Stop offset="1" stopColor={Colors.accent} />
                 </LinearGradient>
 
                 {/* gradient for play triangle */}
@@ -42,8 +43,8 @@ export default function GoalsActive({ width = 24, height = 24 }) {
                     y2="12"
                     gradientUnits="userSpaceOnUse"
                 >
-                    <Stop stopColor="#6316A5" />
-                    <Stop offset="1" stopColor="#2577CA" />
+                    <Stop stopColor={Colors.primaryDeep} />
+                    <Stop offset="1" stopColor={Colors.accent} />
                 </LinearGradient>
             </Defs>
         </Svg>

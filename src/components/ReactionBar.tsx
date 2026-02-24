@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { ReactionType } from '../types';
+import Colors from '../config/colors';
 
 interface ReactionBarProps {
     reactionCounts: {
@@ -66,9 +67,9 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     reactionButtonActive: {
-        backgroundColor: '#ede9fe',
+        backgroundColor: Colors.primarySurface,
         borderWidth: 1,
-        borderColor: '#8b5cf6',
+        borderColor: Colors.secondary,
     },
     emoji: {
         fontSize: 18,
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     countActive: {
-        color: '#8b5cf6',
+        color: Colors.secondary,
     },
 });
 

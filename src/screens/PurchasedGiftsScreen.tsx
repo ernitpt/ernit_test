@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -85,7 +86,7 @@ const PurchasedGiftsScreen = () => {
             }
           }
         } catch (err) {
-          logger.error(`❌ Error fetching claimer for gift ${item.id}:`, err);
+          logger.error(`? Error fetching claimer for gift ${item.id}:`, err);
         } finally {
           setLoadingName(false);
         }
@@ -185,12 +186,12 @@ const PurchasedGiftsScreen = () => {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#8b5cf6"
+          color={Colors.secondary}
           style={{ marginTop: 50 }}
         />
       ) : filteredGifts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🎁</Text>
+          <Text style={styles.emptyIcon}>??</Text>
           <Text style={styles.emptyTitle}>
             {filterStatus === 'all' ? 'No Gifts Yet' : `No ${filterStatus} Gifts`}
           </Text>
@@ -282,8 +283,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   filterTabActive: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
+    borderColor: Colors.secondary,
   },
   filterText: {
     fontSize: 14,

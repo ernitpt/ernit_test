@@ -7,8 +7,8 @@
 </g>
 <defs>
 <linearGradient id="person_add_grad" x1="12.0625" y1="19.3079" x2="12.0625" y2="4.69238" gradientUnits="userSpaceOnUse">
-<stop stop-color="#6316A5"/>
-<stop offset="1" stop-color="#2577CA"/>
+<stop stop-color="#065F46"/>
+<stop offset="1" stop-color="#14B8A6"/>
 </linearGradient>
 </defs>
 </svg>

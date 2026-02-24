@@ -4,7 +4,12 @@
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
       "Bash(npx expo export:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run log:*)",
+      "Bash(git checkout:*)",
+      "Bash(git -C D:/ErnitAppWeb_Test checkout -- src/screens/giver/ExperienceCheckoutScreen.tsx)",
+      "Bash(git -C D:/ErnitAppWeb_Test diff --stat)",
+      "Bash(npx:*)"
     ]
   }
 }

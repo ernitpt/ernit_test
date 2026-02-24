@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,7 @@ import { feedService } from '../services/FeedService';
 import { useApp } from '../context/AppContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -141,7 +142,7 @@ const FeedScreen: React.FC = () => {
 
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>👥</Text>
+                <Text style={styles.emptyIcon}>??</Text>
                 <Text style={styles.emptyTitle}>No Activity Yet</Text>
                 <Text style={styles.emptyText}>
                     Add friends to see their goal progress and celebrate together!
@@ -187,8 +188,8 @@ const FeedScreen: React.FC = () => {
                         <RefreshControl
                             refreshing={isRefreshing}
                             onRefresh={handleRefresh}
-                            colors={['#8b5cf6']}
-                            tintColor="#8b5cf6"
+                            colors={[Colors.secondary]}
+                            tintColor={Colors.secondary}
                         />
                     }
                 />

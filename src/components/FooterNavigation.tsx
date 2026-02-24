@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../types';
+import Colors from '../config/colors';
 
 import HomeIcon from '../assets/icons/home.svg';
 import HomeIconActive from '../assets/icons/HomeActive';
@@ -111,12 +112,12 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 
     const labelColor = colorAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: ['rgba(156,163,175,1)', 'rgba(139,92,246,1)'],
+      outputRange: ['rgba(156,163,175,1)', Colors.secondary],
     });
 
     const backgroundColor = colorAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: ['rgba(139,92,246,0)', 'rgba(139,92,246,0.10)'],
+      outputRange: ['rgba(16,185,129,0)', 'rgba(16,185,129,0.10)'],
     });
 
     const iconRotate = rotateAnim.interpolate({

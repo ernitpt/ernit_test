@@ -2,6 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { db } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import Colors from '../config/colors';
 
 interface Props {
     children: ReactNode;
@@ -123,11 +124,11 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     button: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: Colors.secondary,
         paddingHorizontal: 32,
         paddingVertical: 16,
         borderRadius: 12,
-        shadowColor: '#8B5CF6',
+        shadowColor: Colors.secondary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

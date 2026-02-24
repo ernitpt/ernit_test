@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface GoalChangeSuggestionModalProps {
   visible: boolean;
@@ -232,7 +233,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
                     <Text style={[
                       styles.adjustButtonText,
                       (selectedWeeks <= minWeeks || loading) && styles.adjustButtonTextDisabled
-                    ]}>−</Text>
+                    ]}>-</Text>
                   </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <TextInput
@@ -275,7 +276,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
                     <Text style={[
                       styles.adjustButtonText,
                       (selectedSessions <= minSessions || loading) && styles.adjustButtonTextDisabled
-                    ]}>−</Text>
+                    ]}>-</Text>
                   </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <TextInput
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
   selectorValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#7c3aed',
+    color: Colors.primary,
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -432,7 +433,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#7c3aed',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -480,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   acceptButton: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: Colors.primary,
   },
   cancelButton: {
     backgroundColor: '#f3f4f6',

@@ -6,6 +6,7 @@ import { db } from '../services/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 type StepCounterProps = {
   userId: string;
   dailyGoal?: number;
@@ -45,7 +46,7 @@ const StepCounter: React.FC<StepCounterProps> = ({ userId, dailyGoal = 10000 }) 
   const progress = Math.min(steps / dailyGoal, 1);
 
   return (
-    <LinearGradient colors={['#4c1d95', '#1e3a8a']} style={styles.container}>
+    <LinearGradient colors={Colors.gradientDark} style={styles.container}>
       <Text style={styles.title}>Today's Steps</Text>
       <Text style={styles.steps}>{steps}</Text>
       <View style={styles.progressBackground}>

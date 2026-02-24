@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface CommentModalProps {
     visible: boolean;
@@ -205,7 +206,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
 
                         {isLoading ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color="#8b5cf6" />
+                                <ActivityIndicator size="large" color={Colors.secondary} />
                             </View>
                         ) : comments.length === 0 ? (
                             <View style={styles.emptyContainer}>
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#4f46e5',
+        color: Colors.accentDark,
     },
     commentContent: {
         flex: 1,
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
     },

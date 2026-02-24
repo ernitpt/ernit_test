@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { friendService } from '../services/FriendService';
 import { notificationService } from '../services/NotificationService';
 import { Timestamp } from 'firebase/firestore';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface FriendRequestNotificationProps {
   notification: Notification;
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderLeftWidth: 4,
-    borderLeftColor: '#8b5cf6',
+    borderLeftColor: Colors.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { color: '#4f46e5', fontSize: 20, fontWeight: '700' },
+  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
 
 });
 

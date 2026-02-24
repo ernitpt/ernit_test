@@ -187,6 +187,24 @@ export interface Goal {
   isUnlocked?: boolean;           // Both partners finished, can access reward
   unlockedAt?: Date;              // When both partners finished
   unlockShown?: boolean;          // Unlock celebration modal has been shown
+
+  // Free Goal ("The Pledge") fields
+  isFreeGoal?: boolean;
+  pledgedExperience?: {
+    experienceId: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    category: ExperienceCategory;
+    price: number;
+    coverImageUrl: string;
+    imageUrl: string[];
+    partnerId: string;
+    location?: string;
+  };
+  pledgedAt?: Date;
+  giftAttachedAt?: Date;
+  giftAttachDeadline?: Date;       // 30 days post-completion window
 }
 
 export interface PersonalizedHint {
@@ -203,6 +221,18 @@ export interface PersonalizedHint {
 // Helper function to detect if a goal is self-gifted
 export function isSelfGifted(goal: Goal): boolean {
   return goal.empoweredBy === goal.userId;
+}
+
+// Social Motivation (for Free Goals)
+export interface Motivation {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorProfileImage?: string;
+  message: string;
+  targetSession?: number;
+  createdAt: Date;
+  seen: boolean;
 }
 
 
@@ -273,6 +303,11 @@ export interface FeedPost {
   experienceImageUrl?: string;
   partnerName?: string;
   experienceGiftId?: string;
+
+  // Free Goal data
+  isFreeGoal?: boolean;
+  pledgedExperienceId?: string;
+  pledgedExperiencePrice?: number;
 
   // Metadata
   createdAt: Date;
@@ -447,7 +482,7 @@ export type RootStackParamList = {
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[] };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
-  Completion: { goal: Goal; experienceGift: ExperienceGift };
+  Completion: { goal: Goal; experienceGift?: ExperienceGift };
   GiverFlow: NavigatorScreenParams<GiverStackParamList>;
   RecipientFlow: NavigatorScreenParams<RecipientStackParamList>;
   GoalSetting: { experienceGift: ExperienceGift };
@@ -467,6 +502,10 @@ export type RootStackParamList = {
   ValentineConfirmation: { purchaserEmail: string; partnerEmail: string; paymentIntentId: string };
   ValentineRedemption: { code: string };
   ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
+  PledgeGoalSetting: { experience: Experience };
+  FreeGoalCompletion: { goal: Goal };
+  ChallengeLanding: undefined;
+  ChallengeSetup: { prefill?: any } | undefined;
 };
 
 export type GiverStackParamList = {
@@ -482,5 +521,5 @@ export type RecipientStackParamList = {
   CouponEntry: { code?: string } | undefined;
   GoalSetting: { experienceGift: ExperienceGift };
   Roadmap: { goal: Goal };
-  Completion: { goal: Goal; experienceGift: ExperienceGift };
+  Completion: { goal: Goal; experienceGift?: ExperienceGift };
 };

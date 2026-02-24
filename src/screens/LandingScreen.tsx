@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types'; // Ensure this path is correct
+import Colors from '../config/colors';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
@@ -21,16 +22,16 @@ const LandingScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#7C3AED', '#3B82F6']}
+      colors={Colors.gradientPrimary}
       style={{ flex: 1 }}
     >
       <SafeAreaView style={{ flex: 1 }}>
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 32 }}>
-          
+
           {/* Top Section - Logo & Tagline */}
           <View style={{ alignItems: 'center' }}>
-            
+
             <Image
               // IMPORTANT: Make sure this relative path is correct for your file structure
               source={require('../assets/icon.png')}
@@ -44,19 +45,19 @@ const LandingScreen = () => {
 
             {/* Logo Text */}
             <View style={{ marginBottom: 32, alignItems: 'center' }}>
-              <Text style={{ 
-                fontSize: 46, 
-                fontWeight: 'bold', 
-                color: 'white', 
-                textAlign: 'center', 
-                marginBottom: 8 
+              <Text style={{
+                fontSize: 46,
+                fontWeight: 'bold',
+                color: 'white',
+                textAlign: 'center',
+                marginBottom: 8
               }}>
                 Ernit
               </Text>
-              <Text style={{ 
-                fontSize: 20, 
-                color: '#E9D5FF', 
-                textAlign: 'center' 
+              <Text style={{
+                fontSize: 20,
+                color: Colors.primaryTint,
+                textAlign: 'center'
               }}>
                 Gamified Rewards & Experiences
               </Text>
@@ -81,19 +82,19 @@ const LandingScreen = () => {
               }}
               activeOpacity={0.8}
             >
-              <Text style={{ 
-                fontSize: 20, 
-                fontWeight: 'bold', 
-                color: '#7C3AED', 
-                textAlign: 'center' 
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: Colors.primary,
+                textAlign: 'center'
               }}>
                 Sign In
               </Text>
-              <Text style={{ 
-                color: '#6B7280', 
-                textAlign: 'center', 
-                fontSize: 14, 
-                marginTop: 4 
+              <Text style={{
+                color: '#6B7280',
+                textAlign: 'center',
+                fontSize: 14,
+                marginTop: 4
               }}>
                 Access your account
               </Text>
@@ -103,7 +104,7 @@ const LandingScreen = () => {
             <TouchableOpacity
               onPress={handleSignUp}
               style={{
-                backgroundColor: '#8B5CF6',
+                backgroundColor: Colors.secondary,
                 borderRadius: 24,
                 padding: 20,
                 marginBottom: 16,
@@ -115,19 +116,19 @@ const LandingScreen = () => {
               }}
               activeOpacity={0.8}
             >
-              <Text style={{ 
-                fontSize: 20, 
-                fontWeight: 'bold', 
-                color: 'white', 
-                textAlign: 'center' 
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: 'white',
+                textAlign: 'center'
               }}>
                 Sign Up
               </Text>
-              <Text style={{ 
-                color: '#E9D5FF', 
-                textAlign: 'center', 
-                fontSize: 14, 
-                marginTop: 4 
+              <Text style={{
+                color: Colors.primaryTint,
+                textAlign: 'center',
+                fontSize: 14,
+                marginTop: 4
               }}>
                 Create a new account
               </Text>

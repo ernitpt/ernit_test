@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { WebView } from 'react-native-webview';
-import { ChevronLeft, HelpCircle } from 'lucide-react-native';
+import { ChevronLeft, HelpCircle, Target } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
@@ -25,6 +25,7 @@ import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
+import Colors from '../../config/colors';
 
 type ExperienceDetailsNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -135,7 +136,7 @@ export default function ExperienceDetailsScreen() {
   return (
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
-      <LinearGradient colors={['#7C3AED', '#3B82F6']} style={styles.gradient}>
+      <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
         <ScrollView contentContainerStyle={{ padding: 24 }}>          <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft color="#fff" size={22} />
@@ -151,7 +152,7 @@ export default function ExperienceDetailsScreen() {
             onPress={() => setShowHowItWorks(true)}
             style={styles.howItWorksButton}
           >
-            <HelpCircle color="#7C3AED" size={18} />
+            <HelpCircle color={Colors.primary} size={18} />
             <Text style={styles.howItWorksText}>How it works</Text>
           </TouchableOpacity>
 
@@ -174,6 +175,15 @@ export default function ExperienceDetailsScreen() {
             <Text style={styles.purchaseText}>
               {isSubmitting ? 'Processing...' : `Purchase Gift – €${experience.price}`}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => (navigation as any).navigate('PledgeGoalSetting', { experience })}
+            style={styles.setAsGoalButton}
+            activeOpacity={0.8}
+          >
+            <Target color="#16a34a" size={20} />
+            <Text style={styles.setAsGoalText}>Set as Goal</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -210,7 +220,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   howItWorksText: {
-    color: '#7C3AED',
+    color: Colors.primary,
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 6,
@@ -224,5 +234,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   purchaseButton: { backgroundColor: '#fff', paddingVertical: 14, borderRadius: 12 },
-  purchaseText: { textAlign: 'center', color: '#7C3AED', fontSize: 18, fontWeight: 'bold' },
+  purchaseText: { textAlign: 'center', color: Colors.primary, fontSize: 18, fontWeight: 'bold' },
+  setAsGoalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  setAsGoalText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

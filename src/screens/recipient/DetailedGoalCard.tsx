@@ -40,6 +40,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 import { config } from '../../config/environment';
 import { X } from 'lucide-react-native';
+import Colors from '../../config/colors';
 
 interface DetailedGoalCardProps {
   goal: Goal;
@@ -104,8 +105,8 @@ function formatDurationDisplay(h: number = 0, m: number = 0) {
 }
 
 const COLORS = {
-  purple: '#7C3AED',
-  purpleDark: '#6D28D9',
+  purple: Colors.primary,
+  purpleDark: Colors.primaryDeep,
   grayLight: '#E5E7EB',
   emerald: '#10B981',
   emeraldLight: '#34D399',
@@ -257,7 +258,7 @@ const AnimatedFilledDay: React.FC<{ label: string }> = ({ label }) => {
     <Animated.View style={[styles.filledCircle, { transform: [{ scale: scaleAnim }] }]}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: fillAnim }]}>
         <LinearGradient
-          colors={['#7C3AED', '#3B82F6']}
+          colors={[Colors.primary, Colors.accent]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.filledCircle}
@@ -1782,7 +1783,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                           <AnimatedFilledDay label={label} />
                         ) : (
                           <LinearGradient
-                            colors={['#7C3AED', '#3B82F6']}
+                            colors={[Colors.primary, Colors.accent]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.filledCircle}
@@ -2133,7 +2134,7 @@ Weeks completed: ${weeksCompleted}/${updated.targetCount}`,
                   style={[
                     styles.particle,
                     {
-                      backgroundColor: ['#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'][i % 5],
+                      backgroundColor: [Colors.primary, '#10b981', '#f59e0b', '#ef4444', Colors.accent][i % 5],
                       transform: [
                         {
                           translateX: particlesAnim.interpolate({
@@ -2266,7 +2267,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6, textAlign: 'center' },
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14, textAlign: 'center' },
-  selfChallengeText: { fontSize: 14, color: '#7c3aed', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
+  selfChallengeText: { fontSize: 14, color: Colors.primary, marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
 
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
@@ -2315,7 +2316,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  startButton: { backgroundColor: '#235c9eff', paddingVertical: 14, borderRadius: 12 },
+  startButton: { backgroundColor: Colors.secondary, paddingVertical: 14, borderRadius: 12 },
   startButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
   sessionDurationText: {
     marginTop: 8,
@@ -2326,7 +2327,7 @@ const styles = StyleSheet.create({
   timerContainer: { alignItems: 'center' },
   timerText: { fontSize: 36, fontWeight: 'bold', color: '#111827', marginBottom: 16 },
   finishButton: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
-  finishButtonActive: { backgroundColor: '#7c3aed' },
+  finishButtonActive: { backgroundColor: Colors.primary },
   finishButtonDisabled: { backgroundColor: '#9ca3af' },
   finishButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   weekCompleteBox: {
@@ -2472,15 +2473,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   todayDateLabel: {
-    color: '#235c9eff',
+    color: Colors.secondary,
     fontWeight: '700',
   },
   todayCircleBorder: {
-    borderColor: '#235c9eff',
+    borderColor: Colors.secondary,
     borderWidth: 3,
   },
   todayText: {
-    color: '#235c9eff',
+    color: Colors.secondary,
     fontWeight: '700',
   },
   celebrationOverlay: {
@@ -2528,7 +2529,7 @@ const styles = StyleSheet.create({
   // Subtle hint indicator
   hintIndicator: {
     fontSize: 13,
-    color: '#8B5CF6',
+    color: Colors.secondary,
     textAlign: 'center',
     marginBottom: 12,
     opacity: 0.85,
@@ -2617,11 +2618,11 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B9D',
   },
   partnerAvatarPlaceholder: {
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     borderColor: '#C084FC',
   },
   partnerAvatarImage: {
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     borderColor: '#C084FC',
   },
   partnerAvatarText: {
@@ -2662,7 +2663,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B9D',
   },
   partnerSessionDotPartnerFilled: {
-    backgroundColor: '#F3E8FF',
+    backgroundColor: Colors.primarySurface,
     borderColor: '#C084FC',
   },
   partnerSessionDotEmpty: {
@@ -2783,7 +2784,7 @@ const styles = StyleSheet.create({
   viewExperienceButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: Colors.primary,
   },
 
   // 💝 VALENTINE: Experience Details Modal Styles (from ValentinesChallengeScreen)

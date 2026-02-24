@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ import { partnerService } from '../../services/PartnerService';
 import { userService } from '../../services/userService';
 import { logger } from '../../utils/logger';
 import { BookingCalendar } from '../../components/BookingCalendar';
+import Colors from '../../config/colors';
 
 type CompletionNavigationProp = NativeStackNavigationProp<
   RecipientStackParamList,
@@ -87,7 +88,7 @@ const CompletionScreen = () => {
     }
   }, [hasValidData, navigation]);
 
-  // 💝 SECURITY: Block access to locked Valentine goals
+  // ?? SECURITY: Block access to locked Valentine goals
   // If isUnlocked is already true in nav params, trust it (set by unlock flow).
   // If not, fetch fresh from Firestore to verify actual state.
   const [isValidating, setIsValidating] = useState(true);
@@ -123,9 +124,9 @@ const CompletionScreen = () => {
               setUnlockVerified(true);
               setIsValidating(false);
             } else {
-              logger.error('💝 SECURITY: Attempted unauthorized access to locked Valentine goal');
+              logger.error('?? SECURITY: Attempted unauthorized access to locked Valentine goal');
               Alert.alert(
-                'Not Yet! 💕',
+                'Not Yet! ??',
                 'Both partners must complete their goals before accessing the experience. Keep going!',
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
               );
@@ -174,9 +175,9 @@ const CompletionScreen = () => {
     }
     : null;
 
-  // 💝 FINAL DEFENSIVE CHECK: This should NEVER be reached if navigation checks are correct
+  // ?? FINAL DEFENSIVE CHECK: This should NEVER be reached if navigation checks are correct
   if (goal?.valentineChallengeId && !isUnlocked) {
-    logger.error('💝 CRITICAL SECURITY BYPASS: Unauthorized access to locked Valentine goal detected!');
+    logger.error('?? CRITICAL SECURITY BYPASS: Unauthorized access to locked Valentine goal detected!');
     throw new Error('Unauthorized access to locked Valentine goal');
   }
 
@@ -185,15 +186,15 @@ const CompletionScreen = () => {
 
     const fetchExperience = async () => {
       try {
-        logger.log('🔍 Fetching experience with ID:', experienceGift.experienceId);
+        logger.log('?? Fetching experience with ID:', experienceGift.experienceId);
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
-        logger.log('✅ Experience loaded:', exp);
+        logger.log('? Experience loaded:', exp);
         setExperience(exp);
 
-        // 💝 VALENTINE: Check if both partners finished before allowing access
+        // ?? VALENTINE: Check if both partners finished before allowing access
         if (goal.valentineChallengeId && !isUnlocked) {
           Alert.alert(
-            'Not Yet! 💕',
+            'Not Yet! ??',
             'Both partners must complete their goals before accessing the experience.',
             [
               {
@@ -207,12 +208,12 @@ const CompletionScreen = () => {
 
         // Fetch partner contact info
         if (exp?.partnerId) {
-          logger.log('🔍 Fetching partner with ID:', exp.partnerId);
+          logger.log('?? Fetching partner with ID:', exp.partnerId);
           const partnerData = await partnerService.getPartnerById(exp.partnerId);
-          logger.log('✅ Partner loaded:', partnerData);
+          logger.log('? Partner loaded:', partnerData);
           setPartner(partnerData);
         } else {
-          logger.warn('⚠️ No partnerId found in experience');
+          logger.warn('?? No partnerId found in experience');
         }
 
         // Fetch user name
@@ -221,7 +222,7 @@ const CompletionScreen = () => {
           setUserName(name || 'User');
         }
       } catch (error) {
-        logger.error("❌ Error fetching data:", error);
+        logger.error("? Error fetching data:", error);
         Alert.alert("Error", "Could not load experience details.");
       }
     };
@@ -241,7 +242,7 @@ const CompletionScreen = () => {
     ];
     setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
 
-    // 🎉🎊 EPIC CELEBRATION SEQUENCE
+    // ???? EPIC CELEBRATION SEQUENCE
     // Fire confetti after brief delay
     setTimeout(() => {
       confettiRef.current?.start();
@@ -262,7 +263,7 @@ const CompletionScreen = () => {
       }),
     ]).start();
 
-    // 🌟 Trophy pulsing with glow
+    // ?? Trophy pulsing with glow
     Animated.loop(
       Animated.sequence([
         Animated.timing(trophyPulse, {
@@ -278,7 +279,7 @@ const CompletionScreen = () => {
       ])
     ).start();
 
-    // ✨ Sparkles twinkle
+    // ? Sparkles twinkle
     Animated.loop(
       Animated.sequence([
         Animated.timing(sparkleAnim, {
@@ -294,7 +295,7 @@ const CompletionScreen = () => {
       ])
     ).start();
 
-    // 🎨 Gradient sweep animation
+    // ?? Gradient sweep animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(gradientAnim, {
@@ -310,7 +311,7 @@ const CompletionScreen = () => {
       ])
     ).start();
 
-    // 🎈 Floating particles
+    // ?? Floating particles
     Animated.loop(
       Animated.timing(floatAnim1, {
         toValue: 1,
@@ -334,7 +335,7 @@ const CompletionScreen = () => {
     }
   }, [experience, couponCode]);
 
-  // ✅ SECURITY FIX: Use Firestore transaction to prevent race conditions
+  // ? SECURITY FIX: Use Firestore transaction to prevent race conditions
   const fetchExistingCoupon = async () => {
     if (!goal || !experienceGift) return;
 
@@ -351,26 +352,26 @@ const CompletionScreen = () => {
   };
 
   /**
-   * ✅ SECURITY: Atomic coupon generation using Firestore transaction
+   * ? SECURITY: Atomic coupon generation using Firestore transaction
    * Prevents race conditions and duplicate coupons
    */
   const generateCouponWithTransaction = async () => {
     if (!goal || !experienceGift) return;
 
-    logger.log('🎫 Starting coupon generation...');
+    logger.log('?? Starting coupon generation...');
     logger.log('experienceGift.partnerId:', experienceGift?.partnerId);
     logger.log('experience.partnerId:', experience?.partnerId);
 
     const partnerId = experience?.partnerId || experienceGift?.partnerId;
 
     if (!partnerId) {
-      logger.error('❌ Missing partner ID for coupon generation');
+      logger.error('? Missing partner ID for coupon generation');
       logger.error('experienceGift:', experienceGift);
       logger.error('experience:', experience);
       throw new Error('Missing partner ID');
     }
 
-    logger.log('✅ Using partnerId:', partnerId);
+    logger.log('? Using partnerId:', partnerId);
     const goalRef = doc(db, 'goals', goal.id);
 
     try {
@@ -384,9 +385,9 @@ const CompletionScreen = () => {
 
         const goalData = goalDoc.data();
 
-        // ✅ Check if coupon already exists (atomic check)
+        // ? Check if coupon already exists (atomic check)
         if (goalData.couponCode) {
-          logger.log('✅ Found existing coupon:', goalData.couponCode);
+          logger.log('? Found existing coupon:', goalData.couponCode);
           setCouponCode(goalData.couponCode);
           return; // Exit transaction early
         }
@@ -414,11 +415,11 @@ const CompletionScreen = () => {
         // Check for code collision (extremely rare with 12 chars)
         const existingCouponDoc = await transaction.get(partnerCouponRef);
         if (existingCouponDoc.exists()) {
-          logger.error('⚠️ Coupon code collision detected');
+          logger.error('?? Coupon code collision detected');
           throw new Error('CODE_COLLISION'); // Will trigger retry
         }
 
-        // ✅ Atomically create both documents
+        // ? Atomically create both documents
         transaction.set(partnerCouponRef, {
           ...coupon,
           createdAt: serverTimestamp(),
@@ -431,12 +432,12 @@ const CompletionScreen = () => {
 
         // Update local state
         setCouponCode(newCouponCode);
-        logger.log('✅ Coupon atomically generated:', newCouponCode);
+        logger.log('? Coupon atomically generated:', newCouponCode);
       });
     } catch (error: any) {
       // Retry on code collision
       if (error.message === 'CODE_COLLISION') {
-        logger.log('🔄 Retrying coupon generation due to collision...');
+        logger.log('?? Retrying coupon generation due to collision...');
         return await generateCouponWithTransaction();
       }
 
@@ -609,7 +610,7 @@ const CompletionScreen = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
 
-      {/* 🎊 CONFETTI CANNON */}
+      {/* ?? CONFETTI CANNON */}
       <ConfettiCannon
         ref={confettiRef}
         count={150}
@@ -617,13 +618,13 @@ const CompletionScreen = () => {
         autoStart={false}
         fadeOut={true}
         fallSpeed={3000}
-        colors={['#fbbf24', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899']}
+        colors={['#fbbf24', '#f59e0b', '#10b981', Colors.secondary, '#ec4899']}
       />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section - EPIC CELEBRATION */}
         <LinearGradient
-          colors={['#10b981', '#0891b2', '#8b5cf6']}
+          colors={['#10b981', '#0891b2', Colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroSection}
@@ -677,7 +678,7 @@ const CompletionScreen = () => {
             <Zap color="#f59e0b" size={24} fill="#f59e0b" />
           </Animated.View>
 
-          {/* ✨ Enhanced sparkle effects */}
+          {/* ? Enhanced sparkle effects */}
           <Animated.View
             style={[
               styles.sparkle,
@@ -729,7 +730,7 @@ const CompletionScreen = () => {
               {celebrationMessage}
             </Animated.Text>
             <Text style={styles.heroSubtitle}>
-              You did it! Your reward is now unlocked 🎉
+              You did it! Your reward is now unlocked ??
             </Text>
 
             {/* Enhanced completion stats */}
@@ -767,7 +768,7 @@ const CompletionScreen = () => {
         {/* Experience Reveal */}
         <View style={styles.experienceCard}>
           <View style={styles.experienceHeader}>
-            <Gift color="#8b5cf6" size={24} />
+            <Gift color={Colors.secondary} size={24} />
             <Text style={styles.experienceHeaderText}>Your Reward</Text>
           </View>
 
@@ -786,7 +787,7 @@ const CompletionScreen = () => {
                 <Text style={styles.experienceDescription}>{experience.description}</Text>
               </>
             ) : (
-              <ActivityIndicator size="small" color="#8b5cf6" />
+              <ActivityIndicator size="small" color={Colors.secondary} />
             )}
           </View>
         </View>
@@ -794,7 +795,7 @@ const CompletionScreen = () => {
         {/* Coupon Section - PREMIUM TICKET DESIGN */}
         <View style={styles.couponSection}>
           <View style={styles.couponHeader}>
-            <Ticket color="#8b5cf6" size={28} />
+            <Ticket color={Colors.secondary} size={28} />
             <Text style={styles.couponHeaderText}>Your Exclusive Code</Text>
           </View>
 
@@ -804,7 +805,7 @@ const CompletionScreen = () => {
 
           {isLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#8b5cf6" />
+              <ActivityIndicator size="large" color={Colors.secondary} />
               <Text style={styles.loadingText}>Generating your code...</Text>
             </View>
           ) : couponCode ? (
@@ -820,7 +821,7 @@ const CompletionScreen = () => {
                     onPress={handleCopy}
                     activeOpacity={0.7}
                   >
-                    <Copy color={isCopied ? "#10b981" : "#8b5cf6"} size={20} />
+                    <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
                     <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                       {isCopied ? 'Copied!' : 'Copy Code'}
                     </Text>
@@ -916,7 +917,7 @@ const CompletionScreen = () => {
                         activeOpacity={0.8}
                       >
                         <LinearGradient
-                          colors={['#8b5cf6', '#7c3aed']}
+                          colors={[Colors.secondary, Colors.primary]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.scheduleButton}
@@ -1174,7 +1175,7 @@ const styles = StyleSheet.create({
   couponCode: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#8b5cf6',
+    color: Colors.secondary,
     textAlign: 'center',
     letterSpacing: 6,
   },
@@ -1188,16 +1189,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: Colors.primarySurface,
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e9d5ff',
+    borderColor: Colors.primaryTint,
   },
   copyCodeText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: Colors.secondary,
   },
   copiedText: {
     color: '#10b981',

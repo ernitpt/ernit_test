@@ -11,6 +11,7 @@ import {
 import { X } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import Colors from '../config/colors';
 
 interface HowItWorksModalProps {
     visible: boolean;
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 16,
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     ctaText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#8b5cf6',
+        color: Colors.secondary,
         textAlign: 'center',
     },
     buttonContainer: {
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#f3f4f6',
     },
     gotItButton: {
-        backgroundColor: '#8b5cf6',
+        backgroundColor: Colors.secondary,
         borderRadius: 12,
         paddingVertical: 16,
         alignItems: 'center',

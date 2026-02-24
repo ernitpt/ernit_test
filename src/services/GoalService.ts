@@ -23,6 +23,7 @@ import { experienceGiftService } from './ExperienceGiftService';
 import { experienceService } from './ExperienceService';
 import { userService } from './userService';
 import { notificationService } from './NotificationService';
+import { friendService } from './FriendService';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
@@ -86,6 +87,12 @@ function normalizeGoal(g: any): Goal {
     giverMessage: g.giverMessage || null,
     receiverMessage: g.receiverMessage || null,
     giverActionTaken: !!g.giverActionTaken,
+    // Free Goal fields
+    isFreeGoal: !!g.isFreeGoal,
+    pledgedExperience: g.pledgedExperience || null,
+    pledgedAt: toJSDate(g.pledgedAt) ?? null,
+    giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
+    giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
   } as Goal;
 }
 
@@ -164,6 +171,90 @@ export class GoalService {
     }
   }
 
+  /** Create a Free Goal ("The Pledge") - no purchase required */
+  async createFreeGoal(goal: Goal): Promise<Goal> {
+    try {
+      if (!goal.isFreeGoal) {
+        throw new Error('Invalid free goal data: missing isFreeGoal');
+      }
+
+      const normalized = normalizeGoal(goal);
+      const docRef = await addDoc(this.goalsCollection, {
+        ...normalized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Create feed post for goal started
+      try {
+        const userDoc = await getDoc(doc(db, 'users', normalized.userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+
+        await feedService.createFeedPost({
+          userId: normalized.userId,
+          userName: userData?.displayName || userData?.profile?.name || 'User',
+          userProfileImageUrl: userData?.profile?.profileImageUrl,
+          goalId: docRef.id,
+          goalDescription: normalized.description,
+          type: 'goal_started',
+          totalSessions: normalized.targetCount,
+          experienceTitle: normalized.pledgedExperience?.title,
+          experienceImageUrl: normalized.pledgedExperience?.coverImageUrl,
+          isFreeGoal: true,
+          pledgedExperienceId: normalized.pledgedExperience?.experienceId,
+          pledgedExperiencePrice: normalized.pledgedExperience?.price,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        logger.error('Error creating feed post for free goal:', error);
+      }
+
+      return { ...normalized, id: docRef.id };
+    } catch (error) {
+      await logErrorToFirestore(error, {
+        feature: 'FreeGoalCreation',
+        userId: goal.userId,
+        additionalData: {
+          goalDescription: goal.description,
+          pledgedExperienceId: goal.pledgedExperience?.experienceId,
+        },
+      });
+      throw error;
+    }
+  }
+
+  /** Attach a purchased gift to a free goal */
+  async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string): Promise<void> {
+    const goalRef = doc(db, 'goals', goalId);
+    const goalSnap = await getDoc(goalRef);
+
+    if (!goalSnap.exists()) throw new Error('Goal not found');
+    const goalData = goalSnap.data();
+
+    if (!goalData.isFreeGoal) throw new Error('Can only attach gifts to free goals');
+
+    // Check 30-day deadline for completed goals
+    if (goalData.isCompleted && goalData.giftAttachDeadline) {
+      const deadline = toJSDate(goalData.giftAttachDeadline);
+      if (deadline && new Date() > deadline) {
+        throw new Error('Gift attachment window has expired (30 days post-completion)');
+      }
+    }
+
+    // Validate gift exists
+    const giftSnap = await getDoc(doc(db, 'experienceGifts', experienceGiftId));
+    if (!giftSnap.exists()) throw new Error('Experience gift not found');
+
+    await updateDoc(goalRef, {
+      experienceGiftId,
+      giftAttachedAt: serverTimestamp(),
+      empoweredBy: giverId,
+      updatedAt: serverTimestamp(),
+    });
+
+    logger.log('✅ Gift attached to free goal:', goalId);
+  }
+
   /**
    * Create a Valentine goal with atomic transaction
    * Eliminates race conditions by creating goal and updating challenge in single atomic operation
@@ -176,127 +267,127 @@ export class GoalService {
   ): Promise<{ goal: Goal; isNowActive: boolean }> {
     try {
       const transactionResult = await runTransaction(db, async (transaction) => {
-      // 1. Read and validate challenge
-      const challengeRef = doc(db, 'valentineChallenges', challengeId);
-      const challengeSnap = await transaction.get(challengeRef);
+        // 1. Read and validate challenge
+        const challengeRef = doc(db, 'valentineChallenges', challengeId);
+        const challengeSnap = await transaction.get(challengeRef);
 
-      if (!challengeSnap.exists()) {
-        throw new Error('Challenge not found');
-      }
+        if (!challengeSnap.exists()) {
+          throw new Error('Challenge not found');
+        }
 
-      const challengeData = challengeSnap.data();
-      const alreadyRedeemed = isPurchaser
-        ? challengeData.purchaserCodeRedeemed
-        : challengeData.partnerCodeRedeemed;
+        const challengeData = challengeSnap.data();
+        const alreadyRedeemed = isPurchaser
+          ? challengeData.purchaserCodeRedeemed
+          : challengeData.partnerCodeRedeemed;
 
-      if (alreadyRedeemed) {
-        throw new Error('Code already redeemed');
-      }
+        if (alreadyRedeemed) {
+          throw new Error('Code already redeemed');
+        }
 
-      // 2. Create goal document atomically
-      const newGoalRef = doc(collection(db, 'goals'));
-      const normalizedGoal = normalizeGoal({
-        ...goalParams,
-        id: newGoalRef.id,
-      });
-
-      transaction.set(newGoalRef, {
-        ...normalizedGoal,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // 3. Update challenge with goal link
-      const updateField = isPurchaser ? 'purchaserGoalId' : 'partnerGoalId';
-      const redeemedField = isPurchaser ? 'purchaserCodeRedeemed' : 'partnerCodeRedeemed';
-      const userIdField = isPurchaser ? 'purchaserUserId' : 'partnerUserId';
-
-      const partnerGoalId = isPurchaser
-        ? challengeData.partnerGoalId
-        : challengeData.purchaserGoalId;
-
-      // Determine the OTHER user's ID (the partner in this context)
-      const partnerUserId = isPurchaser
-        ? challengeData.partnerUserId
-        : challengeData.purchaserUserId;
-
-      const isNowActive = !!partnerGoalId; // Both codes redeemed
-
-      transaction.update(challengeRef, {
-        [updateField]: newGoalRef.id,
-        [redeemedField]: true,
-        [userIdField]: userId,
-        status: isNowActive ? 'active' : challengeData.status,
-        updatedAt: serverTimestamp(),
-      });
-
-      // 4. Cross-link partner goals if both exist (atomic linking)
-      if (partnerGoalId) {
-        transaction.update(newGoalRef, { partnerGoalId });
-        transaction.update(doc(db, 'goals', partnerGoalId), {
-          partnerGoalId: newGoalRef.id
+        // 2. Create goal document atomically
+        const newGoalRef = doc(collection(db, 'goals'));
+        const normalizedGoal = normalizeGoal({
+          ...goalParams,
+          id: newGoalRef.id,
         });
-      }
 
-      // Return data needed for post-transaction side effects
-      return {
-        goal: normalizedGoal as Goal,
-        isNowActive,
-        partnerUserId
-      };
-    });
+        transaction.set(newGoalRef, {
+          ...normalizedGoal,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
 
-    // === Post-Transaction Side Effects ===
+        // 3. Update challenge with goal link
+        const updateField = isPurchaser ? 'purchaserGoalId' : 'partnerGoalId';
+        const redeemedField = isPurchaser ? 'purchaserCodeRedeemed' : 'partnerCodeRedeemed';
+        const userIdField = isPurchaser ? 'purchaserUserId' : 'partnerUserId';
 
-    const { goal, isNowActive, partnerUserId } = transactionResult;
+        const partnerGoalId = isPurchaser
+          ? challengeData.partnerGoalId
+          : challengeData.purchaserGoalId;
 
-    // 1. Create Feed Post (Bug Fix: Was missing for Valentine goals)
-    try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.exists() ? userDoc.data() : null;
+        // Determine the OTHER user's ID (the partner in this context)
+        const partnerUserId = isPurchaser
+          ? challengeData.partnerUserId
+          : challengeData.purchaserUserId;
 
-      await feedService.createFeedPost({
-        userId,
-        userName: userData?.displayName || userData?.profile?.name || 'User',
-        userProfileImageUrl: userData?.profile?.profileImageUrl,
-        goalId: goal.id,
-        goalDescription: goal.description,
-        type: 'goal_started',
-        totalSessions: goal.targetCount, // Total weeks for Valentine goals
-        createdAt: new Date(),
-        isValentineChallenge: true
+        const isNowActive = !!partnerGoalId; // Both codes redeemed
+
+        transaction.update(challengeRef, {
+          [updateField]: newGoalRef.id,
+          [redeemedField]: true,
+          [userIdField]: userId,
+          status: isNowActive ? 'active' : challengeData.status,
+          updatedAt: serverTimestamp(),
+        });
+
+        // 4. Cross-link partner goals if both exist (atomic linking)
+        if (partnerGoalId) {
+          transaction.update(newGoalRef, { partnerGoalId });
+          transaction.update(doc(db, 'goals', partnerGoalId), {
+            partnerGoalId: newGoalRef.id
+          });
+        }
+
+        // Return data needed for post-transaction side effects
+        return {
+          goal: normalizedGoal as Goal,
+          isNowActive,
+          partnerUserId
+        };
       });
-    } catch (error) {
-      logger.error('Error creating Valentine feed post:', error);
-    }
 
-    // 2. Send Notifications if Challenge is Now Active (Both partners joined)
-    if (isNowActive && partnerUserId) {
+      // === Post-Transaction Side Effects ===
+
+      const { goal, isNowActive, partnerUserId } = transactionResult;
+
+      // 1. Create Feed Post (Bug Fix: Was missing for Valentine goals)
       try {
-        const currentUserName = await userService.getUserName(userId);
-        const partnerName = await userService.getUserName(partnerUserId);
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
 
-        // Notify Partner (User A): "User B has joined!"
-        await notificationService.createValentineStartNotification(
-          partnerUserId,
-          currentUserName,
-          challengeId
-        );
-
-        // Notify Current User (User B): "Challenge Started with User A!"
-        await notificationService.createValentineStartNotification(
+        await feedService.createFeedPost({
           userId,
-          partnerName,
-          challengeId
-        );
-
-        logger.log(`✅ Sent Valentine start notifications to both partners (${userId}, ${partnerUserId})`);
+          userName: userData?.displayName || userData?.profile?.name || 'User',
+          userProfileImageUrl: userData?.profile?.profileImageUrl,
+          goalId: goal.id,
+          goalDescription: goal.description,
+          type: 'goal_started',
+          totalSessions: goal.targetCount, // Total weeks for Valentine goals
+          createdAt: new Date(),
+          isValentineChallenge: true
+        });
       } catch (error) {
-        logger.error('Error sending Valentine start notifications:', error);
+        logger.error('Error creating Valentine feed post:', error);
       }
-    }
 
-    return { goal, isNowActive };
+      // 2. Send Notifications if Challenge is Now Active (Both partners joined)
+      if (isNowActive && partnerUserId) {
+        try {
+          const currentUserName = await userService.getUserName(userId);
+          const partnerName = await userService.getUserName(partnerUserId);
+
+          // Notify Partner (User A): "User B has joined!"
+          await notificationService.createValentineStartNotification(
+            partnerUserId,
+            currentUserName,
+            challengeId
+          );
+
+          // Notify Current User (User B): "Challenge Started with User A!"
+          await notificationService.createValentineStartNotification(
+            userId,
+            partnerName,
+            challengeId
+          );
+
+          logger.log(`✅ Sent Valentine start notifications to both partners (${userId}, ${partnerUserId})`);
+        } catch (error) {
+          logger.error('Error sending Valentine start notifications:', error);
+        }
+      }
+
+      return { goal, isNowActive };
     } catch (error) {
       // Log error to Firestore
       await logErrorToFirestore(error, {
@@ -1062,15 +1153,30 @@ export class GoalService {
             let experienceImageUrl: string | undefined;
             let partnerName: string | undefined;
 
-            try {
-              const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
-              const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+            if (g.isFreeGoal && g.pledgedExperience) {
+              // FREE GOAL: use pledged experience snapshot
+              experienceTitle = g.pledgedExperience.title;
+              experienceImageUrl = g.pledgedExperience.coverImageUrl;
+              partnerName = g.pledgedExperience.subtitle;
 
-              experienceTitle = experience?.title;
-              experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
-              partnerName = experience?.subtitle;
-            } catch (expError) {
-              logger.warn('Could not fetch experience details for feed post:', expError);
+              // Set 30-day gift attach deadline
+              const deadline = new Date();
+              deadline.setDate(deadline.getDate() + 30);
+              const goalRef = doc(db, 'goals', g.id);
+              await updateDoc(goalRef, { giftAttachDeadline: deadline });
+              g.giftAttachDeadline = deadline;
+            } else if (g.experienceGiftId) {
+              // STANDARD GOAL: fetch from gift
+              try {
+                const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
+                const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+
+                experienceTitle = experience?.title;
+                experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
+                partnerName = experience?.subtitle;
+              } catch (expError) {
+                logger.warn('Could not fetch experience details for feed post:', expError);
+              }
             }
 
             await feedService.createFeedPost({
@@ -1086,9 +1192,42 @@ export class GoalService {
               experienceTitle,
               experienceImageUrl,
               partnerName,
-              experienceGiftId: g.experienceGiftId,
+              experienceGiftId: g.experienceGiftId || undefined,
+              isFreeGoal: g.isFreeGoal,
+              pledgedExperienceId: g.pledgedExperience?.experienceId,
+              pledgedExperiencePrice: g.pledgedExperience?.price,
               createdAt: new Date(),
             });
+
+            // 🎯 FREE GOAL COMPLETION: Notify friends to empower
+            if (g.isFreeGoal && g.pledgedExperience) {
+              try {
+                const friends = await friendService.getFriends(g.userId);
+                const uName = userData?.displayName || userData?.profile?.name || 'Your friend';
+                const expTitle = g.pledgedExperience.title;
+
+                for (const friend of friends) {
+                  await notificationService.createNotification(
+                    friend.friendId,
+                    'free_goal_completed',
+                    `🏆 ${uName} completed their challenge!`,
+                    `${uName} finished their ${g.targetCount}-week challenge! Gift them "${expTitle}" to celebrate 🎁`,
+                    {
+                      goalId: g.id,
+                      goalUserId: g.userId,
+                      experienceId: g.pledgedExperience.experienceId,
+                      experienceTitle: expTitle,
+                      experiencePrice: g.pledgedExperience.price,
+                      milestone: 100,
+                    },
+                    true
+                  );
+                }
+                logger.log(`🎯 Sent completion notifications to ${friends.length} friends for free goal ${g.id}`);
+              } catch (completionNotifError) {
+                logger.error('Error sending free goal completion notifications:', completionNotifError);
+              }
+            }
           } catch (error) {
             logger.error('Error creating goal completion feed post:', error);
           }
@@ -1117,7 +1256,47 @@ export class GoalService {
       } catch (error) {
         logger.error('Error creating progress feed post:', error);
       }
-    }
+
+      // 🎯 FREE GOAL MILESTONE NOTIFICATIONS: Notify friends at 25%, 50%, 75%
+      if (g.isFreeGoal && g.pledgedExperience) {
+        const MILESTONES = [25, 50, 75];
+        const prevPercentage = Math.round(((totalCompletedSessions - 1) / totalSessions) * 100);
+        const crossedMilestone = MILESTONES.find(
+          m => prevPercentage < m && progressPercentage >= m
+        );
+
+        if (crossedMilestone) {
+          try {
+            const friends = await friendService.getFriends(g.userId);
+            const userName = await userService.getUserName(g.userId) || 'Your friend';
+            const expTitle = g.pledgedExperience.title;
+            const milestoneEmoji = crossedMilestone === 75 ? '🔥' : crossedMilestone === 50 ? '⚡' : '🌟';
+
+            for (const friend of friends) {
+              await notificationService.createNotification(
+                friend.friendId,
+                'free_goal_milestone',
+                `${milestoneEmoji} ${userName} is ${crossedMilestone}% there!`,
+                `${userName} is ${crossedMilestone}% through their ${g.description.replace('Work on ', '').replace(/.* for.*$/, '')} challenge. Empower them with "${expTitle}" 🎁`,
+                {
+                  goalId: g.id,
+                  goalUserId: g.userId,
+                  experienceId: g.pledgedExperience.experienceId,
+                  experienceTitle: expTitle,
+                  experiencePrice: g.pledgedExperience.price,
+                  milestone: crossedMilestone,
+                },
+                true // clearable
+              );
+            }
+
+            logger.log(`🎯 Sent ${crossedMilestone}% milestone notifications to ${friends.length} friends for free goal ${g.id}`);
+          } catch (milestoneError) {
+            logger.error('Error sending milestone notifications:', milestoneError);
+          }
+        }
+      }
+    } // end else if (previousWeeklyCount < g.weeklyCount)
 
     // Persist updates
     const updateData: any = {

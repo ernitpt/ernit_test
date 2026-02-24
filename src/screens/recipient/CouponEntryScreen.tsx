@@ -27,6 +27,7 @@ import { useModalAnimation } from '../../hooks/useModalAnimation';
 import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import Colors from '../../config/colors';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -268,7 +269,7 @@ const CouponEntryScreen = () => {
 
   return (
     <MainScreen activeRoute="Goals">
-      <LinearGradient colors={['#7C3AED', '#3B82F6']} style={{ flex: 1 }}>
+      <LinearGradient colors={Colors.gradientPrimary} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <StatusBar style="light" />
           <KeyboardAvoidingView
@@ -329,7 +330,7 @@ const CouponEntryScreen = () => {
                   <Text
                     style={{
                       fontSize: 18,
-                      color: '#E9D5FF',
+                      color: Colors.primaryTint,
                       textAlign: 'center',
                       maxWidth: 300,
                     }}
@@ -423,11 +424,11 @@ const CouponEntryScreen = () => {
                     }}
                   >
                     {isLoading ? (
-                      <ActivityIndicator color="#7C3AED" />
+                      <ActivityIndicator color={Colors.primary} />
                     ) : (
                       <Text
                         style={{
-                          color: '#7C3AED',
+                          color: Colors.primary,
                           fontSize: 18,
                           fontWeight: 'bold',
                         }}
@@ -462,22 +463,22 @@ const CouponEntryScreen = () => {
                   </Text>
                   <View style={{ gap: 8 }}>
                     <Text
-                      style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
                     >
                       1. Enter your claim code
                     </Text>
                     <Text
-                      style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
                     >
                       2. Set personal goals to earn the reward
                     </Text>
                     <Text
-                      style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
                     >
                       3. Receive hints as you progress
                     </Text>
                     <Text
-                      style={{ color: '#E9D5FF', fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
                     >
                       4. Achieve your goals and claim your reward!
                     </Text>
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     padding: 32,
-    shadowColor: '#7C3AED',
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
     shadowRadius: 30,
@@ -585,11 +586,11 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
   continueButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: Colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#7C3AED',
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,

@@ -1,5 +1,6 @@
-// screens/Recipient/GoalSettingScreen.tsx
-import React, { useEffect, useRef, useState } from 'react';
+// screens/Recipient/PledgeGoalSettingScreen.tsx
+// Simplified GoalSettingScreen for Free Goals (The Pledge) - no gift claim, no AI hints
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,71 +11,49 @@ import {
   StyleSheet,
   Platform,
   Animated,
-  Easing,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Picker } from '@react-native-picker/picker';
 import { CustomCalendar } from '../../components/CustomCalendar';
-import {
-  RecipientStackParamList,
-  ExperienceGift,
-  Goal,
-  GoalSegment,
-} from '../../types';
+import { RootStackParamList, Experience, Goal } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { goalService } from '../../services/GoalService';
-import { notificationService } from '../../services/NotificationService';
-import { userService } from '../../services/userService';
 import MainScreen from '../MainScreen';
-import { db, auth } from '../../services/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { ActivityIndicator } from 'react-native';
-import { experienceService } from '../../services/ExperienceService';
 import SharedHeader from '../../components/SharedHeader';
 import { useModalAnimation } from '../../hooks/useModalAnimation';
 import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
-import HintPopup from '../../components/HintPopup';
-import { aiHintService } from '../../services/AIHintService';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
 
-type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
+type NavProp = NativeStackNavigationProp<RootStackParamList, 'PledgeGoalSetting'>;
 
-const GoalSettingScreen = () => {
+const PledgeGoalSettingScreen = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
-  // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
-  const experienceGift = routeParams?.experienceGift;
+  const routeParams = route.params as { experience?: Experience } | undefined;
+  const experience = routeParams?.experience;
 
-  // Validate required data
-  const hasValidData = Boolean(
-    experienceGift?.id &&
-    experienceGift?.experienceId
-  );
+  const hasValidData = Boolean(experience?.id);
 
   // Redirect if data is missing (e.g., after page refresh)
-  useEffect(() => {
+  React.useEffect(() => {
     if (!hasValidData) {
-      logger.warn('Missing/invalid experienceGift on GoalSettingScreen, redirecting to CouponEntry');
-      // @ts-ignore - navigation types might need adjustment but CouponEntry is valid in RecipientStack
+      logger.warn('Missing experience on PledgeGoalSettingScreen, redirecting to CategorySelection');
       navigation.reset({
         index: 0,
-        routes: [{ name: 'CouponEntry' }],
+        routes: [{ name: 'CategorySelection' }],
       });
     }
   }, [hasValidData, navigation]);
 
-  // Early return if data is invalid
-  if (!hasValidData || !experienceGift) {
+  if (!hasValidData || !experience) {
     return (
       <MainScreen activeRoute="Goals">
-        <SharedHeader title="Set Your Goal ✨" showBack={false} />
+        <SharedHeader title="Set Your Goal" showBack={false} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={Colors.secondary} />
           <Text style={{ marginTop: 20, color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
@@ -82,106 +61,37 @@ const GoalSettingScreen = () => {
       </MainScreen>
     );
   }
+
   const { state, dispatch } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategory, setCustomCategory] = useState('');
-  const [duration, setDuration] = useState(''); // number of weeks or months
+  const [duration, setDuration] = useState('');
   const [durationUnit, setDurationUnit] = useState<'weeks' | 'months'>('weeks');
-  const [sessionsPerWeek, setSessionsPerWeek] = useState(''); // required weekly sessions
+  const [sessionsPerWeek, setSessionsPerWeek] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false); // 👈 add this if missing
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [plannedStartDate, setPlannedStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const categories = [
-    { icon: '🧘', name: 'Yoga' },
-    { icon: '🏋️', name: 'Gym' },
-    { icon: '🏃‍♀️', name: 'Running' },
-    { icon: '💻', name: 'Courses' },
-    { icon: '📚', name: 'Education' },
-    { icon: '🎹', name: 'Piano' },
-    { icon: '✏️', name: 'Other' },
-  ];
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [showSessionsWarning, setShowSessionsWarning] = useState(false);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
-  const [hintPromise, setHintPromise] = useState<Promise<string> | null>(null);
-  const [showHintPopup, setShowHintPopup] = useState(false);
-  const [firstHint, setFirstHint] = useState<string | null>(null);
-  const [createdGoal, setCreatedGoal] = useState<Goal | null>(null);
 
+  const categories = [
+    { icon: '\u{1F9D8}', name: 'Yoga' },
+    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym' },
+    { icon: '\u{1F3C3}\u{200D}\u{2640}\u{FE0F}', name: 'Running' },
+    { icon: '\u{1F4BB}', name: 'Courses' },
+    { icon: '\u{1F4DA}', name: 'Education' },
+    { icon: '\u{1F3B9}', name: 'Piano' },
+    { icon: '\u{270F}\u{FE0F}', name: 'Other' },
+  ];
 
   const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
 
-  // ✅ SECURITY FIX: Atomically claim gift when creating goal
-  const updateGiftStatus = async (experienceGiftId: string) => {
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Find the gift document
-      const qGift = query(collection(db, 'experienceGifts'), where('id', '==', experienceGiftId));
-      const snap = await getDocs(qGift);
-
-      if (snap.empty) {
-        throw new Error('Gift not found');
-      }
-
-      const giftDocRef = doc(db, 'experienceGifts', snap.docs[0].id);
-
-      // ✅ Use transaction to atomically claim
-      await runTransaction(db, async (transaction) => {
-        const freshGift = await transaction.get(giftDocRef);
-
-        if (!freshGift.exists()) {
-          throw new Error('Gift not found');
-        }
-
-        const giftData = freshGift.data();
-
-        //✅ CRITICAL: Verify gift is still pending
-        if (giftData.status !== 'pending') {
-          throw new Error('Gift already claimed');
-        }
-
-        // ✅ Atomically claim the gift
-        transaction.update(giftDocRef, {
-          status: 'claimed',
-          recipientId: currentUser.uid,
-          claimedAt: serverTimestamp(),
-        });
-      });
-    } catch (e) {
-      logger.error('updateGiftStatus error', e);
-      throw e; // Re-throw so goal creation can handle it
-    }
-  };
-  const [experience, setExperience] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchExperience = async () => {
-      try {
-        const exp = await experienceService.getExperienceById(experienceGift.experienceId);
-        setExperience(exp);
-      } catch (error) {
-        logger.error("Error fetching experience:", error);
-        await logErrorToFirestore(error, {
-          screenName: 'GoalSettingScreen',
-          feature: 'FetchExperience',
-          userId: state.user?.id,
-          additionalData: { experienceId: experienceGift?.experienceId }
-        });
-        Alert.alert("Error", "Could not load experience details.");
-      }
-    };
-    fetchExperience();
-  }, [experienceGift.experienceId]);
-  // 1. Trigger modal first
-  const handleNext = async () => {
+  const handleNext = () => {
     const finalCategory =
       selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
 
@@ -204,7 +114,6 @@ const GoalSettingScreen = () => {
       return;
     }
 
-    // Validate limits: 5 weeks max, 7 sessions/week max
     const totalWeeks = durationUnit === 'weeks' ? durationNum : durationNum * 4;
     if (totalWeeks > 5) {
       Alert.alert('Error', 'The maximum duration is 5 weeks.');
@@ -219,27 +128,13 @@ const GoalSettingScreen = () => {
       return;
     }
 
-    // ✅ Start generating first hint in background while user reviews modal
-    const totalSessions = totalWeeks * sessionsPerWeekNum;
-    const recipientName = await userService.getUserName(state.user?.id || '');
-
-    const promise = aiHintService.generateHint({
-      goalId: 'temp', // We don't have goal ID yet, but it's not used in generation
-      experienceType: experience.title,
-      sessionNumber: 1,
-      totalSessions: totalSessions,
-      userName: recipientName,
-    });
-
-    setHintPromise(promise.then(res => res.hint));
-
+    // No hint generation for free goals - open confirmation directly
     openModal();
   };
 
-  // 2. Run your original logic here
   const confirmCreateGoal = async () => {
     if (isSubmitting) return;
-    setIsSubmitting(true); // start loading
+    setIsSubmitting(true);
 
     try {
       const finalCategory =
@@ -256,40 +151,9 @@ const GoalSettingScreen = () => {
       const endDate = new Date(now);
       endDate.setDate(now.getDate() + durationInDays);
 
-      // Set approval deadline to 24 hours from now
-      const approvalDeadline = new Date(now);
-      approvalDeadline.setHours(approvalDeadline.getHours() + 24);
-
-      // ✅ CRITICAL: Claim the gift FIRST before creating goal
-      // This prevents orphaned goals if claiming fails
-      try {
-        await updateGiftStatus(experienceGift.id);
-      } catch (claimError: any) {
-        // Handle specific claim errors
-        if (claimError.message === 'Gift already claimed') {
-          Alert.alert(
-            'Code Already Used',
-            'This code has already been claimed by someone else. Please check with the person who sent it to you.'
-          );
-        } else if (claimError.message === 'User not authenticated') {
-          Alert.alert('Error', 'Please sign in to continue.');
-        } else {
-          // Log unknown claim errors
-          await logErrorToFirestore(claimError, {
-            screenName: 'GoalSettingScreen',
-            feature: 'ClaimGift',
-            userId: state.user?.id,
-            additionalData: { giftId: experienceGift.id }
-          });
-          Alert.alert('Error', 'Failed to claim this gift. Please try again.');
-        }
-        return; // Stop here - don't create goal
-      }
-
-      // If we got here, gift claim succeeded - now create the goal
       const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
-        userId: state.user?.id || 'recipient',
-        experienceGiftId: experienceGift.id,
+        userId: state.user?.id || '',
+        experienceGiftId: '', // Empty for free goals
         title: `Attend ${finalCategory} Sessions`,
         description: `Work on ${finalCategory} for ${totalWeeks} weeks, ${sessionsPerWeekNum} times per week.`,
         targetCount: totalWeeks,
@@ -305,113 +169,64 @@ const GoalSettingScreen = () => {
         isActive: true,
         isCompleted: false,
         isRevealed: false,
-        location: experience.location || 'Unknown location',
+        location: experience.location || '',
         targetHours: hoursNum,
         targetMinutes: minutesNum,
-
         createdAt: now,
         weeklyLogDates: [],
-        empoweredBy: experienceGift.giverId,
-        // Approval fields - auto-approve if self-gifted
-        approvalStatus: experienceGift.giverId === state.user?.id ? 'approved' : 'pending',
+        // Free goal specific
+        isFreeGoal: true,
+        pledgedExperience: {
+          experienceId: experience.id,
+          title: experience.title,
+          subtitle: experience.subtitle,
+          description: experience.description,
+          category: experience.category,
+          price: experience.price,
+          coverImageUrl: experience.coverImageUrl,
+          imageUrl: experience.imageUrl,
+          partnerId: experience.partnerId,
+          location: experience.location,
+        },
+        pledgedAt: now,
+        empoweredBy: state.user?.id || '', // Self-empowered
+        approvalStatus: 'approved', // Auto-approved (no giver)
         initialTargetCount: totalWeeks,
         initialSessionsPerWeek: sessionsPerWeekNum,
         approvalRequestedAt: now,
-        approvalDeadline,
-        giverActionTaken: experienceGift.giverId === state.user?.id, // Mark as handled for self-gifts
+        approvalDeadline: now, // Not relevant for free goals
+        giverActionTaken: true, // No giver action needed
       };
 
-
-      const goal = await goalService.createGoal(goalData as Goal);
-      const recipientName = await userService.getUserName(goalData.userId);
-
-      // Only send approval notification if NOT self-gifted
-      const isSelfGift = experienceGift.giverId === state.user?.id;
-      if (!isSelfGift) {
-        await notificationService.createNotification(
-          goalData.empoweredBy! || '',
-          'goal_approval_request',
-          `🎯 ${recipientName} set a goal for ${experience.title}`,
-          `Goal: ${goalData.description}`,
-          {
-            giftId: goalData.experienceGiftId,
-            goalId: goal.id,
-            giverId: goalData.empoweredBy,
-            recipientId: goalData.userId,
-            experienceTitle: experience.title,
-            initialTargetCount: totalWeeks,
-            initialSessionsPerWeek: sessionsPerWeekNum,
-          },
-          false // Not clearable
-        );
-      }
-
+      const goal = await goalService.createFreeGoal(goalData as Goal);
       dispatch({ type: 'SET_GOAL', payload: goal });
-      setCreatedGoal(goal);
 
-      // ✅ Wait for pre-generated hint (should be ready or almost ready by now)
-      if (hintPromise) {
-        try {
-          const hint = await hintPromise;
-
-          // Save the hint to Firestore
-          const hintObj = {
-            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            session: 1,
-            text: hint,
-            giverName: 'Ernit',
-            date: Date.now(),
-            createdAt: new Date(),
-            type: 'text',
-          };
-
-          await goalService.appendHint(goal.id, hintObj);
-
-          // Close confirmation modal and show hint popup
-          setShowConfirm(false);
-          setFirstHint(hint);
-          setShowHintPopup(true);
-          setHintPromise(null); // Clear the promise
-
-        } catch (hintError) {
-          // If hint generation failed, just navigate without popup
-          logger.error('Failed to get pre-generated hint:', hintError);
-          navigation.reset({
-            index: 1,
-            routes: [
-              { name: 'CouponEntry' },
-              { name: 'Roadmap', params: { goal } },
-            ],
-          });
-        }
-      } else {
-        // No hint promise (shouldn't happen), just navigate
-        navigation.reset({
-          index: 1,
-          routes: [
-            { name: 'CouponEntry' },
-            { name: 'Roadmap', params: { goal } },
-          ],
-        });
-      }
+      // Navigate to Roadmap
+      setShowConfirm(false);
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'CategorySelection' },
+          { name: 'Roadmap', params: { goal } },
+        ],
+      });
 
     } catch (error) {
-      logger.error('Error creating goal:', error);
+      logger.error('Error creating free goal:', error);
       await logErrorToFirestore(error, {
-        screenName: 'GoalSettingScreen',
-        feature: 'CreateGoal',
+        screenName: 'PledgeGoalSettingScreen',
+        feature: 'CreateFreeGoal',
         userId: state.user?.id,
         additionalData: {
-          giftId: experienceGift.id,
-          category: selectedCategory === 'Other' ? customCategory : selectedCategory
-        }
+          experienceId: experience.id,
+          category: selectedCategory === 'Other' ? customCategory : selectedCategory,
+        },
       });
       Alert.alert('Error', 'Failed to create goal. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
 
   const slideAnim = useModalAnimation(showConfirm);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -437,38 +252,25 @@ const GoalSettingScreen = () => {
     }
   }, [isSubmitting]);
 
-  const openModal = () => {
-    setShowConfirm(true);
-  };
-
-  const closeModal = () => {
-    setShowConfirm(false);
-  };
-
-  const handleHintPopupClose = () => {
-    setShowHintPopup(false);
-    // Navigate to Roadmap after hint is dismissed
-    if (createdGoal) {
-      navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'CouponEntry' },
-          { name: 'Roadmap', params: { goal: createdGoal } },
-        ],
-      });
-    }
-  };
-
-
+  const openModal = () => setShowConfirm(true);
+  const closeModal = () => setShowConfirm(false);
 
   return (
     <MainScreen activeRoute="Goals">
       <SharedHeader
-        title="Set Your Goal ✨"
-        subtitle="Choose your goal category to get started"
+        title="Set Your Goal"
+        subtitle={`Pledge: ${experience.title}`}
       />
-      <ScrollView style={{ flex: 1, padding: 20 }} >
+      <ScrollView style={{ flex: 1, padding: 20 }}>
 
+        {/* Pledged Experience Card */}
+        <View style={styles.pledgeCard}>
+          <Text style={styles.pledgeLabel}>Your Motivation</Text>
+          <Text style={styles.pledgeTitle}>{experience.title}</Text>
+          <Text style={styles.pledgeSubtitle}>{experience.subtitle}</Text>
+        </View>
+
+        {/* Category Selection */}
         <View style={styles.categoriesContainer}>
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.name;
@@ -525,14 +327,8 @@ const GoalSettingScreen = () => {
                   if (durationUnit === 'weeks' && num > 5) {
                     setShowDurationWarning(true);
                   } else if (durationUnit === 'months') {
-                    // Convert months to weeks: 1 month = 4 weeks, so 5 weeks = 1.25 months
-                    // But we'll allow months, just warn if it exceeds 5 weeks equivalent
                     const weeksEquivalent = num * 4;
-                    if (weeksEquivalent > 5) {
-                      setShowDurationWarning(true);
-                    } else {
-                      setShowDurationWarning(false);
-                    }
+                    setShowDurationWarning(weeksEquivalent > 5);
                   } else {
                     setShowDurationWarning(false);
                   }
@@ -545,17 +341,11 @@ const GoalSettingScreen = () => {
                 selectedValue={durationUnit}
                 onValueChange={(v) => {
                   setDurationUnit(v);
-                  // Re-check warning when switching units
                   const num = parseInt(duration || '0');
                   if (v === 'weeks' && num > 5) {
                     setShowDurationWarning(true);
                   } else if (v === 'months') {
-                    const weeksEquivalent = num * 4;
-                    if (weeksEquivalent > 5) {
-                      setShowDurationWarning(true);
-                    } else {
-                      setShowDurationWarning(false);
-                    }
+                    setShowDurationWarning(num * 4 > 5);
                   } else {
                     setShowDurationWarning(false);
                   }
@@ -575,8 +365,6 @@ const GoalSettingScreen = () => {
           )}
         </View>
 
-
-
         {/* Sessions per week */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sessions per Week</Text>
@@ -591,9 +379,7 @@ const GoalSettingScreen = () => {
                   const clean = sanitizeNumericInput(t);
                   const num = parseInt(clean || '0');
                   setSessionsPerWeek(clean);
-
-                  if (num > 7) setShowSessionsWarning(true);
-                  else setShowSessionsWarning(false);
+                  setShowSessionsWarning(num > 7);
                 }}
                 keyboardType="numeric"
               />
@@ -603,11 +389,10 @@ const GoalSettingScreen = () => {
 
           {showSessionsWarning && (
             <Text style={styles.limitedNotice}>
-              You can’t plan more than <Text style={{ fontWeight: 'bold' }}>7 sessions</Text> per week.
+              You can't plan more than <Text style={{ fontWeight: 'bold' }}>7 sessions</Text> per week.
             </Text>
           )}
         </View>
-
 
         {/* Time commitment */}
         <View style={styles.section}>
@@ -621,16 +406,9 @@ const GoalSettingScreen = () => {
                 onChangeText={(t) => {
                   const clean = sanitizeNumericInput(t);
                   const h = parseInt(clean || '0');
-                  let m = parseInt(minutes || '0');
+                  const m = parseInt(minutes || '0');
                   setHours(clean);
-
-                  if (h > 3 || (h === 3 && m > 0)) setShowTimeWarning(true);
-                  else setShowTimeWarning(false);
-
-                  // Clamp minutes to 0–59
-                  if (m > 59) m = 59;
-                  setMinutes(m.toString());
-
+                  setShowTimeWarning(h > 3 || (h === 3 && m > 0));
                 }}
                 keyboardType="numeric"
               />
@@ -644,15 +422,9 @@ const GoalSettingScreen = () => {
                   const clean = sanitizeNumericInput(t);
                   const h = parseInt(hours || '0');
                   let m = parseInt(clean || '0');
-                  setMinutes(clean);
-
-                  if (h > 3 || (h === 3 && m > 0)) setShowTimeWarning(true);
-                  else setShowTimeWarning(false);
-
-                  // Clamp minutes to 0–59
                   if (m > 59) m = 59;
                   setMinutes(m.toString());
-
+                  setShowTimeWarning(h > 3 || (h === 3 && m > 0));
                 }}
                 keyboardType="numeric"
               />
@@ -662,11 +434,10 @@ const GoalSettingScreen = () => {
 
           {showTimeWarning && (
             <Text style={styles.limitedNotice}>
-              Each session can’t exceed <Text style={{ fontWeight: 'bold' }}>3 hours</Text> total.
+              Each session can't exceed <Text style={{ fontWeight: 'bold' }}>3 hours</Text> total.
             </Text>
           )}
         </View>
-
 
         {/* Planned Start Date */}
         <View style={styles.section}>
@@ -684,10 +455,10 @@ const GoalSettingScreen = () => {
               {plannedStartDate.toLocaleDateString('en-US', {
                 weekday: 'long',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
               })}
             </Text>
-            <Text style={{ fontSize: 20 }}>📅</Text>
+            <Text style={{ fontSize: 20 }}>{'\u{1F4C5}'}</Text>
           </TouchableOpacity>
 
           <CustomCalendar
@@ -699,23 +470,21 @@ const GoalSettingScreen = () => {
           />
         </View>
 
-
         {/* Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Your Goal:</Text>
           <Text style={styles.summaryText}>
             {selectedCategory
-              ? `Attend ${selectedCategory} for ${duration || '?'} ${durationUnit}, ${sessionsPerWeek || '?'}×/week, dedicating ${hours || '0'}h ${minutes || '0'}m each.`
+              ? `Attend ${selectedCategory} for ${duration || '?'} ${durationUnit}, ${sessionsPerWeek || '?'}x/week, dedicating ${hours || '0'}h ${minutes || '0'}m each.`
               : 'Select a category and fill the details above.'}
           </Text>
         </View>
 
         <View style={{ paddingBottom: 30 }}>
           <TouchableOpacity onPress={handleNext} style={styles.nextButton} activeOpacity={0.85}>
-            <Text style={styles.nextButtonText}>Next</Text>
+            <Text style={styles.nextButtonText}>Create Goal</Text>
           </TouchableOpacity>
         </View>
-
 
       </ScrollView>
 
@@ -745,6 +514,9 @@ const GoalSettingScreen = () => {
 
               <View style={styles.modalDetails}>
                 <Text style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Motivation:</Text> {experience.title}
+                </Text>
+                <Text style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Goal:</Text> {selectedCategory}
                 </Text>
                 <Text style={styles.modalRow}>
@@ -761,12 +533,16 @@ const GoalSettingScreen = () => {
                 </Text>
               </View>
 
+              <Text style={styles.pledgeNote}>
+                Friends can track your progress and empower you by gifting this experience!
+              </Text>
+
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   onPress={closeModal}
                   style={[styles.modalButton, styles.cancelButton]}
                   activeOpacity={0.8}
-                  disabled={isSubmitting} // disable while submitting
+                  disabled={isSubmitting}
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -791,27 +567,11 @@ const GoalSettingScreen = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* First Hint Popup */}
-      {showHintPopup && firstHint && (
-        <HintPopup
-          visible={showHintPopup}
-          hint={firstHint}
-          sessionNumber={1}
-          totalSessions={createdGoal ? createdGoal.targetCount * createdGoal.sessionsPerWeek : 1}
-          onClose={handleHintPopupClose}
-          isFirstHint={true}
-          additionalMessage="🎯 You'll receive your second hint after completing your first session!"
-        />
-      )}
-
     </MainScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff', paddingHorizontal: 24, paddingVertical: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 24 },
   categoriesContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 24 },
   categoryCard: {
     width: '30%',
@@ -852,7 +612,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
 
   limitedNotice: {
-    color: '#d48a1bff', // red-600
+    color: '#d48a1b',
     fontSize: 13,
     marginTop: 6,
   },
@@ -873,6 +633,34 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 14,
     backgroundColor: '#fff',
+  },
+
+  // Pledged experience card
+  pledgeCard: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  pledgeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16a34a',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  pledgeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#15803d',
+    marginBottom: 2,
+  },
+  pledgeSubtitle: {
+    fontSize: 14,
+    color: '#4ade80',
   },
 
   summaryCard: { backgroundColor: Colors.primarySurface, padding: 16, borderRadius: 12, marginBottom: 20 },
@@ -911,85 +699,72 @@ const styles = StyleSheet.create({
     elevation: 8,
     alignItems: 'center',
   },
-
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#4c1d95',
     marginBottom: 8,
   },
-
   modalSubtitle: {
     fontSize: 14,
     color: '#6b7280',
     marginBottom: 20,
     textAlign: 'center',
   },
-
-  modalGoal: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#0e0718ff',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-
   modalDetails: {
     width: '100%',
     backgroundColor: '#f9fafb',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-
   modalRow: {
     fontSize: 15,
     color: '#374151',
     marginBottom: 4,
   },
-
   modalLabel: {
     fontWeight: '600',
     color: Colors.primaryDeep,
   },
-
+  pledgeNote: {
+    fontSize: 13,
+    color: '#16a34a',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
   modalButtons: {
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-between',
     gap: 10,
   },
-
   modalButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
-
   cancelButton: {
     backgroundColor: '#f3f4f6',
   },
-
   confirmButton: {
     backgroundColor: Colors.primary,
   },
-
   cancelText: {
     color: '#374151',
     fontWeight: '600',
     fontSize: 16,
   },
-
   confirmText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
   },
-
 });
 
-export default GoalSettingScreen;
+export default PledgeGoalSettingScreen;

@@ -29,6 +29,7 @@ import ImageViewer from '../components/ImageViewer';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -198,7 +199,7 @@ const FriendProfileScreen: React.FC = () => {
           flex: 1,
           height: 8,
           borderRadius: 50,
-          backgroundColor: filled ? "#7c3aed" : "#e5e7eb",
+          backgroundColor: filled ? Colors.primary : "#e5e7eb",
           marginHorizontal: 2,
         }}
       />
@@ -490,7 +491,7 @@ const FriendProfileScreen: React.FC = () => {
   const renderData = () => {
     if (isLoading)
       return (
-        <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color={Colors.secondary} style={{ marginTop: 20 }} />
       );
 
     const data =
@@ -519,7 +520,7 @@ const FriendProfileScreen: React.FC = () => {
     return (
       <MainScreen activeRoute="Profile">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color={Colors.secondary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </MainScreen>
@@ -597,7 +598,7 @@ const FriendProfileScreen: React.FC = () => {
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: "#8b5cf6" }]}
+                style={[styles.friendButton, { backgroundColor: Colors.secondary }]}
                 onPress={async () => {
                   setIsActionLoading(true);
                   try {
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -788,7 +789,7 @@ const styles = StyleSheet.create({
   // STATS
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 20 },
   statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '700', color: '#8b5cf6', marginBottom: 4 },
+  statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
   statLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
 
   // Friend buttons
@@ -817,7 +818,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
   },
-  tabButtonActive: { backgroundColor: '#8b5cf6' },
+  tabButtonActive: { backgroundColor: Colors.secondary },
   tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   tabTextActive: { color: '#fff' },
 
@@ -867,7 +868,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 8,
   },
-  experiencePrice: { fontSize: 18, fontWeight: '700', color: '#8b5cf6' },
+  experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
 
   emptyStateText: {
     textAlign: 'center',
@@ -984,7 +985,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   confirmButton: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: Colors.primary,
   },
   cancelText: {
     color: '#374151',
@@ -1053,7 +1054,7 @@ const historyModalStyles = StyleSheet.create({
   sessionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#7c3aed',
+    color: Colors.primary,
   },
   dateLabel: {
     fontSize: 12,

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import { ValentineUnlockModal } from '../components/ValentineUnlockModal';
 import { userService as userSvc } from '../services/userService';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import Colors from '../config/colors';
 
 
 
@@ -127,12 +128,12 @@ const GoalsScreen: React.FC = () => {
             return !g.isCompleted && g.currentCount < g.targetCount;
           }
 
-          // 💝 Valentine goals
+          // ?? Valentine goals
           // HIDE if completed (handles both old and new goals)
           if (g.isCompleted) {
             // Debug logging for Valentine goals
             if (g.valentineChallengeId) {
-              console.log('🔍 Valentine Goal Filter:', {
+              console.log('?? Valentine Goal Filter:', {
                 id: g.id,
                 isCompleted: g.isCompleted,
                 isFinished: g.isFinished,
@@ -162,7 +163,7 @@ const GoalsScreen: React.FC = () => {
     return () => unsubscribe();
   }, [userId]);
 
-  // 💝 VALENTINE: Real-time listener for newly-unlocked goals
+  // ?? VALENTINE: Real-time listener for newly-unlocked goals
   // Uses onSnapshot instead of one-time getDocs so the popup fires
   // as soon as the partner unlocks the goal (even if GoalsScreen was already mounted)
   useEffect(() => {
@@ -237,12 +238,22 @@ const GoalsScreen: React.FC = () => {
       // NO! DetailedGoalCard already calls tickWeeklySession.
       // We just need to handle the UI/Navigation consequences.
 
-      // 💝 Valentine goals: completion navigation is handled in DetailedGoalCard's Path 1.
+      // ?? Valentine goals: completion navigation is handled in DetailedGoalCard's Path 1.
       // This callback only runs for NON-completed sessions (the else branch in handleFinish).
       // For Valentine goals, skip the experienceGift fetch since they don't have one.
       if (updatedGoal.valentineChallengeId) {
         // Valentine goals: no action needed here.
         // DetailedGoalCard handles all Valentine-specific navigation and modals.
+        return;
+      }
+
+      // Free goals: navigate to FreeGoalCompletion instead
+      if (updatedGoal.isFreeGoal) {
+        if (updatedGoal.isCompleted) {
+          navigation.navigate('FreeGoalCompletion', {
+            goal: serializeNav(updatedGoal),
+          });
+        }
         return;
       }
 
@@ -329,7 +340,7 @@ const GoalsScreen: React.FC = () => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* 💝 VALENTINE: Unlock Celebration Modal */}
+        {/* ?? VALENTINE: Unlock Celebration Modal */}
         <ValentineUnlockModal
           visible={showUnlockModal}
           partnerName={partnerName}
@@ -377,7 +388,7 @@ const styles = StyleSheet.create({
     right: 24,
   },
   fab: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.secondary,
     borderRadius: 50,
     flexDirection: 'row',
     alignItems: 'center',

@@ -21,6 +21,7 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { Trash2, Mic, Square, Play, Pause, Image as ImageIcon, X } from 'lucide-react-native';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 export interface HintSubmission {
     type: 'text' | 'audio' | 'image' | 'mixed';
@@ -291,7 +292,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                     >
                         {/* Header */}
                         <LinearGradient
-                            colors={['#7C3AED', '#8B5CF6']}
+                            colors={Colors.gradientPrimary}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.header}
@@ -356,7 +357,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                             </View>
                                         ) : (
                                             <TouchableOpacity style={styles.attachButton} onPress={pickImage}>
-                                                <ImageIcon size={20} color="#8B5CF6" />
+                                                <ImageIcon size={20} color={Colors.primary} />
                                                 <Text style={styles.attachButtonText}>Add Photo</Text>
                                             </TouchableOpacity>
                                         )}
@@ -412,9 +413,9 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                         <View style={styles.playbackControls}>
                                             <TouchableOpacity onPress={isPlaying ? pauseSound : playSound}>
                                                 {isPlaying ? (
-                                                    <Pause size={40} color="#8B5CF6" fill="#8B5CF6" />
+                                                    <Pause size={40} color={Colors.primary} fill={Colors.primary} />
                                                 ) : (
-                                                    <Play size={40} color="#8B5CF6" fill="#8B5CF6" />
+                                                    <Play size={40} color={Colors.primary} fill={Colors.primary} />
                                                 )}
                                             </TouchableOpacity>
                                             <View style={styles.waveformPlaceholder}>
@@ -453,7 +454,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                 <LinearGradient
                                     colors={
                                         canSubmit && !submitting
-                                            ? ['#7C3AED', '#8B5CF6']
+                                            ? Colors.gradientPrimary
                                             : ['#9CA3AF', '#6B7280']
                                     }
                                     start={{ x: 0, y: 0 }}
@@ -514,7 +515,7 @@ const styles = StyleSheet.create({
     },
     activeTab: {
         borderBottomWidth: 2,
-        borderBottomColor: '#8B5CF6',
+        borderBottomColor: Colors.secondary,
     },
     tabText: {
         fontSize: 14,
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
         color: '#6B7280',
     },
     activeTabText: {
-        color: '#8B5CF6',
+        color: Colors.secondary,
     },
     contentContainer: {
         padding: 20,
@@ -587,7 +588,7 @@ const styles = StyleSheet.create({
     },
     examplesToggleText: {
         fontSize: 14,
-        color: '#8B5CF6',
+        color: Colors.secondary,
         fontWeight: '600',
     },
     examplesContainer: {
@@ -657,7 +658,7 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: '100%',
-        backgroundColor: '#8B5CF6',
+        backgroundColor: Colors.secondary,
     },
     deleteButton: {
         padding: 8,

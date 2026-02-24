@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Colors from '../../config/colors';
 
 export default function Settings({ width = 20, height = 21 }) {
   // 👇 Ensures this instance has unique gradient IDs
@@ -24,12 +25,12 @@ export default function Settings({ width = 20, height = 21 }) {
       />
       <Defs>
         <LinearGradient id={grad1} x1="9.86498" y1="13.655" x2="9.86498" y2="6.927" gradientUnits="userSpaceOnUse">
-          <Stop stopColor="#6316A5" />
-          <Stop offset="1" stopColor="#2577CA" />
+          <Stop stopColor={Colors.primaryDeep} />
+          <Stop offset="1" stopColor={Colors.accent} />
         </LinearGradient>
         <LinearGradient id={grad2} x1="9.733" y1="19.751" x2="9.733" y2="0.75" gradientUnits="userSpaceOnUse">
-          <Stop stopColor="#6316A5" />
-          <Stop offset="1" stopColor="#2577CA" />
+          <Stop stopColor={Colors.primaryDeep} />
+          <Stop offset="1" stopColor={Colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

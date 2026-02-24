@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, X } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import Colors from '../config/colors';
 
 interface LogoutConfirmationProps {
   visible: boolean;
@@ -98,7 +99,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={['#7C3AED', '#9333EA', '#7C3AED']}
+                    colors={Colors.gradientTriple}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.primaryButton}
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     padding: 32,
-    shadowColor: '#7C3AED',
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
     shadowRadius: 30,
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonWrapper: {
     borderRadius: 12,
-    shadowColor: '#7C3AED',
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -207,13 +208,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: Colors.primarySurface,
     borderWidth: 2,
-    borderColor: '#E9D5FF',
+    borderColor: Colors.primaryTint,
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#7C3AED',
+    color: Colors.primary,
     fontWeight: '700',
     fontSize: 17,
     letterSpacing: 0.3,

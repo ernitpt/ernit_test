@@ -37,6 +37,7 @@ import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import Colors from '../../config/colors';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -344,7 +345,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
           {(isCheckingRedirect || isProcessing) && (
             <View style={styles.processingOverlay}>
-              <ActivityIndicator color="#8b5cf6" size="large" />
+              <ActivityIndicator color={Colors.secondary} size="large" />
               <Text style={styles.processingText}>
                 {isCheckingRedirect ? "Verifying payment..." : "Processing payment..."}
               </Text>
@@ -385,7 +386,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             {/* Payment */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <CreditCard color="#8b5cf6" size={20} />
+                <CreditCard color={Colors.secondary} size={20} />
                 <Text style={[styles.sectionTitle, { marginLeft: 8 }]}>Payment Details</Text>
               </View>
               <View style={styles.paymentBox}>
@@ -587,7 +588,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
     return (
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#8b5cf6" size="large" />
+          <ActivityIndicator color={Colors.secondary} size="large" />
           <Text style={styles.loadingText}>Setting up checkout...</Text>
         </View>
       </MainScreen>
@@ -615,7 +616,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
         appearance: {
           theme: "stripe",
           variables: {
-            colorPrimary: "#8b5cf6",
+            colorPrimary: Colors.secondary,
             colorBackground: "#ffffff",
             colorText: "#111827",
             colorDanger: "#ef4444",
@@ -730,7 +731,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   priceLabel: { fontSize: 16, color: "#6b7280", fontWeight: "600" },
-  priceAmount: { fontSize: 18, fontWeight: "700", color: "#8b5cf6" },
+  priceAmount: { fontSize: 18, fontWeight: "700", color: Colors.secondary },
 
   section: { marginBottom: 28 },
   sectionHeader: {
@@ -793,11 +794,11 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 16, color: "#6b7280", fontWeight: "600" },
   totalAmount: { fontSize: 28, fontWeight: "700", color: "#111827" },
   payButton: {
-    backgroundColor: "#8b5cf6",
+    backgroundColor: Colors.secondary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    shadowColor: "#8b5cf6",
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -817,7 +818,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: "#8b5cf6",
+    backgroundColor: Colors.secondary,
     borderRadius: 8,
   },
   retryButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
