@@ -95,3 +95,5 @@ functions/.expo/
 
 .dist
 
+# Windows reserved device name — cannot be a real file on Windows
+nul

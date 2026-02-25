@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
 
 interface SkeletonLoaderProps {
     width?: number | string;
@@ -14,34 +15,22 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
     borderRadius = 4,
     style,
 }) => {
-    const opacity = useRef(new Animated.Value(0.3)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(opacity, {
-                    toValue: 1,
-                    duration: 800,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(opacity, {
-                    toValue: 0.3,
-                    duration: 800,
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-    }, []);
-
     return (
-        <Animated.View
+        <MotiView
+            from={{ opacity: 0.3 }}
+            animate={{ opacity: 1 }}
+            transition={{
+                type: 'timing',
+                duration: 800,
+                loop: true,
+                repeatReverse: true,
+            }}
             style={[
                 styles.skeleton,
                 {
                     width,
                     height,
                     borderRadius,
-                    opacity,
                 },
                 style,
             ]}
@@ -139,6 +128,64 @@ export const NotificationSkeleton: React.FC = () => {
                 <SkeletonBox width="90%" height={14} style={{ marginBottom: 6 }} />
                 <SkeletonBox width="60%" height={12} style={{ marginBottom: 6 }} />
                 <SkeletonBox width="30%" height={10} />
+            </View>
+        </View>
+    );
+};
+
+// Comment Skeleton - for CommentModal loading state
+export const CommentSkeleton: React.FC = () => {
+    return (
+        <View style={styles.commentSkeleton}>
+            <SkeletonBox width={40} height={40} borderRadius={20} />
+            <View style={styles.commentSkeletonContent}>
+                <SkeletonBox width="40%" height={14} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="90%" height={12} style={{ marginBottom: 4 }} />
+                <SkeletonBox width="60%" height={12} />
+            </View>
+        </View>
+    );
+};
+
+// Reaction Item Skeleton - for ReactionViewerModal loading state
+export const ReactionSkeleton: React.FC = () => {
+    return (
+        <View style={styles.reactionSkeleton}>
+            <SkeletonBox width={44} height={44} borderRadius={22} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+                <SkeletonBox width="50%" height={15} />
+            </View>
+            <SkeletonBox width={24} height={24} borderRadius={12} />
+        </View>
+    );
+};
+
+// Gift Card Skeleton - for PurchasedGiftsScreen
+export const GiftCardSkeleton: React.FC = () => {
+    return (
+        <View style={styles.giftCardSkeleton}>
+            <View style={styles.giftCardRow}>
+                <SkeletonBox width="55%" height={18} />
+                <SkeletonBox width={70} height={24} borderRadius={8} />
+            </View>
+            <SkeletonBox width="65%" height={14} style={{ marginTop: 8 }} />
+            <SkeletonBox width="40%" height={14} style={{ marginTop: 6 }} />
+        </View>
+    );
+};
+
+// Cart Item Skeleton - horizontal card for CartScreen
+export const CartItemSkeleton: React.FC = () => {
+    return (
+        <View style={styles.cartItemSkeleton}>
+            <SkeletonBox width={120} height={120} borderRadius={0} />
+            <View style={styles.cartItemSkeletonContent}>
+                <SkeletonBox width="80%" height={16} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="50%" height={13} />
+                <View style={styles.cartItemSkeletonFooter}>
+                    <SkeletonBox width={90} height={32} borderRadius={8} />
+                    <SkeletonBox width={60} height={20} />
+                </View>
             </View>
         </View>
     );
@@ -281,6 +328,58 @@ const styles = StyleSheet.create({
         marginLeft: 12,
         flex: 1,
     },
+    commentSkeleton: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        gap: 12,
+        alignItems: 'flex-start',
+    },
+    commentSkeletonContent: {
+        flex: 1,
+    },
+    reactionSkeleton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+    },
+    giftCardSkeleton: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        padding: 16,
+    },
+    giftCardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    cartItemSkeleton: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginBottom: 16,
+        overflow: 'hidden',
+        flexDirection: 'row',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    cartItemSkeletonContent: {
+        flex: 1,
+        padding: 16,
+        justifyContent: 'space-between',
+    },
+    cartItemSkeletonFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 12,
+    },
     valentineCheckoutSkeleton: {
         flex: 1,
         backgroundColor: "#F9FAFB",
@@ -289,7 +388,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingTop: 60, // Match typical iOS header padding or Platform specific logic if imported
+        paddingTop: 60,
         paddingBottom: 16,
         backgroundColor: '#fff',
         borderBottomWidth: 1,

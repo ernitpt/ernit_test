@@ -14,6 +14,7 @@ import MainScreen from './MainScreen';
 import SharedHeader from '../components/SharedHeader';
 import FeedPost from '../components/FeedPost';
 import CommentModal from '../components/CommentModal';
+import { MotiView } from 'moti';
 import { FeedPostSkeleton } from '../components/SkeletonLoader';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../types';
 import { feedService } from '../services/FeedService';
@@ -125,15 +126,21 @@ const FeedScreen: React.FC = () => {
             : 1;
 
         return (
-            <Animated.View style={{
-                borderWidth: 2,
-                borderColor,
-                transform: [{ scale }],
-                borderRadius: 12,
-                marginBottom: 16,
-            }}>
-                <FeedPost post={item} />
-            </Animated.View>
+            <MotiView
+                from={{ opacity: 0, translateY: 12 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 350 }}
+            >
+                <Animated.View style={{
+                    borderWidth: 2,
+                    borderColor,
+                    transform: [{ scale }],
+                    borderRadius: 12,
+                    marginBottom: 16,
+                }}>
+                    <FeedPost post={item} />
+                </Animated.View>
+            </MotiView>
         );
     };
 

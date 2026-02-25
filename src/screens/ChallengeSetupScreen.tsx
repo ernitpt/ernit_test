@@ -18,7 +18,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
+import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -110,8 +111,8 @@ export default function ChallengeSetupScreen() {
     const [customGoal, setCustomGoal] = useState('');
     const [weeks, setWeeks] = useState(3);
     const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
-    const [hours, setHours] = useState('1');
-    const [minutes, setMinutes] = useState('0');
+    const [hours, setHours] = useState('');
+    const [minutes, setMinutes] = useState('');
 
     // Experience selection (optional)
     const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -121,7 +122,7 @@ export default function ChallengeSetupScreen() {
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [validationErrors, setValidationErrors] = useState({ goal: false });
+    const [validationErrors, setValidationErrors] = useState({ goal: false, time: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -135,7 +136,6 @@ export default function ChallengeSetupScreen() {
 
     // Category filter state (mirrors Valentine's)
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [isSurpriseMode, setIsSurpriseMode] = useState(false);
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
 
     // Prefill from auth redirect
@@ -149,7 +149,6 @@ export default function ChallengeSetupScreen() {
             if (p.hours) setHours(p.hours);
             if (p.minutes) setMinutes(p.minutes);
             if (p.experience) setSelectedExperience(p.experience);
-            if (p.isSurpriseMode) setIsSurpriseMode(p.isSurpriseMode);
             if (p.plannedStartDate) setPlannedStartDate(new Date(p.plannedStartDate));
         }
     }, []);
@@ -219,26 +218,40 @@ export default function ChallengeSetupScreen() {
 
     const validateInputs = (): boolean => {
         const finalGoal = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
-        const hoursNum = parseInt(hours || '0');
-        const minutesNum = parseInt(minutes || '0');
+        const hoursNum = parseInt(hours || '0', 10);
+        const minutesNum = parseInt(minutes || '0', 10);
+
+        let hasError = false;
+        const newErrors = { goal: false, time: false };
 
         if (!finalGoal) {
-            setValidationErrors({ goal: true });
-            scrollRef.current?.scrollTo({ y: 0, animated: true });
-            return false;
+            newErrors.goal = true;
+            hasError = true;
         }
 
-        if (hoursNum === 0 && minutesNum === 0) {
-            Alert.alert('Error', 'Please set a time commitment per session.');
-            return false;
-        }
-
-        if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
+        if (!hours && !minutes) {
+            newErrors.time = true;
+            hasError = true;
+        } else if (hoursNum === 0 && minutesNum === 0) {
+            newErrors.time = true;
+            hasError = true;
+        } else if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
             Alert.alert('Error', 'Each session cannot exceed 3 hours.');
             return false;
         }
 
-        setValidationErrors({ goal: false });
+        if (hasError) {
+            setValidationErrors(newErrors);
+            if (newErrors.goal) {
+                scrollRef.current?.scrollTo({ y: 0, animated: true });
+            } else if (newErrors.time) {
+                // Approximate scroll down to time section
+                scrollRef.current?.scrollTo({ y: 300, animated: true });
+            }
+            return false;
+        }
+
+        setValidationErrors({ goal: false, time: false });
         return true;
     };
 
@@ -258,7 +271,6 @@ export default function ChallengeSetupScreen() {
                 hours,
                 minutes,
                 experience: selectedExperience || null,
-                isSurpriseMode,
                 plannedStartDate: plannedStartDate.toISOString(),
             };
 
@@ -394,26 +406,42 @@ export default function ChallengeSetupScreen() {
                     )}
 
                     <View style={styles.goalGrid}>
-                        {GOAL_TYPES.map((goal) => (
-                            <TouchableOpacity
+                        {GOAL_TYPES.map((goal, i) => (
+                            <MotiView
                                 key={goal.name}
-                                style={[
-                                    styles.goalChip,
-                                    selectedGoal === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
-                                    validationErrors.goal && !selectedGoal && styles.goalChipError,
-                                ]}
-                                onPress={() => {
-                                    setSelectedGoal(goal.name);
-                                    setValidationErrors({ goal: false });
-                                    if (goal.name !== 'Other') setCustomGoal('');
+                                style={{ width: '31%', minWidth: 95 }}
+                                from={{ opacity: 0, scale: 0.85 }}
+                                animate={{
+                                    opacity: 1,
+                                    scale: selectedGoal === goal.name ? 1.04 : 1,
+                                }}
+                                transition={{
+                                    opacity: { type: 'timing', duration: 300, delay: i * 60 },
+                                    scale: selectedGoal === goal.name
+                                        ? { type: 'spring', damping: 34, stiffness: 100 }
+                                        : { type: 'timing', duration: 100, delay: i * 60 },
                                 }}
                             >
-                                <Text style={styles.goalIcon}>{goal.icon}</Text>
-                                <Text style={[
-                                    styles.goalName,
-                                    selectedGoal === goal.name && styles.goalNameActive,
-                                ]}>{goal.name}</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.goalChip,
+                                        { width: '100%' },
+                                        selectedGoal === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
+                                        validationErrors.goal && !selectedGoal && styles.goalChipError,
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedGoal(goal.name);
+                                        setValidationErrors(prev => ({ ...prev, goal: false }));
+                                        if (goal.name !== 'Other') setCustomGoal('');
+                                    }}
+                                >
+                                    <Text style={styles.goalIcon}>{goal.icon}</Text>
+                                    <Text style={[
+                                        styles.goalName,
+                                        selectedGoal === goal.name && styles.goalNameActive,
+                                    ]}>{goal.name}</Text>
+                                </TouchableOpacity>
+                            </MotiView>
                         ))}
                     </View>
 
@@ -429,7 +457,7 @@ export default function ChallengeSetupScreen() {
                                     onChangeText={(text) => {
                                         setCustomGoal(text);
                                         if (validationErrors.goal && text.trim()) {
-                                            setValidationErrors({ goal: false });
+                                            setValidationErrors(prev => ({ ...prev, goal: false }));
                                         }
                                     }}
                                     autoFocus
@@ -471,14 +499,26 @@ export default function ChallengeSetupScreen() {
                 <View style={styles.section}>
                     <View style={styles.sliderContainer}>
                         <Text style={styles.sliderTitle}>Time per session</Text>
+
+                        {validationErrors.time && (
+                            <View style={[styles.errorBanner, { marginTop: 8, marginBottom: 16 }]}>
+                                <Text style={styles.errorText}>Please set a time per session</Text>
+                            </View>
+                        )}
+
                         <View style={styles.timeRow}>
                             <View style={styles.timeInputGroup}>
                                 <TextInput
                                     style={styles.timeInput}
                                     value={hours}
-                                    onChangeText={(t) => setHours(sanitizeNumericInput(t))}
+                                    onChangeText={(t) => {
+                                        setHours(sanitizeNumericInput(t));
+                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                                    }}
                                     keyboardType="numeric"
                                     maxLength={1}
+                                    placeholder="0"
+                                    placeholderTextColor="#9CA3AF"
                                 />
                                 <Text style={styles.timeLabel}>hr</Text>
                             </View>
@@ -488,11 +528,14 @@ export default function ChallengeSetupScreen() {
                                     value={minutes}
                                     onChangeText={(t) => {
                                         const clean = sanitizeNumericInput(t);
-                                        const m = parseInt(clean || '0');
+                                        const m = parseInt(clean || '0', 10);
                                         setMinutes(m > 59 ? '59' : clean);
+                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
                                     }}
                                     keyboardType="numeric"
                                     maxLength={2}
+                                    placeholder="00"
+                                    placeholderTextColor="#9CA3AF"
                                 />
                                 <Text style={styles.timeLabel}>min</Text>
                             </View>
@@ -584,42 +627,19 @@ export default function ChallengeSetupScreen() {
                                 <TouchableOpacity
                                     style={[
                                         styles.expCard,
-                                        !selectedExperience && !isSurpriseMode && styles.expCardActive,
+                                        !selectedExperience && styles.expCardActive,
                                     ]}
-                                    onPress={() => { setSelectedExperience(null); setIsSurpriseMode(false); }}
+                                    onPress={() => setSelectedExperience(null)}
                                 >
                                     <View style={[styles.expIconBox, { backgroundColor: Colors.primarySurface, justifyContent: 'center', alignItems: 'center' }]}>
                                         <Text style={{ fontSize: 26 }}>🎯</Text>
                                     </View>
                                     <View style={styles.expTextContainer}>
-                                        <Text style={[styles.expTitle, !selectedExperience && !isSurpriseMode && styles.expTitleActive]} numberOfLines={2}>
+                                        <Text style={[styles.expTitle, !selectedExperience && styles.expTitleActive]} numberOfLines={2}>
                                             Just the{'\n'}challenge
                                         </Text>
                                     </View>
-                                    {!selectedExperience && !isSurpriseMode && (
-                                        <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
-                                    )}
-                                </TouchableOpacity>
-                            </Animated.View>
-
-                            {/* Surprise Me card */}
-                            <Animated.View style={{ opacity: categoryTransitionAnim, transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
-                                <TouchableOpacity
-                                    style={[styles.expCard, isSurpriseMode && styles.expCardActive]}
-                                    onPress={() => {
-                                        setIsSurpriseMode(true);
-                                        if (experiences.length > 0) {
-                                            setSelectedExperience(experiences[Math.floor(Math.random() * experiences.length)]);
-                                        }
-                                    }}
-                                >
-                                    <View style={[styles.expIconBox, styles.randomIconBox]}>
-                                        <Sparkles color="#F59E0B" size={28} />
-                                    </View>
-                                    <Text style={[styles.expTitle, isSurpriseMode && styles.expTitleActive]} numberOfLines={2}>
-                                        Surprise{'\n'}Me!
-                                    </Text>
-                                    {isSurpriseMode && (
+                                    {!selectedExperience && (
                                         <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
                                     )}
                                 </TouchableOpacity>
@@ -642,7 +662,7 @@ export default function ChallengeSetupScreen() {
                                     : 0
                                 )
                                 .map((exp) => {
-                                    const isSelected = !isSurpriseMode && selectedExperience?.id === exp.id;
+                                    const isSelected = selectedExperience?.id === exp.id;
                                     return (
                                         <Animated.View
                                             key={exp.id}
@@ -653,7 +673,7 @@ export default function ChallengeSetupScreen() {
                                         >
                                             <TouchableOpacity
                                                 style={[styles.expCard, isSelected && styles.expCardActive]}
-                                                onPress={() => { setSelectedExperience(exp); setIsSurpriseMode(false); }}
+                                                onPress={() => setSelectedExperience(exp)}
                                             >
                                                 <View style={styles.expIconBox}>
                                                     <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
@@ -683,11 +703,7 @@ export default function ChallengeSetupScreen() {
                     <View style={styles.footerHeroCard}>
                         <View style={styles.footerHeroRow}>
                             <View style={styles.heroIconBox}>
-                                {isSurpriseMode ? (
-                                    <View style={[styles.randomIconBox, { width: '100%', height: '100%' }]}>
-                                        <Sparkles color="#F59E0B" size={24} />
-                                    </View>
-                                ) : selectedExperience ? (
+                                {selectedExperience ? (
                                     <Image source={{ uri: selectedExperience.coverImageUrl }} style={styles.heroImage} resizeMode="cover" />
                                 ) : (
                                     <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
@@ -697,17 +713,15 @@ export default function ChallengeSetupScreen() {
                             </View>
                             <View style={styles.heroInfo}>
                                 <Text style={styles.footerHeroTitle} numberOfLines={1}>
-                                    {isSurpriseMode ? '🎁 Surprise Experience' : selectedExperience ? selectedExperience.title : 'No dream reward'}
+                                    {selectedExperience ? selectedExperience.title : 'No dream reward'}
                                 </Text>
-                                {selectedExperience && !isSurpriseMode ? (
+                                {selectedExperience ? (
                                     <View style={styles.heroPriceRow}>
                                         <Text style={styles.heroPrice}>€{selectedExperience.price}</Text>
                                         <Text style={styles.heroPriceLabel}>per person</Text>
                                     </View>
                                 ) : (
-                                    <Text style={styles.heroPriceLabel}>
-                                        {isSurpriseMode ? 'Mystery experience' : 'Accountability only'}
-                                    </Text>
+                                    <Text style={styles.heroPriceLabel}>Accountability only</Text>
                                 )}
                             </View>
                         </View>
@@ -736,14 +750,25 @@ export default function ChallengeSetupScreen() {
                     </View>
                 )}
 
-                <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.9}>
-                    <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                        <Text style={styles.createButtonText}>
-                            {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
-                        </Text>
-                        <ChevronRight color="#fff" size={20} strokeWidth={3} />
-                    </LinearGradient>
-                </TouchableOpacity>
+                <AnimatePresence>
+                    {!!selectedGoal && (
+                        <MotiView
+                            from={{ opacity: 0, translateY: 24 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            exit={{ opacity: 0, translateY: 24 }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                        >
+                            <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.9}>
+                                <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                                    <Text style={styles.createButtonText}>
+                                        {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
+                                    </Text>
+                                    <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </MotiView>
+                    )}
+                </AnimatePresence>
             </View>
 
             {/* Confirmation Modal */}
@@ -1341,12 +1366,6 @@ const styles = StyleSheet.create({
     cardScroll: {
         marginTop: 4,
     },
-    randomIconBox: {
-        backgroundColor: '#FFFBEB',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
     // Footer hero card
     footerHeroCard: {
         backgroundColor: '#fff',

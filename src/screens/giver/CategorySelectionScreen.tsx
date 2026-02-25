@@ -25,6 +25,7 @@ import { db } from '../../services/firebase';
 import { Heart, ShoppingCart, LogIn, Search, X } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
+import { MotiView } from 'moti';
 import { ExperienceCardSkeleton } from '../../components/SkeletonLoader';
 import { useApp } from '../../context/AppContext';
 import { cartService } from '../../services/CartService';
@@ -119,13 +120,22 @@ const CategoryCarousel = ({
     </View>
     <FlatList
       data={category.experiences}
-      renderItem={({ item }) => (
-        <ExperienceCard
-          experience={item}
-          onPress={() => onExperiencePress(item.id)}
-          onToggleWishlist={() => onToggleWishlist(item.id)}
-          isWishlisted={wishlist.includes(item.id)}
-        />
+      renderItem={({ item, index }) => (
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{
+            type: 'spring',
+            delay: index * 100,
+          }}
+        >
+          <ExperienceCard
+            experience={item}
+            onPress={() => onExperiencePress(item.id)}
+            onToggleWishlist={() => onToggleWishlist(item.id)}
+            isWishlisted={wishlist.includes(item.id)}
+          />
+        </MotiView>
       )}
       keyExtractor={(item) => item.id}
       horizontal

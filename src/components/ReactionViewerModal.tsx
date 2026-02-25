@@ -15,6 +15,7 @@ import type { Reaction, ReactionType } from '../types';
 import { reactionService } from '../services/ReactionService';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import { ReactionSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 
@@ -174,9 +175,11 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                         {/* Reactions List */}
                         <ScrollView style={styles.reactionsList}>
                             {loading ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={Colors.secondary} />
-                                </View>
+                                <>
+                                    {[1, 2, 3].map((i) => (
+                                        <ReactionSkeleton key={i} />
+                                    ))}
+                                </>
                             ) : filteredReactions.length === 0 ? (
                                 <View style={styles.emptyContainer}>
                                     <Text style={styles.emptyText}>No reactions yet</Text>

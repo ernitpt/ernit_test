@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,7 +6,6 @@ import {
     ScrollView,
     StyleSheet,
     Dimensions,
-    Animated,
     Platform,
     Image,
 } from 'react-native';
@@ -15,10 +14,28 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { MotiView, AnimatePresence } from 'moti';
 import { RootStackParamList } from '../types';
 import Colors from '../config/colors';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Height of the rotating word slot (must match font metrics)
+const WORD_SLOT_HEIGHT = 52;
+
+// ── Horizontal carousel sizing ────────────────
+const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.55, 240);
+const CARD_HEIGHT = CARD_WIDTH * 0.7;
+const CARD_GAP = 14;
+const CARD_STEP = CARD_WIDTH + CARD_GAP;
+
+/** Shortest wraparound distance from item i to current */
+function wrapOffset(i: number, current: number, total: number): number {
+    let diff = i - current;
+    if (diff > total / 2) diff -= total;
+    if (diff < -total / 2) diff += total;
+    return diff;
+}
 
 // ──────────────────────────────────────────────
 // TO USE YOUR OWN IMAGES:
@@ -33,7 +50,7 @@ const ROTATING_WORDS = [
     { word: 'read', color: Colors.accent, emoji: '\u{1F4DA}', label: 'Daily Reading', placeholder: true },
     { word: 'run', color: '#EC4899', emoji: '\u{1F3C3}', label: 'Morning Runs', placeholder: true },
     { word: 'walk', color: '#10B981', emoji: '\u{1F6B6}', label: 'Outdoor Walks', placeholder: true },
-    { word: 'yoga', color: '#F59E0B', emoji: '\u{1F9D8}', label: 'Yoga Practice', placeholder: true },
+    { word: 'do yoga', color: '#F59E0B', emoji: '\u{1F9D8}', label: 'Yoga Practice', placeholder: true },
 ];
 
 type ChallengeLandingNavigationProp = NativeStackNavigationProp<
@@ -43,76 +60,19 @@ type ChallengeLandingNavigationProp = NativeStackNavigationProp<
 
 export default function ChallengeLandingScreen() {
     const navigation = useNavigation<ChallengeLandingNavigationProp>();
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-
-    // Rotating word + image animation
     const [wordIndex, setWordIndex] = useState(0);
-    const [prevWordIndex, setPrevWordIndex] = useState(0);
-    const wordOpacity = useRef(new Animated.Value(1)).current;
-    const imageInOpacity = useRef(new Animated.Value(1)).current;
-    const imageOutOpacity = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, []);
-
+    // Cycle the rotating word every 3 seconds
     useEffect(() => {
         const interval = setInterval(() => {
-            // Fade out word + current image
-            Animated.parallel([
-                Animated.timing(wordOpacity, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(imageInOpacity, {
-                    toValue: 0,
-                    duration: 400,
-                    useNativeDriver: true,
-                }),
-            ]).start(() => {
-                // Swap: previous becomes current for crossfade
-                setPrevWordIndex(wordIndex);
-                const nextIndex = (wordIndex + 1) % ROTATING_WORDS.length;
-                setWordIndex(nextIndex);
-
-                // Reset opacities for crossfade in
-                imageOutOpacity.setValue(0);
-                imageInOpacity.setValue(0);
-
-                Animated.parallel([
-                    Animated.timing(wordOpacity, {
-                        toValue: 1,
-                        duration: 300,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(imageInOpacity, {
-                        toValue: 1,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
-                ]).start();
-            });
+            setWordIndex((prev) => (prev + 1) % ROTATING_WORDS.length);
         }, 3000);
-
         return () => clearInterval(interval);
-    }, [wordIndex]);
+    }, []);
 
-    const handleStartChallenge = () => {
+    const handleStartChallenge = useCallback(() => {
         navigation.navigate('ChallengeSetup');
-    };
+    }, [navigation]);
 
     const currentWord = ROTATING_WORDS[wordIndex];
 
@@ -153,28 +113,60 @@ export default function ChallengeLandingScreen() {
                     </View>
 
                     <View style={styles.heroWrapper}>
-                        <Animated.View
-                            style={[
-                                styles.heroContent,
-                                {
-                                    opacity: fadeAnim,
-                                    transform: [{ translateY: slideAnim }],
-                                }
-                            ]}
+                        {/* Hero content fades + slides in on mount */}
+                        <MotiView
+                            from={{ opacity: 0, translateY: 30 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 700 }}
+                            style={styles.heroContent}
                         >
-                            <Text style={styles.heroTitle}>
-                                I want to{'\n'}
-                                <Animated.Text
-                                    style={{
-                                        color: currentWord.color,
-                                        fontStyle: 'italic',
-                                        opacity: wordOpacity,
-                                    }}
-                                >
-                                    {currentWord.word}
-                                </Animated.Text>
-                                {' '}more
-                            </Text>
+                            {/* Title with dial-rotating word */}
+                            <View style={styles.heroTitleContainer}>
+                                <Text style={styles.heroTitle}>I want to</Text>
+
+                                {/* Dial word + "more" on same line */}
+                                <View style={styles.dialRow}>
+                                    <View style={styles.dialSlot}>
+                                        {/* Invisible sizer — sits in normal flow to give the slot its width */}
+                                        <Text style={[styles.dialWord, { opacity: 0 }]}>
+                                            {currentWord.word}
+                                        </Text>
+                                        {/* Animated words — absolute on top */}
+                                        {ROTATING_WORDS.map((item, i) => {
+                                            const offset = wrapOffset(i, wordIndex, ROTATING_WORDS.length);
+                                            const isActive = offset === 0;
+                                            return (
+                                                <MotiView
+                                                    key={`dial-${i}`}
+                                                    animate={{
+                                                        translateY: offset * WORD_SLOT_HEIGHT,
+                                                        opacity: isActive ? 1 : 0,
+                                                    }}
+                                                    transition={{
+                                                        type: 'spring',
+                                                        damping: 18,
+                                                        stiffness: 140,
+                                                        mass: 0.8,
+                                                    }}
+                                                    style={styles.dialWordContainer}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.dialWord,
+                                                            { color: item.color },
+                                                        ]}
+                                                    >
+                                                        {item.word}
+                                                    </Text>
+                                                </MotiView>
+                                            );
+                                        })}
+                                    </View>
+                                    <Text style={styles.heroTitle}>{' '}more</Text>
+                                </View>
+
+
+                            </View>
 
                             <Text style={styles.heroSubtitle}>
                                 Set a challenge. Track your progress.{'\n'}Friends hold you accountable.
@@ -196,117 +188,160 @@ export default function ChallengeLandingScreen() {
                                 </LinearGradient>
                             </TouchableOpacity>
 
-                            <View style={[styles.badge, { marginTop: 24, marginBottom: 0 }]}>
-                                <Sparkles color="#10B981" size={14} />
-                                <Text style={[styles.badgeText, { color: '#10B981' }]}>100% Free</Text>
-                            </View>
-
-                            {/* Image Carousel — synced with rotating word */}
-                            <View style={styles.carouselContainer}>
-                                <View style={styles.carouselImageWrapper}>
-                                    {/* Current image (fades in) */}
-                                    <Animated.View style={[styles.carouselSlide, { opacity: imageInOpacity }]}>
-                                        {currentWord.placeholder ? (
-                                            <View style={[styles.carouselPlaceholder, { backgroundColor: currentWord.color + '18' }]}>
-                                                <Text style={styles.carouselEmoji}>{currentWord.emoji}</Text>
-                                            </View>
-                                        ) : (
-                                            <Image
-                                                source={currentWord.image}
-                                                style={styles.carouselImage}
-                                                resizeMode="cover"
-                                            />
-                                        )}
-                                    </Animated.View>
+                            <MotiView
+                                from={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: 'spring', damping: 32, delay: 400 }}
+                                style={styles.badgeWrapper}
+                            >
+                                <View style={styles.badge}>
+                                    <Sparkles color={Colors.secondary} size={14} />
+                                    <Text style={[styles.badgeText, { color: Colors.secondary }]}>100% Free</Text>
                                 </View>
-                                {/* Label under image */}
-                                <Animated.Text
-                                    style={[
-                                        styles.carouselLabel,
-                                        { color: currentWord.color, opacity: imageInOpacity },
-                                    ]}
-                                >
-                                    {currentWord.label}
-                                </Animated.Text>
+                            </MotiView>
+
+                            {/* Horizontal Image Carousel — synced with rotating word */}
+                            <View style={styles.carouselContainer}>
+                                <View style={styles.carouselTrackClip}>
+                                    <View style={styles.carouselTrack}>
+                                        {ROTATING_WORDS.map((item, i) => {
+                                            const offset = wrapOffset(i, wordIndex, ROTATING_WORDS.length);
+                                            const isActive = offset === 0;
+                                            const isNeighbor = Math.abs(offset) === 1;
+                                            const targetOpacity = isActive ? 1 : isNeighbor ? 0.4 : 0;
+                                            const targetScale = isActive ? 1 : 0.88;
+
+                                            return (
+                                                <MotiView
+                                                    key={`card-${i}`}
+                                                    animate={{
+                                                        translateX: offset * CARD_STEP,
+                                                        opacity: targetOpacity,
+                                                        scale: targetScale,
+                                                    }}
+                                                    transition={{
+                                                        type: 'spring',
+                                                        damping: 20,
+                                                        stiffness: 120,
+                                                        mass: 0.8,
+                                                    }}
+                                                    style={[styles.carouselCard, {
+                                                        // Center all cards on top of each other; translateX spreads them
+                                                        position: 'absolute',
+                                                        left: 0,
+                                                        width: CARD_WIDTH,
+                                                        height: CARD_HEIGHT,
+                                                    }]}
+                                                >
+                                                    {item.placeholder ? (
+                                                        <View style={[styles.carouselPlaceholder, { backgroundColor: item.color + '18' }]}>
+                                                            <Text style={styles.carouselEmoji}>{item.emoji}</Text>
+                                                        </View>
+                                                    ) : (
+                                                        <Image
+                                                            source={(item as any).image}
+                                                            style={styles.carouselImage}
+                                                            resizeMode="cover"
+                                                        />
+                                                    )}
+                                                </MotiView>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                                {/* Label under carousel */}
+                                <AnimatePresence exitBeforeEnter>
+                                    <MotiView
+                                        key={`label-${wordIndex}`}
+                                        from={{ opacity: 0, translateY: 8 }}
+                                        animate={{ opacity: 1, translateY: 0 }}
+                                        exit={{ opacity: 0, translateY: -8 }}
+                                        transition={{ type: 'timing', duration: 300 }}
+                                    >
+                                        <Text style={[styles.carouselLabel, { color: currentWord.color }]}>
+                                            {currentWord.label}
+                                        </Text>
+                                    </MotiView>
+                                </AnimatePresence>
                             </View>
-                        </Animated.View>
+                        </MotiView>
                     </View>
 
-                    {/* Floating Decoration */}
-                    <View style={styles.floatingDecor}>
-                        <Target color={Colors.primarySurface} size={120} opacity={0.3} style={styles.decor1} />
-                        <Sparkles color={Colors.primaryTint} size={80} opacity={0.4} style={styles.decor2} />
-                        <Target color="#C4B5FD" size={60} opacity={0.5} style={styles.decor3} />
-                    </View>
+
                 </LinearGradient>
 
-                {/* How It Works Section */}
+                {/* How It Works Section — staggered entrance */}
                 <View style={styles.howSection}>
                     <View style={styles.howWrapper}>
-                        <Text style={styles.sectionLabel}>How It Works</Text>
-                        <Text style={styles.sectionTitle}>Three Simple Steps</Text>
+                        <MotiView
+                            from={{ opacity: 0, translateY: 20 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 500 }}
+                        >
+                            <Text style={styles.sectionLabel}>How It Works</Text>
+                            <Text style={styles.sectionTitle}>Three Simple Steps</Text>
+                        </MotiView>
 
                         <View style={styles.stepsContainer}>
-                            <View style={styles.stepCard}>
-                                <View style={styles.stepIconContainer}>
-                                    <View style={[styles.stepIconBg, { backgroundColor: Colors.primarySurface }]}>
-                                        <Target color={Colors.primary} size={24} strokeWidth={2.5} />
-                                    </View>
-                                    <View style={styles.stepNumber}>
-                                        <Text style={styles.stepNumberText}>1</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Pick Your Challenge</Text>
-                                    <Text style={styles.stepDesc}>
-                                        Choose what you want to improve and for how long — gym, yoga, running, reading, or anything you want
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.stepDivider} />
-
-                            <View style={styles.stepCard}>
-                                <View style={styles.stepIconContainer}>
-                                    <View style={[styles.stepIconBg, { backgroundColor: Colors.accentDeep + '18' }]}>
-                                        <Calendar color={Colors.accent} size={24} strokeWidth={2.5} />
-                                    </View>
-                                    <View style={styles.stepNumber}>
-                                        <Text style={styles.stepNumberText}>2</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Track Your Progress</Text>
-                                    <Text style={styles.stepDesc}>
-                                        Complete sessions, build streaks, and stay on track with your personal timer and calendar
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.stepDivider} />
-
-                            <View style={styles.stepCard}>
-                                <View style={styles.stepIconContainer}>
-                                    <View style={[styles.stepIconBg, { backgroundColor: '#FDF2F8' }]}>
-                                        <Users color="#EC4899" size={24} strokeWidth={2.5} />
-                                    </View>
-                                    <View style={styles.stepNumber}>
-                                        <Text style={styles.stepNumberText}>3</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Friends Cheer You On</Text>
-                                    <Text style={styles.stepDesc}>
-                                        Get motivated by friends who follow your journey, leave messages, and can even reward you along the way
-                                    </Text>
-                                </View>
-                            </View>
+                            {[
+                                {
+                                    icon: <Target color={Colors.primary} size={24} strokeWidth={2.5} />,
+                                    iconBg: Colors.primarySurface,
+                                    title: 'Pick Your Challenge',
+                                    desc: 'Choose what you want to improve and for how long \u2014 gym, yoga, running, reading, or anything you want',
+                                },
+                                {
+                                    icon: <Calendar color={Colors.accent} size={24} strokeWidth={2.5} />,
+                                    iconBg: Colors.accentDeep + '18',
+                                    title: 'Track Your Progress',
+                                    desc: 'Complete sessions, build streaks, and stay on track with your personal timer and calendar',
+                                },
+                                {
+                                    icon: <Users color="#EC4899" size={24} strokeWidth={2.5} />,
+                                    iconBg: '#FDF2F8',
+                                    title: 'Friends Cheer You On',
+                                    desc: 'Get motivated by friends who follow your journey, leave messages, and can even reward you along the way',
+                                },
+                            ].map((step, i) => (
+                                <React.Fragment key={i}>
+                                    {i > 0 && <View style={styles.stepDivider} />}
+                                    <MotiView
+                                        from={{ opacity: 0, translateX: -20 }}
+                                        animate={{ opacity: 1, translateX: 0 }}
+                                        transition={{
+                                            type: 'spring',
+                                            damping: 35,
+                                            delay: i * 150,
+                                        }}
+                                    >
+                                        <View style={styles.stepCard}>
+                                            <View style={styles.stepIconContainer}>
+                                                <View style={[styles.stepIconBg, { backgroundColor: step.iconBg }]}>
+                                                    {step.icon}
+                                                </View>
+                                                <View style={styles.stepNumber}>
+                                                    <Text style={styles.stepNumberText}>{i + 1}</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.stepContent}>
+                                                <Text style={styles.stepTitle}>{step.title}</Text>
+                                                <Text style={styles.stepDesc}>{step.desc}</Text>
+                                            </View>
+                                        </View>
+                                    </MotiView>
+                                </React.Fragment>
+                            ))}
                         </View>
                     </View>
                 </View>
 
                 {/* Social Proof */}
-                <View style={styles.testimonialSection}>
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500, delay: 200 }}
+                    style={styles.testimonialSection}
+                >
                     <View style={styles.testimonialCard}>
                         <Text style={styles.quoteText}>
                             "I committed to running 3x a week. My friends' messages before each session kept me going. 4 weeks later, I actually did it."
@@ -316,10 +351,15 @@ export default function ChallengeLandingScreen() {
                             <Text style={styles.authorText}>Sarah, Dublin</Text>
                         </View>
                     </View>
-                </View>
+                </MotiView>
 
                 {/* Final CTA */}
-                <View style={styles.finalCtaSection}>
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500, delay: 300 }}
+                    style={styles.finalCtaSection}
+                >
                     <Text style={styles.finalCtaTitle}>Ready to challenge{'\n'}yourself?</Text>
                     <Text style={styles.finalCtaSubtitle}>
                         Join thousands building better habits with friends.
@@ -340,7 +380,7 @@ export default function ChallengeLandingScreen() {
                             <ChevronRight color="#fff" size={20} strokeWidth={3} />
                         </LinearGradient>
                     </TouchableOpacity>
-                </View>
+                </MotiView>
 
                 <View style={{ height: 60 }} />
             </ScrollView>
@@ -408,45 +448,99 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     brandTitle: {
-        fontSize: 22,
+        fontSize: 28,
         fontWeight: '800',
         fontStyle: 'italic',
         color: '#1F2937',
         letterSpacing: -1,
     },
+    // ── Dial-style rotating word ──────────────────
+    heroTitleContainer: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    heroTitle: {
+        fontSize: 42,
+        fontWeight: '800',
+        color: '#1F2937',
+        lineHeight: 52,
+        letterSpacing: -1,
+        textAlign: 'center',
+    },
+    dialRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    dialSlot: {
+        height: WORD_SLOT_HEIGHT,
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    dialWordContainer: {
+        position: 'absolute',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: WORD_SLOT_HEIGHT,
+    },
+    dialWord: {
+        fontSize: 42,
+        fontWeight: '800',
+        fontStyle: 'italic',
+        lineHeight: WORD_SLOT_HEIGHT,
+        letterSpacing: -1,
+        textAlign: 'center',
+    },
+    // ──────────────────────────────────────────────
+    heroSubtitle: {
+        fontSize: 17,
+        color: '#6B7280',
+        lineHeight: 28,
+        marginBottom: 36,
+        textAlign: 'center',
+    },
+    badgeWrapper: {
+        alignItems: 'center',
+        marginTop: 24,
+    },
     badge: {
         flexDirection: 'row',
         alignItems: 'center',
-        alignSelf: 'center',
         gap: 6,
         paddingHorizontal: 14,
         paddingVertical: 8,
-        backgroundColor: '#ECFDF5',
+        backgroundColor: Colors.primarySurface,
         borderRadius: 20,
         borderWidth: 1,
         borderColor: '#D1FAE5',
-        marginBottom: 24,
     },
     badgeText: {
         fontSize: 13,
         fontWeight: '700',
         letterSpacing: 0.3,
     },
-    // Image carousel
+    // ── Horizontal image carousel ──────────────
     carouselContainer: {
         alignItems: 'center',
         marginTop: 28,
     },
-    carouselImageWrapper: {
-        width: Math.min(width - 80, 320),
-        height: Math.min(width - 80, 320) * 0.65,
+    carouselTrackClip: {
+        width: CARD_WIDTH + CARD_STEP * 2,
+        height: CARD_HEIGHT,
+        overflow: 'hidden',
+    },
+    carouselTrack: {
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        // Center the track within the clip so offset 0 = center
+        marginLeft: CARD_STEP,
+    },
+    carouselCard: {
         borderRadius: 20,
         overflow: 'hidden',
         backgroundColor: '#F3F4F6',
-        position: 'relative',
-    },
-    carouselSlide: {
-        ...StyleSheet.absoluteFillObject,
     },
     carouselImage: {
         width: '100%',
@@ -459,29 +553,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     carouselEmoji: {
-        fontSize: 72,
+        fontSize: 60,
     },
     carouselLabel: {
-        marginTop: 12,
+        marginTop: 14,
         fontSize: 15,
         fontWeight: '700',
         letterSpacing: 0.5,
         textTransform: 'uppercase',
-    },
-    heroTitle: {
-        fontSize: 42,
-        fontWeight: '800',
-        color: '#1F2937',
-        marginBottom: 20,
-        lineHeight: 58,
-        letterSpacing: -1,
-        textAlign: 'center',
-    },
-    heroSubtitle: {
-        fontSize: 17,
-        color: '#6B7280',
-        lineHeight: 28,
-        marginBottom: 36,
         textAlign: 'center',
     },
     primaryCta: {

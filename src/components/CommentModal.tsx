@@ -19,6 +19,7 @@ import type { Comment } from '../types';
 import { useApp } from '../context/AppContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import { CommentSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 
@@ -205,8 +206,10 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         </View>
 
                         {isLoading ? (
-                            <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color={Colors.secondary} />
+                            <View style={styles.commentsList}>
+                                {[1, 2, 3, 4].map((i) => (
+                                    <CommentSkeleton key={i} />
+                                ))}
                             </View>
                         ) : comments.length === 0 ? (
                             <View style={styles.emptyContainer}>

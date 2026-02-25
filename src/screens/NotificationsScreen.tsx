@@ -417,15 +417,15 @@ const NotificationsScreen = () => {
 
 const styles = StyleSheet.create({
   clearAllButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.primarySurface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: Colors.primaryBorder,
   },
   clearAllButtonText: {
-    color: '#ffffff',
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -13,11 +13,7 @@
             "destination": "/assets/_fonts/$1"
         },
         {
-            "source": "/assets/(.*)\\.(ttf|otf|woff|woff2)",
-            "destination": "/assets/$1"
-        },
-        {
-            "source": "/((?!assets/|static/|favicon.ico|manifest.json|firebase-messaging-sw.js).*)",
+            "source": "/((?!_expo/|assets/|static/|favicon.ico|manifest.json|firebase-messaging-sw.js).*)",
             "destination": "/index.html"
         }
     ],

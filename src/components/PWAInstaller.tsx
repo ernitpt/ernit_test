@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { Share, X } from 'lucide-react-native';
 import Colors from '../config/colors';
+import { useApp } from '../context/AppContext';
 
 const ErnitLogo = require('../assets/favicon.png');
 
@@ -14,10 +15,16 @@ export const PWAInstaller: React.FC = () => {
     const [showIOSPrompt, setShowIOSPrompt] = useState(false);
     const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const { state } = useApp();
 
     useEffect(() => {
         // Only run on web platform
         if (Platform.OS !== 'web') return;
+
+        // Requirement: Only prompt to install if user is logged in AND has created a goal
+        if (!state.user?.id || !state.goals || state.goals.length === 0) {
+            return;
+        }
 
         // 💝 Skip PWA install prompt if user is on valentines flow
         if (typeof window !== 'undefined' && window.location.pathname.includes('/valentines')) {
@@ -79,7 +86,7 @@ export const PWAInstaller: React.FC = () => {
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         };
-    }, []);
+    }, [state.user?.id, state.goals?.length]);
 
     const handleIOSDismiss = () => {
         setShowIOSPrompt(false);

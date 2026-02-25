@@ -21,6 +21,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GiverStackParamList, Experience, CartItem } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import MainScreen from "../MainScreen";
+import { CartItemSkeleton } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
@@ -220,8 +221,15 @@ export default function CartScreen() {
   if (loading) {
     return (
       <MainScreen activeRoute="Home">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.secondary} />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Your Cart</Text>
+          </View>
+          <View style={styles.scrollContent}>
+            <CartItemSkeleton />
+            <CartItemSkeleton />
+            <CartItemSkeleton />
+          </View>
         </View>
       </MainScreen>
     );

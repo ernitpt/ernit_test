@@ -1,3 +1,13 @@
+/**
+ * fix-fonts-for-vercel.mjs
+ *
+ * Vercel ignores any path containing "node_modules", even inside dist/assets/.
+ * This script copies font files from dist/assets/node_modules/... to
+ * dist/assets/_fonts/... so Vercel actually uploads them.
+ *
+ * Run AFTER `npx expo export` and BEFORE `vercel --prod dist`.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -5,52 +15,50 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const distDir = path.join(__dirname, '..', 'dist');
-const assetsDir = path.join(distDir, 'assets');
+const projectRoot = path.resolve(__dirname, '..');
+const distDir = path.join(projectRoot, 'dist');
+const sourceBase = path.join(distDir, 'assets', 'node_modules');
+const targetBase = path.join(distDir, 'assets', '_fonts');
 
-// Font file mappings extracted from the web bundle
-// Using _fonts instead of node_modules to avoid Vercel's default ignore
-const fontMappings = [
-    {
-        hash: '5fc3fef1a1a55711c147d344132a468d',
-        targetPath: 'assets/_fonts/@expo-google-fonts/outfit/400Regular/Outfit_400Regular.5fc3fef1a1a55711c147d344132a468d.ttf'
-    },
-    {
-        hash: '3af2e072a31b85b3c0a55ede786b31ab',
-        targetPath: 'assets/_fonts/@expo-google-fonts/outfit/500Medium/Outfit_500Medium.3af2e072a31b85b3c0a55ede786b31ab.ttf'
-    },
-    {
-        hash: 'fff3440ed39188f5d5bf85305e8b6be8',
-        targetPath: 'assets/_fonts/@expo-google-fonts/outfit/600SemiBold/Outfit_600SemiBold.fff3440ed39188f5d5bf85305e8b6be8.ttf'
-    },
-    {
-        hash: '91486df4e5279497efb060b0d3cc797b',
-        targetPath: 'assets/_fonts/@expo-google-fonts/outfit/700Bold/Outfit_700Bold.91486df4e5279497efb060b0d3cc797b.ttf'
-    },
-    {
-        hash: 'b4eb097d35f44ed943676fd56f6bdc51',
-        targetPath: 'assets/_fonts/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.b4eb097d35f44ed943676fd56f6bdc51.ttf'
+function copyRecursive(src, dest) {
+    if (!fs.existsSync(src)) return 0;
+
+    let count = 0;
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            count += copyRecursive(srcPath, destPath);
+        } else {
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.copyFileSync(srcPath, destPath);
+            count++;
+        }
     }
-];
+    return count;
+}
 
-console.log('🔧 Fixing font paths for Vercel deployment...\n');
+console.log('🔧 Fixing font paths for Vercel deployment...');
+console.log(`   Source: ${sourceBase}`);
+console.log(`   Target: ${targetBase}\n`);
 
-fontMappings.forEach(({ hash, targetPath }) => {
-    const sourcePath = path.join(assetsDir, hash);
-    const fullTargetPath = path.join(distDir, targetPath);
+if (!fs.existsSync(sourceBase)) {
+    console.error('❌ Source directory not found! Did you run `npx expo export` first?');
+    process.exit(1);
+}
 
-    if (!fs.existsSync(sourcePath)) {
-        console.warn(`⚠️  Source file not found: ${hash}`);
-        return;
-    }
+const copied = copyRecursive(sourceBase, targetBase);
+console.log(`\n✅ Copied ${copied} files to assets/_fonts/`);
 
-    // Create target directory
-    const targetDir = path.dirname(fullTargetPath);
-    fs.mkdirSync(targetDir, { recursive: true });
+// Also copy vercel.json into dist/
+const vercelSrc = path.join(projectRoot, 'vercel.json');
+const vercelDest = path.join(distDir, 'vercel.json');
+if (fs.existsSync(vercelSrc)) {
+    fs.copyFileSync(vercelSrc, vercelDest);
+    console.log('✅ Copied vercel.json into dist/');
+}
 
-    // Copy file
-    fs.copyFileSync(sourcePath, fullTargetPath);
-    console.log(`✅ Copied ${hash.substring(0, 8)}... to ${targetPath}`);
-});
-
-console.log('\n✨ Font paths fixed! Ready to deploy.');
+console.log('\n✨ Ready to deploy with: vercel --prod dist');

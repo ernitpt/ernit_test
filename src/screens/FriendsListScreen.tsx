@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MotiView } from 'moti';
 import { RootStackParamList, Friend } from '../types';
 import { friendService } from '../services/FriendService';
 import { userService } from '../services/userService';
@@ -21,6 +22,7 @@ import MainScreen from './MainScreen';
 import PersonAddIcon from '../assets/icons/PersonAdd';
 import { commonStyles } from '../themes/commonStyles';
 import SharedHeader from '../components/SharedHeader';
+import { ListItemSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 
@@ -139,46 +141,52 @@ const FriendsListScreen: React.FC = () => {
     const isRemoving = removingFriendId === item.friendId;
 
     return (
-      <View style={styles.friendItem}>
-        <TouchableOpacity
-          style={styles.friendTouchable}
-          onPress={() => handleFriendPress(item.friendId)}
-          activeOpacity={0.7}
-          disabled={isRemoving}
-        >
-          {displayImage && !imageLoadError ? (
-            <Image
-              source={{ uri: displayImage }}
-              style={styles.profileImage}
-              onError={() => setImageLoadError(true)}
-            />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Text style={styles.placeholderText}>
-                {displayName?.[0]?.toUpperCase() || 'U'}
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 300 }}
+      >
+        <View style={styles.friendItem}>
+          <TouchableOpacity
+            style={styles.friendTouchable}
+            onPress={() => handleFriendPress(item.friendId)}
+            activeOpacity={0.7}
+            disabled={isRemoving}
+          >
+            {displayImage && !imageLoadError ? (
+              <Image
+                source={{ uri: displayImage }}
+                style={styles.profileImage}
+                onError={() => setImageLoadError(true)}
+              />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Text style={styles.placeholderText}>
+                  {displayName?.[0]?.toUpperCase() || 'U'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.friendInfo}>
+              <Text style={styles.friendName}>{displayName}</Text>
+              <Text style={styles.friendDate}>
+                Friends since {new Date(item.createdAt).toLocaleDateString()}
               </Text>
             </View>
-          )}
-          <View style={styles.friendInfo}>
-            <Text style={styles.friendName}>{displayName}</Text>
-            <Text style={styles.friendDate}>
-              Friends since {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
-          onPress={() => openRemovePopup(item)}
-          disabled={isRemoving}
-        >
-          {isRemoving ? (
-            <ActivityIndicator size="small" color="#ef4444" />
-          ) : (
-            <Text style={styles.removeButtonText}>Remove</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+            onPress={() => openRemovePopup(item)}
+            disabled={isRemoving}
+          >
+            {isRemoving ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <Text style={styles.removeButtonText}>Remove</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </MotiView>
     );
   };
 
@@ -190,9 +198,10 @@ const FriendsListScreen: React.FC = () => {
       />
 
       {isLoading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.secondary} />
-          <Text style={styles.loadingText}>Loading friends...</Text>
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <ListItemSkeleton key={i} />
+          ))}
         </View>
       ) : friends.length > 0 ? (
         <>
@@ -292,8 +301,7 @@ const styles = StyleSheet.create({
   countText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
   addFriendIconButton: { padding: 4, justifyContent: 'center', alignItems: 'center' },
 
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#6b7280' },
+  skeletonContainer: { padding: 10 },
 
   friendsList: { padding: 10 },
   friendItem: {

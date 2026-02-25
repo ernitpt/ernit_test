@@ -19,6 +19,7 @@ import { ExperienceGift, RootStackParamList } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import SharedHeader from '../components/SharedHeader';
+import { GiftCardSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 
@@ -184,11 +185,11 @@ const PurchasedGiftsScreen = () => {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={Colors.secondary}
-          style={{ marginTop: 50 }}
-        />
+        <View style={styles.listContainer}>
+          {[1, 2, 3, 4].map((i) => (
+            <GiftCardSkeleton key={i} />
+          ))}
+        </View>
       ) : filteredGifts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>??</Text>

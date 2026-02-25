@@ -14,6 +14,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MotiView } from 'moti';
 import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import { Goal, RootStackParamList } from '../types';
@@ -281,13 +282,18 @@ const GoalsScreen: React.FC = () => {
 
 
   const renderGoal = ({ item }: { item: Goal }) => (
-    <View style={styles.cardWrapper}>
+    <MotiView
+      from={{ opacity: 0, translateY: 16 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 400 }}
+      style={styles.cardWrapper}
+    >
       <DetailedGoalCard
         key={item.id}
         goal={item}
         onFinish={(updated) => handleFinishGoal(updated)}
       />
-    </View>
+    </MotiView>
   );
   return (
     <ErrorBoundary screenName="GoalsScreen" userId={userId}>

@@ -108,10 +108,10 @@ export default function App() {
         <AuthGuardProvider>
           <TimerProvider>
             <AppNavigator />
+            <PWAInstaller />
           </TimerProvider>
         </AuthGuardProvider>
       </AppProvider>
-      <PWAInstaller />
     </ErrorBoundary>
   );
 }

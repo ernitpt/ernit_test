@@ -9,7 +9,12 @@
       "Bash(git checkout:*)",
       "Bash(git -C D:/ErnitAppWeb_Test checkout -- src/screens/giver/ExperienceCheckoutScreen.tsx)",
       "Bash(git -C D:/ErnitAppWeb_Test diff --stat)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(dir:*)",
+      "Bash(cd:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm info:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

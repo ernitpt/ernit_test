@@ -459,11 +459,11 @@ const AppNavigator = () => {
           return;
         }
 
-        // 💝 Skip onboarding if user is on valentines flow
+        // 💝 Skip onboarding if user is on specific landing flows (valentines, challenge)
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           const pathname = window.location.pathname;
-          if (pathname.includes('/valentines')) {
-            logger.log('💝 User on valentines flow - skipping onboarding');
+          if (pathname.includes('/valentines') || pathname.includes('/challenge')) {
+            logger.log(`🎯 User on direct flow (${pathname}) - skipping onboarding`);
             setHasSeenOnboarding(true);
             setIsCheckingOnboarding(false);
             return;
