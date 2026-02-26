@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - install react-native-worklets (reanimated v4 peer dep)
 - DetailedGoalCard split into hooks, components, and utils with UX improvements
 - experience carousel redesign — bigger images, overlay text, no prices, 'you've earned' framing
+- landing page polish — centered brand lockup, tighter hero framing, distinct step cards
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -29,3 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - interactive journey demo animation replaces carousel on landing page
 - journey demo empowerment step + real experience carousel with staggered animations
 - hero image carousel synced with rotating title word
+- experience carousel moved inside demo card with reward cards and pagination dots

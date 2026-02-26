@@ -32,6 +32,14 @@ const ROTATING_WORDS = [
     { word: 'do yoga', color: '#F59E0B' },
 ];
 
+const HERO_IMAGES = [
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?fit=crop&w=800&q=80', // Workout
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?fit=crop&w=800&q=80', // Read
+    'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?fit=crop&w=800&q=80', // Run
+    'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?fit=crop&w=800&q=80', // Walk
+    'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=800&q=80', // Yoga
+];
+
 // ─── Hero carousel sizing ─────────────────────────────────────────
 const SCREEN_W = Dimensions.get('window').width;
 const HERO_IMG_W = Math.min(SCREEN_W * 0.82, 480);
@@ -54,23 +62,6 @@ type ChallengeLandingNavigationProp = NativeStackNavigationProp<
 export default function ChallengeLandingScreen() {
     const navigation = useNavigation<ChallengeLandingNavigationProp>();
     const [wordIndex, setWordIndex] = useState(0);
-    const [heroImages, setHeroImages] = useState<string[]>([]);
-
-    // Fetch experience images for hero carousel
-    useEffect(() => {
-        (async () => {
-            try {
-                const q = query(collection(db, 'experiences'), limit(ROTATING_WORDS.length));
-                const snap = await getDocs(q);
-                const urls = snap.docs
-                    .map(d => d.data().coverImageUrl as string)
-                    .filter(Boolean);
-                setHeroImages(urls);
-            } catch {
-                // Silently fail — carousel just won't show
-            }
-        })();
-    }, []);
 
     // Cycle the rotating word every 3 seconds
     useEffect(() => {
@@ -101,26 +92,16 @@ export default function ChallengeLandingScreen() {
                     end={{ x: 0, y: 1 }}
                     style={styles.hero}
                 >
-                    {/* Header */}
-                    <View style={styles.topHeader}>
-                        <View style={styles.headerLeft}>
-                            {navigation.canGoBack() && (
-                                <TouchableOpacity
-                                    style={styles.backButton}
-                                    onPress={() => navigation.goBack()}
-                                    activeOpacity={0.8}
-                                >
-                                    <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
-                                </TouchableOpacity>
-                            )}
-                            <Image
-                                source={require('../assets/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <Text style={styles.brandTitle}>Ernit</Text>
-                    </View>
+                    {/* Back button — floats in corner */}
+                    {navigation.canGoBack() && (
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => navigation.goBack()}
+                            activeOpacity={0.8}
+                        >
+                            <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                    )}
 
                     <View style={styles.heroWrapper}>
                         {/* Hero content fades + slides in on mount */}
@@ -130,6 +111,13 @@ export default function ChallengeLandingScreen() {
                             transition={{ type: 'timing', duration: 700 }}
                             style={styles.heroContent}
                         >
+                            {/* Brand mark — modern typographic */}
+                            <View style={styles.brandSection}>
+                                <Text style={styles.brandTitle}>
+                                    ernit<Text style={{ color: Colors.secondary }}>.</Text>
+                                </Text>
+                            </View>
+
                             {/* Title with dial-rotating word */}
                             <View style={styles.heroTitleContainer}>
                                 <Text style={styles.heroTitle}>I want to</Text>
@@ -183,42 +171,62 @@ export default function ChallengeLandingScreen() {
                             </Text>
 
                             {/* Hero image carousel — synced with rotating word */}
-                            {heroImages.length > 0 && (
-                                <View style={styles.heroCarousel}>
-                                    {heroImages.map((url, i) => {
-                                        const imgIdx = wordIndex % heroImages.length;
-                                        const offset = wrapOffset(i, imgIdx, heroImages.length);
-                                        const isCenter = offset === 0;
-                                        const isAdjacent = Math.abs(offset) === 1;
-                                        return (
-                                            <MotiView
-                                                key={i}
-                                                animate={{
-                                                    translateX: offset * HERO_SLIDE_STEP,
-                                                    scale: isCenter ? 1 : 0.88,
-                                                    opacity: isCenter ? 1 : isAdjacent ? 0.55 : 0,
-                                                }}
-                                                transition={{
-                                                    type: 'spring',
-                                                    damping: 22,
-                                                    stiffness: 100,
-                                                    mass: 0.9,
-                                                }}
-                                                style={[
-                                                    styles.heroImageCard,
-                                                    { zIndex: isCenter ? 3 : isAdjacent ? 2 : 1 },
-                                                ]}
-                                            >
-                                                <Image
-                                                    source={{ uri: url }}
-                                                    style={styles.heroImg}
-                                                    resizeMode="cover"
-                                                />
-                                            </MotiView>
-                                        );
-                                    })}
-                                </View>
-                            )}
+                            <View style={styles.heroCarousel}>
+                                {HERO_IMAGES.map((url, i) => {
+                                    const imgIdx = wordIndex % HERO_IMAGES.length;
+                                    const offset = wrapOffset(i, imgIdx, HERO_IMAGES.length);
+                                    const isCenter = offset === 0;
+                                    const isAdjacent = Math.abs(offset) === 1;
+                                    return (
+                                        <MotiView
+                                            key={i}
+                                            animate={{
+                                                translateX: offset * HERO_SLIDE_STEP,
+                                                scale: isCenter ? 1 : 0.88,
+                                                opacity: isCenter ? 1 : isAdjacent ? 0.55 : 0,
+                                            }}
+                                            transition={{
+                                                type: 'spring',
+                                                damping: 22,
+                                                stiffness: 100,
+                                                mass: 0.9,
+                                            }}
+                                            style={[
+                                                styles.heroImageCard,
+                                                { zIndex: isCenter ? 3 : isAdjacent ? 2 : 1 },
+                                            ]}
+                                        >
+                                            <Image
+                                                source={{ uri: url }}
+                                                style={styles.heroImg}
+                                                resizeMode="cover"
+                                            />
+                                        </MotiView>
+                                    );
+                                })}
+                            </View>
+
+                            {/* Subtitle / Stat */}
+                            <MotiView
+                                from={{ opacity: 0, translateY: 10 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 500, delay: 300 }}
+                                style={{
+                                    alignItems: 'center',
+                                    paddingHorizontal: 32,
+                                    marginBottom: 94,
+                                }}
+                            >
+                                <Text style={{
+                                    fontSize: 16,
+                                    color: '#6B7280',
+                                    textAlign: 'center',
+                                    lineHeight: 24,
+                                    fontWeight: '500',
+                                }}>
+                                    You are <Text style={{ color: Colors.secondary, fontWeight: '700' }}>600%</Text> more likely to achieve your goals with friends backing you.
+                                </Text>
+                            </MotiView>
 
                             <TouchableOpacity
                                 style={styles.primaryCta}
@@ -247,16 +255,14 @@ export default function ChallengeLandingScreen() {
                                     <Text style={[styles.badgeText, { color: Colors.secondary }]}>100% Free</Text>
                                 </View>
                             </MotiView>
-
-                            {/* Interactive journey demo */}
-                            <JourneyDemo />
                         </MotiView>
                     </View>
 
 
                 </LinearGradient>
+                <JourneyDemo />
 
-                {/* How It Works Section — staggered entrance */}
+                {/* How It Works Section */}
                 <View style={styles.howSection}>
                     <View style={styles.howWrapper}>
                         <MotiView
@@ -267,6 +273,8 @@ export default function ChallengeLandingScreen() {
                             <Text style={styles.sectionLabel}>How It Works</Text>
                             <Text style={styles.sectionTitle}>Three Simple Steps</Text>
                         </MotiView>
+
+                        {/* Interactive journey demo */}
 
                         <View style={styles.stepsContainer}>
                             {[
@@ -384,8 +392,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     hero: {
-        paddingTop: Platform.OS === 'ios' ? 120 : 100,
-        paddingBottom: 20,
+        paddingTop: Platform.OS === 'ios' ? 80 : 60,
         paddingHorizontal: 24,
         backgroundColor: '#fff',
         position: 'relative',
@@ -400,50 +407,38 @@ const styles = StyleSheet.create({
     heroContent: {
         width: '100%',
     },
-    topHeader: {
+    backButton: {
         position: 'absolute',
         top: Platform.OS === 'ios' ? 50 : 30,
         left: 24,
-        right: 24,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 10,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    backButton: {
         width: 40,
         height: 40,
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
         elevation: 2,
     },
-    logo: {
-        width: 38,
-        height: 38,
-        borderRadius: 8,
+    brandSection: {
+        alignItems: 'center',
+        marginBottom: 32,
     },
     brandTitle: {
-        fontSize: 28,
-        fontWeight: '800',
+        fontSize: 50,
+        fontWeight: '900',
         fontStyle: 'italic',
-        color: '#1F2937',
-        letterSpacing: -1,
+        color: '#111827',
+        letterSpacing: -1.5,
     },
     // ── Dial-style rotating word ──────────────────
     heroTitleContainer: {
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 14,
     },
     heroTitle: {
         fontSize: 42,
@@ -484,7 +479,7 @@ const styles = StyleSheet.create({
         fontSize: 17,
         color: '#6B7280',
         lineHeight: 28,
-        marginBottom: 24,
+        marginBottom: 16,
         textAlign: 'center',
     },
 
@@ -496,7 +491,8 @@ const styles = StyleSheet.create({
         marginHorizontal: -24,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 28,
+        marginTop: 16,
+        marginBottom: 16,
     },
     heroImageCard: {
         position: 'absolute',
@@ -516,7 +512,7 @@ const styles = StyleSheet.create({
     },
     badgeWrapper: {
         alignItems: 'center',
-        marginTop: 24,
+        marginTop: 16,
     },
     badge: {
         flexDirection: 'row',
@@ -528,6 +524,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         borderWidth: 1,
         borderColor: '#D1FAE5',
+        marginBottom: 36,
     },
     badgeText: {
         fontSize: 13,
@@ -553,7 +550,7 @@ const styles = StyleSheet.create({
     },
     ctaText: {
         color: '#fff',
-        fontSize: 17,
+        fontSize: 22,
         fontWeight: '700',
     },
     howSection: {
@@ -588,6 +585,13 @@ const styles = StyleSheet.create({
     stepCard: {
         flexDirection: 'row',
         gap: 20,
+    },
+    stepDivider: {
+        width: 2,
+        height: 32,
+        backgroundColor: '#F3F4F6',
+        marginLeft: 27,
+        marginVertical: 16,
     },
     stepIconContainer: {
         position: 'relative',
@@ -631,13 +635,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#6B7280',
         lineHeight: 22,
-    },
-    stepDivider: {
-        width: 2,
-        height: 32,
-        backgroundColor: '#F3F4F6',
-        marginLeft: 27,
-        marginVertical: 16,
     },
     testimonialSection: {
         paddingVertical: 14,

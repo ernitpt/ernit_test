@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -15,30 +16,37 @@ import Colors from '../config/colors';
 // Step machine: -1 = hidden, 0-7 = visible steps
 type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-// ─── Experience Card (carousel item) ─────────────────────────────────
+// ─── Inline carousel sizing ──────────────────────────────────────────
+const CARD_W = 320;
+const EXP_W = 230;
+const EXP_H = 150;
+const EXP_MARGIN = 6;
+const EXP_SNAP = EXP_W + (EXP_MARGIN * 2);
+const SIDE_PADDING = (CARD_W - EXP_W) / 2; // Centers the first/last items
+
+// ─── Experience Card (reward card with "You've earned" badge) ────────
 
 const ExperienceCard: React.FC<{
   experience: Experience;
-  index: number;
-}> = React.memo(({ experience, index }) => (
-  <MotiView
-    from={{ opacity: 0, translateX: 50 }}
-    animate={{ opacity: 1, translateX: 0 }}
-    transition={{ type: 'spring', damping: 28, stiffness: 160, delay: index * 120 }}
-    style={s.expCard}
-  >
+}> = React.memo(({ experience }) => (
+  <View style={s.expCard}>
     <Image
       source={{ uri: experience.coverImageUrl }}
       style={s.expImage}
       resizeMode="cover"
     />
-    <View style={s.expOverlay}>
+    <LinearGradient
+      colors={['transparent', 'rgba(0,0,0,0.65)']}
+      start={{ x: 0, y: 0.3 }}
+      end={{ x: 0, y: 1 }}
+      style={s.expGradient}
+    >
+      <View style={s.earnedTag}>
+        <Text style={s.earnedTagText}>You've earned</Text>
+      </View>
       <Text style={s.expTitle} numberOfLines={2}>{experience.title}</Text>
-      {experience.subtitle ? (
-        <Text style={s.expSubtitle} numberOfLines={1}>{experience.subtitle}</Text>
-      ) : null}
-    </View>
-  </MotiView>
+    </LinearGradient>
+  </View>
 ));
 
 ExperienceCard.displayName = 'ExperienceCard';
@@ -48,6 +56,36 @@ ExperienceCard.displayName = 'ExperienceCard';
 const JourneyDemo: React.FC = React.memo(() => {
   const [step, setStep] = useState<Step>(-1);
   const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [activeExpIdx, setActiveExpIdx] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
+  const wrapperRef = useRef<View>(null);
+
+  // Start animation only when component scrolls into view
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) return;
+
+    if (Platform.OS === 'web') {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setHasStarted(true);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.2 },
+      );
+      observer.observe(node as unknown as Element);
+      return () => observer.disconnect();
+    }
+    // Native: start immediately
+    setHasStarted(true);
+  }, []);
+
+  const handleExpScroll = useCallback((e: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / EXP_SNAP);
+    setActiveExpIdx(Math.max(0, idx));
+  }, []);
 
   // Fetch real experiences on mount (will be ready by step 7)
   useEffect(() => {
@@ -65,8 +103,10 @@ const JourneyDemo: React.FC = React.memo(() => {
     fetchExperiences();
   }, []);
 
-  // Step machine
+  // Step machine — only runs after component scrolls into view
   useEffect(() => {
+    if (!hasStarted) return;
+
     let timeout: ReturnType<typeof setTimeout>;
 
     const next = (s: Step, delay: number) => {
@@ -74,19 +114,19 @@ const JourneyDemo: React.FC = React.memo(() => {
     };
 
     switch (step) {
-      case -1: next(0, 700);  break; // pause before starting
-      case 0:  next(1, 400);  break; // card visible → goal slides in
-      case 1:  next(2, 900);  break; // goal → capsule 1
-      case 2:  next(3, 700);  break; // capsule 1 → capsule 2 + streak
-      case 3:  next(4, 900);  break; // capsule 2 → empowerment notification
-      case 4:  next(5, 1200); break; // empowerment → capsule 3 fills
-      case 5:  next(6, 700);  break; // capsule 3 → completion
-      case 6:  next(7, 900);  break; // completion → carousel reveals
-      case 7:  break;                // hold forever
+      case -1: next(0, 700); break; // pause before starting
+      case 0: next(1, 400); break; // card visible → goal slides in
+      case 1: next(2, 900); break; // goal → capsule 1
+      case 2: next(3, 700); break; // capsule 1 → capsule 2 + streak
+      case 3: next(4, 900); break; // capsule 2 → empowerment notification
+      case 4: next(5, 1200); break; // empowerment → capsule 3 fills
+      case 5: next(6, 700); break; // capsule 3 → completion
+      case 6: next(7, 900); break; // completion → carousel reveals
+      case 7: break;                // hold forever
     }
 
     return () => clearTimeout(timeout);
-  }, [step]);
+  }, [step, hasStarted]);
 
   // Derived state
   const visible = step >= 0;
@@ -105,7 +145,7 @@ const JourneyDemo: React.FC = React.memo(() => {
   const popIn = { type: 'spring' as const, damping: 24, stiffness: 180 };
 
   return (
-    <View style={s.wrapper}>
+    <View ref={wrapperRef} style={s.wrapper}>
       <Text style={s.label}>See how it works</Text>
 
       {/* ── Demo card ── */}
@@ -207,33 +247,60 @@ const JourneyDemo: React.FC = React.memo(() => {
         >
           <Text style={s.completionText}>✅ Goal Complete!</Text>
         </MotiView>
-      </MotiView>
 
-      {/* ── Experience carousel — reveals after completion ── */}
-      {showCarousel && experiences.length > 0 && (
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 140 }}
-          style={s.carouselSection}
-        >
-          <Text style={s.carouselTitle}>You've earned:</Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.carouselScroll}
+        {/* ── Experience carousel — inside card as final step ── */}
+        {showCarousel && experiences.length > 0 && (
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 140 }}
+            style={s.carouselWrap}
           >
-            {experiences.map((exp, i) => (
-              <ExperienceCard
-                key={exp.id}
-                experience={exp}
-                index={i}
-              />
-            ))}
-          </ScrollView>
-        </MotiView>
-      )}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={EXP_SNAP}
+              decelerationRate="fast"
+              contentContainerStyle={s.carouselContent}
+              onScroll={handleExpScroll}
+              scrollEventThrottle={16}
+            >
+              {experiences.map((exp, idx) => {
+                const isCenter = idx === activeExpIdx;
+                const isAdjacent = Math.abs(idx - activeExpIdx) === 1;
+                return (
+                  <MotiView
+                    key={exp.id}
+                    animate={{
+                      scale: isCenter ? 1 : 0.88,
+                      opacity: isCenter ? 1 : isAdjacent ? 0.6 : 0.3,
+                    }}
+                    transition={{
+                      type: 'spring',
+                      damping: 22,
+                      stiffness: 100,
+                      mass: 0.9,
+                    }}
+                    style={{ marginHorizontal: EXP_MARGIN }}
+                  >
+                    <ExperienceCard experience={exp} />
+                  </MotiView>
+                );
+              })}
+            </ScrollView>
+
+            {/* Pagination dots */}
+            <View style={s.dots}>
+              {experiences.map((_, i) => (
+                <View
+                  key={i}
+                  style={[s.dot, i === activeExpIdx && s.dotActive]}
+                />
+              ))}
+            </View>
+          </MotiView>
+        )}
+      </MotiView>
     </View>
   );
 });
@@ -243,16 +310,13 @@ export default JourneyDemo;
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const CARD_W = 180;
-const IMG_H = 140;
-
 const s = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     marginTop: 32,
   },
   label: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
     color: '#9CA3AF',
     textTransform: 'uppercase',
@@ -404,62 +468,77 @@ const s = StyleSheet.create({
     color: Colors.primary,
   },
 
-  // ── Experience carousel ──
-  carouselSection: {
-    width: '100%',
-    marginTop: 24,
+  // ── Inline experience carousel (inside card) ──
+  carouselWrap: {
+    marginHorizontal: -20, // break out of the card's horizontal padding
+    marginBottom: -20,     // break out of bottom padding
+    marginTop: 2,
   },
-  carouselTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 14,
-    paddingHorizontal: 4,
-    textAlign: 'center',
-  },
-  carouselScroll: {
-    paddingHorizontal: 4,
-    gap: 10,
+  carouselContent: {
+    paddingHorizontal: SIDE_PADDING, // precise padding to center 1st item
   },
 
-  // Experience card
+  // Experience reward card
   expCard: {
-    width: CARD_W,
-    height: IMG_H,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    width: EXP_W,
+    height: EXP_H,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   expImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
   },
-  expOverlay: {
+  expGradient: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    padding: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 14,
+    gap: 6,
   },
-  expTitle: {
-    fontSize: 13,
+  earnedTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  earnedTagText: {
+    fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 17,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    letterSpacing: 0.3,
+  },
+  expTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 20,
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  expSubtitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+
+  // Pagination dots
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 14,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#D1D5DB',
+  },
+  dotActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
   },
 });
