@@ -5,29 +5,38 @@ import {
     TouchableOpacity,
     ScrollView,
     StyleSheet,
-    Dimensions,
     Platform,
     Image,
+    Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView } from 'moti';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { RootStackParamList } from '../types';
 import Colors from '../config/colors';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import JourneyDemo from '../components/JourneyDemo';
 
 // Height of the rotating word slot (must match font metrics)
 const WORD_SLOT_HEIGHT = 52;
 
-// ── Horizontal carousel sizing ────────────────
-const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.55, 240);
-const CARD_HEIGHT = CARD_WIDTH * 0.7;
-const CARD_GAP = 14;
-const CARD_STEP = CARD_WIDTH + CARD_GAP;
+const ROTATING_WORDS = [
+    { word: 'workout', color: Colors.secondary },
+    { word: 'read', color: Colors.accent },
+    { word: 'run', color: '#EC4899' },
+    { word: 'walk', color: '#10B981' },
+    { word: 'do yoga', color: '#F59E0B' },
+];
+
+// ─── Hero carousel sizing ─────────────────────────────────────────
+const SCREEN_W = Dimensions.get('window').width;
+const HERO_IMG_W = Math.min(SCREEN_W * 0.82, 480);
+const HERO_IMG_H = HERO_IMG_W * 0.62;
+const HERO_SLIDE_STEP = HERO_IMG_W * 0.85;
 
 /** Shortest wraparound distance from item i to current */
 function wrapOffset(i: number, current: number, total: number): number {
@@ -37,22 +46,6 @@ function wrapOffset(i: number, current: number, total: number): number {
     return diff;
 }
 
-// ──────────────────────────────────────────────
-// TO USE YOUR OWN IMAGES:
-// 1. Drop your images in  src/assets/challenge/
-//    Name them: workout.jpg, read.jpg, run.jpg, walk.jpg, yoga.jpg
-// 2. Replace the `image` values below with require() calls, e.g.:
-//    image: require('../assets/challenge/workout.jpg'),
-// 3. Remove the `placeholder: true` field once you add real images.
-// ──────────────────────────────────────────────
-const ROTATING_WORDS = [
-    { word: 'workout', color: Colors.secondary, emoji: '\u{1F3CB}\u{FE0F}', label: 'Strength Training', placeholder: true },
-    { word: 'read', color: Colors.accent, emoji: '\u{1F4DA}', label: 'Daily Reading', placeholder: true },
-    { word: 'run', color: '#EC4899', emoji: '\u{1F3C3}', label: 'Morning Runs', placeholder: true },
-    { word: 'walk', color: '#10B981', emoji: '\u{1F6B6}', label: 'Outdoor Walks', placeholder: true },
-    { word: 'do yoga', color: '#F59E0B', emoji: '\u{1F9D8}', label: 'Yoga Practice', placeholder: true },
-];
-
 type ChallengeLandingNavigationProp = NativeStackNavigationProp<
     RootStackParamList,
     'ChallengeLanding'
@@ -61,6 +54,23 @@ type ChallengeLandingNavigationProp = NativeStackNavigationProp<
 export default function ChallengeLandingScreen() {
     const navigation = useNavigation<ChallengeLandingNavigationProp>();
     const [wordIndex, setWordIndex] = useState(0);
+    const [heroImages, setHeroImages] = useState<string[]>([]);
+
+    // Fetch experience images for hero carousel
+    useEffect(() => {
+        (async () => {
+            try {
+                const q = query(collection(db, 'experiences'), limit(ROTATING_WORDS.length));
+                const snap = await getDocs(q);
+                const urls = snap.docs
+                    .map(d => d.data().coverImageUrl as string)
+                    .filter(Boolean);
+                setHeroImages(urls);
+            } catch {
+                // Silently fail — carousel just won't show
+            }
+        })();
+    }, []);
 
     // Cycle the rotating word every 3 seconds
     useEffect(() => {
@@ -172,6 +182,44 @@ export default function ChallengeLandingScreen() {
                                 Set a challenge. Track your progress.{'\n'}Friends hold you accountable.
                             </Text>
 
+                            {/* Hero image carousel — synced with rotating word */}
+                            {heroImages.length > 0 && (
+                                <View style={styles.heroCarousel}>
+                                    {heroImages.map((url, i) => {
+                                        const imgIdx = wordIndex % heroImages.length;
+                                        const offset = wrapOffset(i, imgIdx, heroImages.length);
+                                        const isCenter = offset === 0;
+                                        const isAdjacent = Math.abs(offset) === 1;
+                                        return (
+                                            <MotiView
+                                                key={i}
+                                                animate={{
+                                                    translateX: offset * HERO_SLIDE_STEP,
+                                                    scale: isCenter ? 1 : 0.88,
+                                                    opacity: isCenter ? 1 : isAdjacent ? 0.55 : 0,
+                                                }}
+                                                transition={{
+                                                    type: 'spring',
+                                                    damping: 22,
+                                                    stiffness: 100,
+                                                    mass: 0.9,
+                                                }}
+                                                style={[
+                                                    styles.heroImageCard,
+                                                    { zIndex: isCenter ? 3 : isAdjacent ? 2 : 1 },
+                                                ]}
+                                            >
+                                                <Image
+                                                    source={{ uri: url }}
+                                                    style={styles.heroImg}
+                                                    resizeMode="cover"
+                                                />
+                                            </MotiView>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
                             <TouchableOpacity
                                 style={styles.primaryCta}
                                 onPress={handleStartChallenge}
@@ -200,70 +248,8 @@ export default function ChallengeLandingScreen() {
                                 </View>
                             </MotiView>
 
-                            {/* Horizontal Image Carousel — synced with rotating word */}
-                            <View style={styles.carouselContainer}>
-                                <View style={styles.carouselTrackClip}>
-                                    <View style={styles.carouselTrack}>
-                                        {ROTATING_WORDS.map((item, i) => {
-                                            const offset = wrapOffset(i, wordIndex, ROTATING_WORDS.length);
-                                            const isActive = offset === 0;
-                                            const isNeighbor = Math.abs(offset) === 1;
-                                            const targetOpacity = isActive ? 1 : isNeighbor ? 0.4 : 0;
-                                            const targetScale = isActive ? 1 : 0.88;
-
-                                            return (
-                                                <MotiView
-                                                    key={`card-${i}`}
-                                                    animate={{
-                                                        translateX: offset * CARD_STEP,
-                                                        opacity: targetOpacity,
-                                                        scale: targetScale,
-                                                    }}
-                                                    transition={{
-                                                        type: 'spring',
-                                                        damping: 20,
-                                                        stiffness: 120,
-                                                        mass: 0.8,
-                                                    }}
-                                                    style={[styles.carouselCard, {
-                                                        // Center all cards on top of each other; translateX spreads them
-                                                        position: 'absolute',
-                                                        left: 0,
-                                                        width: CARD_WIDTH,
-                                                        height: CARD_HEIGHT,
-                                                    }]}
-                                                >
-                                                    {item.placeholder ? (
-                                                        <View style={[styles.carouselPlaceholder, { backgroundColor: item.color + '18' }]}>
-                                                            <Text style={styles.carouselEmoji}>{item.emoji}</Text>
-                                                        </View>
-                                                    ) : (
-                                                        <Image
-                                                            source={(item as any).image}
-                                                            style={styles.carouselImage}
-                                                            resizeMode="cover"
-                                                        />
-                                                    )}
-                                                </MotiView>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                                {/* Label under carousel */}
-                                <AnimatePresence exitBeforeEnter>
-                                    <MotiView
-                                        key={`label-${wordIndex}`}
-                                        from={{ opacity: 0, translateY: 8 }}
-                                        animate={{ opacity: 1, translateY: 0 }}
-                                        exit={{ opacity: 0, translateY: -8 }}
-                                        transition={{ type: 'timing', duration: 300 }}
-                                    >
-                                        <Text style={[styles.carouselLabel, { color: currentWord.color }]}>
-                                            {currentWord.label}
-                                        </Text>
-                                    </MotiView>
-                                </AnimatePresence>
-                            </View>
+                            {/* Interactive journey demo */}
+                            <JourneyDemo />
                         </MotiView>
                     </View>
 
@@ -498,8 +484,35 @@ const styles = StyleSheet.create({
         fontSize: 17,
         color: '#6B7280',
         lineHeight: 28,
-        marginBottom: 36,
+        marginBottom: 24,
         textAlign: 'center',
+    },
+
+    // ── Hero image carousel ──────────────────────
+    heroCarousel: {
+        width: SCREEN_W,
+        height: HERO_IMG_H + 20,
+        alignSelf: 'center',
+        marginHorizontal: -24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 28,
+    },
+    heroImageCard: {
+        position: 'absolute',
+        width: HERO_IMG_W,
+        height: HERO_IMG_H,
+        borderRadius: 20,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 6,
+    },
+    heroImg: {
+        width: '100%',
+        height: '100%',
     },
     badgeWrapper: {
         alignItems: 'center',
@@ -520,48 +533,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         letterSpacing: 0.3,
-    },
-    // ── Horizontal image carousel ──────────────
-    carouselContainer: {
-        alignItems: 'center',
-        marginTop: 28,
-    },
-    carouselTrackClip: {
-        width: CARD_WIDTH + CARD_STEP * 2,
-        height: CARD_HEIGHT,
-        overflow: 'hidden',
-    },
-    carouselTrack: {
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        // Center the track within the clip so offset 0 = center
-        marginLeft: CARD_STEP,
-    },
-    carouselCard: {
-        borderRadius: 20,
-        overflow: 'hidden',
-        backgroundColor: '#F3F4F6',
-    },
-    carouselImage: {
-        width: '100%',
-        height: '100%',
-    },
-    carouselPlaceholder: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    carouselEmoji: {
-        fontSize: 60,
-    },
-    carouselLabel: {
-        marginTop: 14,
-        fontSize: 15,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-        textAlign: 'center',
     },
     primaryCta: {
         alignSelf: 'center',
@@ -584,32 +555,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 17,
         fontWeight: '700',
-    },
-    floatingDecor: {
-        position: 'absolute',
-        top: 0,
-        right: -40,
-        width: 300,
-        height: 400,
-        zIndex: 1,
-    },
-    decor1: {
-        position: 'absolute',
-        top: 100,
-        right: -20,
-        transform: [{ rotate: '15deg' }],
-    },
-    decor2: {
-        position: 'absolute',
-        top: 220,
-        right: 60,
-        transform: [{ rotate: '-10deg' }],
-    },
-    decor3: {
-        position: 'absolute',
-        top: 320,
-        right: 10,
-        transform: [{ rotate: '20deg' }],
     },
     howSection: {
         paddingVertical: 64,

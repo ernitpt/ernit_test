@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, Platform, Pressable, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CARD_COLORS } from '../goalCardUtils';
 
@@ -142,11 +142,14 @@ const AnimatedCount: React.FC<{ value: number; total: number }> = React.memo(({ 
 
 AnimatedCount.displayName = 'AnimatedCount';
 
-// ─── StreakBadge (flame counter — sessions in a row) ────────────────
+// ─── StreakBadge (flame counter — sessions without skipping a week) ──
 
 const StreakBadge: React.FC<{ streak: number }> = React.memo(({ streak }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const flameAnim = useRef(new Animated.Value(1)).current;
+  const tooltipAnim = useRef(new Animated.Value(0)).current;
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (streak > 0) {
@@ -179,21 +182,123 @@ const StreakBadge: React.FC<{ streak: number }> = React.memo(({ streak }) => {
     }
   }, [streak, scaleAnim, flameAnim]);
 
+  const showTooltip = useCallback(() => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+
+    if (tooltipVisible) {
+      // Tap again to dismiss immediately
+      Animated.timing(tooltipAnim, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => setTooltipVisible(false));
+      return;
+    }
+
+    setTooltipVisible(true);
+    tooltipAnim.setValue(0);
+    Animated.spring(tooltipAnim, {
+      toValue: 1,
+      tension: 70,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    dismissTimer.current = setTimeout(() => {
+      Animated.timing(tooltipAnim, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => setTooltipVisible(false));
+    }, 3000);
+  }, [tooltipVisible, tooltipAnim]);
+
+  const dismissTooltip = useCallback(() => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    Animated.timing(tooltipAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => setTooltipVisible(false));
+  }, [tooltipAnim]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    };
+  }, []);
+
   if (streak <= 0) return null;
+
+  const tooltipOpacity = tooltipAnim;
+  const tooltipScale = tooltipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.85, 1],
+  });
+  const tooltipTranslateY = tooltipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [6, 0],
+  });
+
+  const sessionWord = streak === 1 ? 'session' : 'sessions';
 
   return (
     <Animated.View style={[styles.streakBadge, { transform: [{ scale: scaleAnim }] }]}>
-      <View style={styles.streakPill}>
+      {/* Transparent backdrop — tapping outside closes the tooltip */}
+      <Modal
+        visible={tooltipVisible}
+        transparent
+        animationType="none"
+        onRequestClose={dismissTooltip}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.tooltipBackdrop} onPress={dismissTooltip} />
+      </Modal>
+
+      {/* Tooltip */}
+      {tooltipVisible && (
+        <Animated.View
+          style={[
+            styles.tooltip,
+            {
+              opacity: tooltipOpacity,
+              transform: [{ scale: tooltipScale }, { translateY: tooltipTranslateY }],
+            },
+          ]}
+        >
+          <Text style={styles.tooltipText}>
+            🔥 {streak} {sessionWord} done without skipping a week!
+          </Text>
+          {/* Caret */}
+          <View style={styles.tooltipCaret} />
+        </Animated.View>
+      )}
+
+      {/* Pill button */}
+      <Pressable
+        onPress={showTooltip}
+        hitSlop={8}
+        style={({ pressed }) => [styles.streakPill, pressed && styles.streakPillPressed]}
+      >
         <Animated.Text style={[styles.streakFlame, { transform: [{ scale: flameAnim }] }]}>
           🔥
         </Animated.Text>
         <Text style={styles.streakCount}>{streak}</Text>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 });
 
 StreakBadge.displayName = 'StreakBadge';
+
 
 // ─── ProgressBars ───────────────────────────────────────────────────
 
@@ -274,6 +379,7 @@ const styles = StyleSheet.create({
   streakBadge: {
     alignSelf: 'flex-start',
     marginTop: 8,
+    position: 'relative',
   },
   streakPill: {
     flexDirection: 'row',
@@ -293,6 +399,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#EA580C',
+  },
+  streakPillPressed: {
+    opacity: 0.75,
+  },
+  tooltipBackdrop: {
+    flex: 1,
+  },
+  tooltip: {
+    position: 'absolute',
+    bottom: 34,
+    left: 0,
+    backgroundColor: '#1F2937',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 220,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+    zIndex: 999,
+  },
+  tooltipText: {
+    color: '#F9FAFB',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  tooltipCaret: {
+    position: 'absolute',
+    top: '100%',
+    left: 14,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#1F2937',
   },
 });
 
