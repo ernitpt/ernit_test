@@ -11,6 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../../config/colors';
 import { Experience } from '../../../types';
 
@@ -234,31 +235,56 @@ export const ValentineExperienceDetailsModal: React.FC<ValentineExperienceDetail
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.valentineModalOverlay}>
-        <View style={styles.modalContent}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={onClose}
-            >
-              <X color="#6B7280" size={24} />
-            </TouchableOpacity>
-
-            {experience && (
-              <>
+      <TouchableOpacity
+        style={styles.valentineModalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.modalContent}>
+          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+            {/* Hero image with gradient overlay */}
+            <View style={styles.heroImageWrap}>
+              {experience && (
                 <Image
                   source={{ uri: experience.coverImageUrl }}
                   style={styles.modalImage}
                   resizeMode="cover"
                 />
+              )}
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.55)']}
+                start={{ x: 0, y: 0.35 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.heroGradient}
+              >
+                {experience?.category && (
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{experience.category}</Text>
+                  </View>
+                )}
+              </LinearGradient>
 
-                <View style={styles.modalHeader}>
-                  <Text style={styles.valentineModalTitle}>{experience.title}</Text>
-                  {experience.subtitle && (
-                    <Text style={styles.valentineModalSubtitle}>{experience.subtitle}</Text>
-                  )}
-                </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={onClose}
+              >
+                <X color="#fff" size={20} strokeWidth={2.5} />
+              </TouchableOpacity>
+            </View>
 
+            {experience && (
+              <View style={styles.modalBody}>
+                {/* Title & subtitle */}
+                <Text style={styles.valentineModalTitle}>{experience.title}</Text>
+                {experience.subtitle && (
+                  <Text style={styles.valentineModalSubtitle}>{experience.subtitle}</Text>
+                )}
+
+                {experience.price != null && (
+                  <Text style={styles.priceText}>€{experience.price}</Text>
+                )}
+
+                {/* Info pills */}
                 <View style={styles.modalInfoPills}>
                   {experience.location && (
                     <View style={styles.infoPill}>
@@ -272,23 +298,19 @@ export const ValentineExperienceDetailsModal: React.FC<ValentineExperienceDetail
                       <Text style={styles.infoPillText}>{experience.duration}</Text>
                     </View>
                   )}
-                  {experience.price && (
-                    <View style={styles.infoPill}>
-                      <Text style={styles.infoPillIcon}>💰</Text>
-                      <Text style={styles.infoPillText}>€{experience.price * 2} for two</Text>
-                    </View>
-                  )}
                 </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>About This Experience</Text>
-                  <Text style={styles.modalDescription}>{experience.description}</Text>
-                </View>
-              </>
+                {/* Divider */}
+                <View style={styles.divider} />
+
+                {/* Description */}
+                <Text style={styles.modalSectionTitle}>About This Experience</Text>
+                <Text style={styles.modalDescription}>{experience.description}</Text>
+              </View>
             )}
           </ScrollView>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -400,76 +422,111 @@ const styles = StyleSheet.create({
   // Valentine experience details
   valentineModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     width: '100%',
-    maxWidth: 500,
-    maxHeight: '80%',
+    maxWidth: 460,
+    maxHeight: '85%',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 12,
+  },
+  heroImageWrap: {
+    width: '100%',
+    height: 260,
+    position: 'relative',
   },
   modalCloseButton: {
     position: 'absolute',
     top: 16,
     right: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
   modalImage: {
     width: '100%',
-    height: 250,
-    backgroundColor: '#F3F4F6',
+    height: '100%',
+    backgroundColor: '#E5E7EB',
   },
-  modalHeader: {
-    padding: 20,
-    paddingBottom: 12,
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '60%',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  modalBody: {
+    padding: 22,
+    paddingTop: 20,
   },
   valentineModalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 8,
+    color: '#111827',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   valentineModalSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6B7280',
     lineHeight: 22,
+    marginBottom: 4,
+  },
+  priceText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primary,
+    marginTop: 10,
   },
   modalInfoPills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
     gap: 8,
-    marginBottom: 12,
+    marginTop: 16,
   },
   infoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingVertical: 6,
+    backgroundColor: Colors.primarySurface,
+    borderRadius: 10,
+    paddingVertical: 7,
     paddingHorizontal: 12,
     gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder + '40',
   },
   infoPillIcon: {
     fontSize: 14,
@@ -477,21 +534,22 @@ const styles = StyleSheet.create({
   infoPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#374151',
   },
-  modalSection: {
-    padding: 20,
-    paddingTop: 12,
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 18,
   },
   modalSectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   modalDescription: {
     fontSize: 15,
     color: '#6B7280',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

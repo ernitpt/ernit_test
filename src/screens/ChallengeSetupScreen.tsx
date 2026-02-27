@@ -32,8 +32,10 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { CustomCalendar } from '../components/CustomCalendar';
+import { ValentineExperienceDetailsModal } from './recipient/components/GoalCardModals';
 
 const { width } = Dimensions.get('window');
+const TOTAL_STEPS = 4;
 
 const GOAL_TYPES = [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
@@ -42,6 +44,20 @@ const GOAL_TYPES = [
     { icon: '\u{1F4DA}', name: 'Read', color: '#F59E0B' },
     { icon: '\u{1F6B6}', name: 'Walk', color: '#10B981' },
     { icon: '\u2728', name: 'Other', color: '#6B7280' },
+];
+
+const STEP_TITLES = [
+    'What do you want to improve?',
+    'Set your challenge intensity',
+    'When do you start?',
+    'Pick your dream reward',
+];
+
+const STEP_SUBTITLES = [
+    'Pick the habit you want to build. We\'ll help you stay on track.',
+    'It takes 21 days to build a habit. Start small, you can always do another challenge later!',
+    'We\'ll send you reminders so you never miss a session.',
+    'Your friends can see your goal and gift this to you. You\'ll get it when you finish!',
 ];
 
 // Storage helpers (cross-platform)
@@ -53,7 +69,7 @@ const setStorageItem = async (key: string, value: string) => {
     }
 };
 
-// ModernSlider - reused from ValentinesChallengeScreen
+// ModernSlider
 const ModernSlider = ({
     label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
 }: {
@@ -98,6 +114,22 @@ const ModernSlider = ({
     );
 };
 
+// ─── Progress Bar ────────────────────────────────────────────────────
+const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
+    const progress = ((currentStep) / totalSteps) * 100;
+    return (
+        <View style={styles.progressBar}>
+            <View style={styles.progressTrack}>
+                <MotiView
+                    animate={{ width: `${progress}%` as any }}
+                    transition={{ type: 'spring', damping: 100, stiffness: 320 }}
+                    style={styles.progressFill}
+                />
+            </View>
+        </View>
+    );
+};
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChallengeSetup'>;
 
 export default function ChallengeSetupScreen() {
@@ -105,6 +137,9 @@ export default function ChallengeSetupScreen() {
     const route = useRoute();
     const routeParams = route.params as { prefill?: any } | undefined;
     const { state, dispatch } = useApp();
+
+    // Wizard step
+    const [currentStep, setCurrentStep] = useState(1);
 
     // Goal config
     const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
@@ -114,7 +149,7 @@ export default function ChallengeSetupScreen() {
     const [hours, setHours] = useState('');
     const [minutes, setMinutes] = useState('');
 
-    // Experience selection (optional)
+    // Experience selection (mandatory)
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
     const [loadingExperiences, setLoadingExperiences] = useState(true);
@@ -122,19 +157,17 @@ export default function ChallengeSetupScreen() {
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [validationErrors, setValidationErrors] = useState({ goal: false, time: false });
+    const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showExpDetailsModal, setShowExpDetailsModal] = useState(false);
+    const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
 
     // Animations
-    const scrollRef = useRef<ScrollView>(null);
-    const goalStripAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useModalAnimation(showConfirm);
     const pulseAnim = useRef(new Animated.Value(1)).current;
-    const categoryTransitionAnim = useRef(new Animated.Value(1)).current;
-    const prevCategoryRef = useRef<string>('Recommended');
 
-    // Category filter state (mirrors Valentine's)
+    // Category filter state
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
 
@@ -170,31 +203,18 @@ export default function ChallengeSetupScreen() {
         fetchExperiences();
     }, []);
 
-    // Animate goal strip on selection
-    useEffect(() => {
-        if (selectedGoal) {
-            Animated.spring(goalStripAnim, {
-                toValue: 1,
-                friction: 8,
-                tension: 65,
-                useNativeDriver: true,
-            }).start();
-        }
-    }, [selectedGoal]);
+    // Animate category transitions
+    const categoryTransitionAnim = useRef(new Animated.Value(1)).current;
+    const prevCategoryRef = useRef<string>('All');
 
-    // Animate category transitions (mirrors Valentine's)
     useEffect(() => {
         if (prevCategoryRef.current !== selectedCategory) {
             Animated.timing(categoryTransitionAnim, {
-                toValue: 0,
-                duration: 150,
-                useNativeDriver: true,
+                toValue: 0, duration: 150, useNativeDriver: true,
             }).start(() => {
                 prevCategoryRef.current = selectedCategory;
                 Animated.timing(categoryTransitionAnim, {
-                    toValue: 1,
-                    duration: 250,
-                    useNativeDriver: true,
+                    toValue: 1, duration: 250, useNativeDriver: true,
                 }).start();
             });
         }
@@ -216,53 +236,71 @@ export default function ChallengeSetupScreen() {
 
     const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
 
-    const validateInputs = (): boolean => {
-        const finalGoal = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
-        const hoursNum = parseInt(hours || '0', 10);
-        const minutesNum = parseInt(minutes || '0', 10);
-
-        let hasError = false;
-        const newErrors = { goal: false, time: false };
-
-        if (!finalGoal) {
-            newErrors.goal = true;
-            hasError = true;
-        }
-
-        if (!hours && !minutes) {
-            newErrors.time = true;
-            hasError = true;
-        } else if (hoursNum === 0 && minutesNum === 0) {
-            newErrors.time = true;
-            hasError = true;
-        } else if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-            Alert.alert('Error', 'Each session cannot exceed 3 hours.');
-            return false;
-        }
-
-        if (hasError) {
-            setValidationErrors(newErrors);
-            if (newErrors.goal) {
-                scrollRef.current?.scrollTo({ y: 0, animated: true });
-            } else if (newErrors.time) {
-                // Approximate scroll down to time section
-                scrollRef.current?.scrollTo({ y: 300, animated: true });
+    // ─── Per-step validation ─────────────────────────────────────────
+    const validateCurrentStep = (): boolean => {
+        switch (currentStep) {
+            case 1: {
+                const finalGoal = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
+                if (!finalGoal) {
+                    setValidationErrors(prev => ({ ...prev, goal: true }));
+                    return false;
+                }
+                setValidationErrors(prev => ({ ...prev, goal: false }));
+                return true;
             }
-            return false;
+            case 2: {
+                // Sliders have defaults, but time per session must be set
+                const hoursNum = parseInt(hours || '0', 10);
+                const minutesNum = parseInt(minutes || '0', 10);
+                if ((!hours && !minutes) || (hoursNum === 0 && minutesNum === 0)) {
+                    setValidationErrors(prev => ({ ...prev, time: true }));
+                    return false;
+                }
+                if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
+                    Alert.alert('Error', 'Each session cannot exceed 3 hours.');
+                    return false;
+                }
+                setValidationErrors(prev => ({ ...prev, time: false }));
+                return true;
+            }
+            case 3:
+                // Date always has default — always valid
+                return true;
+            case 4: {
+                if (!selectedExperience) {
+                    setValidationErrors(prev => ({ ...prev, experience: true }));
+                    return false;
+                }
+                setValidationErrors(prev => ({ ...prev, experience: false }));
+                return true;
+            }
+            default:
+                return true;
         }
-
-        setValidationErrors({ goal: false, time: false });
-        return true;
     };
 
+    const handleNext = () => {
+        if (!validateCurrentStep()) return;
+        if (currentStep < TOTAL_STEPS) {
+            setCurrentStep(prev => prev + 1);
+        }
+    };
+
+    const handleBack = () => {
+        if (currentStep > 1) {
+            setCurrentStep(prev => prev - 1);
+        } else {
+            navigation.goBack();
+        }
+    };
+
+    // ─── Create goal ─────────────────────────────────────────────────
     const handleCreate = async () => {
-        if (!validateInputs()) return;
+        if (!validateCurrentStep()) return;
 
         if (state.user?.id) {
-            // User is logged in - show confirmation
             setShowConfirm(true);
         } else {
-            // Not logged in - store config and navigate to auth
             const challengeConfig = {
                 goalType: selectedGoal,
                 customGoal: selectedGoal === 'Other' ? customGoal.trim() : '',
@@ -332,15 +370,15 @@ export default function ChallengeSetupScreen() {
                 ...(selectedExperience ? {
                     pledgedExperience: {
                         experienceId: selectedExperience.id,
-                        title: selectedExperience.title,
-                        subtitle: selectedExperience.subtitle,
-                        description: selectedExperience.description,
-                        category: selectedExperience.category,
-                        price: selectedExperience.price,
-                        coverImageUrl: selectedExperience.coverImageUrl,
-                        imageUrl: selectedExperience.imageUrl,
-                        partnerId: selectedExperience.partnerId,
-                        location: selectedExperience.location,
+                        title: selectedExperience.title || '',
+                        subtitle: selectedExperience.subtitle || '',
+                        description: selectedExperience.description || '',
+                        category: selectedExperience.category || 'Adventure' as any,
+                        price: selectedExperience.price ?? 0,
+                        coverImageUrl: selectedExperience.coverImageUrl || '',
+                        imageUrl: Array.isArray(selectedExperience.imageUrl) ? selectedExperience.imageUrl : [selectedExperience.imageUrl || ''],
+                        partnerId: selectedExperience.partnerId || '',
+                        location: selectedExperience.location || '',
                     },
                     pledgedAt: now,
                 } : {}),
@@ -372,6 +410,314 @@ export default function ChallengeSetupScreen() {
 
     const finalGoalName = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
 
+    // ─── Step Content Renderers ──────────────────────────────────────
+    const renderStep1 = () => (
+        <View style={styles.stepContent}>
+            {validationErrors.goal && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>Please select a goal type</Text>
+                </View>
+            )}
+
+            <View style={styles.goalGrid}>
+                {GOAL_TYPES.map((goal, i) => (
+                    <MotiView
+                        key={goal.name}
+                        style={{ width: '31%', minWidth: 95 }}
+                        animate={{
+                            scale: selectedGoal === goal.name ? 1.04 : 1,
+                        }}
+                        transition={{
+                            scale: selectedGoal === goal.name
+                                ? { type: 'spring', damping: 34, stiffness: 100 }
+                                : { type: 'timing', duration: 100 },
+                        }}
+                    >
+                        <TouchableOpacity
+                            style={[
+                                styles.goalChip,
+                                { width: '100%' },
+                                selectedGoal === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
+                                validationErrors.goal && !selectedGoal && styles.goalChipError,
+                            ]}
+                            onPress={() => {
+                                setSelectedGoal(goal.name);
+                                setValidationErrors(prev => ({ ...prev, goal: false }));
+                                if (goal.name !== 'Other') setCustomGoal('');
+                            }}
+                        >
+                            <Text style={styles.goalIcon}>{goal.icon}</Text>
+                            <Text style={[
+                                styles.goalName,
+                                selectedGoal === goal.name && styles.goalNameActive,
+                            ]}>{goal.name}</Text>
+                        </TouchableOpacity>
+                    </MotiView>
+                ))}
+            </View>
+
+            {selectedGoal === 'Other' && (
+                <View style={styles.customGoalContainer}>
+                    <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
+                    <View style={styles.customGoalInputWrapper}>
+                        <Text style={styles.customGoalIcon}>{'\u2728'}</Text>
+                        <TextInput
+                            style={styles.customGoalInput}
+                            placeholder="e.g., Cook, Paint, Write..."
+                            value={customGoal}
+                            onChangeText={(text) => {
+                                setCustomGoal(text);
+                                if (validationErrors.goal && text.trim()) {
+                                    setValidationErrors(prev => ({ ...prev, goal: false }));
+                                }
+                            }}
+                            autoFocus
+                        />
+                    </View>
+                </View>
+            )}
+        </View>
+    );
+
+    const renderStep2 = () => (
+        <View style={styles.stepContent}>
+            <View style={styles.section}>
+                <ModernSlider
+                    label="Duration"
+                    value={weeks}
+                    min={1}
+                    max={5}
+                    onChange={setWeeks}
+                    leftLabel="Chill"
+                    rightLabel="Intense"
+                    unit="week"
+                    unitPlural="weeks"
+                />
+            </View>
+
+            <View style={styles.section}>
+                <ModernSlider
+                    label="Weekly Sessions"
+                    value={sessionsPerWeek}
+                    min={1}
+                    max={7}
+                    onChange={setSessionsPerWeek}
+                    leftLabel="Easy"
+                    rightLabel="Beast"
+                />
+            </View>
+
+            <View style={styles.section}>
+                <View style={styles.sliderContainer}>
+                    <Text style={styles.sliderTitle}>Time per session</Text>
+
+                    {validationErrors.time && (
+                        <View style={[styles.errorBanner, { marginTop: 8, marginBottom: 16 }]}>
+                            <Text style={styles.errorText}>Please set a time per session</Text>
+                        </View>
+                    )}
+
+                    <View style={styles.timeRow}>
+                        <View style={styles.timeInputGroup}>
+                            <TextInput
+                                style={styles.timeInput}
+                                value={hours}
+                                onChangeText={(t) => {
+                                    setHours(sanitizeNumericInput(t));
+                                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                                }}
+                                keyboardType="numeric"
+                                maxLength={1}
+                                placeholder="0"
+                                placeholderTextColor="#9CA3AF"
+                            />
+                            <Text style={styles.timeLabel}>hr</Text>
+                        </View>
+                        <View style={styles.timeInputGroup}>
+                            <TextInput
+                                style={styles.timeInput}
+                                value={minutes}
+                                onChangeText={(t) => {
+                                    const clean = sanitizeNumericInput(t);
+                                    const m = parseInt(clean || '0', 10);
+                                    setMinutes(m > 59 ? '59' : clean);
+                                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                                }}
+                                keyboardType="numeric"
+                                maxLength={2}
+                                placeholder="00"
+                                placeholderTextColor="#9CA3AF"
+                            />
+                            <Text style={styles.timeLabel}>min</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+
+    const renderStep3 = () => (
+        <View style={styles.stepContent}>
+            <View style={styles.sliderContainer}>
+                <Text style={styles.sliderTitle}>Start date</Text>
+                <TouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    style={styles.dateButton}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.dateButtonText}>
+                        {plannedStartDate.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                        })}
+                    </Text>
+                    <Text style={{ fontSize: 20 }}>📅</Text>
+                </TouchableOpacity>
+                <CustomCalendar
+                    visible={showDatePicker}
+                    selectedDate={plannedStartDate}
+                    onSelectDate={(date) => setPlannedStartDate(date)}
+                    onClose={() => setShowDatePicker(false)}
+                    minimumDate={new Date()}
+                />
+            </View>
+        </View>
+    );
+
+    const renderStep4 = () => (
+        <View style={styles.stepContent}>
+            {validationErrors.experience && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>Please select a dream reward</Text>
+                </View>
+            )}
+
+            <View style={styles.sectionHeaderRow}>
+                <View style={styles.filterScrollContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.filterScroll}
+                        contentContainerStyle={styles.filterScrollContent}
+                        onScroll={(e) => {
+                            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                            const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
+                            if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
+                        }}
+                        scrollEventThrottle={100}
+                    >
+                        {['All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
+                            <TouchableOpacity
+                                key={cat}
+                                onPress={() => setSelectedCategory(cat)}
+                                style={[
+                                    styles.filterChip,
+                                    selectedCategory === cat && styles.filterChipActive,
+                                ]}
+                            >
+                                <Text style={[
+                                    styles.filterText,
+                                    selectedCategory === cat && styles.filterTextActive,
+                                ]}>{cat}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                    {showFilterScrollHint && (
+                        <View style={styles.categoryFadeIndicator} pointerEvents="none">
+                            <View style={styles.categoryGradient} />
+                            <ChevronRight color="#9CA3AF" size={14} />
+                        </View>
+                    )}
+                </View>
+            </View>
+
+            {loadingExperiences ? (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
+            ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+                    {experiences
+                        .filter(exp => {
+                            if (selectedCategory === 'Recommended') return exp.isRecommendedForValentines === true;
+                            if (selectedCategory === 'All') return true;
+                            if (!exp.category) return false;
+                            const expCat = exp.category.toLowerCase().trim();
+                            const filterCat = selectedCategory.toLowerCase().trim();
+                            if (filterCat === 'wellness' && (expCat === 'relaxation' || expCat === 'spa' || expCat === 'health' || expCat === 'wellness')) return true;
+                            if (filterCat === 'creative' && (expCat === 'culture' || expCat === 'arts' || expCat === 'creative' || expCat === 'workshop')) return true;
+                            return expCat.includes(filterCat) || filterCat.includes(expCat);
+                        })
+                        .sort((a, b) => selectedCategory === 'Recommended'
+                            ? (a.recommendedOrder ?? Number.MAX_SAFE_INTEGER) - (b.recommendedOrder ?? Number.MAX_SAFE_INTEGER)
+                            : 0
+                        )
+                        .map((exp) => {
+                            const isSelected = selectedExperience?.id === exp.id;
+                            return (
+                                <Animated.View
+                                    key={exp.id}
+                                    style={{
+                                        opacity: categoryTransitionAnim,
+                                        transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+                                    }}
+                                >
+                                    <TouchableOpacity
+                                        style={[styles.expCard, isSelected && styles.expCardActive]}
+                                        onPress={() => {
+                                            setSelectedExperience(exp);
+                                            setValidationErrors(prev => ({ ...prev, experience: false }));
+                                        }}
+                                    >
+                                        <View style={styles.expIconBox}>
+                                            <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
+                                        </View>
+                                        <View style={styles.expTextContainer}>
+                                            <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
+                                        </View>
+                                        {isSelected && (
+                                            <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
+                                        )}
+                                        <MotiView
+                                            animate={{
+                                                opacity: isSelected ? 1 : 0,
+                                                scale: isSelected ? 1 : 0.8,
+                                                height: isSelected ? 30 : 0,
+                                                marginTop: isSelected ? 8 : 0,
+                                            }}
+                                            transition={{ type: 'timing', duration: 200 }}
+                                            style={{ overflow: 'hidden' }}
+                                        >
+                                            <TouchableOpacity
+                                                style={styles.viewDetailsBtn}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    setDetailExperience(exp);
+                                                    setShowExpDetailsModal(true);
+                                                }}
+                                                activeOpacity={0.8}
+                                            >
+                                                <Text style={styles.viewDetailsBtnText}>View Details</Text>
+                                            </TouchableOpacity>
+                                        </MotiView>
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            );
+                        })}
+                </ScrollView>
+            )}
+        </View>
+    );
+
+    const renderCurrentStep = () => {
+        switch (currentStep) {
+            case 1: return renderStep1();
+            case 2: return renderStep2();
+            case 3: return renderStep3();
+            case 4: return renderStep4();
+            default: return null;
+        }
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
@@ -380,395 +726,115 @@ export default function ChallengeSetupScreen() {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => navigation.goBack()}
+                    onPress={handleBack}
                     activeOpacity={0.8}
                 >
                     <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Create Your Challenge</Text>
-                <View style={{ width: 40 }} />
+                <View style={styles.stepIndicator}>
+                    <Text style={styles.stepIndicatorText}>{currentStep}/{TOTAL_STEPS}</Text>
+                </View>
             </View>
 
+            {/* Progress Bar */}
+            <ProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+
+            {/* Step Content */}
             <ScrollView
-                ref={scrollRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
             >
-                {/* Goal Type Selection */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>What do you want to improve?</Text>
+                {/* Step Title & Subtitle */}
+                <MotiView
+                    key={`title-${currentStep}`}
+                    from={{ opacity: 0, translateY: 10 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 300 }}
+                >
+                    <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
+                    <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
+                </MotiView>
 
-                    {validationErrors.goal && (
-                        <View style={styles.errorBanner}>
-                            <Text style={styles.errorText}>Please select a goal type</Text>
-                        </View>
-                    )}
+                {/* Animated Step Content */}
+                <AnimatePresence exitBeforeEnter>
+                    <MotiView
+                        key={`step-${currentStep}`}
+                        from={{ opacity: 0, translateX: 30 }}
+                        animate={{ opacity: 1, translateX: 0 }}
+                        exit={{ opacity: 0, translateX: -30 }}
+                        transition={{ type: 'timing', duration: 250 }}
+                    >
+                        {renderCurrentStep()}
+                    </MotiView>
+                </AnimatePresence>
 
-                    <View style={styles.goalGrid}>
-                        {GOAL_TYPES.map((goal, i) => (
-                            <MotiView
-                                key={goal.name}
-                                style={{ width: '31%', minWidth: 95 }}
-                                from={{ opacity: 0, scale: 0.85 }}
-                                animate={{
-                                    opacity: 1,
-                                    scale: selectedGoal === goal.name ? 1.04 : 1,
-                                }}
-                                transition={{
-                                    opacity: { type: 'timing', duration: 300, delay: i * 60 },
-                                    scale: selectedGoal === goal.name
-                                        ? { type: 'spring', damping: 34, stiffness: 100 }
-                                        : { type: 'timing', duration: 100, delay: i * 60 },
-                                }}
-                            >
-                                <TouchableOpacity
-                                    style={[
-                                        styles.goalChip,
-                                        { width: '100%' },
-                                        selectedGoal === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
-                                        validationErrors.goal && !selectedGoal && styles.goalChipError,
-                                    ]}
-                                    onPress={() => {
-                                        setSelectedGoal(goal.name);
-                                        setValidationErrors(prev => ({ ...prev, goal: false }));
-                                        if (goal.name !== 'Other') setCustomGoal('');
-                                    }}
-                                >
-                                    <Text style={styles.goalIcon}>{goal.icon}</Text>
-                                    <Text style={[
-                                        styles.goalName,
-                                        selectedGoal === goal.name && styles.goalNameActive,
-                                    ]}>{goal.name}</Text>
-                                </TouchableOpacity>
-                            </MotiView>
-                        ))}
-                    </View>
+                <View style={{ height: 200 }} />
+            </ScrollView>
 
-                    {selectedGoal === 'Other' && (
-                        <View style={styles.customGoalContainer}>
-                            <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
-                            <View style={styles.customGoalInputWrapper}>
-                                <Text style={styles.customGoalIcon}>{'\u2728'}</Text>
-                                <TextInput
-                                    style={styles.customGoalInput}
-                                    placeholder="e.g., Cook, Paint, Write..."
-                                    value={customGoal}
-                                    onChangeText={(text) => {
-                                        setCustomGoal(text);
-                                        if (validationErrors.goal && text.trim()) {
-                                            setValidationErrors(prev => ({ ...prev, goal: false }));
-                                        }
-                                    }}
-                                    autoFocus
-                                />
+            {/* Footer */}
+            <View style={styles.footer}>
+                {/* Preview card on final step */}
+                {currentStep === TOTAL_STEPS && selectedExperience && (
+                    <MotiView
+                        from={{ opacity: 0, translateY: 10 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                    >
+                        <View style={styles.footerHeroCard}>
+                            <View style={styles.footerHeroRow}>
+                                <View style={styles.heroIconBox}>
+                                    <Image source={{ uri: selectedExperience.coverImageUrl }} style={styles.heroImage} resizeMode="cover" />
+                                </View>
+                                <View style={styles.heroInfo}>
+                                    <Text style={styles.footerHeroTitle} numberOfLines={1}>
+                                        {selectedExperience.title}
+                                    </Text>
+                                </View>
                             </View>
-                        </View>
-                    )}
-                </View>
 
-                {/* Duration Slider */}
-                <View style={styles.section}>
-                    <ModernSlider
-                        label="Duration"
-                        value={weeks}
-                        min={1}
-                        max={5}
-                        onChange={setWeeks}
-                        leftLabel="Chill"
-                        rightLabel="Intense"
-                        unit="week"
-                        unitPlural="weeks"
-                    />
-                </View>
-
-                {/* Sessions Per Week Slider */}
-                <View style={styles.section}>
-                    <ModernSlider
-                        label="Weekly Sessions"
-                        value={sessionsPerWeek}
-                        min={1}
-                        max={7}
-                        onChange={setSessionsPerWeek}
-                        leftLabel="Easy"
-                        rightLabel="Beast"
-                    />
-                </View>
-
-                {/* Time Per Session */}
-                <View style={styles.section}>
-                    <View style={styles.sliderContainer}>
-                        <Text style={styles.sliderTitle}>Time per session</Text>
-
-                        {validationErrors.time && (
-                            <View style={[styles.errorBanner, { marginTop: 8, marginBottom: 16 }]}>
-                                <Text style={styles.errorText}>Please set a time per session</Text>
-                            </View>
-                        )}
-
-                        <View style={styles.timeRow}>
-                            <View style={styles.timeInputGroup}>
-                                <TextInput
-                                    style={styles.timeInput}
-                                    value={hours}
-                                    onChangeText={(t) => {
-                                        setHours(sanitizeNumericInput(t));
-                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                                    }}
-                                    keyboardType="numeric"
-                                    maxLength={1}
-                                    placeholder="0"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                                <Text style={styles.timeLabel}>hr</Text>
-                            </View>
-                            <View style={styles.timeInputGroup}>
-                                <TextInput
-                                    style={styles.timeInput}
-                                    value={minutes}
-                                    onChangeText={(t) => {
-                                        const clean = sanitizeNumericInput(t);
-                                        const m = parseInt(clean || '0', 10);
-                                        setMinutes(m > 59 ? '59' : clean);
-                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                                    }}
-                                    keyboardType="numeric"
-                                    maxLength={2}
-                                    placeholder="00"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                                <Text style={styles.timeLabel}>min</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Planned Start Date */}
-                <View style={styles.section}>
-                    <View style={styles.sliderContainer}>
-                        <Text style={styles.sliderTitle}>When do you want to start?</Text>
-                        <TouchableOpacity
-                            onPress={() => setShowDatePicker(true)}
-                            style={styles.dateButton}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.dateButtonText}>
-                                {plannedStartDate.toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    month: 'long',
-                                    day: 'numeric',
-                                })}
-                            </Text>
-                            <Text style={{ fontSize: 20 }}>📅</Text>
-                        </TouchableOpacity>
-                        <CustomCalendar
-                            visible={showDatePicker}
-                            selectedDate={plannedStartDate}
-                            onSelectDate={(date) => setPlannedStartDate(date)}
-                            onClose={() => setShowDatePicker(false)}
-                            minimumDate={new Date()}
-                        />
-                    </View>
-                </View>
-
-                {/* Experience Selection — mirrors Valentine's carousel */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionLabel}>Dream Reward</Text>
-                        <View style={styles.filterScrollContainer}>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={styles.filterScroll}
-                                contentContainerStyle={styles.filterScrollContent}
-                                onScroll={(e) => {
-                                    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-                                    const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
-                                    if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
-                                }}
-                                scrollEventThrottle={100}
-                            >
-                                {['Recommended', 'All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
-                                    <TouchableOpacity
-                                        key={cat}
-                                        onPress={() => setSelectedCategory(cat)}
-                                        style={[
-                                            styles.filterChip,
-                                            selectedCategory === cat && styles.filterChipActive,
-                                        ]}
-                                    >
-                                        <Text style={[
-                                            styles.filterText,
-                                            selectedCategory === cat && styles.filterTextActive,
-                                        ]}>{cat}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                            {showFilterScrollHint && (
-                                <View style={styles.categoryFadeIndicator} pointerEvents="none">
-                                    <View style={styles.categoryGradient} />
-                                    <ChevronRight color="#9CA3AF" size={14} />
+                            {selectedGoal && (
+                                <View style={styles.heroContextRow}>
+                                    <View style={styles.contextBadge}>
+                                        <Text style={styles.contextEmoji}>
+                                            {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
+                                        </Text>
+                                        <Text style={styles.contextText}>{selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
+                                    </View>
+                                    <View style={styles.contextDivider} />
+                                    <View style={styles.contextBadge}>
+                                        <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
+                                    </View>
+                                    <View style={styles.contextDivider} />
+                                    <View style={styles.contextBadge}>
+                                        <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
+                                    </View>
                                 </View>
                             )}
                         </View>
-                    </View>
-
-                    <Text style={styles.sectionSubtitle}>
-                        Your friends can see it and gift it to you!
-                    </Text>
-
-                    {loadingExperiences ? (
-                        <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
-                    ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-
-                            {/* "Just the challenge" skip card */}
-                            <Animated.View style={{ opacity: categoryTransitionAnim, transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.expCard,
-                                        !selectedExperience && styles.expCardActive,
-                                    ]}
-                                    onPress={() => setSelectedExperience(null)}
-                                >
-                                    <View style={[styles.expIconBox, { backgroundColor: Colors.primarySurface, justifyContent: 'center', alignItems: 'center' }]}>
-                                        <Text style={{ fontSize: 26 }}>🎯</Text>
-                                    </View>
-                                    <View style={styles.expTextContainer}>
-                                        <Text style={[styles.expTitle, !selectedExperience && styles.expTitleActive]} numberOfLines={2}>
-                                            Just the{'\n'}challenge
-                                        </Text>
-                                    </View>
-                                    {!selectedExperience && (
-                                        <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
-                                    )}
-                                </TouchableOpacity>
-                            </Animated.View>
-
-                            {/* Filtered experience cards */}
-                            {experiences
-                                .filter(exp => {
-                                    if (selectedCategory === 'Recommended') return exp.isRecommendedForValentines === true;
-                                    if (selectedCategory === 'All') return true;
-                                    if (!exp.category) return false;
-                                    const expCat = exp.category.toLowerCase().trim();
-                                    const filterCat = selectedCategory.toLowerCase().trim();
-                                    if (filterCat === 'wellness' && (expCat === 'relaxation' || expCat === 'spa' || expCat === 'health' || expCat === 'wellness')) return true;
-                                    if (filterCat === 'creative' && (expCat === 'culture' || expCat === 'arts' || expCat === 'creative' || expCat === 'workshop')) return true;
-                                    return expCat.includes(filterCat) || filterCat.includes(expCat);
-                                })
-                                .sort((a, b) => selectedCategory === 'Recommended'
-                                    ? (a.recommendedOrder ?? Number.MAX_SAFE_INTEGER) - (b.recommendedOrder ?? Number.MAX_SAFE_INTEGER)
-                                    : 0
-                                )
-                                .map((exp) => {
-                                    const isSelected = selectedExperience?.id === exp.id;
-                                    return (
-                                        <Animated.View
-                                            key={exp.id}
-                                            style={{
-                                                opacity: categoryTransitionAnim,
-                                                transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-                                            }}
-                                        >
-                                            <TouchableOpacity
-                                                style={[styles.expCard, isSelected && styles.expCardActive]}
-                                                onPress={() => setSelectedExperience(exp)}
-                                            >
-                                                <View style={styles.expIconBox}>
-                                                    <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
-                                                </View>
-                                                <View style={styles.expTextContainer}>
-                                                    <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
-                                                    <Text style={styles.expPrice}>€{exp.price}</Text>
-                                                </View>
-                                                {isSelected && (
-                                                    <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
-                                                )}
-                                            </TouchableOpacity>
-                                        </Animated.View>
-                                    );
-                                })}
-                        </ScrollView>
-                    )}
-                </View>
-
-                <View style={{ height: 220 }} />
-            </ScrollView>
-
-            {/* Footer: hero preview card + CTA button (mirrors Valentine's footer) */}
-            <View style={styles.footer}>
-                {/* Hero Card Preview */}
-                {!loadingExperiences && (
-                    <View style={styles.footerHeroCard}>
-                        <View style={styles.footerHeroRow}>
-                            <View style={styles.heroIconBox}>
-                                {selectedExperience ? (
-                                    <Image source={{ uri: selectedExperience.coverImageUrl }} style={styles.heroImage} resizeMode="cover" />
-                                ) : (
-                                    <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                                        <Text style={{ fontSize: 20 }}>🎯</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <View style={styles.heroInfo}>
-                                <Text style={styles.footerHeroTitle} numberOfLines={1}>
-                                    {selectedExperience ? selectedExperience.title : 'No dream reward'}
-                                </Text>
-                                {selectedExperience ? (
-                                    <View style={styles.heroPriceRow}>
-                                        <Text style={styles.heroPrice}>€{selectedExperience.price}</Text>
-                                        <Text style={styles.heroPriceLabel}>per person</Text>
-                                    </View>
-                                ) : (
-                                    <Text style={styles.heroPriceLabel}>Accountability only</Text>
-                                )}
-                            </View>
-                        </View>
-
-                        {selectedGoal && (
-                            <Animated.View style={[
-                                styles.heroContextRow,
-                                { opacity: goalStripAnim, transform: [{ translateY: goalStripAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] },
-                            ]}>
-                                <View style={styles.contextBadge}>
-                                    <Text style={styles.contextEmoji}>
-                                        {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
-                                    </Text>
-                                    <Text style={styles.contextText}>{selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
-                                </View>
-                                <View style={styles.contextDivider} />
-                                <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
-                                </View>
-                                <View style={styles.contextDivider} />
-                                <View style={styles.contextBadge}>
-                                    <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
-                                </View>
-                            </Animated.View>
-                        )}
-                    </View>
+                    </MotiView>
                 )}
 
-                <AnimatePresence>
-                    {!!selectedGoal && (
-                        <MotiView
-                            from={{ opacity: 0, translateY: 24 }}
-                            animate={{ opacity: 1, translateY: 0 }}
-                            exit={{ opacity: 0, translateY: 24 }}
-                            transition={{ type: 'spring', damping: 22, stiffness: 180 }}
-                        >
-                            <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.9}>
-                                <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                                    <Text style={styles.createButtonText}>
-                                        {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
-                                    </Text>
-                                    <ChevronRight color="#fff" size={20} strokeWidth={3} />
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </MotiView>
-                    )}
-                </AnimatePresence>
+                {/* CTA Button */}
+                {currentStep === TOTAL_STEPS ? (
+                    <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.9}>
+                        <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <Text style={styles.createButtonText}>
+                                {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
+                            </Text>
+                            <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={styles.createButton} onPress={handleNext} activeOpacity={0.9}>
+                        <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <Text style={styles.createButtonText}>Next</Text>
+                            <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Confirmation Modal */}
@@ -853,6 +919,13 @@ export default function ChallengeSetupScreen() {
                     </Animated.View>
                 </TouchableOpacity>
             </Modal>
+
+            {/* Experience Details Popup */}
+            <ValentineExperienceDetailsModal
+                visible={showExpDetailsModal}
+                onClose={() => setShowExpDetailsModal(false)}
+                experience={detailExperience}
+            />
         </View>
     );
 }
@@ -887,6 +960,37 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#1F2937',
     },
+    stepIndicator: {
+        backgroundColor: Colors.primarySurface,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    stepIndicatorText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.primary,
+    },
+
+    // Progress bar
+    progressBar: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        backgroundColor: '#fff',
+    },
+    progressTrack: {
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E5E7EB',
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 2,
+        backgroundColor: Colors.secondary,
+    },
+
+    // Step content
     scroll: {
         flex: 1,
     },
@@ -895,21 +999,26 @@ const styles = StyleSheet.create({
         paddingTop: 24,
         paddingBottom: 20,
     },
+    stepTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: 8,
+    },
+    stepSubtitle: {
+        fontSize: 15,
+        color: '#6B7280',
+        lineHeight: 22,
+        marginBottom: 28,
+    },
+    stepContent: {
+        // Wrapper for step-specific content
+    },
     section: {
         marginBottom: 20,
     },
-    sectionLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginBottom: 12,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: '#6B7280',
-        marginBottom: 14,
-        marginTop: 4,
-    },
+
+    // Error
     errorBanner: {
         backgroundColor: '#FEF2F2',
         borderRadius: 12,
@@ -930,7 +1039,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        marginTop: 12,
+        marginTop: 4,
     },
     goalChip: {
         width: '30%',
@@ -938,7 +1047,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderRadius: 16,
         backgroundColor: '#fff',
         borderWidth: 2,
@@ -949,10 +1058,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#FEF2F2',
     },
     goalIcon: {
-        fontSize: 20,
+        fontSize: 22,
     },
     goalName: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '700',
         color: '#6B7280',
     },
@@ -960,7 +1069,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     customGoalContainer: {
-        marginTop: 16,
+        marginTop: 20,
     },
     customGoalLabel: {
         fontSize: 14,
@@ -1096,9 +1205,6 @@ const styles = StyleSheet.create({
     },
 
     // Experience cards
-    experienceScroll: {
-        paddingVertical: 4,
-    },
     expCard: {
         backgroundColor: '#fff',
         borderWidth: 2,
@@ -1106,8 +1212,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 12,
         marginRight: 12,
-        width: 110,
-        height: 155,
+        width: 150,
         alignItems: 'center',
         position: 'relative',
     },
@@ -1116,9 +1221,9 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primarySurface,
     },
     expIconBox: {
-        width: 64,
-        height: 64,
-        borderRadius: 12,
+        width: '100%',
+        height: 100,
+        borderRadius: 14,
         backgroundColor: '#F3F4F6',
         overflow: 'hidden',
         marginBottom: 8,
@@ -1129,12 +1234,12 @@ const styles = StyleSheet.create({
     },
     expTextContainer: {
         flex: 1,
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
     },
     expTitle: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '700',
         color: '#6B7280',
         textAlign: 'center',
@@ -1142,12 +1247,16 @@ const styles = StyleSheet.create({
     expTitleActive: {
         color: Colors.primary,
     },
-    expPrice: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: '#1F2937',
-        textAlign: 'center',
-        marginTop: 2,
+    viewDetailsBtn: {
+        backgroundColor: Colors.primary,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 10,
+    },
+    viewDetailsBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#fff',
     },
     checkBadge: {
         position: 'absolute',
@@ -1159,33 +1268,6 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-
-    // Summary
-    summaryCard: {
-        backgroundColor: Colors.primarySurface,
-        borderRadius: 20,
-        padding: 24,
-        borderLeftWidth: 4,
-        borderLeftColor: Colors.primary,
-    },
-    summaryTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#1F2937',
-        marginBottom: 8,
-    },
-    summaryText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: '#4B5563',
-    },
-    summaryReward: {
-        fontSize: 14,
-        color: Colors.primary,
-        fontWeight: '600',
-        marginTop: 8,
-        fontStyle: 'italic',
     },
 
     // Footer
@@ -1226,6 +1308,79 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 17,
         fontWeight: '700',
+    },
+
+    // Footer hero card
+    footerHeroCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
+    },
+    footerHeroRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    heroIconBox: {
+        width: 56,
+        height: 56,
+        borderRadius: 14,
+        backgroundColor: '#F3F4F6',
+        overflow: 'hidden',
+    },
+    heroImage: {
+        width: '100%',
+        height: '100%',
+    },
+    heroInfo: {
+        flex: 1,
+        marginLeft: 16,
+    },
+    footerHeroTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: 2,
+    },
+
+    heroContextRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderRadius: 10,
+        padding: 8,
+        marginTop: 10,
+        justifyContent: 'space-between',
+    },
+    contextBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    contextEmoji: {
+        fontSize: 14,
+    },
+    contextText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#4B5563',
+    },
+    contextDivider: {
+        width: 1,
+        height: 16,
+        backgroundColor: '#E5E7EB',
+    },
+    contextLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#6B7280',
     },
 
     // Modal
@@ -1314,12 +1469,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: 14,
     },
     filterScrollContainer: {
         position: 'relative',
         flex: 1,
-        marginLeft: 8,
     },
     filterScrollContent: {
         paddingRight: 28,
@@ -1365,92 +1519,6 @@ const styles = StyleSheet.create({
     },
     cardScroll: {
         marginTop: 4,
-    },
-    // Footer hero card
-    footerHeroCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        elevation: 2,
-    },
-    footerHeroRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    heroIconBox: {
-        width: 56,
-        height: 56,
-        borderRadius: 14,
-        backgroundColor: '#F3F4F6',
-        overflow: 'hidden',
-    },
-    heroImage: {
-        width: '100%',
-        height: '100%',
-    },
-    heroInfo: {
-        flex: 1,
-        marginLeft: 16,
-    },
-    footerHeroTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#1F2937',
-        marginBottom: 2,
-    },
-    heroPriceRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    heroPrice: {
-        fontSize: 20,
-        fontWeight: '900',
-        color: Colors.primary,
-    },
-    heroPriceLabel: {
-        fontSize: 13,
-        color: '#9CA3AF',
-        fontWeight: '600',
-    },
-    heroContextRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderRadius: 10,
-        padding: 8,
-        marginTop: 10,
-        justifyContent: 'space-between',
-    },
-    contextBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    contextEmoji: {
-        fontSize: 14,
-    },
-    contextText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#4B5563',
-    },
-    contextDivider: {
-        width: 1,
-        height: 16,
-        backgroundColor: '#E5E7EB',
-    },
-    contextLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#6B7280',
     },
 
     // Planned start date picker

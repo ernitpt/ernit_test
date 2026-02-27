@@ -1,70 +1,38 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Platform } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, Platform, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
+import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Experience } from '../types';
 import Colors from '../config/colors';
 
-/**
- * Auto-playing animated demo showing the goal journey:
- *   Goal appears → Sessions fill → Empowerment → Complete → Experience carousel
- * Plays once and holds the final state. Used on ChallengeLandingScreen.
- */
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_W = Math.min(SCREEN_W - 48, 400);
 
-// Step machine: -1 = hidden, 0-7 = visible steps
-type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// Step machine: -1 = hidden, 0-9 = visible steps
+type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
-// ─── Inline carousel sizing ──────────────────────────────────────────
-const CARD_W = 320;
-const EXP_W = 230;
-const EXP_H = 150;
-const EXP_MARGIN = 6;
-const EXP_SNAP = EXP_W + (EXP_MARGIN * 2);
-const SIDE_PADDING = (CARD_W - EXP_W) / 2; // Centers the first/last items
-
-// ─── Experience Card (reward card with "You've earned" badge) ────────
-
-const ExperienceCard: React.FC<{
-  experience: Experience;
-}> = React.memo(({ experience }) => (
-  <View style={s.expCard}>
-    <Image
-      source={{ uri: experience.coverImageUrl }}
-      style={s.expImage}
-      resizeMode="cover"
-    />
-    <LinearGradient
-      colors={['transparent', 'rgba(0,0,0,0.65)']}
-      start={{ x: 0, y: 0.3 }}
-      end={{ x: 0, y: 1 }}
-      style={s.expGradient}
-    >
-      <View style={s.earnedTag}>
-        <Text style={s.earnedTagText}>You've earned</Text>
-      </View>
-      <Text style={s.expTitle} numberOfLines={2}>{experience.title}</Text>
-    </LinearGradient>
-  </View>
-));
-
-ExperienceCard.displayName = 'ExperienceCard';
+// Phase labels
+const PHASES = ['Set Goal', 'Build Habit', 'Get Reward'] as const;
 
 // ─── JourneyDemo ─────────────────────────────────────────────────────
-
 const JourneyDemo: React.FC = React.memo(() => {
   const [step, setStep] = useState<Step>(-1);
   const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [activeExpIdx, setActiveExpIdx] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
+  const [barProgress, setBarProgress] = useState(0);
   const wrapperRef = useRef<View>(null);
 
-  // Start animation only when component scrolls into view
+  // Pick one random experience to reveal
+  const rewardExperience = useMemo(() => {
+    if (experiences.length === 0) return null;
+    return experiences[Math.floor(Math.random() * experiences.length)];
+  }, [experiences]);
+
   useEffect(() => {
     const node = wrapperRef.current;
     if (!node) return;
-
     if (Platform.OS === 'web') {
       const observer = new IntersectionObserver(
         ([entry]) => {
@@ -78,16 +46,9 @@ const JourneyDemo: React.FC = React.memo(() => {
       observer.observe(node as unknown as Element);
       return () => observer.disconnect();
     }
-    // Native: start immediately
     setHasStarted(true);
   }, []);
 
-  const handleExpScroll = useCallback((e: { nativeEvent: { contentOffset: { x: number } } }) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / EXP_SNAP);
-    setActiveExpIdx(Math.max(0, idx));
-  }, []);
-
-  // Fetch real experiences on mount (will be ready by step 7)
   useEffect(() => {
     const fetchExperiences = async () => {
       try {
@@ -97,73 +58,125 @@ const JourneyDemo: React.FC = React.memo(() => {
           snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Experience))
         );
       } catch {
-        // Silently fail — carousel just won't show
+        // Silently fail
       }
     };
     fetchExperiences();
   }, []);
 
-  // Step machine — only runs after component scrolls into view
+  // Step machine timing
   useEffect(() => {
     if (!hasStarted) return;
-
     let timeout: ReturnType<typeof setTimeout>;
-
     const next = (s: Step, delay: number) => {
       timeout = setTimeout(() => setStep(s), delay);
     };
 
     switch (step) {
-      case -1: next(0, 700); break; // pause before starting
-      case 0: next(1, 400); break; // card visible → goal slides in
-      case 1: next(2, 900); break; // goal → capsule 1
-      case 2: next(3, 700); break; // capsule 1 → capsule 2 + streak
-      case 3: next(4, 900); break; // capsule 2 → empowerment notification
-      case 4: next(5, 1200); break; // empowerment → capsule 3 fills
-      case 5: next(6, 700); break; // capsule 3 → completion
-      case 6: next(7, 900); break; // completion → carousel reveals
-      case 7: break;                // hold forever
+      case -1: next(0, 500); break;   // card fades in
+      case 0: next(1, 800); break;    // goal header appears
+      case 1: next(2, 1200); break;   // capsule 1 fills — Week 1
+      case 2: next(3, 1200); break;   // capsule 2 fills — Week 2 + streak
+      case 3: next(4, 1400); break;   // empowerment slides in
+      case 4: next(5, 2800); break;   // hold on Sarah's message
+      case 5: next(6, 1000); break;   // "Goal Complete" text
+      case 6: next(7, 1000); break;   // middle content fades, reward appears
+      case 7: next(8, 5000); break;   // hold on reward
+      case 8: next(9, 600); break;    // fade everything out
+      case 9:                         // reset for next loop
+        timeout = setTimeout(() => setStep(-1), 1000);
+        break;
     }
-
     return () => clearTimeout(timeout);
   }, [step, hasStarted]);
 
+  // Gradual progress bar — fills independently, snaps to 100% on reward unlock
+  useEffect(() => {
+    if (step < 0 || step >= 8) {
+      setBarProgress(0);
+      return;
+    }
+    if (step >= 7) {
+      // Reward unlocked — snap to 100%
+      setBarProgress(1);
+      return;
+    }
+    // Gradually fill from 0 to ~90% over the animation
+    const interval = setInterval(() => {
+      setBarProgress(prev => Math.min(prev + 0.008, 0.98));
+    }, 80);
+    return () => clearInterval(interval);
+  }, [step]);
+
   // Derived state
-  const visible = step >= 0;
-  const showGoal = step >= 1;
+  const visible = step >= 0 && step < 9;
+  const fading = step === 9;
+
+  // Phase
+  let phase = 0;
+  if (step >= 2) phase = 1;
+  if (step >= 6) phase = 2;
+
+
+  const showGoal = step >= 1 && step < 9;
   const capsuleFilled = [step >= 2, step >= 3, step >= 5];
   const filledCount = capsuleFilled.filter(Boolean).length;
-  const showStreak = step >= 3;
-  const showEmpower = step >= 4;
-  const weekLabel = step >= 6 ? 'Week 3 of 3 ✓' : 'Week 1 of 3';
-  const showComplete = step >= 6;
-  const showCarousel = step >= 7;
 
-  // Low-bounce transitions
-  const slideSide = { type: 'spring' as const, damping: 28, stiffness: 160 };
-  const slideUp = { type: 'spring' as const, damping: 28, stiffness: 160 };
-  const popIn = { type: 'spring' as const, damping: 24, stiffness: 180 };
+  // Week subtitle
+  let weekText = 'Week 1 of 3';
+  if (step >= 5) weekText = 'Week 3 of 3 ✓';
+  else if (step >= 3) weekText = 'Week 2 of 3';
+  else if (step >= 2) weekText = 'Week 1 of 3';
+
+  const showStreak = step >= 3 && step < 7;
+  const showEmpower = step >= 4 && step < 9;
+  const showCapsules = step >= 1 && step < 7;
+  const showReward = step >= 7 && step < 9;
 
   return (
     <View ref={wrapperRef} style={s.wrapper}>
-      <Text style={s.label}>See how it works</Text>
-
-      {/* ── Demo card ── */}
+      {/* Demo Card */}
       <MotiView
         animate={{
-          opacity: visible ? 1 : 0,
-          translateY: visible ? 0 : 10,
+          opacity: fading ? 0 : (visible ? 1 : 0),
+          scale: fading ? 0.95 : (visible ? 1 : 0.95),
         }}
-        transition={{ type: 'timing', duration: 400 }}
+        transition={{ type: 'timing', duration: fading ? 500 : 400 }}
         style={s.card}
       >
-        {/* Goal header — slides from left */}
+        {/* Progress Bar inside card */}
+        <View style={s.progressTrack}>
+          <MotiView
+            animate={{ width: `${barProgress * 100}%` as any }}
+            transition={barProgress === 1
+              ? { type: 'spring', damping: 100, stiffness: 320 }
+              : { type: 'timing', duration: 80 }
+            }
+            style={s.progressFill}
+          />
+        </View>
+
+        {/* Phase Label */}
+        <AnimatePresence exitBeforeEnter>
+          <MotiView
+            key={`phase-${phase}`}
+            from={{ opacity: 0, translateY: -8 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            exit={{ opacity: 0, translateY: 8 }}
+            transition={{ type: 'timing', duration: 250 }}
+            style={s.phaseLabel}
+          >
+            <Text style={s.phaseLabelText}>{PHASES[phase]}</Text>
+          </MotiView>
+        </AnimatePresence>
+
+        {/* Goal Header */}
         <MotiView
           animate={{
             opacity: showGoal ? 1 : 0,
-            translateX: showGoal ? 0 : -24,
+            translateX: showGoal ? 0 : -20,
           }}
-          transition={slideSide}
+          transition={{ type: 'spring', damping: 28, stiffness: 160 }}
           style={s.goalHeader}
         >
           <View style={s.goalEmojiBox}>
@@ -171,137 +184,112 @@ const JourneyDemo: React.FC = React.memo(() => {
           </View>
           <View style={s.goalInfo}>
             <Text style={s.goalTitle}>Run 3x/week</Text>
-            <MotiView
-              animate={{ opacity: showGoal ? 1 : 0 }}
-              transition={{ type: 'timing', duration: 300 }}
-            >
-              <Text
-                style={[
-                  s.goalSubtitle,
-                  step >= 6 && s.goalSubtitleComplete,
-                ]}
+            <AnimatePresence exitBeforeEnter>
+              <MotiView
+                key={weekText}
+                from={{ opacity: 0, translateY: 6 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                exit={{ opacity: 0, translateY: -6 }}
+                transition={{ type: 'timing', duration: 200 }}
               >
-                {weekLabel}
-              </Text>
-            </MotiView>
+                <Text style={[s.goalSubtitle, phase === 2 && s.goalSubtitleComplete]}>
+                  {weekText}
+                </Text>
+              </MotiView>
+            </AnimatePresence>
           </View>
+
         </MotiView>
 
-        {/* Progress capsules */}
-        <MotiView
-          animate={{ opacity: showGoal ? 1 : 0 }}
-          transition={{ type: 'timing', duration: 300 }}
-          style={s.progressRow}
-        >
-          <View style={s.capsuleContainer}>
-            {capsuleFilled.map((filled, i) => (
-              <View key={i} style={s.capsule}>
-                <MotiView
-                  animate={{ opacity: filled ? 1 : 0 }}
-                  transition={{ type: 'timing', duration: 450 }}
-                  style={s.capsuleFill}
-                />
-              </View>
-            ))}
-          </View>
-          <Text style={s.progressCount}>{filledCount}/3</Text>
-        </MotiView>
-
-        {/* Streak badge */}
-        <MotiView
-          animate={{
-            opacity: showStreak ? 1 : 0,
-            scale: showStreak ? 1 : 0.6,
-          }}
-          transition={popIn}
-          style={s.streakBadge}
-        >
-          <Text style={s.streakFlame}>🔥</Text>
-          <Text style={s.streakNum}>{Math.max(filledCount, 1)}</Text>
-        </MotiView>
-
-        {/* Empowerment notification — slides from right */}
-        <MotiView
-          animate={{
-            opacity: showEmpower ? 1 : 0,
-            translateX: showEmpower ? 0 : 32,
-          }}
-          transition={slideSide}
-          style={s.empowerBubble}
-        >
-          <Text style={s.empowerIcon}>🎁</Text>
-          <View style={s.empowerTextCol}>
-            <Text style={s.empowerTitle}>Sarah empowered you!</Text>
-            <Text style={s.empowerSub}>Finish your goal to unlock your gift</Text>
-          </View>
-        </MotiView>
-
-        {/* Goal Complete — slides up */}
-        <MotiView
-          animate={{
-            opacity: showComplete ? 1 : 0,
-            translateY: showComplete ? 0 : 16,
-          }}
-          transition={slideUp}
-          style={s.completionRow}
-        >
-          <Text style={s.completionText}>✅ Goal Complete!</Text>
-        </MotiView>
-
-        {/* ── Experience carousel — inside card as final step ── */}
-        {showCarousel && experiences.length > 0 && (
+        {/* Middle Content: Capsules + Sarah's message */}
+        {showCapsules && (
           <MotiView
-            from={{ opacity: 0, translateY: 16 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 140 }}
-            style={s.carouselWrap}
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: 'timing', duration: 300 }}
+            style={s.middleContent}
           >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={EXP_SNAP}
-              decelerationRate="fast"
-              contentContainerStyle={s.carouselContent}
-              onScroll={handleExpScroll}
-              scrollEventThrottle={16}
-            >
-              {experiences.map((exp, idx) => {
-                const isCenter = idx === activeExpIdx;
-                const isAdjacent = Math.abs(idx - activeExpIdx) === 1;
-                return (
-                  <MotiView
-                    key={exp.id}
-                    animate={{
-                      scale: isCenter ? 1 : 0.88,
-                      opacity: isCenter ? 1 : isAdjacent ? 0.6 : 0.3,
-                    }}
-                    transition={{
-                      type: 'spring',
-                      damping: 22,
-                      stiffness: 100,
-                      mass: 0.9,
-                    }}
-                    style={{ marginHorizontal: EXP_MARGIN }}
-                  >
-                    <ExperienceCard experience={exp} />
-                  </MotiView>
-                );
-              })}
-            </ScrollView>
+            {/* Progress capsules + streak */}
+            <View style={s.progressStreakRow}>
+              <View style={s.progressWrap}>
+                <View style={s.capsuleContainer}>
+                  {capsuleFilled.map((filled, i) => (
+                    <View key={i} style={s.capsule}>
+                      <MotiView
+                        animate={{ opacity: filled ? 1 : 0 }}
+                        transition={{ type: 'timing', duration: 400 }}
+                        style={s.capsuleFill}
+                      />
+                    </View>
+                  ))}
+                </View>
+                <Text style={s.progressCount}>{filledCount}/3</Text>
+              </View>
 
-            {/* Pagination dots */}
-            <View style={s.dots}>
-              {experiences.map((_, i) => (
-                <View
-                  key={i}
-                  style={[s.dot, i === activeExpIdx && s.dotActive]}
-                />
-              ))}
+              <MotiView
+                animate={{
+                  opacity: showStreak ? 1 : 0,
+                  scale: showStreak ? 1 : 0.5,
+                }}
+                style={s.streakBadge}
+              >
+                <Text style={s.streakFlame}>🔥</Text>
+                <Text style={s.streakNum}>{Math.max(filledCount, 1)}</Text>
+              </MotiView>
             </View>
           </MotiView>
         )}
+
+        {/* Sarah's message — persists through reward phase */}
+        {showEmpower && (
+          <MotiView
+            from={{ opacity: 0, translateY: 12 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 120 }}
+            style={s.empowerCard}
+          >
+            <Text style={s.empowerMessage}>"I got you that experience you wanted! Finish your goal to earn it" ❤️</Text>
+            <Text style={s.empowerAttribution}>— Sarah</Text>
+          </MotiView>
+        )}
+
+        {/* Reward Reveal — single experience card */}
+        {showReward && rewardExperience && (
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 120, delay: 200 }}
+            style={s.rewardWrap}
+          >
+            <Text style={s.rewardTitle}>You unlocked your reward!</Text>
+
+            <View style={s.rewardCard}>
+              <Image
+                source={{ uri: rewardExperience.coverImageUrl }}
+                style={s.rewardImage}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.7)']}
+                start={{ x: 0, y: 0.3 }}
+                end={{ x: 0, y: 1 }}
+                style={s.rewardGradient}
+              >
+                <View style={s.earnedTag}>
+                  <Text style={s.earnedTagText}>You've earned</Text>
+                </View>
+                <Text style={s.rewardExpTitle} numberOfLines={2}>
+                  {rewardExperience.title}
+                </Text>
+              </LinearGradient>
+            </View>
+
+            <Text style={s.scheduleText}>You're ready to schedule your experience</Text>
+          </MotiView>
+        )}
+
       </MotiView>
-    </View>
+    </View >
   );
 });
 
@@ -313,40 +301,59 @@ export default JourneyDemo;
 const s = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
-    marginTop: 32,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginBottom: 16,
+    marginVertical: 40,
+    width: '100%',
   },
 
   // Demo card
   card: {
-    width: '100%',
-    maxWidth: 320,
+    width: CARD_W,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 20,
+    padding: 24,
+    paddingTop: 16,
     borderWidth: 1,
     borderColor: '#F3F4F6',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 6,
-    gap: 14,
+    shadowRadius: 32,
+    elevation: 8,
     overflow: 'hidden',
+    minHeight: 200,
+  },
+
+  // Progress bar (inside card, at top)
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: Colors.secondary,
+  },
+
+  // Phase label
+  phaseLabel: {
+    marginBottom: 16,
+  },
+  phaseLabelText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
   },
 
   // Goal header
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   goalEmojiBox: {
     width: 48,
@@ -378,8 +385,22 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Progress capsules
-  progressRow: {
+
+  // Middle content
+  middleContent: {
+    marginTop: 20,
+    gap: 16,
+  },
+
+  // Progress & Streak Row
+  progressStreakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  progressWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -387,23 +408,23 @@ const s = StyleSheet.create({
   capsuleContainer: {
     flex: 1,
     flexDirection: 'row',
-    gap: 4,
+    gap: 5,
   },
   capsule: {
     flex: 1,
-    height: 10,
-    borderRadius: 5,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#E5E7EB',
     overflow: 'hidden',
   },
   capsuleFill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 5,
+    borderRadius: 3,
     backgroundColor: Colors.secondary,
   },
   progressCount: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     color: '#6B7280',
   },
 
@@ -411,11 +432,10 @@ const s = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
+    gap: 3,
     backgroundColor: '#FFF7ED',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#FED7AA',
@@ -429,116 +449,88 @@ const s = StyleSheet.create({
     color: '#EA580C',
   },
 
-  // Empowerment notification
-  empowerBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FDF4FF',
+  // Empowerment card
+  empowerCard: {
+    backgroundColor: Colors.primarySurface,
     borderRadius: 14,
-    padding: 12,
+    padding: 16,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: '#E9D5FF',
+    borderColor: Colors.primary + '30',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
   },
-  empowerIcon: {
-    fontSize: 24,
+  empowerMessage: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#374151',
+    lineHeight: 20,
   },
-  empowerTextCol: {
-    flex: 1,
-  },
-  empowerTitle: {
+  empowerAttribution: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#7C3AED',
-  },
-  empowerSub: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    color: Colors.primaryDeep,
+    marginTop: 8,
+    textAlign: 'right',
   },
 
-  // Completion
-  completionRow: {
-    alignItems: 'center',
-    paddingVertical: 4,
+  // Reward reveal
+  rewardWrap: {
+    marginTop: 20,
   },
-  completionText: {
-    fontSize: 16,
+  rewardTitle: {
+    fontSize: 15,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.primaryDeep,
+    textAlign: 'center',
+    marginBottom: 14,
   },
-
-  // ── Inline experience carousel (inside card) ──
-  carouselWrap: {
-    marginHorizontal: -20, // break out of the card's horizontal padding
-    marginBottom: -20,     // break out of bottom padding
-    marginTop: 2,
-  },
-  carouselContent: {
-    paddingHorizontal: SIDE_PADDING, // precise padding to center 1st item
-  },
-
-  // Experience reward card
-  expCard: {
-    width: EXP_W,
-    height: EXP_H,
+  rewardCard: {
+    width: '100%',
+    height: 160,
     borderRadius: 16,
     overflow: 'hidden',
   },
-  expImage: {
+  rewardImage: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
   },
-  expGradient: {
+  rewardGradient: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    padding: 14,
+    padding: 16,
     gap: 6,
   },
   earnedTag: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   earnedTagText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  expTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+  rewardExpTitle: {
+    fontSize: 16,
+    fontWeight: '800',
     color: '#FFFFFF',
-    lineHeight: 20,
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    lineHeight: 22,
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
-
-  // Pagination dots
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D1D5DB',
-  },
-  dotActive: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
+  scheduleText: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
   },
 });
