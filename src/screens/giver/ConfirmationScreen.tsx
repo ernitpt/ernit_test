@@ -23,6 +23,7 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
+import { goalService } from '../../services/GoalService';
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
 
@@ -34,11 +35,12 @@ type ConfirmationNavigationProp = NativeStackNavigationProp<
 const ConfirmationScreen = () => {
   const navigation = useNavigation<ConfirmationNavigationProp>();
   const route = useRoute();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
+  const routeParams = route.params as { experienceGift?: ExperienceGift; goalId?: string } | undefined;
   const experienceGift = routeParams?.experienceGift;
+  const goalId = routeParams?.goalId;
 
   // Check if we have valid data
   const hasValidData = Boolean(
@@ -108,6 +110,20 @@ const ConfirmationScreen = () => {
     };
     fetchExperience();
   }, [experienceGift.experienceId]);
+
+  // Auto-attach gift to goal (self-purchase from challenge creation)
+  useEffect(() => {
+    if (!goalId || !experienceGift?.id || !state.user?.id) return;
+    const attach = async () => {
+      try {
+        await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user!.id);
+        logger.log('Gift auto-attached to goal', goalId);
+      } catch (error) {
+        logger.error('Failed to auto-attach gift to goal:', error);
+      }
+    };
+    attach();
+  }, [goalId, experienceGift?.id]);
 
   const handleMessageChange = (text: string) => {
     if (text.length <= 500) {
@@ -209,7 +225,10 @@ Earn it. Unlock it. Enjoy it ??
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Payment Successful!</Text>
             <Text style={styles.heroSubtitle}>
-              Your thoughtful gift is ready to share 🎉
+              {goalId
+                ? 'Your reward is locked in — complete your challenge to unlock it!'
+                : 'Your thoughtful gift is ready to share 🎉'
+              }
             </Text>
           </Animated.View>
         </View>
@@ -241,8 +260,8 @@ Earn it. Unlock it. Enjoy it ??
               </Text>
             </View>
 
-            {/* Personal Message Input/Display */}
-            <View style={styles.messageSection}>
+            {/* Personal Message Input/Display (gift to others only) */}
+            {!goalId && <View style={styles.messageSection}>
               <View style={styles.messageSectionHeader}>
                 <Text style={styles.messageLabel}>Personal Message</Text>
                 <Text style={styles.charCounter}>{charCount}/500</Text>
@@ -281,12 +300,12 @@ Earn it. Unlock it. Enjoy it ??
                   <Text style={styles.messageSentText}>Message sent!</Text>
                 </View>
               )}
-            </View>
+            </View>}
           </View>
         </View>
 
-        {/* Claim Code Section */}
-        <View style={styles.codeSection}>
+        {/* Claim Code Section (gift to others only) */}
+        {!goalId && <View style={styles.codeSection}>
           <View style={styles.codeSectionHeader}>
             <Text style={styles.codeSectionTitle}>Gift Code</Text>
             <Text style={styles.codeSectionSubtitle}>
@@ -321,10 +340,10 @@ Earn it. Unlock it. Enjoy it ??
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </View>}
 
-        {/* How It Works */}
-        <View style={styles.howItWorksSection}>
+        {/* How It Works (gift to others only) */}
+        {!goalId && <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>How It Works</Text>
 
           <View style={styles.stepsContainer}>
@@ -365,7 +384,7 @@ Earn it. Unlock it. Enjoy it ??
               </View>
             ))}
           </View>
-        </View>
+        </View>}
 
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
@@ -375,10 +394,16 @@ Earn it. Unlock it. Enjoy it ??
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.homeButton}
-          onPress={handleBackToHome}
+          onPress={() => {
+            if (goalId) {
+              navigation.reset({ index: 0, routes: [{ name: 'Goals' as any }] });
+            } else {
+              handleBackToHome();
+            }
+          }}
           activeOpacity={0.8}
         >
-          <Text style={styles.homeButtonText}>Back to Home</Text>
+          <Text style={styles.homeButtonText}>{goalId ? 'Go to My Goals' : 'Back to Home'}</Text>
         </TouchableOpacity>
       </View>
     </MainScreen>

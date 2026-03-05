@@ -11,7 +11,7 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { MessageCircle, Heart, Send } from 'lucide-react-native';
+import { MessageCircle, Heart, Send, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -45,6 +45,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [showMotivationModal, setShowMotivationModal] = useState(false);
     const [motivationText, setMotivationText] = useState('');
     const [sendingMotivation, setSendingMotivation] = useState(false);
+    const [fullscreenMedia, setFullscreenMedia] = useState(false);
 
     // Animated value for highlight effect
     const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -370,6 +371,22 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 ) : null}
             </View>
 
+            {/* Session Media */}
+            {post.mediaUrl && (
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setFullscreenMedia(true)}
+                    style={styles.sessionMediaContainer}
+                >
+                    <Image source={{ uri: post.mediaUrl }} style={styles.sessionMediaImage} resizeMode="cover" />
+                    {post.mediaType === 'video' && (
+                        <View style={styles.sessionMediaVideoOverlay}>
+                            <Text style={styles.sessionMediaPlayIcon}>▶</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+            )}
+
             <View style={styles.interactionRow}>
                 <CompactReactionBar
                     reactionCounts={reactionCounts}
@@ -525,6 +542,30 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 postId={post.id}
                 onClose={() => setShowReactionModal(false)}
             />
+
+            {/* Fullscreen media viewer */}
+            {post.mediaUrl && (
+                <Modal
+                    visible={fullscreenMedia}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setFullscreenMedia(false)}
+                >
+                    <View style={styles.fullscreenOverlay}>
+                        <TouchableOpacity
+                            style={styles.fullscreenClose}
+                            onPress={() => setFullscreenMedia(false)}
+                        >
+                            <X color="#fff" size={24} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                        <Image
+                            source={{ uri: post.mediaUrl }}
+                            style={styles.fullscreenImage}
+                            resizeMode="contain"
+                        />
+                    </View>
+                </Modal>
+            )}
         </Animated.View>
     );
 };
@@ -881,6 +922,54 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: '600',
         fontSize: 16,
+    },
+    // Session media
+    sessionMediaContainer: {
+        marginBottom: 12,
+        borderRadius: 14,
+        overflow: 'hidden',
+        backgroundColor: '#F3F4F6',
+    },
+    sessionMediaImage: {
+        width: '100%',
+        aspectRatio: 1,
+    },
+    sessionMediaVideoOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sessionMediaPlayIcon: {
+        color: '#fff',
+        fontSize: 36,
+    },
+    // Fullscreen media viewer
+    fullscreenOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullscreenClose: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 10,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullscreenImage: {
+        width: '100%',
+        height: '80%',
     },
 });
 

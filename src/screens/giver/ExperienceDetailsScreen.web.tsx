@@ -262,8 +262,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     if (!requireAuth("Please log in to set this as a goal.")) {
       return;
     }
-    // Navigate to PledgeGoalSetting via root navigator
-    (navigation as any).navigate("PledgeGoalSetting", { experience });
+    (navigation as any).navigate("ChallengeSetup", { prefill: { experience } });
   };
 
   return (

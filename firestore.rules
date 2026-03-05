@@ -289,24 +289,6 @@ service cloud.firestore {
     }
     
     /** =====================
-     * 🧩 GOAL SESSIONS (alt structure)
-     * ===================== **/
-    match /goalSessions/{goalId} {
-      allow read: if request.auth != null;
-
-      match /sessions/{sessionId} {
-        // Receivers can read and write their own session data
-        allow read, write, update, delete: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
-        
-        // Givers can update to add custom hints only
-        allow update: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.empoweredBy
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['customHint', 'customHintCreatedAt']);
-      }
-    }
-
-    /** =====================
      * 💝 VALENTINE CHALLENGES
      * ===================== **/
     match /valentineChallenges/{challengeId} {

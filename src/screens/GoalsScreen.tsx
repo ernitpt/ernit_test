@@ -10,7 +10,9 @@ import {
   Animated,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
+import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +23,7 @@ import { Goal, RootStackParamList } from '../types';
 import { goalService } from '../services/GoalService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
+import CompletedGoalCard from './recipient/CompletedGoalCard';
 import MainScreen from './MainScreen';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, getDoc, onSnapshot as onSnapshotFS } from 'firebase/firestore';
@@ -45,6 +48,8 @@ const GoalsScreen: React.FC = () => {
   const userId = state.user?.id || 'current_user';
 
   const [currentGoals, setCurrentGoals] = useState<Goal[]>([]);
+  const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
@@ -151,10 +156,24 @@ const GoalsScreen: React.FC = () => {
           return true;
         });
         setCurrentGoals(activeGoals);
+
+        // Collect completed goals (fully done, not valentine-waiting)
+        const finished = goals.filter((g) => {
+          if (g.valentineChallengeId) return false; // valentine goals handled separately
+          return g.isCompleted || g.currentCount >= g.targetCount;
+        });
+        // Sort by most recently created first
+        finished.sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        });
+        setCompletedGoals(finished);
       } catch (error) {
         logger.error('Error processing goals in GoalsScreen:', error);
         // Show whatever goals we can rather than crashing
         setCurrentGoals([]);
+        setCompletedGoals([]);
       } finally {
         setLoading(false);
         setIsInitialLoading(false);
@@ -216,8 +235,13 @@ const GoalsScreen: React.FC = () => {
     return () => unsubscribe();
   }, [userId]);
 
-  const fabAnim = useRef(new Animated.Value(50)).current; // starts 50px below
+  const fabAnim = useRef(new Animated.Value(50)).current;
   const fabOpacity = useRef(new Animated.Value(0)).current;
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const fabRotation = useRef(new Animated.Value(0)).current;
+  const menuItem1 = useRef(new Animated.Value(0)).current;
+  const menuItem2 = useRef(new Animated.Value(0)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -232,6 +256,27 @@ const GoalsScreen: React.FC = () => {
       }),
     ]).start();
   }, []);
+
+  const toggleFabMenu = () => {
+    const toOpen = !fabMenuOpen;
+    setFabMenuOpen(toOpen);
+
+    if (toOpen) {
+      Animated.parallel([
+        Animated.spring(fabRotation, { toValue: 1, damping: 14, stiffness: 160, useNativeDriver: true }),
+        Animated.spring(menuItem1, { toValue: 1, damping: 14, stiffness: 140, useNativeDriver: true }),
+        Animated.spring(menuItem2, { toValue: 1, damping: 14, stiffness: 140, delay: 50, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(fabRotation, { toValue: 0, damping: 14, stiffness: 160, useNativeDriver: true }),
+        Animated.timing(menuItem1, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(menuItem2, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  };
 
 
   const handleFinishGoal = async (updatedGoal: Goal) => {
@@ -308,8 +353,30 @@ const GoalsScreen: React.FC = () => {
             <GoalCardSkeleton />
             <GoalCardSkeleton />
           </ScrollView>
-        ) : currentGoals.length === 0 ? (
-          <Text style={styles.emptyText}>No active goals yet.</Text>
+        ) : currentGoals.length === 0 && completedGoals.length === 0 ? (
+          /* ── Upgraded Empty State ── */
+          <View style={styles.emptyContainer}>
+            <MotiView
+              from={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 14, stiffness: 120 }}
+              style={styles.emptyIllustration}
+            >
+              <Text style={styles.emptyEmoji}>🚀</Text>
+            </MotiView>
+            <Text style={styles.emptyTitle}>Your journey starts here</Text>
+            <Text style={styles.emptySubtitle}>
+              Set a goal, pick a dream reward, and challenge yourself to earn it.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('ChallengeSetup' as any)}
+            >
+              <Rocket color="#fff" size={18} strokeWidth={2.5} />
+              <Text style={styles.emptyCTAText}>Create Your First Goal</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={currentGoals}
@@ -317,12 +384,104 @@ const GoalsScreen: React.FC = () => {
             keyExtractor={(item) => item.id!}
             contentContainerStyle={styles.listContainer}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No active goals yet.</Text>
+              <View style={styles.noActiveContainer}>
+                <Text style={styles.noActiveText}>No active goals right now</Text>
+                <TouchableOpacity
+                  style={styles.noActiveCTA}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('ChallengeSetup' as any)}
+                >
+                  <Text style={styles.noActiveCTAText}>Start a New Challenge</Text>
+                </TouchableOpacity>
+              </View>
             }
+            ListFooterComponent={completedGoals.length > 0 ? (
+              <View style={styles.completedSection}>
+                <TouchableOpacity
+                  style={styles.completedHeader}
+                  activeOpacity={0.7}
+                  onPress={() => setShowCompleted((v) => !v)}
+                >
+                  <View style={styles.completedHeaderLeft}>
+                    <Trophy color={Colors.primary} size={18} strokeWidth={2.5} />
+                    <Text style={styles.completedHeaderText}>
+                      Completed ({completedGoals.length})
+                    </Text>
+                  </View>
+                  {showCompleted ? (
+                    <ChevronUp color="#6b7280" size={20} />
+                  ) : (
+                    <ChevronDown color="#6b7280" size={20} />
+                  )}
+                </TouchableOpacity>
+
+                {showCompleted && completedGoals.map((goal, idx) => (
+                  <CompletedGoalCard key={goal.id} goal={goal} index={idx} />
+                ))}
+              </View>
+            ) : null}
           />
         )}
 
-        {/* ---------- FLOATING REDEEM COUPON BUTTON ---------- */}
+        {/* ---------- FAB MENU ---------- */}
+        {fabMenuOpen && (
+          <Animated.View
+            style={[styles.fabBackdrop, { opacity: backdropOpacity }]}
+            pointerEvents={fabMenuOpen ? 'auto' : 'none'}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={toggleFabMenu}
+            />
+          </Animated.View>
+        )}
+
+        {/* Menu items (appear above the FAB) */}
+        <Animated.View
+          style={[
+            styles.fabMenuColumn,
+            {
+              opacity: backdropOpacity,
+              transform: [{ translateY: backdropOpacity.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+            },
+          ]}
+          pointerEvents={fabMenuOpen ? 'auto' : 'none'}
+        >
+          <Animated.View style={{ opacity: menuItem1, transform: [{ scale: menuItem1 }] }}>
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              activeOpacity={0.85}
+              onPress={() => {
+                toggleFabMenu();
+                navigation.navigate('ChallengeSetup' as any);
+              }}
+            >
+              <View style={[styles.fabMenuIconBg, { backgroundColor: Colors.primarySurface }]}>
+                <Target color={Colors.primary} size={20} strokeWidth={2.5} />
+              </View>
+              <Text style={styles.fabMenuText}>Create New Goal</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          <Animated.View style={{ opacity: menuItem2, transform: [{ scale: menuItem2 }] }}>
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              activeOpacity={0.85}
+              onPress={() => {
+                toggleFabMenu();
+                navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
+              }}
+            >
+              <View style={styles.fabMenuIconBg}>
+                <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} />
+              </View>
+              <Text style={styles.fabMenuText}>Redeem Your Ernit</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+
+        {/* Main FAB button */}
         <Animated.View
           style={[
             styles.fabContainer,
@@ -333,16 +492,17 @@ const GoalsScreen: React.FC = () => {
           ]}
         >
           <TouchableOpacity
-            style={styles.fab}
+            style={[styles.fab, fabMenuOpen && styles.fabOpen]}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('RecipientFlow', { screen: 'CouponEntry' })}
+            onPress={toggleFabMenu}
           >
-            <Image
-              source={require('../assets/icon.png')}
-              style={styles.fabIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.fabText}>Redeem your Ernit</Text>
+            <Animated.View style={{
+              transform: [{
+                rotate: fabRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }),
+              }],
+            }}>
+              <Plus color="#fff" size={28} strokeWidth={3} />
+            </Animated.View>
           </TouchableOpacity>
         </Animated.View>
 
@@ -388,33 +548,72 @@ const GoalsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  fabBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 90,
+  },
   fabContainer: {
     position: 'absolute',
     bottom: 30,
     right: 24,
+    zIndex: 100,
   },
   fab: {
     backgroundColor: Colors.secondary,
-    borderRadius: 50,
-    flexDirection: 'row',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
     shadowColor: '#000',
     shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  fabIcon: {
-    width: 28,
-    height: 28,
-    marginRight: 10,
+  fabOpen: {
+    backgroundColor: '#374151',
   },
-  fabText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+  fabMenuColumn: {
+    position: 'absolute',
+    bottom: 100,
+    right: 24,
+    zIndex: 95,
+    gap: 10,
+    alignItems: 'flex-end',
+  },
+  fabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+    gap: 10,
+  },
+  fabMenuIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  fabMenuLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
+  fabMenuText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
   },
   listContainer: {
     padding: 20,
@@ -422,11 +621,116 @@ const styles = StyleSheet.create({
   cardWrapper: {
     marginBottom: 16,
   },
+  // ── Upgraded Empty State ──
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingBottom: 80,
+  },
+  emptyIllustration: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.primarySurface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyEmoji: {
+    fontSize: 44,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  emptyCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: Colors.secondary,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  emptyCTAText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   emptyText: {
     textAlign: 'center',
     color: '#6b7280',
     marginTop: 50,
     fontSize: 16,
+  },
+
+  // ── No Active (but has completed) ──
+  noActiveContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  noActiveText: {
+    fontSize: 15,
+    color: '#9ca3af',
+    marginBottom: 16,
+  },
+  noActiveCTA: {
+    backgroundColor: Colors.primarySurface,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  noActiveCTAText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // ── Completed Goals Section ──
+  completedSection: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  completedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  completedHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  completedHeaderText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  completedCard: {
+    marginBottom: 10,
   },
 });
 

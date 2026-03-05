@@ -380,7 +380,7 @@ const GoalSettingScreen = () => {
             index: 1,
             routes: [
               { name: 'CouponEntry' },
-              { name: 'Roadmap', params: { goal } },
+              { name: 'Journey', params: { goal } },
             ],
           });
         }
@@ -390,7 +390,7 @@ const GoalSettingScreen = () => {
           index: 1,
           routes: [
             { name: 'CouponEntry' },
-            { name: 'Roadmap', params: { goal } },
+            { name: 'Journey', params: { goal } },
           ],
         });
       }
@@ -447,13 +447,13 @@ const GoalSettingScreen = () => {
 
   const handleHintPopupClose = () => {
     setShowHintPopup(false);
-    // Navigate to Roadmap after hint is dismissed
+    // Navigate to Journey after hint is dismissed
     if (createdGoal) {
       navigation.reset({
         index: 1,
         routes: [
           { name: 'CouponEntry' },
-          { name: 'Roadmap', params: { goal: createdGoal } },
+          { name: 'Journey', params: { goal: createdGoal } },
         ],
       });
     }

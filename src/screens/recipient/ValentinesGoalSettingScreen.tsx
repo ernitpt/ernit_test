@@ -207,7 +207,7 @@ const ValentinesGoalSettingScreen = () => {
                         onPress: () => {
                             navigation.reset({
                                 index: 0,
-                                routes: [{ name: 'Roadmap' as any }],
+                                routes: [{ name: 'Journey' as any }],
                             });
                         },
                     },

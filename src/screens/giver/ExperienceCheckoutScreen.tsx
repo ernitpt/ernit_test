@@ -50,6 +50,7 @@ type CheckoutInnerProps = {
   cartExperiences: Experience[];
   totalAmount: number;
   totalQuantity: number;
+  goalId?: string;
 };
 
 // --- Storage helpers (web + native) ---
@@ -145,6 +146,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   cartExperiences,
   totalAmount,
   totalQuantity,
+  goalId,
 }) => {
   const navigation = useNavigation<NavigationProp>();
   const { state, dispatch } = useApp();
@@ -204,7 +206,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             }
 
             Alert.alert("Success", "Your payment was processed successfully!");
-            navigation.navigate("Confirmation", { experienceGift: gifts[0] });
+            navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
             dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
             await removeStorageItem(`pending_payment_${clientSecret}`);
@@ -284,7 +286,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
           Alert.alert("Success", "Your payment was processed successfully!");
-          navigation.navigate("Confirmation", { experienceGift: gifts[0] });
+          navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
@@ -438,8 +440,9 @@ const ExperienceCheckoutScreen: React.FC = () => {
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { cartItems?: CartItem[] } | undefined;
+  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string } | undefined;
   const cartItems = routeParams?.cartItems || [];
+  const goalId = routeParams?.goalId;
 
   // ✅ All useState hooks MUST be called unconditionally at the top (React Rules of Hooks)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -634,6 +637,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
         cartExperiences={cartExperiences}
         totalAmount={totalAmount}
         totalQuantity={totalQuantity}
+        goalId={goalId}
       />
     </Elements>
   );

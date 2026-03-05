@@ -32,7 +32,6 @@ export class UserService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: new Date().toISOString(),
       cart: user.cart ?? [],
-      onboardingStatus: user.onboardingStatus ?? 'not_started'
     });
   }
 
@@ -74,8 +73,6 @@ export class UserService {
 
       // 🔥 ensure cart is always an array of CartItem
       cart: Array.isArray(data.cart) ? (data.cart as CartItem[]) : [],
-
-      onboardingStatus: data.onboardingStatus || 'not_started',
 
       profile: data.profile
         ? {
@@ -231,17 +228,6 @@ export class UserService {
     });
   }
 
-  /** Update onboarding status */
-  async updateOnboardingStatus(
-    userId: string,
-    status: 'not_started' | 'completed' | 'skipped'
-  ): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      onboardingStatus: status,
-      updatedAt: new Date().toISOString(),
-    });
-  }
 }
 
 export const userService = UserService.getInstance();

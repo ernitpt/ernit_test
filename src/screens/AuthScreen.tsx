@@ -102,21 +102,6 @@ const AuthScreen = () => {
   };
 
   // Helper: Transfer onboarding status from AsyncStorage to Firestore
-  const transferOnboardingStatus = async (userId: string) => {
-    try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-
-      if (hasSeenOnboarding === 'true') {
-        logger.log('? Transferring onboarding status from AsyncStorage to Firestore');
-        await userService.updateOnboardingStatus(userId, 'completed');
-      } else {
-        logger.log('?? No onboarding status in AsyncStorage - keeping Firestore default');
-      }
-    } catch (error) {
-      logger.error('Error transferring onboarding status:', error);
-    }
-  };
 
   // Check for pending Valentine redemption
   useEffect(() => {
@@ -299,8 +284,6 @@ const AuthScreen = () => {
               wishlist: [],
             });
 
-            // ? Transfer onboarding status from AsyncStorage to Firestore
-            await transferOnboardingStatus(user.uid);
           }
 
           dispatch({
@@ -633,9 +616,6 @@ const AuthScreen = () => {
           wishlist: [],
           cart: [],
         });
-
-        // ? Transfer onboarding status from AsyncStorage to Firestore
-        await transferOnboardingStatus(userCredential.user.uid);
 
         // ? Show verification message to user
         Alert.alert(

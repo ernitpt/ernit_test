@@ -7,8 +7,8 @@ import { formatDurationDisplay } from '../goalCardUtils';
 
 // ─── Timer Ring ─────────────────────────────────────────────────────
 
-const RING_SIZE = 180;
-const RING_STROKE = 10;
+const RING_SIZE = 140;
+const RING_STROKE = 8;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -101,6 +101,39 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
+
+  if (Platform.OS === 'web') {
+    return (
+      <View
+        {...{
+          onPointerDown: (e: any) => { e.preventDefault(); handlePressIn(); },
+          onPointerUp: handlePressOut,
+          onPointerLeave: handlePressOut,
+          onContextMenu: (e: any) => e.preventDefault(),
+        } as any}
+        style={[
+          styles.finishButton,
+          canFinish ? styles.finishButtonActive : styles.finishButtonDisabled,
+          { cursor: canFinish && !loading ? 'pointer' : 'default', userSelect: 'none' } as any,
+        ]}
+      >
+        {/* Fill overlay */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              width: fillWidth,
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              borderRadius: 12,
+            },
+          ]}
+        />
+        <Text style={[styles.finishButtonText, { userSelect: 'none' } as any]}>
+          {!canFinish ? 'Finish' : pressing ? 'Hold...' : 'Hold to Finish'}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <Pressable
@@ -201,8 +234,8 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   const timerColor = isOvertime
     ? Colors.primary
     : almostDone
-    ? Colors.secondary
-    : '#111827';
+      ? Colors.secondary
+      : '#111827';
 
   return (
     <View style={styles.timerContainer}>
@@ -260,7 +293,7 @@ const styles = StyleSheet.create({
     height: RING_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   ring: {
     position: 'absolute',
@@ -269,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: { fontSize: 36, fontWeight: 'bold', color: '#111827' },
+  timerText: { fontSize: 28, fontWeight: 'bold', color: '#111827' },
   almostDoneText: {
     fontSize: 12,
     fontWeight: '600',

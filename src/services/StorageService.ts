@@ -6,8 +6,10 @@ import { logger } from '../utils/logger';
 // ✅ SECURITY: File validation constants
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
+const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15MB
 const ALLOWED_AUDIO_TYPES = ['audio/x-m4a', 'audio/m4a', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm'];
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
 class StorageService {
     private storage = getStorage(app);
@@ -93,6 +95,39 @@ class StorageService {
             return downloadURL;
         } catch (error) {
             logger.error('Error uploading image:', error);
+            throw error;
+        }
+    }
+    /**
+     * Upload a session media file (photo or video) to Firebase Storage
+     * Path: sessions/{userId}/{goalId}/{type}_{timestamp}.{ext}
+     */
+    async uploadSessionMedia(
+        uri: string,
+        userId: string,
+        goalId: string,
+        mediaType: 'photo' | 'video'
+    ): Promise<string> {
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+
+            if (mediaType === 'video') {
+                this.validateFile(blob, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video' as 'image');
+            } else {
+                this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
+            }
+
+            const ext = mediaType === 'video' ? 'mp4' : 'jpg';
+            const filename = `${mediaType}_${Date.now()}.${ext}`;
+            const path = `sessions/${userId}/${goalId}/${filename}`;
+            const storageRef = ref(this.storage, path);
+
+            await uploadBytes(storageRef, blob);
+            const downloadURL = await getDownloadURL(storageRef);
+            return downloadURL;
+        } catch (error) {
+            logger.error(`Error uploading session ${mediaType}:`, error);
             throw error;
         }
     }

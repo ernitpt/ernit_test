@@ -6,11 +6,14 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  LayoutAnimation,
   Pressable,
   Platform,
   Image,
+  UIManager,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, isSelfGifted } from '../../types';
 import { goalService } from '../../services/GoalService';
@@ -45,7 +48,7 @@ import { useGoalProgress } from './hooks/useGoalProgress';
 import { useValentinePartner } from './hooks/useValentinePartner';
 import { useValentineExperience } from './hooks/useValentineExperience';
 import WeeklyCalendar from './components/WeeklyCalendar';
-import ProgressBars from './components/ProgressBars';
+import ProgressBars, { StreakBadge } from './components/ProgressBars';
 import TimerDisplay from './components/TimerDisplay';
 import ValentinePartnerSelector from './components/ValentinePartnerSelector';
 import SessionActionArea from './components/SessionActionArea';
@@ -54,8 +57,19 @@ import {
   CelebrationModal,
   ValentineExperienceDetailsModal,
 } from './components/GoalCardModals';
+import SessionMediaPrompt from './components/SessionMediaPrompt';
+import { sessionService } from '../../services/SessionService';
+import { storageService } from '../../services/StorageService';
+import { feedService } from '../../services/FeedService';
+import { ctaService, CTADecision } from '../../services/CTAService';
+import { InlineExperienceCTA } from '../../components/ExperiencePurchaseCTA';
 
 const DEBUG_ALLOW_MULTIPLE_PER_DAY = config.debugEnabled;
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // ─── Props ──────────────────────────────────────────────────────────
 
@@ -77,11 +91,38 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    userName: string;
+    userProfileImageUrl?: string;
+    sessionNumber: number;
+    totalSessions: number;
+    progressPct: number;
+    mediaUri?: string | null;
+  } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
   const [showPartnerWaitingModal, setShowPartnerWaitingModal] = useState(false);
   const [cancelMessage] = useState(
     "Are you sure you want to cancel this session? Progress won't be saved."
   );
+
+  // Media capture state
+  const [sessionMediaUri, setSessionMediaUri] = useState<string | null>(null);
+  const [sessionMediaType, setSessionMediaType] = useState<'photo' | 'video' | null>(null);
+  const [showMediaPrompt, setShowMediaPrompt] = useState(false);
+  const [lastSessionMediaUrl, setLastSessionMediaUrl] = useState<string | null>(null);
+  const [lastSessionMediaType, setLastSessionMediaType] = useState<'photo' | 'video' | null>(null);
+  const [pendingFinishData, setPendingFinishData] = useState<{
+    updated: Goal;
+    totalSessionsDone: number;
+    isValentineGoal: boolean;
+    experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null;
+    recipientName: string | null;
+    gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null;
+  } | null>(null);
+
+  // CTA state
+  const [showCTA, setShowCTA] = useState(false);
+  const [ctaDecision, setCTADecision] = useState<CTADecision | null>(null);
 
   const isSelfGift = isSelfGifted(currentGoal);
   const navigation = useNavigation<GoalsNavigationProp>();
@@ -95,6 +136,25 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Card press animation
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Timer transition animation (fade + slide when swapping SessionAction <-> Timer)
+  const timerFadeAnim = useRef(new Animated.Value(1)).current;
+  const prevTimerRunning = useRef(isTimerRunning);
+
+  useEffect(() => {
+    if (prevTimerRunning.current !== isTimerRunning) {
+      prevTimerRunning.current = isTimerRunning;
+      // Animate height change
+      LayoutAnimation.configureNext(LayoutAnimation.create(250, 'easeInEaseOut', 'opacity'));
+      // Fade-in the new content
+      timerFadeAnim.setValue(0);
+      Animated.timing(timerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isTimerRunning, timerFadeAnim]);
 
   // ─── Hooks ──────────────────────────────────────────────────────
 
@@ -130,7 +190,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // Fetch empowered name
   useEffect(() => {
     if (currentGoal.empoweredBy) {
-      userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => {});
+      userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => { });
     }
   }, [currentGoal.empoweredBy]);
 
@@ -238,6 +298,54 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
   }, [currentGoal.id]);
 
+  // ─── Media Capture ──────────────────────────────────────────────
+
+  const handleCaptureMedia = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera access is required to capture session media.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images', 'videos'],
+        videoMaxDuration: 5,
+        quality: 0.7,
+        allowsEditing: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setSessionMediaUri(asset.uri);
+        setSessionMediaType(asset.type === 'video' ? 'video' : 'photo');
+      }
+    } catch (error) {
+      logger.warn('Media capture failed:', error);
+    }
+  }, []);
+
+  const handleGalleryPick = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Gallery access is required to select session media.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        videoMaxDuration: 5,
+        quality: 0.7,
+        allowsEditing: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setSessionMediaUri(asset.uri);
+        setSessionMediaType(asset.type === 'video' ? 'video' : 'photo');
+      }
+    } catch (error) {
+      logger.warn('Gallery pick failed:', error);
+    }
+  }, []);
+
   // ─── Session Handlers ─────────────────────────────────────────────
 
   const handleStart = useCallback(async () => {
@@ -262,6 +370,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
 
     setLoading(true);
+    // Clear any leftover media from a previous session
+    setSessionMediaUri(null);
+    setSessionMediaType(null);
 
     try {
       const isValentineGoal = !!currentGoal.valentineChallengeId;
@@ -392,7 +503,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       await pushNotificationService.cancelSessionNotification(goalId);
 
       if (updated.isCompleted) {
-        // GOAL COMPLETION
+        // GOAL COMPLETION — create session record, then navigate
+        sessionService.createSessionRecord(goalId, {
+          goalId, userId: updated.userId, timestamp: new Date(),
+          duration: timeElapsed, sessionNumber: totalSessionsDone,
+          weekNumber: updated.currentCount,
+        }).catch(err => logger.warn('Failed to save final session record:', err));
+
         if (updated.valentineChallengeId) {
           try {
             const valentineGift = await buildValentineGift(updated);
@@ -441,56 +558,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           });
         }
       } else {
-        // SESSION COMPLETE (not goal complete) — show hint
-        await processHintAfterSession(updated, totalSessionsDone, isValentineGoal, experience, recipientName);
+        // SESSION COMPLETE (not goal complete) — show media prompt first
+        setPendingFinishData({
+          updated,
+          totalSessionsDone,
+          isValentineGoal,
+          experience,
+          recipientName,
+          gift,
+        });
 
-        // Show hint popup or celebration
-        const isSecretValentine = isValentineGoal && !updated.isRevealed;
-        if (!isSelfGift || isSecretValentine) {
-          setShowHint(true);
+        // If no media captured during timer, show prompt; otherwise go straight to completion flow
+        if (!sessionMediaUri) {
+          setShowMediaPrompt(true);
         } else {
-          if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          setShowCelebration(true);
-          setTimeout(() => setShowCelebration(false), 3000);
-        }
-
-        // Valentine week completion alert
-        if (isValentineGoal && updated.isWeekCompleted) {
-          const weeksComplete = updated.currentCount + 1;
-          const weeksRemaining = updated.targetCount - weeksComplete;
-          Alert.alert(
-            'Week Complete!',
-            `Great job! You finished week ${weeksComplete} of ${updated.targetCount}.\n\n${weeksRemaining > 0 ? `${weeksRemaining} week${weeksRemaining > 1 ? 's' : ''} remaining. Your next week starts in 7 days!` : ''}`,
-            [{ text: 'Awesome!' }]
-          );
-        }
-
-        onFinish?.(updated);
-
-        // Giver notifications
-        const weeksCompleted = updated.isWeekCompleted ? updated.currentCount + 1 : updated.currentCount;
-        if (!updated.valentineChallengeId && updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
-          await notificationService.createNotification(
-            updated.empoweredBy,
-            'goal_progress',
-            `${recipientName} made progress!`,
-            `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}\nWeeks completed: ${weeksCompleted}/${updated.targetCount}`,
-            {
-              goalId: updated.id,
-              giftId: updated.experienceGiftId,
-              giverId: updated.empoweredBy,
-              recipientId: updated.userId,
-              experienceTitle: experience.title,
-              sessionNumber: totalSessionsDone,
-            }
-          );
-        }
-
-        // Valentine partner notifications
-        if (updated.valentineChallengeId && updated.partnerGoalId) {
-          await sendValentinePartnerNotification(updated, recipientName, totalSessionsDone);
+          // Media already captured during timer — proceed directly
+          await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
         }
       }
     } catch (err) {
@@ -504,7 +587,213 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     } finally {
       setLoading(false);
     }
-  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, valentine, valentineExperience]);
+  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, valentine, valentineExperience, sessionMediaUri, timeElapsed]);
+
+  // ─── Complete session flow (after media prompt resolves) ─────────
+
+  const completeSessionFlow = useCallback(async (
+    updated: Goal,
+    totalSessionsDone: number,
+    isValentineGoal: boolean,
+    experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null,
+    recipientName: string | null,
+    _gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null,
+  ) => {
+    // Create session record (with or without media)
+    const goalId = updated.id;
+    let mediaUrl: string | undefined;
+    let mediaType: 'photo' | 'video' | undefined;
+
+    try {
+      // Upload media if captured
+      if (sessionMediaUri && sessionMediaType) {
+        try {
+          mediaUrl = await storageService.uploadSessionMedia(
+            sessionMediaUri, updated.userId, goalId, sessionMediaType
+          );
+          mediaType = sessionMediaType;
+        } catch (err) {
+          logger.warn('Failed to upload session media:', err);
+        }
+      }
+
+      await sessionService.createSessionRecord(goalId, {
+        goalId,
+        userId: updated.userId,
+        timestamp: new Date(),
+        duration: timeElapsed,
+        sessionNumber: totalSessionsDone,
+        weekNumber: updated.currentCount,
+        mediaUrl,
+        mediaType,
+      });
+    } catch (err) {
+      logger.warn('Failed to save session record:', err);
+    }
+
+    // Store uploaded media URL for feed post, then clear capture state
+    setLastSessionMediaUrl(mediaUrl || null);
+    setLastSessionMediaType(mediaType || null);
+    setSessionMediaUri(null);
+    setSessionMediaType(null);
+    setPendingFinishData(null);
+
+    // Process hints
+    await processHintAfterSession(updated, totalSessionsDone, isValentineGoal, experience, recipientName);
+
+    // Check for streak milestones (7, 14, 21, 30)
+    const STREAK_MILESTONES = [7, 14, 21, 30];
+    const hitMilestone = STREAK_MILESTONES.includes(totalSessionsDone) ? totalSessionsDone : null;
+
+    // Show hint popup or celebration
+    const isSecretValentine = isValentineGoal && !updated.isRevealed;
+
+    // Pre-fetch user data for the celebration feed preview
+    const [celebUserName, celebUserProfile] = await Promise.all([
+      userService.getUserName(updated.userId),
+      userService.getUserProfile(updated.userId),
+    ]);
+    const celebTotalSessions = updated.targetCount * updated.sessionsPerWeek;
+    const celebPct = Math.round((totalSessionsDone / celebTotalSessions) * 100);
+
+    const showCelebrationModal = () => {
+      setCelebrationData({
+        userName: celebUserName || 'You',
+        userProfileImageUrl: celebUserProfile?.profileImageUrl,
+        sessionNumber: totalSessionsDone,
+        totalSessions: celebTotalSessions,
+        progressPct: celebPct,
+        mediaUri: lastSessionMediaUrl,
+      });
+      setShowCelebration(true);
+    };
+
+    if (!isSelfGift || isSecretValentine) {
+      if (hitMilestone) {
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        showCelebrationModal();
+      } else {
+        setShowHint(true);
+      }
+    } else {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      showCelebrationModal();
+    }
+
+    // Valentine week completion alert
+    if (isValentineGoal && updated.isWeekCompleted) {
+      const weeksComplete = updated.currentCount + 1;
+      const weeksRemaining = updated.targetCount - weeksComplete;
+      Alert.alert(
+        'Week Complete!',
+        `Great job! You finished week ${weeksComplete} of ${updated.targetCount}.\n\n${weeksRemaining > 0 ? `${weeksRemaining} week${weeksRemaining > 1 ? 's' : ''} remaining. Your next week starts in 7 days!` : ''}`,
+        [{ text: 'Awesome!' }]
+      );
+    }
+
+    onFinish?.(updated);
+
+    // Check for CTA (free goals only, after user dismisses celebration)
+    if (updated.isFreeGoal && !updated.giftAttachedAt && updated.pledgedExperience) {
+      ctaService.shouldShowInlineCTA({
+        goalId: updated.id,
+        isFreeGoal: true,
+        giftAttachedAt: updated.giftAttachedAt || null,
+        sessionNumber: totalSessionsDone,
+        weeklyCount: updated.weeklyCount,
+        isWeekCompleted: updated.isWeekCompleted,
+        currentCount: updated.currentCount,
+      }).then(decision => {
+        if (decision.shouldShow) {
+          setCTADecision(decision);
+          // CTA will be shown 2s after celebration is dismissed (see onClose handler)
+        }
+      }).catch(err => logger.warn('CTA check failed:', err));
+    }
+
+    // Giver notifications
+    const weeksCompleted = updated.isWeekCompleted ? updated.currentCount + 1 : updated.currentCount;
+    if (!updated.valentineChallengeId && updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
+      await notificationService.createNotification(
+        updated.empoweredBy,
+        'goal_progress',
+        `${recipientName} made progress!`,
+        `This week's progress: ${updated.weeklyCount}/${updated.sessionsPerWeek}\nWeeks completed: ${weeksCompleted}/${updated.targetCount}`,
+        {
+          goalId: updated.id,
+          giftId: updated.experienceGiftId,
+          giverId: updated.empoweredBy,
+          recipientId: updated.userId,
+          experienceTitle: experience.title,
+          sessionNumber: totalSessionsDone,
+        }
+      );
+    }
+
+    // Valentine partner notifications
+    if (updated.valentineChallengeId && updated.partnerGoalId) {
+      await sendValentinePartnerNotification(updated, recipientName, totalSessionsDone);
+    }
+  }, [isSelfGift, sessionMediaUri, sessionMediaType, timeElapsed, onFinish]);
+
+  // ─── Media prompt handlers ────────────────────────────────────────
+
+  const handleMediaPromptSkip = useCallback(async () => {
+    setShowMediaPrompt(false);
+    if (pendingFinishData) {
+      const { updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift } = pendingFinishData;
+      setSessionMediaUri(null);
+      setSessionMediaType(null);
+      await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
+    }
+  }, [pendingFinishData, completeSessionFlow]);
+
+  const handleMediaPromptContinue = useCallback(async () => {
+    setShowMediaPrompt(false);
+    if (pendingFinishData) {
+      const { updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift } = pendingFinishData;
+      await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
+    }
+  }, [pendingFinishData, completeSessionFlow]);
+
+  // ─── Post to feed ─────────────────────────────────────────────────
+
+  const handlePostToFeed = useCallback(async () => {
+    try {
+      const userName = await userService.getUserName(currentGoal.userId);
+      const userProfile = await userService.getUserProfile(currentGoal.userId);
+      const totalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+
+      await feedService.createFeedPost({
+        userId: currentGoal.userId,
+        userName: userName || 'User',
+        userProfileImageUrl: userProfile?.profileImageUrl,
+        goalId: currentGoal.id,
+        goalDescription: currentGoal.description || currentGoal.title,
+        type: 'session_progress',
+        sessionNumber: lastSessionNumber,
+        totalSessions,
+        weeklyCount: currentGoal.weeklyCount,
+        sessionsPerWeek: currentGoal.sessionsPerWeek,
+        progressPercentage: Math.round((lastSessionNumber / totalSessions) * 100),
+        isFreeGoal: currentGoal.isFreeGoal,
+        pledgedExperienceId: currentGoal.pledgedExperience?.experienceId,
+        pledgedExperiencePrice: currentGoal.pledgedExperience?.price,
+        experienceTitle: currentGoal.pledgedExperience?.title,
+        experienceImageUrl: currentGoal.pledgedExperience?.coverImageUrl,
+        mediaUrl: lastSessionMediaUrl || undefined,
+        mediaType: lastSessionMediaType || undefined,
+        createdAt: new Date(),
+      });
+      logger.log('Feed post created for session', lastSessionNumber);
+    } catch (err) {
+      logger.warn('Failed to create feed post:', err);
+    }
+  }, [currentGoal, lastSessionNumber, lastSessionMediaUrl, lastSessionMediaType]);
 
   // ─── Hint processing (extracted for readability) ──────────────────
 
@@ -712,7 +1001,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
 
   const handlePress = (g: Goal) => {
-    (navigation as { navigate: (screen: string, params?: unknown) => void }).navigate('Roadmap', { goal: g });
+    (navigation as { navigate: (screen: string, params?: unknown) => void }).navigate('Journey', { goal: g });
   };
 
   // ─── Render ───────────────────────────────────────────────────────
@@ -720,12 +1009,20 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onPress={() => handlePress(currentGoal)}
+        onPressIn={isTimerRunning ? undefined : onPressIn}
+        onPressOut={isTimerRunning ? undefined : onPressOut}
+        onPress={isTimerRunning ? undefined : () => handlePress(currentGoal)}
+        disabled={isTimerRunning}
         style={{ borderRadius: 16 }}
       >
         <View style={styles.card}>
+          {/* Streak badge — top-right corner */}
+          {progress.totalSessionsDone > 0 && (
+            <View style={styles.streakCorner}>
+              <StreakBadge streak={progress.totalSessionsDone} />
+            </View>
+          )}
+
           {/* Hearts background for Valentine goals */}
           {!!currentGoal.valentineChallengeId && (
             <View style={styles.heartsBackground}>
@@ -748,7 +1045,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               Valentine's Challenge{valentine.valentinePartnerName ? ` with ${valentine.valentinePartnerName}` : ''}
             </Text>
           )}
-          {progress.startDateText && <Text style={styles.startDateText}>{progress.startDateText}</Text>}
+          {/* startDateText removed — was showing "started X days ago" */}
 
           {/* Valentine partner selector */}
           {!!currentGoal.valentineChallengeId && (
@@ -824,33 +1121,37 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             weeklyTotal={progress.weeklyTotal}
             completedWeeks={progress.completedWeeks}
             overallTotal={progress.overallTotal}
-            totalSessionsDone={progress.totalSessionsDone}
           />
 
-          {/* Action Area or Timer */}
-          {!isTimerRunning ? (
-            <SessionActionArea
-              goal={currentGoal}
-              empoweredName={empoweredName}
-              alreadyLoggedToday={progress.alreadyLoggedToday}
-              totalSessionsDone={progress.totalSessionsDone}
-              hasPersonalizedHintWaiting={progress.hasPersonalizedHintWaiting && !isTimerRunning}
-              valentinePartnerName={valentine.valentinePartnerName}
-              loading={loading}
-              onStart={handleStart}
-            />
-          ) : (
-            <TimerDisplay
-              timeElapsed={timeElapsed}
-              totalGoalSeconds={progress.totalGoalSeconds}
-              canFinish={canFinish}
-              loading={loading}
-              targetHours={currentGoal.targetHours}
-              targetMinutes={currentGoal.targetMinutes}
-              onFinish={handleFinish}
-              onCancel={() => setShowCancelPopup(true)}
-            />
-          )}
+          {/* Action Area or Timer — animated crossfade */}
+          <Animated.View style={{
+            opacity: timerFadeAnim,
+            transform: [{ translateY: timerFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+          }}>
+            {!isTimerRunning ? (
+              <SessionActionArea
+                goal={currentGoal}
+                empoweredName={empoweredName}
+                alreadyLoggedToday={progress.alreadyLoggedToday}
+                totalSessionsDone={progress.totalSessionsDone}
+                hasPersonalizedHintWaiting={progress.hasPersonalizedHintWaiting && !isTimerRunning}
+                valentinePartnerName={valentine.valentinePartnerName}
+                loading={loading}
+                onStart={handleStart}
+              />
+            ) : (
+              <TimerDisplay
+                timeElapsed={timeElapsed}
+                totalGoalSeconds={progress.totalGoalSeconds}
+                canFinish={canFinish}
+                loading={loading}
+                targetHours={currentGoal.targetHours}
+                targetMinutes={currentGoal.targetMinutes}
+                onFinish={handleFinish}
+                onCancel={() => setShowCancelPopup(true)}
+              />
+            )}
+          </Animated.View>
         </View>
       </Pressable>
 
@@ -901,7 +1202,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       <CelebrationModal
         visible={showCelebration}
-        onClose={() => setShowCelebration(false)}
+        onClose={() => {
+          setShowCelebration(false);
+          setCelebrationData(null);
+          // Show CTA 2s after celebration dismisses (if decision was stored)
+          if (ctaDecision && !showCTA) {
+            setTimeout(() => setShowCTA(true), 2000);
+          }
+        }}
+        onPostToFeed={handlePostToFeed}
+        goalTitle={currentGoal.description || currentGoal.title}
+        sessionNumber={celebrationData?.sessionNumber}
+        totalSessions={celebrationData?.totalSessions}
+        progressPct={celebrationData?.progressPct}
+        mediaUri={celebrationData?.mediaUri}
+        userName={celebrationData?.userName}
+        userProfileImageUrl={celebrationData?.userProfileImageUrl}
       />
 
       <ValentineExperienceDetailsModal
@@ -909,6 +1225,40 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onClose={() => setShowDetailsModal(false)}
         experience={valentineExperience}
       />
+
+      <SessionMediaPrompt
+        visible={showMediaPrompt}
+        capturedMediaUri={sessionMediaUri}
+        capturedMediaType={sessionMediaType}
+        onCamera={handleCaptureMedia}
+        onGallery={handleGalleryPick}
+        onSkip={handleMediaPromptSkip}
+        onContinue={handleMediaPromptContinue}
+      />
+
+      {/* Inline Experience Purchase CTA */}
+      {showCTA && ctaDecision && currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
+        <InlineExperienceCTA
+          experience={{
+            title: currentGoal.pledgedExperience.title,
+            coverImageUrl: currentGoal.pledgedExperience.coverImageUrl,
+            price: currentGoal.pledgedExperience.price,
+          }}
+          statMessage={ctaDecision.message.stat}
+          statSource={ctaDecision.message.source}
+          onGift={() => {
+            setShowCTA(false);
+            (navigation as any).navigate('ExperienceCheckout', {
+              cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+              goalId: currentGoal.id,
+            });
+          }}
+          onDismiss={() => {
+            setShowCTA(false);
+            ctaService.recordDismiss(currentGoal.id);
+          }}
+        />
+      )}
     </Animated.View>
   );
 };
@@ -933,6 +1283,12 @@ const styles = StyleSheet.create({
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
     } as Record<string, string> : {}),
+  },
+  streakCorner: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
   },
   title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6, textAlign: 'center' },
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14, textAlign: 'center' },

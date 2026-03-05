@@ -307,7 +307,6 @@ interface ProgressBarsProps {
   weeklyTotal: number;
   completedWeeks: number;
   overallTotal: number;
-  totalSessionsDone: number;
 }
 
 const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
@@ -315,7 +314,6 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
   weeklyTotal,
   completedWeeks,
   overallTotal,
-  totalSessionsDone,
 }) => {
   return (
     <View>
@@ -335,7 +333,6 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
             />
           ))}
         </View>
-        <StreakBadge streak={totalSessionsDone} />
       </View>
 
       {/* Weeks completed */}
@@ -443,4 +440,5 @@ const styles = StyleSheet.create({
   },
 });
 
+export { StreakBadge };
 export default ProgressBars;

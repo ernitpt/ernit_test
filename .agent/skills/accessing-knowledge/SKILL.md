@@ -15,8 +15,8 @@ description: Retrieves high-level architectural context and efficient documentat
 
 1.  **Check the Map**: First, read `.agent/knowledge/system-map.md` (if it exists) to see what documentation is available.
 2.  **Select Relevant Context**:
-    - If the user asks about a specific system (e.g., "Notifications"), read `.agent/knowledge/notifications.md`.
-    - If the user asks for *global* context, read `.agent/knowledge/architecture-overview.md`.
+    - If the user asks about a specific system (e.g., "Notifications"), read `.agent/knowledge/notifications.md` (if listed in the map).
+    - If the user asks for *global* context, refer to the available systems in `.agent/knowledge/system-map.md` to find the most relevant architectural documents.
 3.  **Summarize**: Present the key constraints, patterns, and data flows found in the document.
 4.  **Confirm**: Ask if this matches the user's mental model or if they need deeper code investigation.
 

@@ -249,7 +249,7 @@ const UserProfileScreen: React.FC = () => {
     );
 
     const handlePress = () => {
-      navigation.navigate('Roadmap', { goal });
+      navigation.navigate('Journey', { goal });
     };
 
     return (
@@ -309,10 +309,13 @@ const UserProfileScreen: React.FC = () => {
     const [gift, setGift] = useState<any>(null);
     const [loadingCard, setLoadingCard] = useState<boolean>(true);
 
+    const isSelfAchievement = goal.isFreeGoal && !goal.pledgedExperience && !goal.experienceGiftId;
+    const hasPledgedExperience = goal.isFreeGoal && !!goal.pledgedExperience;
+
     useEffect(() => {
       const loadAchievementData = async () => {
         try {
-          // Valentine goals: load from valentineChallengeId instead of experienceGiftId
+          // Valentine goals
           if (goal.valentineChallengeId) {
             try {
               const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goal.valentineChallengeId));
@@ -332,7 +335,6 @@ const UserProfileScreen: React.FC = () => {
                   mode: challengeData.mode,
                 };
                 setGift(valentineGift);
-
                 if (challengeData.experienceId) {
                   const exp = await experienceService.getExperienceById(challengeData.experienceId);
                   setExperience(exp || null);
@@ -346,17 +348,20 @@ const UserProfileScreen: React.FC = () => {
             return;
           }
 
-          // Standard goals: load from experienceGiftId
-          if (!goal.experienceGiftId) return;
+          // Self-achievement or pledged: no remote data needed
+          if (isSelfAchievement || hasPledgedExperience) {
+            setLoadingCard(false);
+            return;
+          }
 
+          // Standard goals
+          if (!goal.experienceGiftId) { setLoadingCard(false); return; }
           try {
             const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             setGift(giftData);
-
             const exp = await experienceService.getExperienceById(giftData.experienceId);
             setExperience(exp || null);
-
-            setPartnerName(exp?.subtitle)
+            setPartnerName(exp?.subtitle || 'Partner')
           } catch (dataErr) {
             logger.warn('Error fetching gift/experience data:', dataErr);
           }
@@ -366,20 +371,17 @@ const UserProfileScreen: React.FC = () => {
           setLoadingCard(false);
         }
       };
-
       loadAchievementData();
     }, [goal.experienceGiftId, goal.valentineChallengeId]);
 
     const weeks = goal.targetCount || 0;
     const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
-    const cover =
-      experience?.coverImageUrl ||
-      (experience?.imageUrl && experience.imageUrl.length > 0
-        ? experience.imageUrl[0]
-        : undefined);
-
     const handlePress = () => {
+      if (isSelfAchievement || hasPledgedExperience) {
+        (navigation as any).navigate('Journey', { goal });
+        return;
+      }
       if (!gift) return;
       navigation.navigate("Completion", {
         goal: serializeNav(goal),
@@ -387,40 +389,122 @@ const UserProfileScreen: React.FC = () => {
       });
     };
 
+    // Completion date
+    const completedAt = goal.completedAt
+      ? new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
+          ? (goal.completedAt as { toDate: () => Date }).toDate()
+          : goal.completedAt
+        ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : null;
+
+    // Shared stats row
+    const StatsRow = () => (
+      <View style={styles.achStatsRow}>
+        <View style={styles.achStatItem}>
+          <Text style={styles.achStatValue}>{sessions}</Text>
+          <Text style={styles.achStatLabel}>sessions</Text>
+        </View>
+        <View style={styles.achStatDivider} />
+        <View style={styles.achStatItem}>
+          <Text style={styles.achStatValue}>{weeks}</Text>
+          <Text style={styles.achStatLabel}>weeks</Text>
+        </View>
+        {completedAt && (
+          <>
+            <View style={styles.achStatDivider} />
+            <View style={styles.achStatItem}>
+              <Text style={styles.achStatLabel}>{completedAt}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    );
+
+    // Self-achievement card
+    if (isSelfAchievement) {
+      return (
+        <TouchableOpacity onPress={handlePress} activeOpacity={0.8}
+          style={styles.achievementCard}>
+          <View style={styles.achSelfBanner}>
+            <Text style={{ fontSize: 28 }}>🏆</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.achSelfLabel}>Self-Achievement</Text>
+              <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
+            </View>
+          </View>
+          <View style={styles.achievementContent}>
+            <StatsRow />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Pledged experience card
+    if (hasPledgedExperience && goal.pledgedExperience) {
+      const pledged = goal.pledgedExperience;
+      const cover = pledged.coverImageUrl;
+      return (
+        <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
+          {cover ? (
+            <View>
+              <Image source={{ uri: cover }} style={styles.achievementImage} />
+              <View style={styles.achCompletedBadge}>
+                <Text style={styles.achCompletedBadgeText}>Completed</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+              <Text style={{ fontSize: 36 }}>🎁</Text>
+              <View style={styles.achCompletedBadge}>
+                <Text style={styles.achCompletedBadgeText}>Completed</Text>
+              </View>
+            </View>
+          )}
+          <View style={styles.achievementContent}>
+            <Text style={styles.achievementTitle} numberOfLines={1}>{pledged.title}</Text>
+            <Text style={styles.achGoalLabel} numberOfLines={1}>{goal.title}</Text>
+            <StatsRow />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Standard/Valentine card
+    const cover = experience?.coverImageUrl ||
+      (experience?.imageUrl && experience.imageUrl.length > 0 ? experience.imageUrl[0] : undefined);
+
     return (
-      <TouchableOpacity
-        onPress={handlePress}
-        activeOpacity={0.8}
-        style={styles.achievementCard}
-      >
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
         {cover ? (
-          <Image source={{ uri: cover }} style={styles.achievementImage} />
+          <View>
+            <Image source={{ uri: cover }} style={styles.achievementImage} />
+            <View style={styles.achCompletedBadge}>
+              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+            </View>
+          </View>
         ) : (
-          <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
-            <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
+          <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+            <Text style={{ fontSize: 36 }}>🎁</Text>
+            <View style={styles.achCompletedBadge}>
+              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+            </View>
           </View>
         )}
-
         <View style={styles.achievementContent}>
           {loadingCard ? (
-            <Text style={styles.achievementLoadingText}>Loading...</Text>
+            <View style={styles.achSkeletonContainer}>
+              <View style={[styles.achSkeletonLine, { width: '70%' }]} />
+              <View style={[styles.achSkeletonLine, { width: '50%', height: 10 }]} />
+              <View style={[styles.achSkeletonLine, { width: '90%', height: 10 }]} />
+            </View>
           ) : (
             <>
               <Text style={styles.achievementTitle} numberOfLines={1}>
-                🎁 {experience?.title || 'Experience unlocked'}
+                {experience?.title || 'Experience unlocked'}
               </Text>
-
-              <Text style={styles.achievementPartner} numberOfLines={1}>
-                👤 {partnerName}
-              </Text>
-
-              <Text style={styles.achievementGoal} numberOfLines={2}>
-                Goal: {goal.title}
-              </Text>
-
-              <Text style={styles.achievementMeta}>
-                {sessions} sessions completed • {weeks} weeks
-              </Text>
+              <Text style={styles.achPartnerLabel} numberOfLines={1}>{partnerName}</Text>
+              <Text style={styles.achGoalLabel} numberOfLines={1}>{goal.title}</Text>
+              <StatsRow />
             </>
           )}
         </View>
@@ -922,58 +1006,138 @@ const styles = StyleSheet.create({
   experienceDescription: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 8 },
   experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
 
-  // ACHIEVEMENT CARD (copied from UserProfileScreen)
+  // ACHIEVEMENT CARD
   achievementCard: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderRadius: 16,
     marginHorizontal: 20,
     marginTop: 12,
-    overflow: "hidden",
-    shadowColor: "#000",
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 3,
   },
   achievementImage: {
-    width: "100%",
-    height: 140,
-    backgroundColor: "#e5e7eb",
-  },
-  achievementImagePlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  achievementImagePlaceholderText: {
-    fontSize: 40,
-    opacity: 0.5,
+    width: '100%',
+    height: 150,
+    backgroundColor: '#e5e7eb',
   },
   achievementContent: {
-    padding: 16,
-  },
-  achievementLoadingText: {
-    fontSize: 14,
-    color: "#9ca3af",
+    padding: 14,
   },
   achievementTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
   },
-  achievementPartner: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 4,
+
+  // Stats row
+  achStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
   },
-  achievementGoal: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 6,
+  achStatItem: {
+    alignItems: 'center',
+    flex: 1,
   },
-  achievementMeta: {
-    fontSize: 14,
-    color: "#6b7280",
+  achStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  achStatLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#9ca3af',
+    marginTop: 1,
+  },
+  achStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#f3f4f6',
+  },
+
+  // Self-achievement banner
+  achSelfBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.primarySurface,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primaryBorder,
+  },
+  achSelfLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  achSelfTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 2,
+  },
+
+  // Completed badge overlay
+  achCompletedBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(5, 150, 105, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  achCompletedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  // Color banner fallback (no image)
+  achColorBanner: {
+    width: '100%',
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Goal label
+  achGoalLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  // Partner label
+  achPartnerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+
+  // Skeleton loading
+  achSkeletonContainer: {
+    gap: 8,
+  },
+  achSkeletonLine: {
+    height: 14,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
   },
 
 

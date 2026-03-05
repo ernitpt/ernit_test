@@ -15,7 +15,6 @@ import { setNavigationRef } from '../context/AuthGuardContext';
 import { AuthGuardProvider } from '../context/AuthGuardContext';
 
 // Screens
-import OnboardingScreen from '../screens/OnboardingScreen';
 import LandingScreen from '../screens/LandingScreen';
 import AuthScreen from '../screens/AuthScreen';
 import CategorySelectionScreen from '../screens/giver/CategorySelectionScreen';
@@ -25,7 +24,7 @@ import ConfirmationScreen from '../screens/giver/ConfirmationScreen';
 import ConfirmationMultipleScreen from '../screens/giver/ConfirmationMultipleScreen';
 import CouponEntryScreen from '../screens/recipient/CouponEntryScreen';
 import GoalSettingScreen from '../screens/recipient/GoalSettingScreen';
-import RoadmapScreen from '../screens/recipient/RoadmapScreen';
+import JourneyScreen from '../screens/recipient/JourneyScreen';
 import CompletionScreen from '../screens/recipient/CompletionScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import GoalsScreen from '../screens/GoalsScreen';
@@ -42,7 +41,6 @@ import ValentinesChallengeScreen from '../screens/ValentinesChallengeScreen';
 import ValentineCheckoutScreen from '../screens/ValentineCheckoutScreen';
 import ValentineConfirmationScreen from '../screens/ValentineConfirmationScreen';
 import ValentineGoalSettingScreen from '../screens/ValentineGoalSettingScreen';
-import PledgeGoalSettingScreen from '../screens/recipient/PledgeGoalSettingScreen';
 import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScreen';
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
@@ -59,7 +57,7 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'Profile',
   'Goals',
   'GoalDetail',
-  'Roadmap',
+  'Journey',
   'ExperienceCheckout',
   'RecipientFlow',
   'Completion',
@@ -69,7 +67,6 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'FriendProfile',
   'FriendsList',
   'PurchasedGifts',
-  'PledgeGoalSetting',
   'FreeGoalCompletion',
 ];
 
@@ -103,7 +100,7 @@ const RecipientNavigator = () => (
   <RecipientStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
     <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
     <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
-    <RecipientStack.Screen name="Roadmap" component={RoadmapScreen} />
+    <RecipientStack.Screen name="Journey" component={JourneyScreen} />
     <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
     <RecipientStack.Screen name="Completion" component={CompletionScreen} />
   </RecipientStack.Navigator>
@@ -114,7 +111,7 @@ const RecipientNavigator = () => (
 // -------------------------------------------------------------------
 
 // Inner component that uses useAuthGuard - must be inside AuthGuardProvider
-const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'CategorySelection' }) => {
+const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackParamList }) => {
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
@@ -131,6 +128,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
       // 3. URL has query parameters (might contain important data)
       // 4. On recipient redemption page (deep link)
       // 5. On valentines pages (preserve valentines flow)
+      // 6. On challenge pages (preserve challenge flow)
       const shouldNotReset =
         pathname === '/' ||
         pathname === '' ||
@@ -157,21 +155,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
     };
   }, []);
 
-  // Force navigation to onboarding when initialRoute changes
-  useEffect(() => {
-    if (!isNavigationReady || !navigationRef.current) return;
-
-    logger.log('🧭 Navigation effect triggered, initialRoute:', initialRoute);
-
-    // Navigate to the correct initial route
-    if (initialRoute === 'Onboarding') {
-      logger.log('🎯 Navigating to Onboarding screen');
-      navigationRef.current.navigate('Onboarding');
-    } else {
-      logger.log('✅ Staying on CategorySelection');
-    }
-  }, [initialRoute, isNavigationReady]);
-
   // -----------------------------
   // RENDER
   // -----------------------------
@@ -183,7 +166,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
     ],
     config: {
       screens: {
-        Onboarding: 'onboarding',
         RecipientFlow: {
           path: 'recipient',
           screens: {
@@ -195,7 +177,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
             },
           },
         },
-        CategorySelection: '',
+        CategorySelection: 'browse',
         Landing: 'landing',
         Auth: 'auth',
         ExperienceDetails: 'experience/:id',
@@ -204,7 +186,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         Profile: 'profile',
         Goals: 'goals',
         GoalDetail: 'goal/:goalId',
-        Roadmap: 'roadmap',
+        Journey: 'journey',
         ExperienceCheckout: 'checkout',
         Confirmation: 'confirmation',
         ConfirmationMultiple: 'confirmation-multiple',
@@ -220,9 +202,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         ValentinesChallenge: 'valentines/create',
         ValentineCheckout: 'valentines/checkout',
         ValentineGoalSetting: 'valentines/goalSetting',
-        PledgeGoalSetting: 'pledge-goal',
         FreeGoalCompletion: 'free-goal-completion',
-        ChallengeLanding: 'challenge',
+        ChallengeLanding: '',
         ChallengeSetup: 'challenge/create',
       },
     },
@@ -247,7 +228,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
       >
 
         {/* PUBLIC ROUTES */}
-        <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+        <RootStack.Screen name="ChallengeLanding" component={ChallengeLandingScreen} />
         <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
         <RootStack.Screen name="Landing" component={LandingScreen} />
         <RootStack.Screen name="Auth" component={AuthScreen} />
@@ -258,7 +239,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
         <RootStack.Screen name="ValentineCheckout" component={ValentineCheckoutScreen} />
         <RootStack.Screen name="ValentineConfirmation" component={ValentineConfirmationScreen} />
         <RootStack.Screen name="ValentineGoalSetting" component={ValentineGoalSettingScreen} />
-        <RootStack.Screen name="ChallengeLanding" component={ChallengeLandingScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
 
         {/* PROTECTED ROUTES */}
@@ -302,10 +282,10 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
           )}
         </RootStack.Screen>
 
-        <RootStack.Screen name="Roadmap">
+        <RootStack.Screen name="Journey">
           {(props) => (
             <ProtectedRoute>
-              <RoadmapScreen {...props} />
+              <JourneyScreen {...props} />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
@@ -398,14 +378,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
           )}
         </RootStack.Screen>
 
-        <RootStack.Screen name="PledgeGoalSetting">
-          {(props) => (
-            <ProtectedRoute>
-              <PledgeGoalSettingScreen {...props} />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
         <RootStack.Screen name="FreeGoalCompletion">
           {(props) => (
             <ProtectedRoute>
@@ -440,76 +412,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: 'Onboarding' | 'C
 const AppNavigator = () => {
   const { state, dispatch } = useApp();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
-  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
-
-  // -----------------------------
-  // Check if user has seen onboarding
-  // -----------------------------
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      try {
-        // 🧪 TEST MODE: Set to true to always show onboarding (for testing)
-        const FORCE_SHOW_ONBOARDING = false;
-
-        if (FORCE_SHOW_ONBOARDING) {
-          logger.log('🧪 TEST MODE: Forcing onboarding to show');
-          setHasSeenOnboarding(false);
-          setIsCheckingOnboarding(false);
-          return;
-        }
-
-        // 💝 Skip onboarding if user is on specific landing flows (valentines, challenge)
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const pathname = window.location.pathname;
-          if (pathname.includes('/valentines') || pathname.includes('/challenge')) {
-            logger.log(`🎯 User on direct flow (${pathname}) - skipping onboarding`);
-            setHasSeenOnboarding(true);
-            setIsCheckingOnboarding(false);
-            return;
-          }
-        }
-
-        // If user is logged in, ONLY check Firestore (ignore AsyncStorage)
-        if (state.user?.id) {
-          logger.log('🔍 Checking onboarding status for logged-in user:', state.user.id);
-          const userData = await userService.getUserById(state.user.id);
-          logger.log('📊 User onboardingStatus from Firestore:', userData?.onboardingStatus);
-
-          if (userData?.onboardingStatus === 'completed' ||
-            userData?.onboardingStatus === 'skipped') {
-            logger.log('✅ Onboarding completed/skipped - skipping onboarding screen');
-            setHasSeenOnboarding(true);
-          } else {
-            logger.log('🎯 Onboarding not completed - showing onboarding screen');
-            setHasSeenOnboarding(false);
-          }
-        } else {
-          // For guest users, check AsyncStorage
-          logger.log('🔍 Checking onboarding status for guest user');
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-          const seen = await AsyncStorage.getItem('hasSeenOnboarding');
-          logger.log('📊 AsyncStorage hasSeenOnboarding:', seen);
-
-          // null or any value other than 'true' means show onboarding
-          if (seen === 'true') {
-            logger.log('✅ Guest has seen onboarding - skipping');
-            setHasSeenOnboarding(true);
-          } else {
-            logger.log('🎯 Guest hasn\'t seen onboarding - showing (value was:', seen, ')');
-            setHasSeenOnboarding(false);
-          }
-        }
-      } catch (error) {
-        logger.error('Error checking onboarding status:', error);
-        // Default to showing onboarding in case of error
-        setHasSeenOnboarding(false);
-      } finally {
-        setIsCheckingOnboarding(false);
-      }
-    };
-    checkOnboarding();
-  }, [state.user]);
 
   // -----------------------------
   // Restore Authentication
@@ -585,9 +487,9 @@ const AppNavigator = () => {
   }, [isCheckingAuth, state.user]);
 
   // -----------------------------
-  // Show loading screen while checking auth and onboarding
+  // Show loading screen while checking auth
   // -----------------------------
-  if (isCheckingAuth || isCheckingOnboarding) {
+  if (isCheckingAuth) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
@@ -596,13 +498,13 @@ const AppNavigator = () => {
   }
 
   // -----------------------------
-  // RENDER
+  // RENDER — logged-in users go straight to Goals, guests see landing
   // -----------------------------
-  logger.log('🧭 AppNavigator rendering with hasSeenOnboarding:', hasSeenOnboarding, '→ initialRoute:', hasSeenOnboarding ? 'CategorySelection' : 'Onboarding');
+  const initialRoute = state.user?.id ? 'Goals' : 'ChallengeLanding';
 
   return (
     <AuthGuardProvider>
-      <AppNavigatorContent initialRoute={hasSeenOnboarding ? 'CategorySelection' : 'Onboarding'} />
+      <AppNavigatorContent initialRoute={initialRoute} />
     </AuthGuardProvider>
   );
 };

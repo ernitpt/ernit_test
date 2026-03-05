@@ -13,10 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DetailedGoalCard split into hooks, components, and utils with UX improvements
 - experience carousel redesign — bigger images, overlay text, no prices, 'you've earned' framing
 - landing page polish — centered brand lockup, tighter hero framing, distinct step cards
+- redesigned AchievementCard and PledgedExperiencePreview, added completedAt to Goal type
+- removed snap-a-photo button from timer, made PledgedExperiencePreview a compact inline strip
+- redesigned FAB menu in GoalsScreen, used Ernit logo for redeem option
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
 - navigation reset using correct CategorySelection route name instead of non-existent Main
+- error guard on free goal creation, stale prefill date recovery, removed dead code (PledgeGoalSetting, OnboardingScreen, advanceBothPartners, onboardingStatus)
+- CTA buy buttons now go directly to checkout for current goal instead of creating new goal
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -31,3 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - journey demo empowerment step + real experience carousel with staggered animations
 - hero image carousel synced with rotating title word
 - experience carousel moved inside demo card with reward cards and pagination dots
+- inline calendar in challenge setup with calculated end date
+- stacked experience carousels by category with All/Adventure/Wellness/Creative filter
+- step 5 buy-now-or-pledge in challenge creation with motivational stats
+- auto-attach gift to goal on self-purchase confirmation
+- goals screen improvements - completed goals section, streak badge top-right, milestone celebrations (7/14/21/30), upgraded empty state with CTA

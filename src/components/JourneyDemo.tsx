@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, Platform, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -11,7 +11,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = Math.min(SCREEN_W - 48, 400);
 
 // Step machine: -1 = hidden, 0-9 = visible steps
-type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // Phase labels
 const PHASES = ['Set Goal', 'Build Habit', 'Get Reward'] as const;
@@ -22,6 +22,7 @@ const JourneyDemo: React.FC = React.memo(() => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
   const [barProgress, setBarProgress] = useState(0);
+  const [finished, setFinished] = useState(false);
   const wrapperRef = useRef<View>(null);
 
   // Pick one random experience to reveal
@@ -80,11 +81,9 @@ const JourneyDemo: React.FC = React.memo(() => {
       case 3: next(4, 1400); break;   // empowerment slides in
       case 4: next(5, 2800); break;   // hold on Sarah's message
       case 5: next(6, 1000); break;   // "Goal Complete" text
-      case 6: next(7, 1000); break;   // middle content fades, reward appears
-      case 7: next(8, 5000); break;   // hold on reward
-      case 8: next(9, 600); break;    // fade everything out
-      case 9:                         // reset for next loop
-        timeout = setTimeout(() => setStep(-1), 1000);
+      case 6: next(7, 1000); break;   // reward appears
+      case 7:                         // hold on reward, then show replay
+        timeout = setTimeout(() => setFinished(true), 3000);
         break;
     }
     return () => clearTimeout(timeout);
@@ -92,7 +91,7 @@ const JourneyDemo: React.FC = React.memo(() => {
 
   // Gradual progress bar — fills independently, snaps to 100% on reward unlock
   useEffect(() => {
-    if (step < 0 || step >= 8) {
+    if (step < 0) {
       setBarProgress(0);
       return;
     }
@@ -109,8 +108,7 @@ const JourneyDemo: React.FC = React.memo(() => {
   }, [step]);
 
   // Derived state
-  const visible = step >= 0 && step < 9;
-  const fading = step === 9;
+  const visible = step >= 0;
 
   // Phase
   let phase = 0;
@@ -138,10 +136,10 @@ const JourneyDemo: React.FC = React.memo(() => {
       {/* Demo Card */}
       <MotiView
         animate={{
-          opacity: fading ? 0 : (visible ? 1 : 0),
-          scale: fading ? 0.95 : (visible ? 1 : 0.95),
+          opacity: visible ? 1 : 0,
+          scale: visible ? 1 : 0.95,
         }}
-        transition={{ type: 'timing', duration: fading ? 500 : 400 }}
+        transition={{ type: 'timing', duration: 400 }}
         style={s.card}
       >
         {/* Progress Bar inside card */}
@@ -202,93 +200,133 @@ const JourneyDemo: React.FC = React.memo(() => {
         </MotiView>
 
         {/* Middle Content: Capsules + Sarah's message */}
-        {showCapsules && (
-          <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={s.middleContent}
-          >
-            {/* Progress capsules + streak */}
-            <View style={s.progressStreakRow}>
-              <View style={s.progressWrap}>
-                <View style={s.capsuleContainer}>
-                  {capsuleFilled.map((filled, i) => (
-                    <View key={i} style={s.capsule}>
-                      <MotiView
-                        animate={{ opacity: filled ? 1 : 0 }}
-                        transition={{ type: 'timing', duration: 400 }}
-                        style={s.capsuleFill}
-                      />
-                    </View>
-                  ))}
+        <AnimatePresence>
+          {showCapsules && (
+            <MotiView
+              key="capsules"
+              from={{ opacity: 0, maxHeight: 0, marginTop: 0 }}
+              animate={{ opacity: 1, maxHeight: 100, marginTop: 20 }}
+              exit={{ opacity: 0, maxHeight: 0, marginTop: 0 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={s.middleContentAnimated}
+            >
+              {/* Progress capsules + streak */}
+              <View style={s.progressStreakRow}>
+                <View style={s.progressWrap}>
+                  <View style={s.capsuleContainer}>
+                    {capsuleFilled.map((filled, i) => (
+                      <View key={i} style={s.capsule}>
+                        <MotiView
+                          animate={{ opacity: filled ? 1 : 0 }}
+                          transition={{ type: 'timing', duration: 400 }}
+                          style={s.capsuleFill}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={s.progressCount}>{filledCount}/3</Text>
                 </View>
-                <Text style={s.progressCount}>{filledCount}/3</Text>
-              </View>
 
-              <MotiView
-                animate={{
-                  opacity: showStreak ? 1 : 0,
-                  scale: showStreak ? 1 : 0.5,
-                }}
-                style={s.streakBadge}
-              >
-                <Text style={s.streakFlame}>🔥</Text>
-                <Text style={s.streakNum}>{Math.max(filledCount, 1)}</Text>
-              </MotiView>
-            </View>
-          </MotiView>
-        )}
+                <MotiView
+                  animate={{
+                    opacity: showStreak ? 1 : 0,
+                    scale: showStreak ? 1 : 0.5,
+                  }}
+                  transition={{ type: 'spring', damping: 18, stiffness: 140 }}
+                  style={s.streakBadge}
+                >
+                  <Text style={s.streakFlame}>🔥</Text>
+                  <Text style={s.streakNum}>{Math.max(filledCount, 1)}</Text>
+                </MotiView>
+              </View>
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         {/* Sarah's message — persists through reward phase */}
-        {showEmpower && (
-          <MotiView
-            from={{ opacity: 0, translateY: 12 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 120 }}
-            style={s.empowerCard}
-          >
-            <Text style={s.empowerMessage}>"I got you that experience you wanted! Finish your goal to earn it" ❤️</Text>
-            <Text style={s.empowerAttribution}>— Sarah</Text>
-          </MotiView>
-        )}
+        <AnimatePresence>
+          {showEmpower && (
+            <MotiView
+              key="empower"
+              from={{ opacity: 0, translateY: 16, maxHeight: 0, marginTop: 0 }}
+              animate={{ opacity: 1, translateY: 0, maxHeight: 150, marginTop: 16 }}
+              exit={{ opacity: 0, translateY: -8, maxHeight: 0, marginTop: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 120 }}
+              style={s.empowerCardAnimated}
+            >
+              <Text style={s.empowerMessage}>"I got you that experience you wanted! Finish your goal to earn it" ❤️</Text>
+              <Text style={s.empowerAttribution}>— Sarah</Text>
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         {/* Reward Reveal — single experience card */}
-        {showReward && rewardExperience && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 120, delay: 200 }}
-            style={s.rewardWrap}
-          >
-            <Text style={s.rewardTitle}>You unlocked your reward!</Text>
+        <AnimatePresence>
+          {showReward && rewardExperience && (
+            <MotiView
+              key="reward"
+              from={{ opacity: 0, scale: 0.92, maxHeight: 0, marginTop: 0 }}
+              animate={{ opacity: 1, scale: 1, maxHeight: 300, marginTop: 20 }}
+              exit={{ opacity: 0, scale: 0.92, maxHeight: 0, marginTop: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 120, delay: 100 }}
+              style={s.rewardWrapAnimated}
+            >
+              <Text style={s.rewardTitle}>You unlocked your reward!</Text>
 
-            <View style={s.rewardCard}>
-              <Image
-                source={{ uri: rewardExperience.coverImageUrl }}
-                style={s.rewardImage}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.7)']}
-                start={{ x: 0, y: 0.3 }}
-                end={{ x: 0, y: 1 }}
-                style={s.rewardGradient}
-              >
-                <View style={s.earnedTag}>
-                  <Text style={s.earnedTagText}>You've earned</Text>
-                </View>
-                <Text style={s.rewardExpTitle} numberOfLines={2}>
-                  {rewardExperience.title}
-                </Text>
-              </LinearGradient>
-            </View>
+              <View style={s.rewardCard}>
+                <Image
+                  source={{ uri: rewardExperience.coverImageUrl }}
+                  style={s.rewardImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  start={{ x: 0, y: 0.3 }}
+                  end={{ x: 0, y: 1 }}
+                  style={s.rewardGradient}
+                >
+                  <View style={s.earnedTag}>
+                    <Text style={s.earnedTagText}>You've earned</Text>
+                  </View>
+                  <Text style={s.rewardExpTitle} numberOfLines={2}>
+                    {rewardExperience.title}
+                  </Text>
+                </LinearGradient>
+              </View>
 
-            <Text style={s.scheduleText}>You're ready to schedule your experience</Text>
-          </MotiView>
-        )}
+              <Text style={s.scheduleText}>You're ready to schedule your experience</Text>
+            </MotiView>
+          )}
+        </AnimatePresence>
 
       </MotiView>
+
+      {/* Replay button — appears after animation finishes */}
+      <AnimatePresence>
+        {finished && (
+          <MotiView
+            key="replay"
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 140 }}
+            style={s.replayRow}
+          >
+            <TouchableOpacity
+              style={s.replayButton}
+              activeOpacity={0.75}
+              onPress={() => {
+                setFinished(false);
+                setStep(-1);
+                setBarProgress(0);
+              }}
+            >
+              <Text style={s.replayIcon}>↻</Text>
+              <Text style={s.replayText}>Replay</Text>
+            </TouchableOpacity>
+          </MotiView>
+        )}
+      </AnimatePresence>
     </View >
   );
 });
@@ -303,6 +341,31 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 40,
     width: '100%',
+  },
+
+  // Replay button
+  replayRow: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  replayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  replayIcon: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '700',
+  },
+  replayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
   },
 
   // Demo card
@@ -386,10 +449,9 @@ const s = StyleSheet.create({
   },
 
 
-  // Middle content
-  middleContent: {
-    marginTop: 20,
-    gap: 16,
+  // Middle content (animated)
+  middleContentAnimated: {
+    overflow: 'hidden',
   },
 
   // Progress & Streak Row
@@ -449,16 +511,16 @@ const s = StyleSheet.create({
     color: '#EA580C',
   },
 
-  // Empowerment card
-  empowerCard: {
+  // Empowerment card (animated)
+  empowerCardAnimated: {
     backgroundColor: Colors.primarySurface,
     borderRadius: 14,
     padding: 16,
-    marginTop: 16,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
     borderLeftWidth: 3,
     borderLeftColor: Colors.primary,
+    overflow: 'hidden',
   },
   empowerMessage: {
     fontSize: 14,
@@ -474,9 +536,9 @@ const s = StyleSheet.create({
     textAlign: 'right',
   },
 
-  // Reward reveal
-  rewardWrap: {
-    marginTop: 20,
+  // Reward reveal (animated)
+  rewardWrapAnimated: {
+    overflow: 'hidden',
   },
   rewardTitle: {
     fontSize: 15,

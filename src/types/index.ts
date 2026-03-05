@@ -18,7 +18,6 @@ export interface User {
   profile?: UserProfile;
   wishlist: Experience[];
   cart?: CartItem[];
-  onboardingStatus?: 'not_started' | 'completed' | 'skipped';
 }
 
 // User Profile types
@@ -86,7 +85,7 @@ export type HintCategory =
   | 'geographic_clues';
 
 // Experience categories
-export type ExperienceCategory = 'adventure' | 'relaxation' | 'food-culture' | 'romantic-getaway' | 'foreign-trip';
+export type ExperienceCategory = 'adventure' | 'wellness' | 'creative';
 
 // Experience data structure
 export interface Experience {
@@ -205,6 +204,7 @@ export interface Goal {
   pledgedAt?: Date;
   giftAttachedAt?: Date;
   giftAttachDeadline?: Date;       // 30 days post-completion window
+  completedAt?: Date;              // When the goal was completed
 }
 
 export interface PersonalizedHint {
@@ -278,6 +278,22 @@ export interface GoalProgress {
   notes?: string;
 }
 
+// Session Records (subcollection: goals/{goalId}/sessions)
+export interface SessionRecord {
+  id: string;
+  goalId: string;
+  userId: string;
+  timestamp: Date;
+  duration: number;              // seconds elapsed when finished
+  sessionNumber: number;         // 1-based overall session count
+  weekNumber: number;            // which week this session was in
+  mediaUrl?: string;             // Firebase Storage URL
+  mediaType?: 'photo' | 'video';
+  thumbnailUrl?: string;
+  notes?: string;
+  createdAt: Date;
+}
+
 // Feed Types
 export type FeedPostType = 'goal_started' | 'session_progress' | 'goal_progress' | 'goal_completed' | 'goal_approved';
 export type ReactionType = 'muscle' | 'heart' | 'like';
@@ -308,6 +324,10 @@ export interface FeedPost {
   isFreeGoal?: boolean;
   pledgedExperienceId?: string;
   pledgedExperiencePrice?: number;
+
+  // Session media
+  mediaUrl?: string;
+  mediaType?: 'photo' | 'video';
 
   // Metadata
   createdAt: Date;
@@ -471,15 +491,14 @@ export interface ValentineGoalExtensions {
 
 // Navigation types
 export type RootStackParamList = {
-  Onboarding: undefined;
   Landing: undefined;
   Auth: { mode?: 'signin' | 'signup'; fromModal?: boolean };
   CategorySelection: undefined;
   // Main: undefined;
   Profile: undefined;
-  Roadmap: { goal: Goal };
+  Journey: { goal: Goal };
   Goals: undefined;
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[] };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
   Completion: { goal: Goal; experienceGift?: ExperienceGift };
@@ -493,7 +512,7 @@ export type RootStackParamList = {
   FriendsList: undefined;
   Cart: undefined;
   PurchasedGifts: undefined;
-  Confirmation: { experienceGift: ExperienceGift };
+  Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
   ValentinesLanding: undefined;
@@ -502,7 +521,6 @@ export type RootStackParamList = {
   ValentineConfirmation: { purchaserEmail: string; partnerEmail: string; paymentIntentId: string };
   ValentineRedemption: { code: string };
   ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
-  PledgeGoalSetting: { experience: Experience };
   FreeGoalCompletion: { goal: Goal };
   ChallengeLanding: undefined;
   ChallengeSetup: { prefill?: any } | undefined;
@@ -511,8 +529,8 @@ export type RootStackParamList = {
 export type GiverStackParamList = {
   CategorySelection: undefined;
   ExperienceDetails: { experience: Experience };
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[] };
-  Confirmation: { experienceGift: ExperienceGift };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string };
+  Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   Cart: undefined;
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
 };
@@ -520,6 +538,6 @@ export type GiverStackParamList = {
 export type RecipientStackParamList = {
   CouponEntry: { code?: string } | undefined;
   GoalSetting: { experienceGift: ExperienceGift };
-  Roadmap: { goal: Goal };
+  Journey: { goal: Goal };
   Completion: { goal: Goal; experienceGift?: ExperienceGift };
 };

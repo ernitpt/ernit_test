@@ -138,7 +138,7 @@ const NotificationsScreen = () => {
       try {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
-          navigation.navigate('Roadmap', { goal });
+          navigation.navigate('Journey', { goal });
         }
       } catch (error) {
         logger.error('Error fetching goal:', error);

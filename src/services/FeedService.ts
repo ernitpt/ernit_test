@@ -86,6 +86,13 @@ class FeedService {
             if (post.pledgedExperiencePrice !== undefined) {
                 feedPost.pledgedExperiencePrice = post.pledgedExperiencePrice;
             }
+            // Session media fields
+            if (post.mediaUrl !== undefined) {
+                feedPost.mediaUrl = post.mediaUrl;
+            }
+            if (post.mediaType !== undefined) {
+                feedPost.mediaType = post.mediaType;
+            }
 
             const docRef = await addDoc(this.feedPostsCollection, feedPost);
             logger.log('✅ Feed post created:', docRef.id);

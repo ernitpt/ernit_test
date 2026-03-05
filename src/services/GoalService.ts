@@ -404,67 +404,6 @@ export class GoalService {
   }
 
   /**
-   * Advance both Valentine partners to the next week atomically
-   * Called when both partners have completed their current week
-   * @deprecated No longer used - each partner progresses independently
-   */
-  async advanceBothPartners(challengeId: string): Promise<void> {
-    return runTransaction(db, async (transaction) => {
-      // 1. Fetch challenge
-      const challengeRef = doc(db, 'valentineChallenges', challengeId);
-      const challengeSnap = await transaction.get(challengeRef);
-
-      if (!challengeSnap.exists()) {
-        throw new Error('Valentine challenge not found');
-      }
-
-      const challengeData = challengeSnap.data();
-      const { purchaserGoalId, partnerGoalId } = challengeData;
-
-      if (!purchaserGoalId || !partnerGoalId) {
-        throw new Error('Both partners must have goals to advance');
-      }
-
-      // 2. Fetch both goals
-      const goal1Ref = doc(db, 'goals', purchaserGoalId);
-      const goal2Ref = doc(db, 'goals', partnerGoalId);
-
-      const [goal1Snap, goal2Snap] = await Promise.all([
-        transaction.get(goal1Ref),
-        transaction.get(goal2Ref)
-      ]);
-
-      if (!goal1Snap.exists() || !goal2Snap.exists()) {
-        throw new Error('One or both partner goals not found');
-      }
-
-      const goal1Data = goal1Snap.data();
-      const goal2Data = goal2Snap.data();
-
-      // 3. Verify both have completed their week
-      if (!goal1Data.isWeekCompleted || !goal2Data.isWeekCompleted) {
-        throw new Error('Both partners must complete their week before advancing');
-      }
-
-      // 4. Advance both goals atomically
-      const now = DateHelper.now();
-      const updates = {
-        currentCount: goal1Data.currentCount + 1, // Increment week
-        weeklyCount: 0, // Reset weekly sessions
-        weeklyLogDates: [], // Clear session logs
-        isWeekCompleted: false, // Reset completion flag
-        weekStartAt: now, // Start new week
-        updatedAt: serverTimestamp(),
-      };
-
-      transaction.update(goal1Ref, updates);
-      transaction.update(goal2Ref, updates);
-
-      logger.log(`✅ Advanced both Valentine partners for challenge ${challengeId}`);
-    });
-  }
-
-  /**
    * Check if Valentine partner has completed their ENTIRE goal (not just current week)
    * Used for experience unlock when both partners finish
    */
@@ -1019,6 +958,7 @@ export class GoalService {
       // If it's the final week
       if (g.currentCount + 1 >= g.targetCount) {
         g.isCompleted = true;
+        g.completedAt = DateHelper.now();
 
         // 💝 VALENTINE: Mark as finished and check if both partners ready to unlock
         if (g.valentineChallengeId) {

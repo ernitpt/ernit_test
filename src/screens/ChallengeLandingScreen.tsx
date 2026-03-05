@@ -8,6 +8,7 @@ import {
     Platform,
     Image,
     Dimensions,
+    Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -15,14 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { collection, getDocs, query, limit } from 'firebase/firestore';
-import { db } from '../services/firebase';
 import { RootStackParamList } from '../types';
+import { useApp } from '../context/AppContext';
 import Colors from '../config/colors';
 import JourneyDemo from '../components/JourneyDemo';
 
 // Height of the rotating word slot (must match font metrics)
-const WORD_SLOT_HEIGHT = 52;
+const WORD_SLOT_HEIGHT = 46;
 
 const ROTATING_WORDS = [
     { word: 'workout', color: Colors.secondary },
@@ -61,6 +61,8 @@ type ChallengeLandingNavigationProp = NativeStackNavigationProp<
 
 export default function ChallengeLandingScreen() {
     const navigation = useNavigation<ChallengeLandingNavigationProp>();
+    const { state } = useApp();
+    const isLoggedIn = !!state.user?.id;
     const [wordIndex, setWordIndex] = useState(0);
 
     // Cycle the rotating word every 3 seconds
@@ -92,7 +94,7 @@ export default function ChallengeLandingScreen() {
                     end={{ x: 0, y: 1 }}
                     style={styles.hero}
                 >
-                    {/* Back button — floats in corner */}
+                    {/* Top bar — back button + login */}
                     {navigation.canGoBack() && (
                         <TouchableOpacity
                             style={styles.backButton}
@@ -102,6 +104,20 @@ export default function ChallengeLandingScreen() {
                             <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
                         </TouchableOpacity>
                     )}
+
+                    <TouchableOpacity
+                        style={styles.loginButton}
+                        onPress={() => isLoggedIn
+                            ? navigation.navigate('Goals')
+                            : navigation.navigate('Auth', { mode: 'signin' })
+                        }
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.loginButtonText}>
+                            {isLoggedIn ? 'Go to App' : 'Log In'}
+                        </Text>
+                        <ChevronRight color={Colors.primary} size={16} strokeWidth={3} />
+                    </TouchableOpacity>
 
                     <View style={styles.heroWrapper}>
                         {/* Hero content fades + slides in on mount */}
@@ -214,7 +230,7 @@ export default function ChallengeLandingScreen() {
                                 style={{
                                     alignItems: 'center',
                                     paddingHorizontal: 32,
-                                    marginBottom: 94,
+                                    marginBottom: 32,
                                 }}
                             >
                                 <Text style={{
@@ -251,7 +267,6 @@ export default function ChallengeLandingScreen() {
                                 style={styles.badgeWrapper}
                             >
                                 <View style={styles.badge}>
-                                    <Sparkles color={Colors.secondary} size={14} />
                                     <Text style={[styles.badgeText, { color: Colors.secondary }]}>100% Free</Text>
                                 </View>
                             </MotiView>
@@ -282,19 +297,19 @@ export default function ChallengeLandingScreen() {
                                     icon: <Target color={Colors.primary} size={24} strokeWidth={2.5} />,
                                     iconBg: Colors.primarySurface,
                                     title: 'Pick Your Challenge',
-                                    desc: 'Choose what you want to improve and for how long \u2014 gym, yoga, running, reading, or anything you want',
+                                    desc: 'Choose what you want to improve and for how long. Gym, yoga, running, reading, or anything you want',
                                 },
                                 {
                                     icon: <Calendar color={Colors.accent} size={24} strokeWidth={2.5} />,
                                     iconBg: Colors.accentDeep + '18',
-                                    title: 'Track Your Progress',
-                                    desc: 'Complete sessions, build streaks, and stay on track with your personal timer and calendar',
+                                    title: 'Stick to It',
+                                    desc: 'Do your sessions, build streaks, and get motivated by friends who follow your journey, and can even reward you along the way',
                                 },
                                 {
                                     icon: <Users color="#EC4899" size={24} strokeWidth={2.5} />,
                                     iconBg: '#FDF2F8',
-                                    title: 'Friends Cheer You On',
-                                    desc: 'Get motivated by friends who follow your journey, leave messages, and can even reward you along the way',
+                                    title: 'Earn it',
+                                    desc: 'Finish your challenge and have the reward you deserve!',
                                 },
                             ].map((step, i) => (
                                 <React.Fragment key={i}>
@@ -329,23 +344,75 @@ export default function ChallengeLandingScreen() {
                     </View>
                 </View>
 
-                {/* Social Proof */}
-                <MotiView
-                    from={{ opacity: 0, translateY: 20 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 500, delay: 200 }}
-                    style={styles.testimonialSection}
-                >
-                    <View style={styles.testimonialCard}>
-                        <Text style={styles.quoteText}>
-                            "I committed to running 3x a week. My friends' messages before each session kept me going. 4 weeks later, I actually did it."
-                        </Text>
-                        <View style={styles.authorRow}>
-                            <View style={styles.authorDot} />
-                            <Text style={styles.authorText}>Sarah, Dublin</Text>
+
+                {/* Co-Founders Section */}
+                <View style={styles.foundersSection}>
+                    <View style={styles.foundersWrapper}>
+                        <MotiView
+                            from={{ opacity: 0, translateY: 20 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 500 }}
+                        >
+                            <Text style={styles.sectionLabel}>The Team {'\n'}{'\n'}</Text>
+                        </MotiView>
+
+                        <View style={styles.foundersRow}>
+                            {[
+                                {
+                                    name: 'Raul Marquez',
+                                    role: 'Co-Founder & CEO',
+                                    image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2F20260116_DBP0431.jpg?alt=media&token=c8e102c4-7068-4d45-8bcb-32f8714cc62c',
+                                    linkedin: 'https://www.linkedin.com/in/raulferreiramarquez/',
+                                },
+                                {
+                                    name: 'Nuno Castilho',
+                                    role: 'Co-Founder & CTO',
+                                    image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2Ffoto.jpeg?alt=media&token=4c4b8d02-1741-40ee-88fc-8cd658133864',
+                                    linkedin: 'https://www.linkedin.com/in/nuno-del-castilho-5929b298/',
+                                },
+                            ].map((founder, i) => (
+                                <MotiView
+                                    key={i}
+                                    from={{ opacity: 0, translateY: 20 }}
+                                    animate={{ opacity: 1, translateY: 0 }}
+                                    transition={{
+                                        type: 'spring',
+                                        damping: 28,
+                                        delay: i * 150,
+                                    }}
+                                    style={styles.founderCard}
+                                >
+                                    <Image
+                                        source={{ uri: founder.image }}
+                                        style={styles.founderPhoto}
+                                    />
+                                    <Text style={styles.founderName}>{founder.name}</Text>
+                                    <Text style={styles.founderRole}>{founder.role}</Text>
+                                </MotiView>
+                            ))}
                         </View>
+
+                        {/* Incubated at Unicorn Factory */}
+                        <MotiView
+                            from={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: 'spring', damping: 28, delay: 400 }}
+                            style={styles.incubatorBadge}
+                        >
+                            <Text style={styles.incubatorText}>Incubated at</Text>
+                            <TouchableOpacity
+                                onPress={() => Linking.openURL('http://unicornfactorylisboa.com')}
+                                activeOpacity={0.7}
+                            >
+                                <Image
+                                    source={{ uri: 'http://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
+                                    style={styles.incubatorLogo}
+                                    resizeMode="contain"
+                                />
+                            </TouchableOpacity>
+                        </MotiView>
                     </View>
-                </MotiView>
+                </View>
 
                 {/* Final CTA */}
                 <MotiView
@@ -376,7 +443,38 @@ export default function ChallengeLandingScreen() {
                     </TouchableOpacity>
                 </MotiView>
 
-                <View style={{ height: 60 }} />
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <Text style={styles.footerBrand}>
+                        ernit<Text style={{ color: Colors.secondary }}>.</Text>
+                    </Text>
+                    <View style={styles.footerSocials}>
+                        <TouchableOpacity
+                            style={styles.socialBtn}
+                            onPress={() => Linking.openURL('https://www.linkedin.com/company/ernit-app/')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.socialIcon}>in</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.socialBtn}
+                            onPress={() => Linking.openURL('www.instagram.com/ernitapp__/')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.socialIcon}>ig</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.socialBtn}
+                            onPress={() => Linking.openURL('https://www.tiktok.com/@ernitapp')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.socialIcon}>tk</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.footerCopy}>
+                        {new Date().getFullYear()} Ernit. All rights reserved.
+                    </Text>
+                </View>
             </ScrollView>
         </View>
     );
@@ -392,7 +490,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     hero: {
-        paddingTop: Platform.OS === 'ios' ? 80 : 60,
+        paddingTop: Platform.OS === 'ios' ? 70 : 50,
         paddingHorizontal: 24,
         backgroundColor: '#fff',
         position: 'relative',
@@ -424,12 +522,26 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
         elevation: 2,
     },
+    loginButton: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 54 : 34,
+        right: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+        zIndex: 10,
+    },
+    loginButtonText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.primary,
+    },
     brandSection: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 20,
     },
     brandTitle: {
-        fontSize: 50,
+        fontSize: 44,
         fontWeight: '900',
         fontStyle: 'italic',
         color: '#111827',
@@ -441,10 +553,10 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     heroTitle: {
-        fontSize: 42,
+        fontSize: 36,
         fontWeight: '800',
         color: '#1F2937',
-        lineHeight: 52,
+        lineHeight: 46,
         letterSpacing: -1,
         textAlign: 'center',
     },
@@ -467,7 +579,7 @@ const styles = StyleSheet.create({
         height: WORD_SLOT_HEIGHT,
     },
     dialWord: {
-        fontSize: 42,
+        fontSize: 36,
         fontWeight: '800',
         fontStyle: 'italic',
         lineHeight: WORD_SLOT_HEIGHT,
@@ -550,7 +662,7 @@ const styles = StyleSheet.create({
     },
     ctaText: {
         color: '#fff',
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: '700',
     },
     howSection: {
@@ -696,5 +808,147 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         marginBottom: 32,
         textAlign: 'center',
+    },
+
+    // ── Co-Founders Section ───────────────────────
+    foundersSection: {
+        paddingVertical: 64,
+        paddingHorizontal: 24,
+        backgroundColor: Colors.primarySurface,
+        alignItems: 'center',
+    },
+    foundersWrapper: {
+        width: '100%',
+        maxWidth: 600,
+        alignItems: 'center',
+    },
+    foundersTitle: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: 40,
+        textAlign: 'center',
+    },
+    foundersRow: {
+        flexDirection: 'row',
+        gap: 24,
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        marginBottom: 32,
+    },
+    founderCard: {
+        alignItems: 'center',
+        width: 200,
+    },
+    founderPhoto: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        marginBottom: 16,
+        borderWidth: 3,
+        borderColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    founderName: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    founderRole: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.primary,
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    linkedinBtn: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        backgroundColor: '#0A66C2',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    linkedinIcon: {
+        fontSize: 15,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        fontStyle: 'italic',
+    },
+    founderQuote: {
+        fontSize: 13,
+        fontStyle: 'italic',
+        color: '#6B7280',
+        lineHeight: 20,
+        textAlign: 'center',
+    },
+    incubatorBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: Colors.primaryBorder,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    incubatorText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#6B7280',
+    },
+    incubatorLogo: {
+        width: 120,
+        height: 28,
+    },
+
+    // ── Footer ────────────────────────────────────
+    footer: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 24,
+        backgroundColor: '#111827',
+    },
+    footerBrand: {
+        fontSize: 28,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        color: '#FFFFFF',
+        letterSpacing: -1,
+        marginBottom: 20,
+    },
+    footerSocials: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 24,
+    },
+    socialBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    socialIcon: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+    footerCopy: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.4)',
     },
 });

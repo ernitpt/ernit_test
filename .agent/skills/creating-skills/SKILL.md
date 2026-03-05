@@ -69,9 +69,8 @@ description: [3rd-person description]
 
 ## Instructions for use
 
-1.  **Copy the content above** into a new file named `antigravity-skill-creator.md`.
-2.  **Upload this file** to your AI agent or paste it into the system prompt area.
-3.  **Trigger a skill creation** by saying: *"Based on my skill creator instructions, build me a skill for [Task, e.g., 'automating React component testing with Vitest']."**
+1. Generate the skill folder and `SKILL.md` content directly in `.agent/skills/<skill-name>/`.
+2. Tell the user the skill has been created successfully.
 
 ### Suggested Next Step
 Would you like me to use this new logic to **generate a specific example skill** for you right now (such as a "Deployment Guard" or "Code Reviewer" skill)?

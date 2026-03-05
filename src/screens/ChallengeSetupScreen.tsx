@@ -31,11 +31,10 @@ import { commonStyles } from '../styles/commonStyles';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import { CustomCalendar } from '../components/CustomCalendar';
 import { ValentineExperienceDetailsModal } from './recipient/components/GoalCardModals';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const GOAL_TYPES = [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
@@ -47,10 +46,11 @@ const GOAL_TYPES = [
 ];
 
 const STEP_TITLES = [
-    'What do you want to improve?',
+    'What is your goal?',
     'Set your challenge intensity',
     'When do you start?',
     'Pick your dream reward',
+    'Secure your reward',
 ];
 
 const STEP_SUBTITLES = [
@@ -58,6 +58,13 @@ const STEP_SUBTITLES = [
     'It takes 21 days to build a habit. Start small, you can always do another challenge later!',
     'We\'ll send you reminders so you never miss a session.',
     'Your friends can see your goal and gift this to you. You\'ll get it when you finish!',
+    'Studies show that buying a reward you can only claim at the end can increase your chances of success by ~30%.',
+];
+
+const EXPERIENCE_CATEGORIES = [
+    { key: 'adventure', label: 'Adventure', emoji: '\u{1F3D4}\u{FE0F}', color: '#F59E0B', match: ['adventure'] },
+    { key: 'wellness', label: 'Wellness', emoji: '\u{1F9D8}', color: '#EC4899', match: ['relaxation', 'spa', 'health', 'wellness'] },
+    { key: 'creative', label: 'Creative', emoji: '\u{1F3A8}', color: '#8B5CF6', match: ['culture', 'arts', 'creative', 'workshop', 'food-culture'] },
 ];
 
 // Storage helpers (cross-platform)
@@ -154,20 +161,23 @@ export default function ChallengeSetupScreen() {
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
     const [loadingExperiences, setLoadingExperiences] = useState(true);
 
+    // Step 5: Buy now or pledge
+    const [buyNow, setBuyNow] = useState<boolean | null>(null);
+
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false });
+    const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false, buyNow: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [showExpDetailsModal, setShowExpDetailsModal] = useState(false);
     const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
 
     // Animations
     const slideAnim = useModalAnimation(showConfirm);
     const pulseAnim = useRef(new Animated.Value(1)).current;
+    const scrollViewRef = useRef<ScrollView>(null);
 
-    // Category filter state
+    // Category filter state (single-select, 'All' by default)
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
 
@@ -182,7 +192,11 @@ export default function ChallengeSetupScreen() {
             if (p.hours) setHours(p.hours);
             if (p.minutes) setMinutes(p.minutes);
             if (p.experience) setSelectedExperience(p.experience);
-            if (p.plannedStartDate) setPlannedStartDate(new Date(p.plannedStartDate));
+            if (p.plannedStartDate) {
+                const restored = new Date(p.plannedStartDate);
+                setPlannedStartDate(restored < new Date() ? new Date() : restored);
+            }
+            if (p.buyNow !== undefined && p.buyNow !== null) setBuyNow(p.buyNow);
         }
     }, []);
 
@@ -190,7 +204,7 @@ export default function ChallengeSetupScreen() {
     useEffect(() => {
         const fetchExperiences = async () => {
             try {
-                const q = query(collection(db, 'experiences'), limit(12));
+                const q = query(collection(db, 'experiences'), limit(50));
                 const snapshot = await getDocs(q);
                 const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Experience));
                 setExperiences(fetched);
@@ -203,22 +217,6 @@ export default function ChallengeSetupScreen() {
         fetchExperiences();
     }, []);
 
-    // Animate category transitions
-    const categoryTransitionAnim = useRef(new Animated.Value(1)).current;
-    const prevCategoryRef = useRef<string>('All');
-
-    useEffect(() => {
-        if (prevCategoryRef.current !== selectedCategory) {
-            Animated.timing(categoryTransitionAnim, {
-                toValue: 0, duration: 150, useNativeDriver: true,
-            }).start(() => {
-                prevCategoryRef.current = selectedCategory;
-                Animated.timing(categoryTransitionAnim, {
-                    toValue: 1, duration: 250, useNativeDriver: true,
-                }).start();
-            });
-        }
-    }, [selectedCategory]);
 
     // Pulse animation while submitting
     useEffect(() => {
@@ -274,6 +272,14 @@ export default function ChallengeSetupScreen() {
                 setValidationErrors(prev => ({ ...prev, experience: false }));
                 return true;
             }
+            case 5: {
+                if (buyNow === null) {
+                    setValidationErrors(prev => ({ ...prev, buyNow: true }));
+                    return false;
+                }
+                setValidationErrors(prev => ({ ...prev, buyNow: false }));
+                return true;
+            }
             default:
                 return true;
         }
@@ -283,12 +289,14 @@ export default function ChallengeSetupScreen() {
         if (!validateCurrentStep()) return;
         if (currentStep < TOTAL_STEPS) {
             setCurrentStep(prev => prev + 1);
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }
     };
 
     const handleBack = () => {
         if (currentStep > 1) {
             setCurrentStep(prev => prev - 1);
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         } else {
             navigation.goBack();
         }
@@ -310,6 +318,7 @@ export default function ChallengeSetupScreen() {
                 minutes,
                 experience: selectedExperience || null,
                 plannedStartDate: plannedStartDate.toISOString(),
+                buyNow: buyNow,
             };
 
             try {
@@ -385,16 +394,35 @@ export default function ChallengeSetupScreen() {
             };
 
             const goal = await goalService.createFreeGoal(goalData as Goal);
+            if (!goal?.id) throw new Error('Goal creation returned no ID');
             dispatch({ type: 'SET_GOAL', payload: goal });
 
             setShowConfirm(false);
-            navigation.reset({
-                index: 1,
-                routes: [
-                    { name: 'CategorySelection' as any },
-                    { name: 'Roadmap' as any, params: { goal } },
-                ],
-            });
+
+            if (buyNow && selectedExperience) {
+                // Buy now: create goal then navigate to checkout
+                navigation.reset({
+                    index: 1,
+                    routes: [
+                        { name: 'Goals' as any },
+                        {
+                            name: 'ExperienceCheckout' as any, params: {
+                                cartItems: [{ experienceId: selectedExperience.id, quantity: 1 }],
+                                goalId: goal.id,
+                            }
+                        },
+                    ],
+                });
+            } else {
+                // Pledge: navigate to roadmap
+                navigation.reset({
+                    index: 1,
+                    routes: [
+                        { name: 'CategorySelection' as any },
+                        { name: 'Journey' as any, params: { goal } },
+                    ],
+                });
+            }
         } catch (error) {
             logger.error('Error creating free goal:', error);
             await logErrorToFirestore(error, {
@@ -556,155 +584,335 @@ export default function ChallengeSetupScreen() {
         </View>
     );
 
-    const renderStep3 = () => (
-        <View style={styles.stepContent}>
-            <View style={styles.sliderContainer}>
-                <Text style={styles.sliderTitle}>Start date</Text>
-                <TouchableOpacity
-                    onPress={() => setShowDatePicker(true)}
-                    style={styles.dateButton}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.dateButtonText}>
-                        {plannedStartDate.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                        })}
-                    </Text>
-                    <Text style={{ fontSize: 20 }}>📅</Text>
-                </TouchableOpacity>
-                <CustomCalendar
-                    visible={showDatePicker}
-                    selectedDate={plannedStartDate}
-                    onSelectDate={(date) => setPlannedStartDate(date)}
-                    onClose={() => setShowDatePicker(false)}
-                    minimumDate={new Date()}
-                />
-            </View>
-        </View>
-    );
+    // Inline calendar state
+    const [calendarMonth, setCalendarMonth] = useState(new Date(plannedStartDate.getFullYear(), plannedStartDate.getMonth(), 1));
 
-    const renderStep4 = () => (
-        <View style={styles.stepContent}>
-            {validationErrors.experience && (
-                <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please select a dream reward</Text>
-                </View>
-            )}
+    const calendarMonthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const calendarWeekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-            <View style={styles.sectionHeaderRow}>
-                <View style={styles.filterScrollContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.filterScroll}
-                        contentContainerStyle={styles.filterScrollContent}
-                        onScroll={(e) => {
-                            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-                            const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
-                            if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
-                        }}
-                        scrollEventThrottle={100}
-                    >
-                        {['All', 'Adventure', 'Wellness', 'Creative'].map((cat) => (
+    const getCalendarDays = (monthDate: Date) => {
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const days: (Date | null)[] = [];
+        for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
+        for (let day = 1; day <= lastDay.getDate(); day++) days.push(new Date(year, month, day));
+        return days;
+    };
+
+    const isSameDay = (a: Date | null, b: Date) => {
+        if (!a) return false;
+        return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+    };
+
+    const endDate = new Date(plannedStartDate);
+    endDate.setDate(endDate.getDate() + weeks * 7);
+
+    const renderStep3 = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const calendarDays = getCalendarDays(calendarMonth);
+
+        return (
+            <View style={styles.stepContent}>
+                <View style={styles.sliderContainer}>
+                    {/* Inline Calendar */}
+                    <View style={styles.inlineCalendar}>
+                        {/* Month navigation */}
+                        <View style={styles.calHeader}>
                             <TouchableOpacity
-                                key={cat}
-                                onPress={() => setSelectedCategory(cat)}
-                                style={[
-                                    styles.filterChip,
-                                    selectedCategory === cat && styles.filterChipActive,
-                                ]}
+                                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+                                style={styles.calNavBtn}
                             >
-                                <Text style={[
-                                    styles.filterText,
-                                    selectedCategory === cat && styles.filterTextActive,
-                                ]}>{cat}</Text>
+                                <ChevronLeft color="#6B7280" size={20} />
                             </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                    {showFilterScrollHint && (
-                        <View style={styles.categoryFadeIndicator} pointerEvents="none">
-                            <View style={styles.categoryGradient} />
-                            <ChevronRight color="#9CA3AF" size={14} />
+                            <Text style={styles.calMonthYear}>
+                                {calendarMonthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                                style={styles.calNavBtn}
+                            >
+                                <ChevronRight color="#6B7280" size={20} />
+                            </TouchableOpacity>
                         </View>
-                    )}
+
+                        {/* Week day headers */}
+                        <View style={styles.calWeekRow}>
+                            {calendarWeekDays.map((day) => (
+                                <Text key={day} style={styles.calWeekDay}>{day}</Text>
+                            ))}
+                        </View>
+
+                        {/* Day grid */}
+                        <View style={styles.calDaysGrid}>
+                            {calendarDays.map((date, index) => {
+                                const disabled = !date || date < today;
+                                const selected = isSameDay(date, plannedStartDate);
+                                const isCurrentDay = isSameDay(date, new Date());
+
+                                return (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={[
+                                            styles.calDayCell,
+                                            selected && styles.calSelectedDay,
+                                            isCurrentDay && !selected && styles.calTodayDay,
+                                        ]}
+                                        onPress={() => {
+                                            if (!date || disabled) return;
+                                            setPlannedStartDate(date);
+                                        }}
+                                        disabled={disabled}
+                                        activeOpacity={0.7}
+                                    >
+                                        {date && (
+                                            <Text style={[
+                                                styles.calDayText,
+                                                disabled && styles.calDisabledText,
+                                                selected && styles.calSelectedText,
+                                                isCurrentDay && !selected && styles.calTodayText,
+                                            ]}>
+                                                {date.getDate()}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+
+                    {/* End date info */}
+                    <View style={styles.endDateContainer}>
+                        <Text style={styles.endDateLabel}>You will finish your goal on</Text>
+                        <Text style={styles.endDateValue}>
+                            {endDate.toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric',
+                            })}
+                        </Text>
+                        <Text style={styles.endDateSublabel}>
+                            {weeks} week{weeks > 1 ? 's' : ''} from {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Text>
+                    </View>
                 </View>
             </View>
+        );
+    };
 
-            {loadingExperiences ? (
-                <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
-            ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                    {experiences
-                        .filter(exp => {
-                            if (selectedCategory === 'Recommended') return exp.isRecommendedForValentines === true;
-                            if (selectedCategory === 'All') return true;
-                            if (!exp.category) return false;
-                            const expCat = exp.category.toLowerCase().trim();
-                            const filterCat = selectedCategory.toLowerCase().trim();
-                            if (filterCat === 'wellness' && (expCat === 'relaxation' || expCat === 'spa' || expCat === 'health' || expCat === 'wellness')) return true;
-                            if (filterCat === 'creative' && (expCat === 'culture' || expCat === 'arts' || expCat === 'creative' || expCat === 'workshop')) return true;
-                            return expCat.includes(filterCat) || filterCat.includes(expCat);
-                        })
-                        .sort((a, b) => selectedCategory === 'Recommended'
-                            ? (a.recommendedOrder ?? Number.MAX_SAFE_INTEGER) - (b.recommendedOrder ?? Number.MAX_SAFE_INTEGER)
-                            : 0
-                        )
-                        .map((exp) => {
-                            const isSelected = selectedExperience?.id === exp.id;
-                            return (
-                                <Animated.View
-                                    key={exp.id}
-                                    style={{
-                                        opacity: categoryTransitionAnim,
-                                        transform: [{ translateY: categoryTransitionAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-                                    }}
-                                >
+    const getExperiencesForCategory = (catKey: string, matchList?: string[]) => {
+        return experiences.filter(exp => {
+            if (!exp.category) return false;
+            const expCat = exp.category.toLowerCase().trim();
+            if (matchList) return matchList.some(m => expCat === m || expCat.includes(m));
+            return expCat === catKey || expCat.includes(catKey);
+        });
+    };
+
+    const renderExperienceCard = (exp: Experience) => {
+        const isSelected = selectedExperience?.id === exp.id;
+        return (
+            <TouchableOpacity
+                key={exp.id}
+                style={[styles.expCard, isSelected && styles.expCardActive]}
+                onPress={() => {
+                    setSelectedExperience(exp);
+                    setValidationErrors(prev => ({ ...prev, experience: false }));
+                }}
+            >
+                <View style={styles.expIconBox}>
+                    <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
+                </View>
+                <View style={styles.expTextContainer}>
+                    <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
+                    <View style={styles.expMeta}>
+                        {exp.price > 0 && <Text style={styles.expPrice}>{'\u20AC'}{exp.price}</Text>}
+                        {exp.location && <Text style={styles.expLocation} numberOfLines={1}>{exp.location}</Text>}
+                    </View>
+                </View>
+                {isSelected && (
+                    <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
+                )}
+                {isSelected && (
+                    <TouchableOpacity
+                        style={styles.viewDetailsBtn}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            setDetailExperience(exp);
+                            setShowExpDetailsModal(true);
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.viewDetailsBtnText}>View Details</Text>
+                    </TouchableOpacity>
+                )}
+            </TouchableOpacity>
+        );
+    };
+
+    const renderStep4 = () => {
+        const visibleCategories = selectedCategory === 'All'
+            ? EXPERIENCE_CATEGORIES
+            : EXPERIENCE_CATEGORIES.filter(cat => cat.key === selectedCategory);
+
+        return (
+            <View style={styles.stepContent}>
+                {validationErrors.experience && (
+                    <View style={styles.errorBanner}>
+                        <Text style={styles.errorText}>Please select a dream reward</Text>
+                    </View>
+                )}
+
+                {/* Category filter chips */}
+                <View style={styles.sectionHeaderRow}>
+                    <View style={styles.filterScrollContainer}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.filterScroll}
+                            contentContainerStyle={styles.filterScrollContent}
+                            onScroll={(e) => {
+                                const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                                const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
+                                if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
+                            }}
+                            scrollEventThrottle={100}
+                        >
+                            {[{ key: 'All', label: 'All', emoji: '' }, ...EXPERIENCE_CATEGORIES].map((cat) => {
+                                const isActive = selectedCategory === cat.key;
+                                return (
                                     <TouchableOpacity
-                                        style={[styles.expCard, isSelected && styles.expCardActive]}
-                                        onPress={() => {
-                                            setSelectedExperience(exp);
-                                            setValidationErrors(prev => ({ ...prev, experience: false }));
-                                        }}
+                                        key={cat.key}
+                                        onPress={() => setSelectedCategory(cat.key)}
+                                        style={[
+                                            styles.filterChip,
+                                            isActive && styles.filterChipActive,
+                                        ]}
                                     >
-                                        <View style={styles.expIconBox}>
-                                            <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
-                                        </View>
-                                        <View style={styles.expTextContainer}>
-                                            <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
-                                        </View>
-                                        {isSelected && (
-                                            <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
-                                        )}
-                                        <MotiView
-                                            animate={{
-                                                opacity: isSelected ? 1 : 0,
-                                                scale: isSelected ? 1 : 0.8,
-                                                height: isSelected ? 30 : 0,
-                                                marginTop: isSelected ? 8 : 0,
-                                            }}
-                                            transition={{ type: 'timing', duration: 200 }}
-                                            style={{ overflow: 'hidden' }}
-                                        >
-                                            <TouchableOpacity
-                                                style={styles.viewDetailsBtn}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
-                                                    setDetailExperience(exp);
-                                                    setShowExpDetailsModal(true);
-                                                }}
-                                                activeOpacity={0.8}
-                                            >
-                                                <Text style={styles.viewDetailsBtnText}>View Details</Text>
-                                            </TouchableOpacity>
-                                        </MotiView>
+                                        <Text style={[
+                                            styles.filterText,
+                                            isActive && styles.filterTextActive,
+                                        ]}>{cat.emoji ? `${cat.emoji} ` : ''}{cat.label}</Text>
                                     </TouchableOpacity>
-                                </Animated.View>
+                                );
+                            })}
+                        </ScrollView>
+                        {showFilterScrollHint && (
+                            <View style={styles.categoryFadeIndicator} pointerEvents="none">
+                                <View style={styles.categoryGradient} />
+                                <ChevronRight color="#9CA3AF" size={14} />
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                {loadingExperiences ? (
+                    <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
+                ) : (
+                    <View style={styles.stackedCategories}>
+                        {visibleCategories.map((cat) => {
+                            const catExperiences = getExperiencesForCategory(cat.key, cat.match);
+                            if (catExperiences.length === 0) return null;
+
+                            return (
+                                <MotiView
+                                    key={cat.key}
+                                    from={{ opacity: 0, translateY: 12 }}
+                                    animate={{ opacity: 1, translateY: 0 }}
+                                    transition={{ type: 'timing', duration: 300 }}
+                                    style={styles.categorySection}
+                                >
+                                    <View style={styles.categorySectionHeader}>
+                                        <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
+                                        <Text style={styles.categorySectionTitle}>{cat.label}</Text>
+                                        <View style={[styles.categorySectionBadge, { backgroundColor: cat.color + '20' }]}>
+                                            <Text style={[styles.categorySectionCount, { color: cat.color }]}>{catExperiences.length}</Text>
+                                        </View>
+                                    </View>
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        style={styles.cardScroll}
+                                        contentContainerStyle={{ paddingRight: 16 }}
+                                    >
+                                        {catExperiences.map(renderExperienceCard)}
+                                    </ScrollView>
+                                </MotiView>
                             );
                         })}
-                </ScrollView>
+                    </View>
+                )}
+            </View>
+        );
+    };
+
+    const renderStep5 = () => (
+        <View style={styles.stepContent}>
+            {validationErrors.buyNow && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>Please choose an option to continue</Text>
+                </View>
             )}
+
+            {/* Option A: Buy Now */}
+            <TouchableOpacity
+                style={[styles.rewardChoice, buyNow === true && styles.rewardChoiceActive]}
+                onPress={() => {
+                    setBuyNow(true);
+                    setValidationErrors(prev => ({ ...prev, buyNow: false }));
+                }}
+                activeOpacity={0.8}
+            >
+                <View style={styles.rewardChoiceHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.rewardChoiceTitle, buyNow === true && styles.rewardChoiceTitleActive]}>Buy my reward</Text>
+                        <Text style={styles.rewardChoiceDesc}>
+                            Purchase now, unlock when you complete your challenge
+                            {selectedExperience?.price ? ` \u00B7 \u20AC${selectedExperience.price}` : ''}
+                        </Text>
+                    </View>
+                    {buyNow === true && (
+                        <View style={styles.rewardChoiceCheck}><Check color="#fff" size={14} strokeWidth={3} /></View>
+                    )}
+                </View>
+            </TouchableOpacity>
+
+            {/* Option B: Pledge */}
+            <TouchableOpacity
+                style={[styles.rewardChoice, buyNow === false && styles.rewardChoiceActive]}
+                onPress={() => {
+                    setBuyNow(false);
+                    setValidationErrors(prev => ({ ...prev, buyNow: false }));
+                }}
+                activeOpacity={0.8}
+            >
+                <View style={styles.rewardChoiceHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.rewardChoiceTitle, buyNow === false && styles.rewardChoiceTitleActive]}>No reward</Text>
+                        <Text style={styles.rewardChoiceDesc}>
+                            Share your goal, friends can empower you!
+                        </Text>
+                    </View>
+                    {buyNow === false && (
+                        <View style={styles.rewardChoiceCheck}><Check color="#fff" size={14} strokeWidth={3} /></View>
+                    )}
+                </View>
+            </TouchableOpacity>
+
+            <Text style={styles.rewardChoiceNote}>Both options are great, there's no wrong choice!</Text>
+
+            {/* Motivational stat */}
+            <View style={styles.statCard}>
+                <Text style={styles.statNumber}>Invest in your success.</Text>
+                <Text style={styles.statText}>
+                    When you buy your reward upfront, human psychology takes over. You are hardwired to finish the challenge to make sure your investment pays off.                </Text>
+            </View>
         </View>
     );
 
@@ -714,6 +922,7 @@ export default function ChallengeSetupScreen() {
             case 2: return renderStep2();
             case 3: return renderStep3();
             case 4: return renderStep4();
+            case 5: return renderStep5();
             default: return null;
         }
     };
@@ -742,6 +951,7 @@ export default function ChallengeSetupScreen() {
 
             {/* Step Content */}
             <ScrollView
+                ref={scrollViewRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -771,13 +981,13 @@ export default function ChallengeSetupScreen() {
                     </MotiView>
                 </AnimatePresence>
 
-                <View style={{ height: 200 }} />
+                <View style={{ height: 240 }} />
             </ScrollView>
 
             {/* Footer */}
             <View style={styles.footer}>
                 {/* Preview card on final step */}
-                {currentStep === TOTAL_STEPS && selectedExperience && (
+                {currentStep >= 4 && selectedExperience && (
                     <MotiView
                         from={{ opacity: 0, translateY: 10 }}
                         animate={{ opacity: 1, translateY: 0 }}
@@ -884,10 +1094,17 @@ export default function ChallengeSetupScreen() {
                                         {selectedExperience.title}
                                     </Text>
                                 )}
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Reward plan: </Text>
+                                    {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'Friends will gift'}
+                                </Text>
                             </View>
 
                             <Text style={styles.pledgeNote}>
-                                Friends can track your progress and empower you by gifting experiences!
+                                {buyNow
+                                    ? 'Your experience will be unlocked when you complete your challenge!'
+                                    : 'Friends can track your progress and empower you by gifting experiences!'
+                                }
                             </Text>
 
                             <View style={styles.modalButtons}>
@@ -910,7 +1127,7 @@ export default function ChallengeSetupScreen() {
                                         {isSubmitting ? (
                                             <ActivityIndicator color="#fff" size="small" />
                                         ) : (
-                                            <Text style={styles.confirmText}>Let's Go!</Text>
+                                            <Text style={styles.confirmText}>{buyNow ? 'Buy & Create' : "Let's Go!"}</Text>
                                         )}
                                     </TouchableOpacity>
                                 </Animated.View>
@@ -1247,11 +1464,28 @@ const styles = StyleSheet.create({
     expTitleActive: {
         color: Colors.primary,
     },
+    expMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 4,
+    },
+    expPrice: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: Colors.primary,
+    },
+    expLocation: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        flex: 1,
+    },
     viewDetailsBtn: {
         backgroundColor: Colors.primary,
         paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 10,
+        marginTop: 8,
     },
     viewDetailsBtnText: {
         fontSize: 11,
@@ -1521,22 +1755,242 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
 
-    // Planned start date picker
-    dateButton: {
+    // Stacked category sections
+    stackedCategories: {
+        gap: 24,
+    },
+    categorySection: {
+        marginBottom: 0,
+    },
+    categorySectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        gap: 8,
+    },
+    categorySectionEmoji: {
+        fontSize: 20,
+    },
+    categorySectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1F2937',
+        flex: 1,
+    },
+    categorySectionBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    categorySectionCount: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+
+    // Inline calendar
+    inlineCalendar: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    calHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: 16,
+    },
+    calNavBtn: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#F3F4F6',
+    },
+    calMonthYear: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#374151',
+    },
+    calWeekRow: {
+        flexDirection: 'row',
+        marginBottom: 8,
+    },
+    calWeekDay: {
+        flex: 1,
+        textAlign: 'center',
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#9CA3AF',
+    },
+    calDaysGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    calDayCell: {
+        width: `${100 / 7}%` as any,
+        aspectRatio: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 10,
+        marginVertical: 1,
+    },
+    calSelectedDay: {
+        backgroundColor: Colors.secondary,
+    },
+    calTodayDay: {
+        borderWidth: 2,
+        borderColor: Colors.secondary,
+    },
+    calDayText: {
+        fontSize: 14,
+        color: '#374151',
+        fontWeight: '500',
+    },
+    calDisabledText: {
+        color: '#D1D5DB',
+    },
+    calSelectedText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
+    calTodayText: {
+        color: Colors.secondary,
+        fontWeight: '700',
+    },
+
+    // End date info
+    endDateContainer: {
+        backgroundColor: '#F0FDF4',
+        borderRadius: 14,
+        padding: 16,
+        marginTop: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#BBF7D0',
+    },
+    endDateLabel: {
+        fontSize: 13,
+        color: '#6B7280',
+        fontWeight: '500',
+        marginBottom: 4,
+    },
+    endDateValue: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: Colors.primary,
+        textAlign: 'center',
+    },
+    endDateSublabel: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        marginTop: 4,
+    },
+
+    // Step 5: Secure your reward
+    statCard: {
+        backgroundColor: '#F0FDF4',
+        borderRadius: 12,
+        padding: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#BBF7D0',
+        marginTop: 16,
+        marginBottom: 0,
+    },
+    statNumber: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.primary,
+        marginBottom: 2,
+    },
+    statText: {
+        fontSize: 12,
+        color: '#374151',
+        textAlign: 'center',
+        lineHeight: 16,
+    },
+    statSource: {
+        fontSize: 10,
+        color: '#9CA3AF',
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    expPreview: {
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: '#F9FAFB',
         borderRadius: 14,
+        padding: 12,
+        marginBottom: 20,
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        marginTop: 8,
+        gap: 12,
     },
-    dateButtonText: {
-        fontSize: 15,
-        fontWeight: '600',
+    expPreviewImage: {
+        width: 48,
+        height: 48,
+        borderRadius: 10,
+    },
+    expPreviewInfo: {
+        flex: 1,
+    },
+    expPreviewTitle: {
+        fontSize: 14,
+        fontWeight: '700',
         color: '#1F2937',
+    },
+    expPreviewMeta: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    rewardChoice: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 2,
+        borderColor: '#E5E7EB',
+        marginBottom: 12,
+    },
+    rewardChoiceActive: {
+        borderColor: Colors.primary,
+        backgroundColor: Colors.primarySurface,
+    },
+    rewardChoiceHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    rewardChoiceIcon: {
+        fontSize: 28,
+    },
+    rewardChoiceTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginBottom: 2,
+    },
+    rewardChoiceTitleActive: {
+        color: Colors.primary,
+    },
+    rewardChoiceDesc: {
+        fontSize: 13,
+        color: '#6B7280',
+        lineHeight: 18,
+    },
+    rewardChoiceCheck: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rewardChoiceNote: {
+        fontSize: 13,
+        color: '#9CA3AF',
+        textAlign: 'center',
+        marginTop: 4,
+        fontStyle: 'italic',
     },
 });

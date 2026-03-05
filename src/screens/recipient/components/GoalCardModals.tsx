@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Image,
   ScrollView,
   Animated,
-  Easing,
+  Platform,
 } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, MapPin, Share2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import Colors from '../../../config/colors';
-import { Experience } from '../../../types';
+import { Experience, PartnerUser } from '../../../types';
+import { partnerService } from '../../../services/PartnerService';
 
 // ─── CancelSessionModal ─────────────────────────────────────────────
 
@@ -95,19 +97,38 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
 interface CelebrationModalProps {
   visible: boolean;
   onClose: () => void;
+  onPostToFeed?: () => void;
+  // Feed post preview data
+  goalTitle?: string;
+  sessionNumber?: number;
+  totalSessions?: number;
+  progressPct?: number;
+  mediaUri?: string | null;
+  userName?: string;
+  userProfileImageUrl?: string;
 }
 
-export const CelebrationModal: React.FC<CelebrationModalProps> = ({ visible, onClose }) => {
+export const CelebrationModal: React.FC<CelebrationModalProps> = ({
+  visible,
+  onClose,
+  onPostToFeed,
+  goalTitle,
+  sessionNumber,
+  totalSessions,
+  progressPct,
+  mediaUri,
+  userName,
+  userProfileImageUrl,
+}) => {
   const celebrationScale = useRef(new Animated.Value(0)).current;
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
-  const particlesAnim = useRef(new Animated.Value(0)).current;
+  const confettiRef = useRef<ConfettiCannon | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState(false);
 
   useEffect(() => {
     if (visible) {
       celebrationScale.setValue(0);
       celebrationOpacity.setValue(0);
-      particlesAnim.setValue(0);
-
       Animated.parallel([
         Animated.spring(celebrationScale, {
           toValue: 1,
@@ -122,14 +143,10 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({ visible, onC
         }),
       ]).start();
 
+      // Fire confetti after a brief delay
       setTimeout(() => {
-        Animated.timing(particlesAnim, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      }, 150);
+        confettiRef.current?.start();
+      }, 200);
     } else {
       Animated.parallel([
         Animated.timing(celebrationScale, {
@@ -146,72 +163,139 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({ visible, onC
     }
   }, [visible]);
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <View style={styles.celebrationOverlay}>
-        <Animated.View
-          style={[
-            styles.celebrationContainer,
-            {
-              opacity: celebrationOpacity,
-              transform: [{ scale: celebrationScale }],
-            },
-          ]}
-        >
-          {/* Particle Effects */}
-          {[...Array(12)].map((_, i) => {
-            const angle = (i / 12) * 2 * Math.PI;
-            const distance = 80;
-            return (
-              <Animated.View
-                key={i}
-                style={[
-                  styles.particle,
-                  {
-                    backgroundColor: [Colors.primary, '#10b981', '#f59e0b', '#ef4444', Colors.accent][i % 5],
-                    transform: [
-                      {
-                        translateX: particlesAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, Math.cos(angle) * distance],
-                        }),
-                      },
-                      {
-                        translateY: particlesAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, Math.sin(angle) * distance],
-                        }),
-                      },
-                      {
-                        scale: particlesAnim.interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: [0, 1, 0],
-                        }),
-                      },
-                    ],
-                    opacity: particlesAnim.interpolate({
-                      inputRange: [0, 0.5, 1],
-                      outputRange: [0, 1, 0],
-                    }),
-                  },
-                ]}
-              />
-            );
-          })}
+  const pct = progressPct ?? 0;
 
-          <View style={styles.celebrationIconContainer}>
-            <Text style={styles.celebrationIcon}>🎉</Text>
-          </View>
-          <Text style={styles.celebrationTitle}>Amazing!</Text>
-          <Text style={styles.celebrationMessage}>Session complete!</Text>
-        </Animated.View>
-      </View>
-    </Modal>
+  return (
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={onClose}
+      >
+        <View style={styles.celebrationOverlay}>
+          {/* Confetti Cannon */}
+          <ConfettiCannon
+            ref={confettiRef}
+            autoStart={false}
+            count={80}
+            origin={{ x: -10, y: 0 }}
+            explosionSpeed={350}
+            fallSpeed={2500}
+            fadeOut
+            colors={[Colors.primary, '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']}
+          />
+          <Animated.View
+            style={[
+              styles.celebrationContainer,
+              {
+                opacity: celebrationOpacity,
+                transform: [{ scale: celebrationScale }],
+              },
+            ]}
+          >
+            {/* Header */}
+            <Text style={styles.celebrationHeader}>Session Complete</Text>
+
+            {/* Feed post preview card */}
+            <View style={styles.feedPreviewCard}>
+              {/* Author row */}
+              <View style={styles.feedAuthorRow}>
+                {userProfileImageUrl ? (
+                  <Image source={{ uri: userProfileImageUrl }} style={styles.feedAvatar} />
+                ) : (
+                  <View style={[styles.feedAvatar, styles.feedAvatarPlaceholder]}>
+                    <Text style={styles.feedAvatarText}>
+                      {(userName?.[0] || 'U').toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.feedAuthorName} numberOfLines={1}>{userName || 'You'}</Text>
+                  <Text style={styles.feedTimestamp}>Just now</Text>
+                </View>
+              </View>
+
+              {/* Goal & session info */}
+              <Text style={styles.feedGoalTitle} numberOfLines={2}>{goalTitle || 'Goal'}</Text>
+              <Text style={styles.feedSessionText}>
+                Session {sessionNumber || 0} of {totalSessions || 0}
+              </Text>
+
+              {/* Progress bar */}
+              <View style={styles.feedProgressTrack}>
+                <View style={[styles.feedProgressFill, { width: `${pct}%` }]} />
+              </View>
+              <Text style={styles.feedProgressLabel}>{pct}% complete</Text>
+
+              {/* Media — adaptive height, tap to fullscreen */}
+              {mediaUri && (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setFullscreenMedia(true)}
+                >
+                  <Image
+                    source={{ uri: mediaUri }}
+                    style={styles.feedMediaAdaptive}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.celebrationButtons}>
+              {onPostToFeed && (
+                <TouchableOpacity
+                  style={styles.shareButton}
+                  onPress={() => { onPostToFeed(); onClose(); }}
+                  activeOpacity={0.8}
+                >
+                  <Share2 size={16} color="#fff" />
+                  <Text style={styles.shareButtonText}>Share to Feed</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.celebrationCloseBtn}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.celebrationCloseBtnText}>
+                  {onPostToFeed ? 'Skip' : 'Close'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Fullscreen media viewer */}
+      {
+        mediaUri && (
+          <Modal
+            visible={fullscreenMedia}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setFullscreenMedia(false)}
+          >
+            <View style={styles.fullscreenOverlay}>
+              <TouchableOpacity
+                style={styles.fullscreenClose}
+                onPress={() => setFullscreenMedia(false)}
+              >
+                <X color="#fff" size={24} strokeWidth={2.5} />
+              </TouchableOpacity>
+              <Image
+                source={{ uri: mediaUri }}
+                style={styles.fullscreenImage}
+                resizeMode="contain"
+              />
+            </View>
+          </Modal>
+        )
+      }
+
+    </>
   );
 };
 
@@ -228,6 +312,22 @@ export const ValentineExperienceDetailsModal: React.FC<ValentineExperienceDetail
   onClose,
   experience,
 }) => {
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
+
+  useEffect(() => {
+    if (visible && experience?.partnerId) {
+      partnerService.getPartnerById(experience.partnerId).then(setPartner);
+    } else if (!visible) {
+      setPartner(null);
+    }
+  }, [visible, experience?.partnerId]);
+
+  const streetMapUrl = partner?.mapsUrl
+    ? partner.mapsUrl.includes('?')
+      ? `${partner.mapsUrl}&layer=`
+      : `${partner.mapsUrl}?layer=`
+    : '';
+
   return (
     <Modal
       visible={visible}
@@ -284,21 +384,23 @@ export const ValentineExperienceDetailsModal: React.FC<ValentineExperienceDetail
                   <Text style={styles.priceText}>€{experience.price}</Text>
                 )}
 
+                {/* Location */}
+                {experience.location && (
+                  <View style={styles.locationRow}>
+                    <MapPin color={Colors.primary} size={18} />
+                    <Text style={styles.locationText}>{experience.location}</Text>
+                  </View>
+                )}
+
                 {/* Info pills */}
-                <View style={styles.modalInfoPills}>
-                  {experience.location && (
-                    <View style={styles.infoPill}>
-                      <Text style={styles.infoPillIcon}>📍</Text>
-                      <Text style={styles.infoPillText}>{experience.location}</Text>
-                    </View>
-                  )}
-                  {experience.duration && (
+                {experience.duration && (
+                  <View style={styles.modalInfoPills}>
                     <View style={styles.infoPill}>
                       <Text style={styles.infoPillIcon}>⏱️</Text>
                       <Text style={styles.infoPillText}>{experience.duration}</Text>
                     </View>
-                  )}
-                </View>
+                  </View>
+                )}
 
                 {/* Divider */}
                 <View style={styles.divider} />
@@ -306,6 +408,39 @@ export const ValentineExperienceDetailsModal: React.FC<ValentineExperienceDetail
                 {/* Description */}
                 <Text style={styles.modalSectionTitle}>About This Experience</Text>
                 <Text style={styles.modalDescription}>{experience.description}</Text>
+
+                {/* Location Map */}
+                {partner?.mapsUrl && (
+                  <View style={styles.mapSection}>
+                    <View style={styles.divider} />
+                    <Text style={styles.modalSectionTitle}>Location</Text>
+                    {partner.address && (
+                      <View style={styles.addressRow}>
+                        <MapPin color="#6b7280" size={16} />
+                        <Text style={styles.addressText}>{partner.address}</Text>
+                      </View>
+                    )}
+                    <View style={styles.mapContainer}>
+                      {Platform.OS === 'web' ? (
+                        <iframe
+                          src={streetMapUrl}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0, borderRadius: 12 } as any}
+                          allowFullScreen
+                          loading="lazy"
+                          title="Location"
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(partner.address || experience.location || '')}&zoom=14&size=600x200&key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || ''}` }}
+                          style={{ width: '100%', height: '100%', borderRadius: 12 }}
+                          resizeMode="cover"
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
             )}
           </ScrollView>
@@ -382,42 +517,150 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
   celebrationContainer: {
-    width: 280,
-    height: 280,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: '100%',
+    maxWidth: 340,
     backgroundColor: '#fff',
-    borderRadius: 40,
+    borderRadius: 24,
+    padding: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 10,
   },
-  particle: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  celebrationIconContainer: {
-    marginBottom: 16,
-  },
-  celebrationIcon: {
-    fontSize: 64,
-  },
-  celebrationTitle: {
-    fontSize: 28,
+  celebrationHeader: {
+    fontSize: 22,
     fontWeight: '800',
     color: '#111827',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  // Feed post preview
+  feedPreviewCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 16,
+  },
+  feedAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  feedAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e5e7eb',
+  },
+  feedAvatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.secondary,
+  },
+  feedAvatarText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedAuthorName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  feedTimestamp: {
+    fontSize: 11,
+    color: '#9ca3af',
+  },
+  feedGoalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  feedSessionText: {
+    fontSize: 13,
+    color: '#6b7280',
     marginBottom: 8,
   },
-  celebrationMessage: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6b7280',
+  feedProgressTrack: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  feedProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
+  },
+  feedProgressLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  feedMediaAdaptive: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: '#e5e7eb',
+  },
+  fullscreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '80%',
+  },
+  celebrationButtons: {
+    gap: 8,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 13,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  celebrationCloseBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  celebrationCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9ca3af',
   },
   // Valentine experience details
   valentineModalOverlay: {
@@ -511,6 +754,22 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginTop: 10,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
+  },
   modalInfoPills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -552,4 +811,25 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 24,
   },
+  mapSection: {
+    marginTop: 4,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  addressText: {
+    fontSize: 15,
+    color: '#6b7280',
+    flex: 1,
+  },
+  mapContainer: {
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#e5e7eb',
+  },
 });
+

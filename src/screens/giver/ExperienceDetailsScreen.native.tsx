@@ -178,7 +178,7 @@ export default function ExperienceDetailsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => (navigation as any).navigate('PledgeGoalSetting', { experience })}
+            onPress={() => (navigation as any).navigate('ChallengeSetup', { prefill: { experience } })}
             style={styles.setAsGoalButton}
             activeOpacity={0.8}
           >
