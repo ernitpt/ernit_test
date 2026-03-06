@@ -44,6 +44,7 @@ import ValentineGoalSettingScreen from '../screens/ValentineGoalSettingScreen';
 import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScreen';
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
+import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import { logger } from '../utils/logger';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
@@ -205,6 +206,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         FreeGoalCompletion: 'free-goal-completion',
         ChallengeLanding: '',
         ChallengeSetup: 'challenge/create',
+        MysteryChoice: 'mystery-choice',
       },
     },
   };
@@ -240,6 +242,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="ValentineConfirmation" component={ValentineConfirmationScreen} />
         <RootStack.Screen name="ValentineGoalSetting" component={ValentineGoalSettingScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
+        <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">

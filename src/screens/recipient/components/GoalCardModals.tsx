@@ -106,6 +106,10 @@ interface CelebrationModalProps {
   mediaUri?: string | null;
   userName?: string;
   userProfileImageUrl?: string;
+  weeklyCount?: number;
+  sessionsPerWeek?: number;
+  weeksCompleted?: number;
+  totalWeeks?: number;
 }
 
 export const CelebrationModal: React.FC<CelebrationModalProps> = ({
@@ -119,6 +123,10 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   mediaUri,
   userName,
   userProfileImageUrl,
+  weeklyCount,
+  sessionsPerWeek,
+  weeksCompleted,
+  totalWeeks,
 }) => {
   const celebrationScale = useRef(new Animated.Value(0)).current;
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
@@ -163,7 +171,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
     }
   }, [visible]);
 
-  const pct = progressPct ?? 0;
 
   return (
     <>
@@ -199,6 +206,21 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
             {/* Feed post preview card */}
             <View style={styles.feedPreviewCard}>
+              {/* Media at top if present */}
+              {mediaUri && (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setFullscreenMedia(true)}
+                  style={styles.feedMediaWrapper}
+                >
+                  <Image
+                    source={{ uri: mediaUri }}
+                    style={styles.feedMediaAdaptive}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              )}
+
               {/* Author row */}
               <View style={styles.feedAuthorRow}>
                 {userProfileImageUrl ? (
@@ -211,35 +233,57 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.feedAuthorName} numberOfLines={1}>{userName || 'You'}</Text>
+                  <Text style={styles.feedAuthorName} numberOfLines={1}>
+                    <Text style={{ fontWeight: '500' }}>{userName || 'You'}</Text> completed session
+                  </Text>
                   <Text style={styles.feedTimestamp}>Just now</Text>
                 </View>
               </View>
 
-              {/* Goal & session info */}
-              <Text style={styles.feedGoalTitle} numberOfLines={2}>{goalTitle || 'Goal'}</Text>
-              <Text style={styles.feedSessionText}>
-                Session {sessionNumber || 0} of {totalSessions || 0}
-              </Text>
+              {/* Capsule progress: sessions this week */}
+              {sessionsPerWeek && sessionsPerWeek > 0 && (
+                <View style={styles.feedProgressBlock}>
+                  <View style={styles.feedProgressHeader}>
+                    <Text style={styles.feedProgressBlockLabel}>Sessions this week</Text>
+                    <Text style={styles.feedProgressBlockCount}>{weeklyCount || 0}/{sessionsPerWeek}</Text>
+                  </View>
+                  <View style={styles.feedCapsuleRow}>
+                    {Array.from({ length: sessionsPerWeek }, (_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.feedCapsule,
+                          i < (weeklyCount || 0)
+                            ? { backgroundColor: Colors.primary }
+                            : { backgroundColor: '#E5E7EB' },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
 
-              {/* Progress bar */}
-              <View style={styles.feedProgressTrack}>
-                <View style={[styles.feedProgressFill, { width: `${pct}%` }]} />
-              </View>
-              <Text style={styles.feedProgressLabel}>{pct}% complete</Text>
-
-              {/* Media — adaptive height, tap to fullscreen */}
-              {mediaUri && (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => setFullscreenMedia(true)}
-                >
-                  <Image
-                    source={{ uri: mediaUri }}
-                    style={styles.feedMediaAdaptive}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
+              {/* Capsule progress: weeks completed */}
+              {totalWeeks && totalWeeks > 0 && (
+                <View style={styles.feedProgressBlock}>
+                  <View style={styles.feedProgressHeader}>
+                    <Text style={styles.feedProgressBlockLabel}>Weeks completed</Text>
+                    <Text style={styles.feedProgressBlockCount}>{weeksCompleted || 0}/{totalWeeks}</Text>
+                  </View>
+                  <View style={styles.feedCapsuleRow}>
+                    {Array.from({ length: Math.min(totalWeeks, 20) }, (_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.feedCapsule,
+                          i < (weeksCompleted || 0)
+                            ? { backgroundColor: Colors.secondary }
+                            : { backgroundColor: '#E5E7EB' },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
               )}
             </View>
 
@@ -542,21 +586,31 @@ const styles = StyleSheet.create({
   feedPreviewCard: {
     backgroundColor: '#f9fafb',
     borderRadius: 14,
-    padding: 14,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     marginBottom: 16,
+  },
+  feedMediaWrapper: {
+    backgroundColor: '#e5e7eb',
+  },
+  feedMediaAdaptive: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: '#e5e7eb',
   },
   feedAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   feedAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#e5e7eb',
   },
   feedAvatarPlaceholder: {
@@ -566,53 +620,45 @@ const styles = StyleSheet.create({
   },
   feedAvatarText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   feedAuthorName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
     color: '#111827',
   },
   feedTimestamp: {
     fontSize: 11,
     color: '#9ca3af',
   },
-  feedGoalTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
+  feedProgressBlock: {
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
-  feedSessionText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 8,
+  feedProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  feedProgressTrack: {
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  feedProgressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 3,
-  },
-  feedProgressLabel: {
+  feedProgressBlockLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 4,
+    color: '#6b7280',
+    fontWeight: '500',
   },
-  feedMediaAdaptive: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    marginTop: 8,
-    backgroundColor: '#e5e7eb',
+  feedProgressBlockCount: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  feedCapsuleRow: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  feedCapsule: {
+    flex: 1,
+    height: 7,
+    borderRadius: 50,
   },
   fullscreenOverlay: {
     flex: 1,

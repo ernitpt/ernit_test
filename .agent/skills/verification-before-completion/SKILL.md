@@ -105,6 +105,35 @@ Skip any step = lying, not verifying
 ❌ Trust agent report
 ```
 
+## Ernit Project — Verification Commands
+
+These are the specific commands for the Ernit app. Use the right one for the claim:
+
+| Claim | Command | What to Check |
+|-------|---------|---------------|
+| Types are correct | `npx tsc --noEmit` | Exit 0, zero errors |
+| App builds | `npx expo start` (then confirm bundler loads) | No red errors in terminal |
+| Linter clean | `npx eslint src/ --ext .ts,.tsx` | 0 errors (warnings acceptable) |
+| Firebase rules deploy | `firebase deploy --only firestore:rules --project ernit-app` | "Deploy complete!" |
+| Cloud Functions deploy | `firebase deploy --only functions --project ernit-app` | "Deploy complete!" |
+| Specific function | `firebase deploy --only functions:functionName --project ernit-app` | "Deploy complete!" |
+
+**Minimum verification before any completion claim:**
+```
+npx tsc --noEmit
+```
+TypeScript type checking catches the majority of issues. If this passes, the code is structurally sound.
+
+**Full verification (before commits/PRs):**
+```
+npx tsc --noEmit && npx eslint src/ --ext .ts,.tsx
+```
+
+**After infrastructure changes (Cloud Functions, rules):**
+```
+npx tsc --noEmit && firebase deploy --only [changed-resource] --project ernit-app
+```
+
 ## Why This Matters
 
 From 24 failure memories:

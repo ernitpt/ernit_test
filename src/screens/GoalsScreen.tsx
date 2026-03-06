@@ -356,14 +356,6 @@ const GoalsScreen: React.FC = () => {
         ) : currentGoals.length === 0 && completedGoals.length === 0 ? (
           /* ── Upgraded Empty State ── */
           <View style={styles.emptyContainer}>
-            <MotiView
-              from={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 14, stiffness: 120 }}
-              style={styles.emptyIllustration}
-            >
-              <Text style={styles.emptyEmoji}>🚀</Text>
-            </MotiView>
             <Text style={styles.emptyTitle}>Your journey starts here</Text>
             <Text style={styles.emptySubtitle}>
               Set a goal, pick a dream reward, and challenge yourself to earn it.

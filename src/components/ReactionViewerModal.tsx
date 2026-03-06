@@ -7,7 +7,6 @@ import {
     Modal,
     Image,
     ScrollView,
-    ActivityIndicator,
     Animated,
 } from 'react-native';
 import { X } from 'lucide-react-native';
@@ -17,7 +16,8 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { ReactionSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { logErrorToFirestore } from '../utils/errorLogger';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 
 interface ReactionViewerModalProps {
     visible: boolean;
@@ -26,9 +26,9 @@ interface ReactionViewerModalProps {
 }
 
 const REACTION_EMOJIS: Record<ReactionType, string> = {
-    like: '??',
-    heart: '??',
-    muscle: '??',
+    like: '\u{1F44D}',
+    heart: '\u{2764}\u{FE0F}',
+    muscle: '\u{1F4AA}',
 };
 
 const REACTION_LABELS: Record<ReactionType, string> = {
@@ -66,6 +66,12 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
             }
         } catch (error) {
             logger.error('Error loading reactions:', error);
+            await logErrorToFirestore(error, {
+                screenName: 'ReactionViewerModal',
+                feature: 'LoadReactions',
+                userId: 'system',
+                additionalData: { postId },
+            });
         } finally {
             setLoading(false);
         }
@@ -122,7 +128,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                         <View style={styles.header}>
                             <Text style={styles.title}>Reactions</Text>
                             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                                <X color="#6b7280" size={24} />
+                                <X color={Colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
@@ -218,51 +224,53 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
 
 const styles = StyleSheet.create({
     modalContainer: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        backgroundColor: Colors.white,
+        borderTopLeftRadius: BorderRadius.xxl,
+        borderTopRightRadius: BorderRadius.xxl,
         maxHeight: '80%',
-        paddingBottom: 20,
+        paddingBottom: Spacing.xl,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 12,
+        paddingHorizontal: Spacing.screenPadding,
+        paddingTop: Spacing.screenPadding,
+        paddingBottom: Spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: Colors.border,
     },
     title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
+        ...Typography.heading3,
+        color: Colors.textPrimary,
     },
     closeButton: {
-        padding: 4,
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     tabsContainer: {
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: Colors.border,
     },
     tabsContent: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 8,
+        paddingHorizontal: Spacing.cardPadding,
+        paddingVertical: Spacing.md,
+        gap: Spacing.sm,
     },
     tab: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#f3f4f6',
-        gap: 6,
-        marginRight: 8,
+        paddingHorizontal: Spacing.cardPadding,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.xl,
+        backgroundColor: Colors.backgroundLight,
+        gap: Spacing.xs,
+        marginRight: Spacing.sm,
     },
     tabActive: {
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primarySurface,
         borderWidth: 1.5,
         borderColor: Colors.secondary,
     },
@@ -270,35 +278,34 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#6b7280',
+        ...Typography.smallBold,
+        color: Colors.textSecondary,
     },
     tabTextActive: {
         color: Colors.secondary,
     },
     reactionsList: {
-        paddingHorizontal: 20,
-        paddingTop: 12,
+        paddingHorizontal: Spacing.screenPadding,
+        paddingTop: Spacing.md,
     },
     loadingContainer: {
-        paddingVertical: 40,
+        paddingVertical: Spacing.huge,
         alignItems: 'center',
     },
     emptyContainer: {
-        paddingVertical: 40,
+        paddingVertical: Spacing.huge,
         alignItems: 'center',
     },
     emptyText: {
-        fontSize: 15,
-        color: '#9ca3af',
+        ...Typography.body,
+        color: Colors.textMuted,
     },
     reactionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: Spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: Colors.backgroundLight,
     },
     avatar: {
         width: 44,
@@ -309,23 +316,21 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primarySurface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.accentDark,
+        ...Typography.heading3,
+        color: Colors.primary,
     },
     userInfo: {
         flex: 1,
-        marginLeft: 12,
+        marginLeft: Spacing.md,
     },
     userName: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#111827',
+        ...Typography.bodyBold,
+        color: Colors.textPrimary,
     },
     reactionEmoji: {
         fontSize: 20,

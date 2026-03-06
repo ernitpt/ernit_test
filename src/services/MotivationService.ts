@@ -116,6 +116,37 @@ class MotivationService {
     }
   }
 
+  /** Get ALL motivations for a goal (for journey display, regardless of seen status) */
+  async getAllMotivations(goalId: string): Promise<Motivation[]> {
+    try {
+      const motivationsRef = this.getMotivationsCollection(goalId);
+      const q = query(motivationsRef, orderBy('createdAt', 'asc'));
+      const snapshot = await getDocs(q);
+      const motivations: Motivation[] = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        motivations.push({
+          id: docSnap.id,
+          authorId: data.authorId,
+          authorName: data.authorName,
+          authorProfileImage: data.authorProfileImage,
+          message: data.message,
+          targetSession: data.targetSession,
+          createdAt: data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate()
+            : new Date(data.createdAt),
+          seen: data.seen,
+        });
+      });
+
+      return motivations;
+    } catch (error) {
+      logger.error('Error fetching all motivations:', error);
+      return [];
+    }
+  }
+
   /** Get count of unseen motivations */
   async getUnseenMotivationCount(goalId: string): Promise<number> {
     try {

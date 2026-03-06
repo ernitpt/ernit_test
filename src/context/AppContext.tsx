@@ -19,6 +19,7 @@ interface AppState {
   error: string | null;
   goals: Goal[];
   goalTimers: Record<string, GoalTimerState>;
+  empowerContext: { goalId: string; userId: string; userName?: string; isMystery?: boolean } | null;
 }
 
 // Action types
@@ -48,6 +49,7 @@ type AppAction =
   | { type: 'REMOVE_FROM_CART'; payload: { experienceId: string } }
   | { type: 'UPDATE_CART_ITEM'; payload: { experienceId: string; quantity: number } }
   | { type: 'CLEAR_CART' }
+  | { type: 'SET_EMPOWER_CONTEXT'; payload: { goalId: string; userId: string; userName?: string; isMystery?: boolean } | null }
   | { type: 'RESET_STATE' };
 
 // Initial state
@@ -61,6 +63,7 @@ const initialState: AppState = {
   error: null,
   goals: [],
   goalTimers: {},
+  empowerContext: null,
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -302,6 +305,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       };
     }
     
+    case 'SET_EMPOWER_CONTEXT':
+      return { ...state, empowerContext: action.payload };
+
     case 'RESET_STATE':
       return initialState;
 

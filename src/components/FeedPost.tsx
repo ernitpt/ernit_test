@@ -7,11 +7,8 @@ import {
     Image,
     Animated,
     Modal,
-    TextInput,
-    Alert,
-    ActivityIndicator,
 } from 'react-native';
-import { MessageCircle, Heart, Send, X } from 'lucide-react-native';
+import { MessageCircle, Heart, Send, X, Trophy, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -19,14 +16,14 @@ import CompactReactionBar from './CompactReactionBar';
 import CommentSection from './CommentSection';
 import CommentModal from './CommentModal';
 import ReactionViewerModal from './ReactionViewerModal';
+import MotivationModal from './MotivationModal';
+import EmpowerChoiceModal from './EmpowerChoiceModal';
 import { reactionService } from '../services/ReactionService';
 import { commentService } from '../services/CommentService';
-import { experienceService } from '../services/ExperienceService';
-import { motivationService } from '../services/MotivationService';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
+import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
-import { commonStyles } from '../styles/commonStyles';
 
 interface FeedPostProps {
     post: FeedPostType;
@@ -35,7 +32,7 @@ interface FeedPostProps {
 
 const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const { state } = useApp();
+    const { state, dispatch } = useApp();
     const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
     const [comments, setComments] = useState<CommentType[]>([]);
     const [reactionCounts, setReactionCounts] = useState(post.reactionCounts);
@@ -43,9 +40,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [showReactionModal, setShowReactionModal] = useState(false);
     const [showMotivationModal, setShowMotivationModal] = useState(false);
-    const [motivationText, setMotivationText] = useState('');
-    const [sendingMotivation, setSendingMotivation] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(false);
+    const [showEmpowerModal, setShowEmpowerModal] = useState(false);
 
     // Animated value for highlight effect
     const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -87,6 +83,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             setUserReaction(reaction?.type || null);
         } catch (error) {
             logger.error('Error loading user reaction:', error);
+            await logErrorToFirestore(error, {
+                screenName: 'FeedPost',
+                feature: 'LoadUserReaction',
+                userId: state.user?.id || 'unknown',
+                additionalData: { postId: post.id },
+            });
         }
     };
 
@@ -98,6 +100,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             setCommentCount(allComments.length);
         } catch (error) {
             logger.error('Error loading comments:', error);
+            await logErrorToFirestore(error, {
+                screenName: 'FeedPost',
+                feature: 'LoadComments',
+                userId: state.user?.id || 'unknown',
+                additionalData: { postId: post.id },
+            });
         }
     };
 
@@ -136,42 +144,32 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             );
         } catch (error) {
             logger.error('Error reacting:', error);
+            await logErrorToFirestore(error, {
+                screenName: 'FeedPost',
+                feature: 'AddReaction',
+                userId: state.user?.id || 'unknown',
+                additionalData: { postId: post.id, reactionType: type },
+            });
             setUserReaction(previousReaction);
             setReactionCounts(previousCounts);
         }
     };
-    const handleSendMotivation = async () => {
-        if (!motivationText.trim() || !state.user?.id) return;
-        setSendingMotivation(true);
-        try {
-            await motivationService.leaveMotivation(
-                post.goalId,
-                state.user.id,
-                state.user.displayName || state.user.profile?.name || 'A friend',
-                motivationText.trim(),
-                state.user.profile?.profileImageUrl,
-            );
-            setMotivationText('');
-            setShowMotivationModal(false);
-            Alert.alert('Sent!', 'Your motivation has been sent!');
-        } catch (error) {
-            logger.error('Error sending motivation:', error);
-            Alert.alert('Error', 'Failed to send motivation. Please try again.');
-        } finally {
-            setSendingMotivation(false);
-        }
+    const setEmpowerContext = () => {
+        dispatch({
+            type: 'SET_EMPOWER_CONTEXT',
+            payload: { goalId: post.goalId, userId: post.userId, userName: post.userName },
+        });
     };
 
-    const handleEmpower = async () => {
-        if (!post.pledgedExperienceId) return;
-        try {
-            const experience = await experienceService.getExperienceById(post.pledgedExperienceId);
-            if (experience) {
-                navigation.navigate('ExperienceDetails', { experience });
-            }
-        } catch (error) {
-            logger.error('Error navigating to experience:', error);
+    const handleEmpower = () => {
+        if (!post.pledgedExperienceId) {
+            // No pledged experience — go straight to browse
+            setEmpowerContext();
+            navigation.navigate('CategorySelection');
+            return;
         }
+        // Has pledged experience — show choice modal
+        setShowEmpowerModal(true);
     };
 
     // get third word from goal description
@@ -200,8 +198,14 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     color: Colors.secondary,
                 };
             case 'goal_completed':
+                if (post.experienceTitle) {
+                    return {
+                        text: (<>completed their goal and earned:</>),
+                        color: '#22c55e',
+                    };
+                }
                 return {
-                    text: (<>completed goal and earned: </>), //<Text style={{ fontWeight: '500' }}>{post.experienceTitle}</Text>
+                    text: 'completed their goal!',
                     color: '#22c55e',
                 };
             default:
@@ -262,6 +266,22 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 }),
             }
         ]}>
+            {/* Session Media — at top of card */}
+            {post.mediaUrl && (
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setFullscreenMedia(true)}
+                    style={styles.sessionMediaContainer}
+                >
+                    <Image source={{ uri: post.mediaUrl }} style={styles.sessionMediaImage} resizeMode="cover" />
+                    {post.mediaType === 'video' && (
+                        <View style={styles.sessionMediaVideoOverlay}>
+                            <Text style={styles.sessionMediaPlayIcon}>▶</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+            )}
+
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleUserPress} style={styles.clickableHeader}>
                     {post.userProfileImageUrl ? (
@@ -303,7 +323,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                                         style={[
                                             styles.capsule,
                                             i < (post.weeklyCount || 0)
-                                                ? { backgroundColor: '#84b3e9ff' }
+                                                ? { backgroundColor: Colors.primary }
                                                 : { backgroundColor: '#E5E7EB' },
                                         ]}
                                     />
@@ -315,17 +335,17 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                             <View style={styles.progressHeader}>
                                 <Text style={styles.progressLabel}>Weeks completed</Text>
                                 <Text style={styles.progressText}>
-                                    {Math.floor((post.sessionNumber - post.weeklyCount) / post.sessionsPerWeek)}/{post.totalSessions / post.sessionsPerWeek}
+                                    {Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))}/{Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1))}
                                 </Text>
                             </View>
                             <View style={styles.capsuleRow}>
-                                {Array.from({ length: Math.min(post.totalSessions / post.sessionsPerWeek, 20) }, (_, i) => (
+                                {Array.from({ length: Math.min(Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1)), 20) }, (_, i) => (
                                     <View
                                         key={i}
                                         style={[
                                             styles.capsule,
-                                            i < Math.floor((post.sessionNumber - post.weeklyCount) / post.sessionsPerWeek)
-                                                ? { backgroundColor: '#84b3e9ff' }
+                                            i < Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))
+                                                ? { backgroundColor: Colors.secondary }
                                                 : { backgroundColor: '#E5E7EB' },
                                         ]}
                                     />
@@ -336,20 +356,24 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 )}
                 {post.type === 'goal_completed' && post.experienceTitle ? (
                     <View style={styles.experienceSection}>
-                        {post.experienceImageUrl ? (
+                        {post.isMystery ? (
+                            <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: '#fef3c7' }]}>
+                                <Text style={styles.experienceImagePlaceholderText}>?</Text>
+                            </View>
+                        ) : post.experienceImageUrl ? (
                             <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} />
                         ) : (
                             <View style={[styles.experienceImage, styles.experienceImagePlaceholder]}>
-                                <Text style={styles.experienceImagePlaceholderText}>??</Text>
+                                <Text style={styles.experienceImagePlaceholderText}>🎁</Text>
                             </View>
                         )}
                         <View style={styles.experienceContent}>
                             <Text style={styles.experienceTitle} numberOfLines={1}>
-                                {post.experienceTitle}
+                                {post.isMystery ? 'Mystery Experience' : post.experienceTitle}
                             </Text>
-                            {post.partnerName && (
+                            {!post.isMystery && post.partnerName && (
                                 <Text style={styles.partnerName} numberOfLines={1}>
-                                    ?? {post.partnerName}
+                                    {post.partnerName}
                                 </Text>
                             )}
                             <Text style={styles.goalDescriptionText} numberOfLines={2}>
@@ -357,12 +381,41 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                             </Text>
                             {post.totalSessions && post.sessionsPerWeek && (
                                 <Text style={styles.experienceMeta}>
-                                    {post.totalSessions} sessions completed • {post.totalSessions / post.sessionsPerWeek} weeks
+                                    {post.totalSessions} sessions • {Math.floor(post.totalSessions / post.sessionsPerWeek)} weeks
                                 </Text>
                             )}
                         </View>
                     </View>
-                ) : post.type != 'session_progress' ? (
+                ) : post.type === 'goal_completed' && !post.experienceTitle ? (
+                    <View style={styles.achievementCard}>
+                        <View style={styles.achievementIconRow}>
+                            <View style={styles.achievementIcon}>
+                                <Trophy size={18} color={Colors.primary} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.achievementGoal} numberOfLines={2}>{post.goalDescription}</Text>
+                                {post.totalSessions && post.sessionsPerWeek && (
+                                    <Text style={styles.achievementStats}>
+                                        {post.totalSessions} sessions • {Math.floor(post.totalSessions / post.sessionsPerWeek)} weeks
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                        {post.userId !== state.user?.id && (
+                            <TouchableOpacity
+                                style={styles.congratsGiftButton}
+                                onPress={() => {
+                                    setEmpowerContext();
+                                    navigation.navigate('CategorySelection');
+                                }}
+                                activeOpacity={0.8}
+                            >
+                                <Gift size={15} color="#fff" />
+                                <Text style={styles.congratsGiftText}>Gift an Experience</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                ) : post.type !== 'session_progress' ? (
                     <View>
                         <Text style={styles.activityText}>
                             <Text style={styles.progressLabel}>{post.goalDescription}</Text>
@@ -370,22 +423,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     </View>
                 ) : null}
             </View>
-
-            {/* Session Media */}
-            {post.mediaUrl && (
-                <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => setFullscreenMedia(true)}
-                    style={styles.sessionMediaContainer}
-                >
-                    <Image source={{ uri: post.mediaUrl }} style={styles.sessionMediaImage} resizeMode="cover" />
-                    {post.mediaType === 'video' && (
-                        <View style={styles.sessionMediaVideoOverlay}>
-                            <Text style={styles.sessionMediaPlayIcon}>▶</Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
-            )}
 
             <View style={styles.interactionRow}>
                 <CompactReactionBar
@@ -410,7 +447,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
             {post.isFreeGoal && post.pledgedExperienceId && post.userId !== state.user?.id &&
                 (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.experienceTitle && (
+                post.experienceTitle && !post.isMystery && (
                     <TouchableOpacity style={styles.experiencePreviewCard} onPress={handleEmpower} activeOpacity={0.85}>
                         {post.experienceImageUrl && (
                             <Image source={{ uri: post.experienceImageUrl }} style={styles.experiencePreviewImage} />
@@ -448,7 +485,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                                 styles.empowerButtonText,
                                 (post.type === 'session_progress' || post.type === 'goal_completed') && styles.prominentEmpowerButtonText,
                             ]}>
-                                {post.type === 'goal_completed' ? '?? Gift This Experience' : post.type === 'session_progress' ? '?? Empower Now' : 'Empower'}
+                                {post.type === 'goal_completed' ? 'Gift This Experience' : post.type === 'session_progress' ? 'Empower Now' : 'Empower'}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -475,60 +512,24 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             )}
 
             {/* Motivation Modal */}
-            <Modal
+            <MotivationModal
                 visible={showMotivationModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowMotivationModal(false)}
-            >
-                <TouchableOpacity
-                    style={commonStyles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowMotivationModal(false)}
-                >
-                    <View style={styles.motivationModal}>
-                        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                            <Text style={styles.motivationModalTitle}>Send Motivation</Text>
-                            <Text style={styles.motivationModalSubtitle}>
-                                Leave an encouraging message for {post.userName}
-                            </Text>
-                            <TextInput
-                                style={styles.motivationInput}
-                                placeholder="You've got this! Keep going..."
-                                value={motivationText}
-                                onChangeText={setMotivationText}
-                                multiline
-                                maxLength={500}
-                            />
-                            <Text style={styles.motivationCharCount}>
-                                {motivationText.length}/500
-                            </Text>
-                            <View style={styles.motivationModalButtons}>
-                                <TouchableOpacity
-                                    style={styles.motivationCancelButton}
-                                    onPress={() => setShowMotivationModal(false)}
-                                >
-                                    <Text style={styles.motivationCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.motivationSendButton,
-                                        (!motivationText.trim() || sendingMotivation) && { opacity: 0.5 },
-                                    ]}
-                                    onPress={handleSendMotivation}
-                                    disabled={!motivationText.trim() || sendingMotivation}
-                                >
-                                    {sendingMotivation ? (
-                                        <ActivityIndicator color="#fff" size="small" />
-                                    ) : (
-                                        <Text style={styles.motivationSendText}>Send</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                recipientName={post.userName}
+                goalId={post.goalId}
+                onClose={() => setShowMotivationModal(false)}
+            />
+
+            {/* Empower Choice Modal */}
+            <EmpowerChoiceModal
+                visible={showEmpowerModal}
+                userName={post.userName}
+                experienceTitle={post.experienceTitle}
+                experiencePrice={post.pledgedExperiencePrice}
+                pledgedExperienceId={post.pledgedExperienceId}
+                goalId={post.goalId}
+                goalUserId={post.userId}
+                onClose={() => setShowEmpowerModal(false)}
+            />
 
             <CommentModal
                 visible={showCommentModal}
@@ -589,7 +590,7 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: '#fff',
         borderRadius: 16,
-        padding: 16,
+        overflow: 'hidden',
         marginBottom: 12,
         shadowColor: '#000',
         shadowOpacity: 0.05,
@@ -606,41 +607,44 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 14,
+        paddingHorizontal: 16,
+        paddingTop: 14,
+        paddingBottom: 10,
     },
     avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
     },
     avatarPlaceholder: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#e0e7ff',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Colors.primarySurface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: '700',
-        color: Colors.accentDark,
+        color: Colors.primary,
     },
     headerInfo: {
-        marginLeft: 12,
+        marginLeft: 10,
         flex: 1,
     },
     userName: {
-        fontSize: 16,
+        fontSize: 14,
         color: '#111827',
-        marginBottom: 2,
+        marginBottom: 1,
     },
     timeAgo: {
-        fontSize: 13,
+        fontSize: 12,
         color: '#9ca3af',
     },
     content: {
-        marginBottom: 12,
+        paddingHorizontal: 16,
+        marginBottom: 10,
     },
     activityText: {
         fontSize: 15,
@@ -687,7 +691,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 4,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        paddingBottom: 10,
     },
     commentIconButton: {
         flexDirection: 'row',
@@ -706,7 +712,8 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: '#e5e7eb',
-        marginVertical: 12,
+        marginVertical: 8,
+        marginHorizontal: 16,
     },
     clickableHeader: {
         flexDirection: 'row',
@@ -757,12 +764,60 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#9ca3af',
     },
+    // Completed goal without experience
+    achievementCard: {
+        backgroundColor: Colors.primarySurface,
+        borderRadius: 12,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: Colors.primaryBorder,
+    },
+    achievementIconRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    achievementIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Colors.primaryTint,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    achievementGoal: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.textPrimary,
+        lineHeight: 20,
+    },
+    achievementStats: {
+        fontSize: 12,
+        color: Colors.textMuted,
+        marginTop: 2,
+    },
+    congratsGiftButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        backgroundColor: Colors.secondary,
+        paddingVertical: 10,
+        borderRadius: 10,
+        marginTop: 12,
+    },
+    congratsGiftText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
     // Free Goal Action Buttons
     freeGoalActions: {
         flexDirection: 'row',
         gap: 8,
-        marginTop: 8,
-        marginBottom: 4,
+        paddingHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 10,
     },
     empowerButton: {
         flex: 1,
@@ -804,9 +859,11 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primarySurface,
         borderRadius: 12,
         padding: 10,
-        marginTop: 10,
+        marginHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 8,
         borderWidth: 1,
-        borderColor: Colors.primarySurface,
+        borderColor: Colors.primaryTint,
     },
     experiencePreviewImage: {
         width: 44,
@@ -854,85 +911,13 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 15,
     },
-    // Motivation Modal
-    motivationModal: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        width: '90%',
-        maxWidth: 360,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    motivationModalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 4,
-    },
-    motivationModalSubtitle: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-    },
-    motivationInput: {
-        borderWidth: 1,
-        borderColor: '#d1d5db',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 16,
-        backgroundColor: '#f9fafb',
-        minHeight: 100,
-        textAlignVertical: 'top',
-    },
-    motivationCharCount: {
-        fontSize: 12,
-        color: '#9ca3af',
-        textAlign: 'right',
-        marginTop: 4,
-        marginBottom: 16,
-    },
-    motivationModalButtons: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    motivationCancelButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
-        backgroundColor: '#f3f4f6',
-        alignItems: 'center',
-    },
-    motivationCancelText: {
-        color: '#374151',
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    motivationSendButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
-        backgroundColor: Colors.secondary,
-        alignItems: 'center',
-    },
-    motivationSendText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    // Session media
+    // Session media (top of card)
     sessionMediaContainer: {
-        marginBottom: 12,
-        borderRadius: 14,
-        overflow: 'hidden',
         backgroundColor: '#F3F4F6',
     },
     sessionMediaImage: {
         width: '100%',
-        aspectRatio: 1,
+        aspectRatio: 4 / 3,
     },
     sessionMediaVideoOverlay: {
         position: 'absolute',

@@ -22,7 +22,7 @@ import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { Heart, ShoppingCart, LogIn, Search, X } from 'lucide-react-native';
+import { Heart, ShoppingCart, LogIn, Search, X, Gift } from 'lucide-react-native';
 // This is required for the gradient text effect
 import MaskedView from '@react-native-masked-view/masked-view';
 import { MotiView } from 'moti';
@@ -159,6 +159,12 @@ const CategorySelectionScreen = () => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const empowerContext = state.empowerContext;
+
+  const dismissEmpower = useCallback(() => {
+    dispatch({ type: 'SET_EMPOWER_CONTEXT', payload: null });
+  }, [dispatch]);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -361,6 +367,17 @@ const CategorySelectionScreen = () => {
             </TouchableOpacity>
           }
         />
+        {empowerContext && (
+          <View style={styles.empowerBanner}>
+            <Gift color={Colors.primary} size={18} />
+            <Text style={styles.empowerBannerText} numberOfLines={1}>
+              Gifting for <Text style={styles.empowerBannerName}>{empowerContext.userName || 'a friend'}</Text>'s challenge
+            </Text>
+            <TouchableOpacity onPress={dismissEmpower} style={styles.empowerBannerClose} activeOpacity={0.7}>
+              <X color={Colors.primary} size={16} />
+            </TouchableOpacity>
+          </View>
+        )}
         {showSearch && (
           <Animated.View style={[
             styles.searchContainer,
@@ -443,6 +460,28 @@ const CategorySelectionScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  empowerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primarySurface,
+    marginHorizontal: 24,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 10,
+  },
+  empowerBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.primary,
+  },
+  empowerBannerName: {
+    fontWeight: '700',
+  },
+  empowerBannerClose: {
+    padding: 4,
+  },
   searchContainer: {
     paddingHorizontal: 24,
     paddingVertical: 16,

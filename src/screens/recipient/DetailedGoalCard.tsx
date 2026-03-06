@@ -98,6 +98,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     totalSessions: number;
     progressPct: number;
     mediaUri?: string | null;
+    weeklyCount: number;
+    sessionsPerWeek: number;
+    weeksCompleted: number;
+    totalWeeks: number;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
   const [showPartnerWaitingModal, setShowPartnerWaitingModal] = useState(false);
@@ -414,6 +418,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const hintExperience = isValentineGoal ? valentineExperience : experience;
       const hasHintExperience = isValentineGoal ? true : !!experience;
       const canGenerateHints =
+        !isSelfGift &&
         funcTotalSessionsDone !== funcTotalSessions &&
         !hasPersonalizedHintForNextSession &&
         hasHintExperience &&
@@ -638,8 +643,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     setSessionMediaType(null);
     setPendingFinishData(null);
 
-    // Process hints
-    await processHintAfterSession(updated, totalSessionsDone, isValentineGoal, experience, recipientName);
+    // Process hints (skip for self-gifted goals)
+    if (!isSelfGift) {
+      await processHintAfterSession(updated, totalSessionsDone, isValentineGoal, experience, recipientName);
+    }
 
     // Check for streak milestones (7, 14, 21, 30)
     const STREAK_MILESTONES = [7, 14, 21, 30];
@@ -664,6 +671,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         totalSessions: celebTotalSessions,
         progressPct: celebPct,
         mediaUri: lastSessionMediaUrl,
+        weeklyCount: updated.weeklyCount,
+        sessionsPerWeek: updated.sessionsPerWeek,
+        weeksCompleted: updated.currentCount,
+        totalWeeks: updated.targetCount,
       });
       setShowCelebration(true);
     };
@@ -1039,7 +1050,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           {!!empoweredName && !isSelfGift && (
             <Text style={styles.empoweredText}>Empowered by {empoweredName}</Text>
           )}
-          {isSelfGift && <Text style={styles.selfChallengeText}>Self-Challenge</Text>}
+          {currentGoal.isMystery && (
+            <View style={styles.mysteryBadge}>
+              <Text style={styles.mysteryBadgeText}>Mystery Gift</Text>
+            </View>
+          )}
           {!!currentGoal.valentineChallengeId && (
             <Text style={styles.valentineChallengeText}>
               Valentine's Challenge{valentine.valentinePartnerName ? ` with ${valentine.valentinePartnerName}` : ''}
@@ -1218,6 +1233,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         mediaUri={celebrationData?.mediaUri}
         userName={celebrationData?.userName}
         userProfileImageUrl={celebrationData?.userProfileImageUrl}
+        weeklyCount={celebrationData?.weeklyCount}
+        sessionsPerWeek={celebrationData?.sessionsPerWeek}
+        weeksCompleted={celebrationData?.weeksCompleted}
+        totalWeeks={celebrationData?.totalWeeks}
       />
 
       <ValentineExperienceDetailsModal
@@ -1290,8 +1309,14 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 10,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 6, textAlign: 'center' },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 22, textAlign: 'center' },
   empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14, textAlign: 'center' },
+  mysteryBadge: {
+    alignSelf: 'center', backgroundColor: '#fef3c7', paddingHorizontal: 14,
+    paddingVertical: 6, borderRadius: 10, marginBottom: 14,
+    borderWidth: 1, borderColor: '#fde68a',
+  },
+  mysteryBadgeText: { fontSize: 13, fontWeight: '700', color: '#92400e' },
   selfChallengeText: { fontSize: 14, color: Colors.primary, marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },

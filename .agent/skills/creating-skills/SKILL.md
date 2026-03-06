@@ -23,7 +23,7 @@ When writing the body of `SKILL.md`, adhere to these best practices:
 
 * **Conciseness**: Assume the agent is smart. Do not explain what a PDF or a Git repo is. Focus only on the unique logic of the skill.
 * **Progressive Disclosure**: Keep `SKILL.md` under 500 lines. If more detail is needed, link to secondary files (e.g., `[See ADVANCED.md](ADVANCED.md)`) only one level deep.
-* **Forward Slashes**: Always use `/` for paths, never `\`.
+* **Paths**: Always use forward slashes (`/`) in skill documentation and examples. In scripts, use the OS-appropriate separator or `path.join()` for cross-platform compatibility.
 * **Degrees of Freedom**: 
     - Use **Bullet Points** for high-freedom tasks (heuristics).
     - Use **Code Blocks** for medium-freedom (templates).

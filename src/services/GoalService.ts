@@ -224,7 +224,7 @@ export class GoalService {
   }
 
   /** Attach a purchased gift to a free goal */
-  async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string): Promise<void> {
+  async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string, isMystery: boolean = false): Promise<void> {
     const goalRef = doc(db, 'goals', goalId);
     const goalSnap = await getDoc(goalRef);
 
@@ -245,14 +245,21 @@ export class GoalService {
     const giftSnap = await getDoc(doc(db, 'experienceGifts', experienceGiftId));
     if (!giftSnap.exists()) throw new Error('Experience gift not found');
 
-    await updateDoc(goalRef, {
+    const updateFields: any = {
       experienceGiftId,
       giftAttachedAt: serverTimestamp(),
       empoweredBy: giverId,
       updatedAt: serverTimestamp(),
-    });
+    };
 
-    logger.log('✅ Gift attached to free goal:', goalId);
+    if (isMystery) {
+      updateFields.isMystery = true;
+      updateFields.mysteryGiftExperienceId = giftSnap.data().experienceId;
+    }
+
+    await updateDoc(goalRef, updateFields);
+
+    logger.log(`✅ Gift attached to free goal: ${goalId}${isMystery ? ' (mystery)' : ''}`);
   }
 
   /**
@@ -1136,6 +1143,7 @@ export class GoalService {
               isFreeGoal: g.isFreeGoal,
               pledgedExperienceId: g.pledgedExperience?.experienceId,
               pledgedExperiencePrice: g.pledgedExperience?.price,
+              isMystery: g.isMystery || false,
               createdAt: new Date(),
             });
 
@@ -1155,9 +1163,12 @@ export class GoalService {
                     {
                       goalId: g.id,
                       goalUserId: g.userId,
+                      goalUserName: uName,
+                      goalUserProfileImageUrl: userData?.profile?.profileImageUrl,
                       experienceId: g.pledgedExperience.experienceId,
                       experienceTitle: expTitle,
                       experiencePrice: g.pledgedExperience.price,
+                      experienceCoverImageUrl: g.pledgedExperience.coverImageUrl,
                       milestone: 100,
                     },
                     true
@@ -1191,6 +1202,7 @@ export class GoalService {
           progressPercentage: progressPercentage,
           weeklyCount: g.weeklyCount,
           sessionsPerWeek: g.sessionsPerWeek,
+          isMystery: g.isMystery || false,
           createdAt: new Date(),
         });
       } catch (error) {
@@ -1209,6 +1221,7 @@ export class GoalService {
           try {
             const friends = await friendService.getFriends(g.userId);
             const userName = await userService.getUserName(g.userId) || 'Your friend';
+            const userProfile = await userService.getUserProfile(g.userId);
             const expTitle = g.pledgedExperience.title;
             const milestoneEmoji = crossedMilestone === 75 ? '🔥' : crossedMilestone === 50 ? '⚡' : '🌟';
 
@@ -1221,9 +1234,12 @@ export class GoalService {
                 {
                   goalId: g.id,
                   goalUserId: g.userId,
+                  goalUserName: userName,
+                  goalUserProfileImageUrl: userProfile?.profileImageUrl,
                   experienceId: g.pledgedExperience.experienceId,
                   experienceTitle: expTitle,
                   experiencePrice: g.pledgedExperience.price,
+                  experienceCoverImageUrl: g.pledgedExperience.coverImageUrl,
                   milestone: crossedMilestone,
                 },
                 true // clearable
@@ -1247,6 +1263,11 @@ export class GoalService {
       weekStartAt: g.weekStartAt,
       updatedAt: serverTimestamp(),
     };
+
+    // Persist completedAt when goal is completed
+    if (g.isCompleted) {
+      updateData.completedAt = serverTimestamp();
+    }
 
     // 💝 VALENTINE: Persist finished/unlocked state
     if (g.valentineChallengeId) {

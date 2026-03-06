@@ -1,24 +1,33 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity
+  View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity,
+  Platform, Linking, Alert, LayoutAnimation,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, runTransaction, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord } from '../../types';
+import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, PartnerCoupon, Motivation } from '../../types';
+import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
 import DetailedGoalCard from './DetailedGoalCard';
 import { goalService } from '../../services/GoalService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
+import { experienceService } from '../../services/ExperienceService';
+import { partnerService } from '../../services/PartnerService';
+import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
+import { motivationService } from '../../services/MotivationService';
 import SharedHeader from '../../components/SharedHeader';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check } from 'lucide-react-native';
+import { BookingCalendar } from '../../components/BookingCalendar';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
+import { ValentineExperienceDetailsModal } from './components/GoalCardModals';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Journey'>;
 
@@ -118,8 +127,17 @@ const segStyles = StyleSheet.create({
 });
 
 // ─── Session Card ────────────────────────────────────────────────────────────
-const SessionCard = ({ session, index }: { session: SessionRecord; index: number }) => {
+const SessionCard = ({
+  session,
+  index,
+  motivations = [],
+}: {
+  session: SessionRecord;
+  index: number;
+  motivations?: Motivation[];
+}) => {
   const anim = useRef(new Animated.Value(0)).current;
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -144,43 +162,94 @@ const SessionCard = ({ session, index }: { session: SessionRecord; index: number
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
+  const toggleMotivations = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+
   return (
     <Animated.View
       style={[
         sessStyles.card,
+        motivations.length > 0 && sessStyles.cardWithMotivations,
         {
           opacity: anim,
           transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
         },
       ]}
     >
-      {/* Left: session badge */}
-      <View style={sessStyles.badge}>
-        <Text style={sessStyles.badgeText}>#{session.sessionNumber}</Text>
-      </View>
-
-      {/* Middle: details */}
-      <View style={sessStyles.details}>
-        <Text style={sessStyles.date}>
-          {fmtDate(session.timestamp)} · {fmtTime(session.timestamp)}
-        </Text>
-        <View style={sessStyles.metaRow}>
-          <Clock size={13} color={Colors.textSecondary} />
-          <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
-          <Text style={sessStyles.weekBadge}>Week {session.weekNumber}</Text>
+      <View style={sessStyles.cardMain}>
+        {/* Left: session badge */}
+        <View style={sessStyles.badge}>
+          <Text style={sessStyles.badgeText}>#{session.sessionNumber}</Text>
         </View>
+
+        {/* Middle: details */}
+        <View style={sessStyles.details}>
+          <Text style={sessStyles.date}>
+            {fmtDate(session.timestamp)} · {fmtTime(session.timestamp)}
+          </Text>
+          <View style={sessStyles.metaRow}>
+            <Clock size={13} color={Colors.textSecondary} />
+            <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
+            <Text style={sessStyles.weekBadge}>Week {session.weekNumber + 1}</Text>
+          </View>
+        </View>
+
+        {/* Right: media thumbnail (if any) */}
+        {session.mediaUrl && (
+          <View style={sessStyles.thumb}>
+            <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
+            {session.mediaType === 'video' && (
+              <View style={sessStyles.videoOverlay}>
+                <PlayCircle size={18} color="#fff" />
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
-      {/* Right: media thumbnail (if any) */}
-      {session.mediaUrl && (
-        <View style={sessStyles.thumb}>
-          <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
-          {session.mediaType === 'video' && (
-            <View style={sessStyles.videoOverlay}>
-              <PlayCircle size={18} color="#fff" />
+      {/* Inline motivations */}
+      {motivations.length > 0 && (
+        <>
+          <TouchableOpacity
+            style={sessStyles.motivationToggle}
+            onPress={toggleMotivations}
+            activeOpacity={0.7}
+          >
+            <MessageCircle size={14} color={Colors.primary} />
+            <Text style={sessStyles.motivationToggleText}>
+              {motivations.length} motivation{motivations.length !== 1 ? 's' : ''} from friends
+            </Text>
+          </TouchableOpacity>
+
+          {expanded && (
+            <View style={sessStyles.motivationList}>
+              {motivations.map((m) => (
+                <View key={m.id} style={sessStyles.motivationItem}>
+                  {m.authorProfileImage ? (
+                    <Image source={{ uri: m.authorProfileImage }} style={sessStyles.motivationAvatar} />
+                  ) : (
+                    <View style={sessStyles.motivationAvatarPlaceholder}>
+                      <Text style={sessStyles.motivationAvatarText}>
+                        {(m.authorName || 'F')[0].toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={sessStyles.motivationContent}>
+                    <View style={sessStyles.motivationHeader}>
+                      <Text style={sessStyles.motivationAuthor}>{m.authorName}</Text>
+                      <Text style={sessStyles.motivationDate}>
+                        {new Date(m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                    <Text style={sessStyles.motivationMessage}>{m.message}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
-        </View>
+        </>
       )}
     </Animated.View>
   );
@@ -188,8 +257,6 @@ const SessionCard = ({ session, index }: { session: SessionRecord; index: number
 
 const sessStyles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 14,
@@ -201,6 +268,13 @@ const sessStyles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
+  },
+  cardWithMotivations: {
+    borderColor: Colors.primaryBorder,
+  },
+  cardMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   badge: {
     width: 40,
@@ -261,6 +335,72 @@ const sessStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  motivationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e5e7eb',
+  },
+  motivationToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  motivationList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  motivationItem: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: Colors.primarySurface,
+    padding: 10,
+    borderRadius: 10,
+  },
+  motivationAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  motivationAvatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  motivationAvatarText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  motivationContent: {
+    flex: 1,
+  },
+  motivationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  motivationAuthor: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  motivationDate: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  motivationMessage: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
 });
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -276,6 +416,22 @@ const JourneyScreen = () => {
   const [activeTab, setActiveTab] = useState<TabKey>(TAB_SESSIONS);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [showExpDetailsModal, setShowExpDetailsModal] = useState(false);
+  const [motivations, setMotivations] = useState<Motivation[]>([]);
+
+  // Completed goal state
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isPhoneCopied, setIsPhoneCopied] = useState(false);
+  const [isEmailCopied, setIsEmailCopied] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [partner, setPartner] = useState<any>(null);
+  const [experience, setExperience] = useState<any>(null);
+  const [userName, setUserName] = useState<string>('User');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
+  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
+  const couponRequestedRef = useRef(false);
 
   // Redirect if no goal
   useEffect(() => {
@@ -340,17 +496,227 @@ const JourneyScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (activeTab === TAB_SESSIONS) {
+      if (activeTab === TAB_SESSIONS || currentGoal?.isCompleted) {
         loadSessions();
       }
-    }, [activeTab, loadSessions])
+    }, [activeTab, loadSessions, currentGoal?.isCompleted])
   );
 
   useEffect(() => {
-    if (activeTab === TAB_SESSIONS) {
+    if (activeTab === TAB_SESSIONS || currentGoal?.isCompleted) {
       loadSessions();
     }
-  }, [activeTab]);
+  }, [activeTab, currentGoal?.isCompleted]);
+
+  // Fetch all motivations for inline display on session cards
+  useEffect(() => {
+    if (!currentGoal?.id) return;
+    const fetchMotivations = async () => {
+      try {
+        const data = await motivationService.getAllMotivations(currentGoal.id);
+        setMotivations(data);
+      } catch (error) {
+        logger.error('Error fetching motivations:', error);
+      }
+    };
+    fetchMotivations();
+  }, [currentGoal?.id]);
+
+  // Group motivations by target session number
+  const motivationsBySession = React.useMemo(() => {
+    const map: Record<number, Motivation[]> = {};
+    for (const m of motivations) {
+      const key = m.targetSession || 1; // untargeted go to session 1
+      if (!map[key]) map[key] = [];
+      map[key].push(m);
+    }
+    return map;
+  }, [motivations]);
+
+  // ─── Completed goal: fetch experience, partner, coupon ────────────────────
+  useEffect(() => {
+    if (!currentGoal?.isCompleted) return;
+
+    const fetchCompletedGoalData = async () => {
+      try {
+        // Fetch user name
+        const name = await userService.getUserName(currentGoal.userId);
+        setUserName(name || 'User');
+
+        // Determine experience ID source
+        let expId: string | null = null;
+        if (currentGoal.pledgedExperience?.experienceId) {
+          expId = currentGoal.pledgedExperience.experienceId;
+        } else if (currentGoal.experienceGiftId) {
+          try {
+            const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+            if (gift) expId = gift.experienceId;
+          } catch { /* no gift */ }
+        }
+
+        if (expId) {
+          const exp = await experienceService.getExperienceById(expId);
+          setExperience(exp);
+
+          if (exp?.partnerId) {
+            const partnerData = await partnerService.getPartnerById(exp.partnerId);
+            setPartner(partnerData);
+          }
+        }
+
+        // Load existing coupon from goal
+        if (currentGoal.couponCode) {
+          setCouponCode(currentGoal.couponCode);
+        }
+      } catch (err) {
+        logger.error('Error fetching completed goal data:', err);
+      }
+    };
+
+    fetchCompletedGoalData();
+  }, [currentGoal?.isCompleted, currentGoal?.id]);
+
+  // ─── Coupon generation (reused from CompletionScreen) ─────────────────────
+  const generateCouponWithTransaction = useCallback(async () => {
+    if (!currentGoal || !experience) return;
+    const partnerId = experience?.partnerId;
+    if (!partnerId) return;
+
+    const generateUniqueCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    };
+
+    const goalRef = doc(db, 'goals', currentGoal.id);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const goalDoc = await transaction.get(goalRef);
+        if (!goalDoc.exists()) throw new Error('Goal not found');
+        const goalData = goalDoc.data();
+
+        if (goalData.couponCode) {
+          setCouponCode(goalData.couponCode);
+          return;
+        }
+
+        const newCode = generateUniqueCode();
+        const validUntil = new Date();
+        validUntil.setFullYear(validUntil.getFullYear() + 1);
+
+        const coupon: PartnerCoupon = {
+          code: newCode,
+          status: 'active',
+          userId: currentGoal.userId,
+          validUntil,
+          partnerId,
+          goalId: currentGoal.id,
+        };
+
+        const partnerCouponRef = doc(collection(db, `partnerUsers/${partnerId}/coupons`), newCode);
+        const existingCouponDoc = await transaction.get(partnerCouponRef);
+        if (existingCouponDoc.exists()) throw new Error('CODE_COLLISION');
+
+        transaction.set(partnerCouponRef, { ...coupon, createdAt: serverTimestamp() });
+        transaction.update(goalRef, { couponCode: newCode, couponGeneratedAt: serverTimestamp() });
+        setCouponCode(newCode);
+      });
+    } catch (error: any) {
+      if (error.message === 'CODE_COLLISION') {
+        return await generateCouponWithTransaction();
+      }
+      throw error;
+    }
+  }, [currentGoal, experience]);
+
+  const handleGenerateCoupon = useCallback(async () => {
+    setCouponLoading(true);
+    try {
+      await generateCouponWithTransaction();
+    } catch (err) {
+      logger.error('Coupon generation failed:', err);
+      Alert.alert('Error', 'Could not generate your coupon. Please try again.');
+    } finally {
+      setCouponLoading(false);
+    }
+  }, [generateCouponWithTransaction]);
+
+  const handleCopyCoupon = useCallback(async () => {
+    if (!couponCode) return;
+    await Clipboard.setStringAsync(couponCode);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  }, [couponCode]);
+
+  const handleCopyPhone = useCallback(async () => {
+    if (!partner?.phone) return;
+    await Clipboard.setStringAsync(partner.phone);
+    setIsPhoneCopied(true);
+    setTimeout(() => setIsPhoneCopied(false), 2000);
+  }, [partner]);
+
+  const handleCopyEmail = useCallback(async () => {
+    const email = partner?.contactEmail || partner?.email;
+    if (!email) return;
+    await Clipboard.setStringAsync(email);
+    setIsEmailCopied(true);
+    setTimeout(() => setIsEmailCopied(false), 2000);
+  }, [partner]);
+
+  const handleWhatsAppSchedule = useCallback(() => {
+    if (!partner?.phone || !experience) return;
+    const dateString = preferredDate
+      ? preferredDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : 'at your earliest convenience';
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
+    const phone = partner.phone.replace(/[^0-9]/g, '');
+    const url = Platform.select({
+      ios: `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`,
+      android: `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`,
+      default: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+    });
+    Linking.canOpenURL(url!).then(ok => {
+      if (ok) Linking.openURL(url!);
+      else Alert.alert('WhatsApp Not Available', 'WhatsApp is not installed.');
+    });
+  }, [partner, experience, preferredDate, userName]);
+
+  const handleEmailSchedule = useCallback(() => {
+    if (!partner || !experience) return;
+    const email = partner.contactEmail || partner.email;
+    if (!email) return;
+    const dateString = preferredDate
+      ? preferredDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : 'at your earliest convenience';
+    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
+    const subject = `Experience Booking - ${experience.title}`;
+    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`);
+  }, [partner, experience, preferredDate, userName]);
+
+  const handleBookWhatsApp = useCallback(() => {
+    setBookingMethod('whatsapp');
+    setShowCalendar(true);
+  }, []);
+
+  const handleBookEmail = useCallback(() => {
+    setBookingMethod('email');
+    setShowCalendar(true);
+  }, []);
+
+  const handleConfirmBooking = useCallback((date: Date) => {
+    setPreferredDate(date);
+    setShowCalendar(false);
+    setTimeout(() => {
+      if (bookingMethod === 'whatsapp') handleWhatsAppSchedule();
+      else if (bookingMethod === 'email') handleEmailSchedule();
+    }, 100);
+  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
+
+  const handleCancelBooking = useCallback(() => {
+    setPreferredDate(null);
+    setShowCalendar(false);
+    if (bookingMethod === 'whatsapp') handleWhatsAppSchedule();
+    else if (bookingMethod === 'email') handleEmailSchedule();
+  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =
@@ -470,7 +836,7 @@ const JourneyScreen = () => {
     return (
       <View>
         {sessions.map((s, i) => (
-          <SessionCard key={s.id} session={s} index={i} />
+          <SessionCard key={s.id} session={s} index={i} motivations={motivationsBySession[s.sessionNumber] || []} />
         ))}
       </View>
     );
@@ -544,83 +910,171 @@ const JourneyScreen = () => {
     );
   }
 
-  return (
-    <MainScreen activeRoute="Goals">
-      <StatusBar style="light" />
-      <SharedHeader title="Journey" showBack />
+  // ─── Helper: 2-week window check ──────────────────────────────────────────
+  const isWithinBuyWindow = () => {
+    if (!currentGoal.completedAt) return false;
+    const raw = currentGoal.completedAt as any;
+    const completedDate = raw?.toDate ? raw.toDate() : new Date(raw);
+    if (isNaN(completedDate.getTime())) return false;
+    const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+    return Date.now() - completedDate.getTime() < twoWeeksMs;
+  };
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: 20,
-          paddingBottom: 20,
-          alignItems: 'center',
-        }}
-      >
-        <View
-          pointerEvents="box-none"
-          style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}
-        >
-          {/* Personalized Message Card */}
-          {experienceGift?.personalizedMessage?.trim() && (
-            <View style={styles.messageCard}>
-              <Text style={styles.messageText}>
-                "{experienceGift.personalizedMessage.trim()}"
-              </Text>
-              <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
-            </View>
-          )}
+  // ─── Render: Completed Goal Layout ────────────────────────────────────────
+  const renderCompletedLayout = () => {
+    const totalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+    const rawDate = currentGoal.completedAt as any;
+    const parsedDate = rawDate?.toDate ? rawDate.toDate() : rawDate ? new Date(rawDate) : null;
+    const completedDate = parsedDate && !isNaN(parsedDate.getTime())
+      ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      : null;
 
-          {/* DetailedGoalCard */}
-          <View pointerEvents="box-none">
-            <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+    const hasGift = !!currentGoal.giftAttachedAt || (!!currentGoal.experienceGiftId && !currentGoal.isFreeGoal);
+    const hasPledgedExperience = !!currentGoal.pledgedExperience;
+    const showBuyCTA = currentGoal.isFreeGoal && hasPledgedExperience && !currentGoal.giftAttachedAt && isWithinBuyWindow();
+    const showExpired = currentGoal.isFreeGoal && hasPledgedExperience && !currentGoal.giftAttachedAt && !isWithinBuyWindow();
+    const selfGifted = isSelfGifted(currentGoal);
+    const hasHints = hintsArray.length > 0 && !selfGifted;
+
+    return (
+      <>
+        {/* ─── Completion Header ─────────────────────────── */}
+        <View style={cStyles.headerCard}>
+          <View style={cStyles.trophyCircle}>
+            <Trophy size={32} color={Colors.primary} />
           </View>
+          <Text style={cStyles.headerTitle}>Challenge Complete!</Text>
+          <View style={cStyles.statsRow}>
+            <Text style={cStyles.statText}>{totalSessions} sessions</Text>
+            <View style={cStyles.statDot} />
+            <Text style={cStyles.statText}>{currentGoal.targetCount} weeks</Text>
+          </View>
+          {completedDate && (
+            <Text style={cStyles.completedDate}>Completed {completedDate}</Text>
+          )}
         </View>
 
-        {/* ─── Pledged Experience Showcase (free goals) ──────────────── */}
-        {currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
-          <View style={styles.experienceShowcase}>
-            {currentGoal.pledgedExperience.coverImageUrl ? (
-              <Image
-                source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                style={styles.experienceCover}
-              />
-            ) : null}
-            <View style={styles.experienceInfo}>
-              <View style={styles.experienceHeader}>
-                <Text style={styles.experienceLabel}>Your Reward</Text>
-                {currentGoal.pledgedExperience.price > 0 && (
-                  <Text style={styles.experiencePrice}>
-                    ${currentGoal.pledgedExperience.price}
-                  </Text>
+        {/* ─── Experience Card ────────────────────────────── */}
+        {(hasPledgedExperience || hasGift) && (
+          <View style={cStyles.section}>
+            <Text style={cStyles.sectionTitle}>
+              <Gift size={15} color={Colors.primary} />  Your Reward
+            </Text>
+
+            {/* Experience image + details */}
+            {currentGoal.pledgedExperience?.coverImageUrl && (
+              <View style={styles.imageOverlayContainer}>
+                <Image
+                  source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                  style={[styles.experienceCover, { height: 180 }]}
+                />
+                <TouchableOpacity
+                  style={styles.viewDetailsButtonOverlay}
+                  activeOpacity={0.9}
+                  onPress={() => setShowExpDetailsModal(true)}
+                >
+                  <Text style={styles.viewDetailsTextOverlay}>View Details</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={cStyles.experienceBody}>
+              <Text style={cStyles.experienceName}>
+                {currentGoal.pledgedExperience?.title || experience?.title || 'Experience'}
+              </Text>
+              {(currentGoal.pledgedExperience?.price ?? experience?.price) > 0 && (
+                <Text style={cStyles.experiencePrice}>€{currentGoal.pledgedExperience?.price || experience?.price}</Text>
+              )}
+            </View>
+
+            {/* State: Gift bought → show coupon/partner contact */}
+            {hasGift && (
+              <View style={cStyles.redemptionArea}>
+                {/* Coupon */}
+                {couponCode ? (
+                  <View style={cStyles.couponCard}>
+                    <View style={cStyles.couponRow}>
+                      <Ticket size={18} color={Colors.primary} />
+                      <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
+                    </View>
+                    <View style={cStyles.couponCodeBox}>
+                      <Text style={cStyles.couponCodeText}>{couponCode}</Text>
+                    </View>
+                    <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7}>
+                      {isCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.primary} />}
+                      <Text style={[cStyles.copyText, isCopied && { color: '#10b981' }]}>
+                        {isCopied ? 'Copied!' : 'Copy Code'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={cStyles.generateCouponBtn}
+                    onPress={handleGenerateCoupon}
+                    activeOpacity={0.8}
+                    disabled={couponLoading}
+                  >
+                    <Ticket size={16} color="#fff" />
+                    <Text style={cStyles.generateCouponText}>
+                      {couponLoading ? 'Generating...' : 'Generate Redemption Code'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Partner contact */}
+                {partner && (partner.phone || partner.contactEmail || partner.email) && (
+                  <View style={cStyles.contactCard}>
+                    <Text style={cStyles.contactTitle}>Partner Contact</Text>
+
+                    {partner.phone && (
+                      <View style={cStyles.contactRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
+                          <Text style={cStyles.contactValue}>{partner.phone}</Text>
+                        </View>
+                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn}>
+                          {isPhoneCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color="#6b7280" />}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {(partner.contactEmail || partner.email) && (
+                      <View style={cStyles.contactRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={cStyles.contactLabel}>Email</Text>
+                          <Text style={[cStyles.contactValue, { fontSize: 13 }]}>{partner.contactEmail || partner.email}</Text>
+                        </View>
+                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn}>
+                          {isEmailCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color="#6b7280" />}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Schedule buttons */}
+                    <View style={cStyles.scheduleRow}>
+                      {partner.phone && (
+                        <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookWhatsApp} activeOpacity={0.8}>
+                          <MessageCircle size={16} color="#fff" />
+                          <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
+                        </TouchableOpacity>
+                      )}
+                      {(partner.contactEmail || partner.email) && (
+                        <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookEmail} activeOpacity={0.8}>
+                          <Mail size={16} color="#fff" />
+                          <Text style={cStyles.scheduleBtnText}>Email</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
                 )}
               </View>
-              <Text style={styles.experienceTitle} numberOfLines={2}>
-                {currentGoal.pledgedExperience.title}
-              </Text>
-              {(() => {
-                const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
-                const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
-                const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
-                return (
-                  <View style={styles.experienceProgressArea}>
-                    <View style={styles.experienceProgressTrack}>
-                      <View style={[styles.experienceProgressFill, { width: `${pct}%` }]} />
-                    </View>
-                    <Text style={styles.experienceProgressLabel}>
-                      {done}/{total} sessions to earn this
-                    </Text>
-                  </View>
-                );
-              })()}
+            )}
 
-              {/* Buy / Gift Received button */}
-              {currentGoal.giftAttachedAt ? (
-                <View style={styles.giftReceivedBadge}>
-                  <Check size={14} color={Colors.primary} strokeWidth={3} />
-                  <Text style={styles.giftReceivedText}>Gift Received</Text>
-                </View>
-              ) : (
+            {/* State: Buy CTA (within 2-week window) */}
+            {showBuyCTA && (
+              <View style={cStyles.buyCTACard}>
+                <Text style={cStyles.buyCTATitle}>🎉 You've earned this!</Text>
+                <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
                 <TouchableOpacity
                   style={styles.buyButton}
                   activeOpacity={0.8}
@@ -636,20 +1090,203 @@ const JourneyScreen = () => {
                       : 'Get This Experience'}
                   </Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            )}
+
+            {/* State: Expired */}
+            {showExpired && (
+              <View style={cStyles.expiredCard}>
+                <Text style={cStyles.expiredText}>Purchase window has expired</Text>
+              </View>
+            )}
           </View>
         )}
 
-        {/* ─── Segmented Tabs Section ──────────────────────────────────── */}
-        <View style={styles.tabSection}>
-          <SegmentedControl activeTab={activeTab} onTabChange={setActiveTab} />
-
+        {/* ─── Sessions History ───────────────────────────── */}
+        <View style={cStyles.section}>
+          <Text style={cStyles.sectionTitle}>
+            Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
+          </Text>
           <View style={styles.tabContent}>
-            {activeTab === TAB_SESSIONS ? renderSessionsTab() : renderHintsTab()}
+            {renderSessionsTab()}
           </View>
         </View>
 
+        {/* ─── Hints History ─────────────────────────────── */}
+        {hasHints && (
+          <View style={cStyles.section}>
+            <Text style={cStyles.sectionTitle}>
+              Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
+            </Text>
+            <View style={styles.tabContent}>
+              {renderHintsTab()}
+            </View>
+          </View>
+        )}
+      </>
+    );
+  };
+
+  // ─── Main render ──────────────────────────────────────────────────────────
+  return (
+    <MainScreen activeRoute="Goals">
+      <StatusBar style="light" />
+      <SharedHeader title="Journey" showBack />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: 20,
+          paddingBottom: 20,
+          alignItems: 'center',
+        }}
+      >
+        {currentGoal.isCompleted ? (
+          /* ─── COMPLETED GOAL ─────────────────────────────── */
+          <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}>
+            {renderCompletedLayout()}
+          </View>
+        ) : (
+          /* ─── ACTIVE GOAL (unchanged) ───────────────────── */
+          <>
+            <View
+              pointerEvents="box-none"
+              style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}
+            >
+              {/* Personalized Message Card */}
+              {experienceGift?.personalizedMessage?.trim() && (
+                <View style={styles.messageCard}>
+                  <Text style={styles.messageText}>
+                    "{experienceGift.personalizedMessage.trim()}"
+                  </Text>
+                  <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
+                </View>
+              )}
+
+              {/* DetailedGoalCard */}
+              <View pointerEvents="box-none">
+                <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+              </View>
+            </View>
+
+            {/* ─── Pledged Experience Showcase (free goals) ──────────────── */}
+            {currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
+              <View style={styles.experienceShowcase}>
+                {currentGoal.isMystery ? (
+                  /* Mystery placeholder — hide actual experience details */
+                  <>
+                    <View style={styles.mysteryShowcaseBanner}>
+                      <Sparkles color="#f59e0b" size={20} />
+                      <Text style={styles.mysteryShowcaseText}>?</Text>
+                    </View>
+                    <View style={styles.experienceInfo}>
+                      <View style={styles.experienceHeader}>
+                        <Text style={[styles.experienceLabel, { color: '#92400e' }]}>Mystery Reward</Text>
+                      </View>
+                      <Text style={styles.experienceTitle} numberOfLines={2}>
+                        Complete your challenge to reveal it!
+                      </Text>
+                      {(() => {
+                        const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+                        const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+                        const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
+                        return (
+                          <View style={styles.experienceProgressArea}>
+                            <View style={styles.experienceProgressTrack}>
+                              <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: '#f59e0b' }]} />
+                            </View>
+                            <Text style={styles.experienceProgressLabel}>
+                              {done}/{total} sessions to reveal
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  </>
+                ) : (
+                  /* Open gift — show actual experience details */
+                  <>
+                    {currentGoal.pledgedExperience.coverImageUrl ? (
+                      <View style={styles.imageOverlayContainer}>
+                        <Image
+                          source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                          style={[styles.experienceCover, { height: 180 }]}
+                        />
+                        <TouchableOpacity
+                          style={styles.viewDetailsButtonOverlay}
+                          activeOpacity={0.9}
+                          onPress={() => setShowExpDetailsModal(true)}
+                        >
+                          <Text style={styles.viewDetailsTextOverlay}>View Details</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                    <View style={styles.experienceInfo}>
+                      <View style={styles.experienceHeader}>
+                        <Text style={styles.experienceLabel}>Your Reward</Text>
+                        {currentGoal.pledgedExperience.price > 0 && (
+                          <Text style={styles.experiencePrice}>
+                            ${currentGoal.pledgedExperience.price}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.experienceTitle} numberOfLines={2}>
+                        {currentGoal.pledgedExperience.title}
+                      </Text>
+                      {(() => {
+                        const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+                        const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+                        const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
+                        return (
+                          <View style={styles.experienceProgressArea}>
+                            <View style={styles.experienceProgressTrack}>
+                              <View style={[styles.experienceProgressFill, { width: `${pct}%` }]} />
+                            </View>
+                            <Text style={styles.experienceProgressLabel}>
+                              {done}/{total} sessions to earn this
+                            </Text>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Buy button */}
+                      {!currentGoal.giftAttachedAt && (
+                        <TouchableOpacity
+                          style={styles.buyButton}
+                          activeOpacity={0.8}
+                          onPress={() => (navigation as any).navigate('ExperienceCheckout', {
+                            cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+                            goalId: currentGoal.id,
+                          })}
+                        >
+                          <ShoppingBag size={15} color="#fff" />
+                          <Text style={styles.buyButtonText}>
+                            {currentGoal.pledgedExperience!.price > 0
+                              ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
+                              : 'Get This Experience'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* ─── Segmented Tabs Section ──────────────────────────────────── */}
+            <View style={styles.tabSection}>
+              {currentGoal && !isSelfGifted(currentGoal) && (
+                <SegmentedControl activeTab={activeTab} onTabChange={setActiveTab} />
+              )}
+
+              <View style={styles.tabContent}>
+                {currentGoal && isSelfGifted(currentGoal)
+                  ? renderSessionsTab()
+                  : activeTab === TAB_SESSIONS ? renderSessionsTab() : renderHintsTab()}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Fullscreen Image Viewer */}
@@ -660,6 +1297,26 @@ const JourneyScreen = () => {
           onClose={() => setSelectedImageUri(null)}
         />
       )}
+
+      {currentGoal.pledgedExperience && (
+        <ValentineExperienceDetailsModal
+          visible={showExpDetailsModal}
+          onClose={() => setShowExpDetailsModal(false)}
+          experience={{
+            ...currentGoal.pledgedExperience,
+            id: currentGoal.pledgedExperience.experienceId,
+          } as any}
+        />
+      )}
+
+      {/* Booking Calendar (for completed goals) */}
+      <BookingCalendar
+        visible={showCalendar}
+        selectedDate={preferredDate || new Date()}
+        onConfirm={handleConfirmBooking}
+        onCancel={handleCancelBooking}
+        minimumDate={new Date()}
+      />
     </MainScreen>
   );
 };
@@ -731,12 +1388,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 16,
   },
+  imageOverlayContainer: {
+    position: 'relative',
+    width: '100%',
+  },
   experienceCover: {
     width: '100%',
     height: 140,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     backgroundColor: '#f3f4f6',
+  },
+  viewDetailsButtonOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  viewDetailsTextOverlay: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1f2937',
   },
   experienceInfo: {
     backgroundColor: '#fff',
@@ -822,6 +1502,276 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  mysteryShowcaseBanner: {
+    height: 120,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: '#fde68a',
+  },
+  mysteryShowcaseText: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#f59e0b',
+  },
+});
+
+// ─── Completed Goal Styles ──────────────────────────────────────────────────
+const cStyles = StyleSheet.create({
+  headerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  trophyCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primarySurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  statText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  statDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.textMuted,
+  },
+  completedDate: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 10,
+  },
+  countBadge: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  experienceBody: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: '#e5e7eb',
+  },
+  experienceName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  experiencePrice: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  redemptionArea: {
+    marginTop: 12,
+  },
+  couponCard: {
+    backgroundColor: Colors.primarySurface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    marginBottom: 12,
+  },
+  couponRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  couponLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  couponCodeBox: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 10,
+  },
+  couponCodeText: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 3,
+    color: Colors.textPrimary,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  copyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  generateCouponBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  generateCouponText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  contactCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 12,
+  },
+  contactTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e7eb',
+  },
+  contactLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  contactValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+  smallCopyBtn: {
+    padding: 6,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  whatsappBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#25D366',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  emailBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.secondary,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  scheduleBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  buyCTACard: {
+    backgroundColor: Colors.primarySurface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    marginTop: 12,
+  },
+  buyCTATitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  buyCTASubtext: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  expiredCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  expiredText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
 });
 

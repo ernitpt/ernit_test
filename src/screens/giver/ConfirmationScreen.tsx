@@ -11,7 +11,6 @@ import {
   Platform,
   Share,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -24,7 +23,9 @@ import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { goalService } from '../../services/GoalService';
+import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
+import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
 
 type ConfirmationNavigationProp = NativeStackNavigationProp<
@@ -40,7 +41,9 @@ const ConfirmationScreen = () => {
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { experienceGift?: ExperienceGift; goalId?: string } | undefined;
   const experienceGift = routeParams?.experienceGift;
-  const goalId = routeParams?.goalId;
+  const goalId = routeParams?.goalId || state.empowerContext?.goalId;
+  const empowerContext = state.empowerContext;
+  const isEmpower = Boolean(empowerContext && empowerContext.userId !== state.user?.id);
 
   // Check if we have valid data
   const hasValidData = Boolean(
@@ -105,24 +108,79 @@ const ConfirmationScreen = () => {
         setExperience(exp);
       } catch (error) {
         logger.error("Error fetching experience:", error);
+        await logErrorToFirestore(error, {
+          screenName: 'ConfirmationScreen',
+          feature: 'FetchExperience',
+          userId: state.user?.id || 'unknown',
+          additionalData: { experienceId: experienceGift.experienceId },
+        });
         Alert.alert("Error", "Could not load experience details.");
       }
     };
     fetchExperience();
   }, [experienceGift.experienceId]);
 
-  // Auto-attach gift to goal (self-purchase from challenge creation)
+  // Auto-attach gift to goal (self-purchase) OR notify goal owner (empower)
   useEffect(() => {
     if (!goalId || !experienceGift?.id || !state.user?.id) return;
-    const attach = async () => {
-      try {
-        await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user!.id);
-        logger.log('Gift auto-attached to goal', goalId);
-      } catch (error) {
-        logger.error('Failed to auto-attach gift to goal:', error);
-      }
-    };
-    attach();
+
+    if (isEmpower && empowerContext) {
+      // Empower flow: friend bought a gift for someone else's goal
+      // Can't attach directly (Firestore rules), so notify the goal owner
+      const notifyOwner = async () => {
+        try {
+          const giverName = state.user?.displayName || state.user?.profile?.name || 'A friend';
+          const isMystery = empowerContext.isMystery === true;
+
+          await notificationService.createNotification(
+            empowerContext.userId,
+            'experience_empowered',
+            isMystery
+              ? `🎁 ${giverName} gifted you a mystery experience!`
+              : `🎁 ${giverName} gifted you an experience!`,
+            isMystery
+              ? `Complete your challenge to reveal it! Tap to accept the gift.`
+              : `Tap to add it to your goal`,
+            {
+              goalId,
+              giftId: experienceGift.id,
+              giverName,
+              giverId: state.user!.id,
+              isMystery,
+            },
+          );
+          logger.log('Empower notification sent to goal owner', empowerContext.userId);
+        } catch (error) {
+          logger.error('Failed to send empower notification:', error);
+          await logErrorToFirestore(error, {
+            screenName: 'ConfirmationScreen',
+            feature: 'SendEmpowerNotification',
+            userId: state.user?.id || 'unknown',
+            additionalData: { goalId, recipientId: empowerContext?.userId },
+          });
+        }
+      };
+      notifyOwner();
+      // Clear empower context
+      dispatch({ type: 'SET_EMPOWER_CONTEXT', payload: null });
+    } else {
+      // Self-purchase: auto-attach directly (buyer IS the goal owner)
+      const attach = async () => {
+        try {
+          await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user!.id);
+          logger.log('Gift auto-attached to goal', goalId);
+        } catch (error) {
+          logger.error('Failed to auto-attach gift to goal:', error);
+          await logErrorToFirestore(error, {
+            screenName: 'ConfirmationScreen',
+            feature: 'AutoAttachGift',
+            userId: state.user?.id || 'unknown',
+            additionalData: { goalId, giftId: experienceGift.id },
+          });
+        }
+      };
+      attach();
+    }
   }, [goalId, experienceGift?.id]);
 
   const handleMessageChange = (text: string) => {
@@ -145,6 +203,12 @@ const ConfirmationScreen = () => {
       Alert.alert('Success', 'Your personalized message has been saved!');
     } catch (error) {
       logger.error('Error updating personalized message:', error);
+      await logErrorToFirestore(error, {
+        screenName: 'ConfirmationScreen',
+        feature: 'UpdatePersonalizedMessage',
+        userId: state.user?.id || 'unknown',
+        additionalData: { giftId: experienceGift.id },
+      });
       Alert.alert('Error', 'Failed to save message. Please try again.');
     } finally {
       setIsSendingMessage(false);
@@ -223,10 +287,12 @@ Earn it. Unlock it. Enjoy it ??
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.heroTitle}>Payment Successful!</Text>
+            <Text style={styles.heroTitle}>Payment Successful</Text>
             <Text style={styles.heroSubtitle}>
-              {goalId
-                ? 'Your reward is locked in — complete your challenge to unlock it!'
+              {isEmpower
+                ? `Your gift has been sent to ${empowerContext?.userName || 'them'}!`
+                : goalId
+                ? 'You just set yourself for success. Now complete your challenge to unlock it!'
                 : 'Your thoughtful gift is ready to share 🎉'
               }
             </Text>
@@ -260,8 +326,8 @@ Earn it. Unlock it. Enjoy it ??
               </Text>
             </View>
 
-            {/* Personal Message Input/Display (gift to others only) */}
-            {!goalId && <View style={styles.messageSection}>
+            {/* Personal Message Input/Display (gift to others only, not empower) */}
+            {!goalId && !isEmpower && <View style={styles.messageSection}>
               <View style={styles.messageSectionHeader}>
                 <Text style={styles.messageLabel}>Personal Message</Text>
                 <Text style={styles.charCounter}>{charCount}/500</Text>
@@ -287,11 +353,9 @@ Earn it. Unlock it. Enjoy it ??
                   disabled={isSendingMessage || !personalizedMessage.trim()}
                   activeOpacity={0.8}
                 >
-                  {isSendingMessage ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.sendMessageButtonText}>Attach Message</Text>
-                  )}
+                  <Text style={styles.sendMessageButtonText}>
+                    {isSendingMessage ? 'Sending...' : 'Attach Message'}
+                  </Text>
                 </TouchableOpacity>
               )}
               {messageSent && (
@@ -304,8 +368,8 @@ Earn it. Unlock it. Enjoy it ??
           </View>
         </View>
 
-        {/* Claim Code Section (gift to others only) */}
-        {!goalId && <View style={styles.codeSection}>
+        {/* Claim Code Section (gift to others only, not empower) */}
+        {!goalId && !isEmpower && <View style={styles.codeSection}>
           <View style={styles.codeSectionHeader}>
             <Text style={styles.codeSectionTitle}>Gift Code</Text>
             <Text style={styles.codeSectionSubtitle}>
@@ -342,8 +406,8 @@ Earn it. Unlock it. Enjoy it ??
           </View>
         </View>}
 
-        {/* How It Works (gift to others only) */}
-        {!goalId && <View style={styles.howItWorksSection}>
+        {/* How It Works (gift to others only, not empower) */}
+        {!goalId && !isEmpower && <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>How It Works</Text>
 
           <View style={styles.stepsContainer}>
@@ -395,7 +459,9 @@ Earn it. Unlock it. Enjoy it ??
         <TouchableOpacity
           style={styles.homeButton}
           onPress={() => {
-            if (goalId) {
+            if (isEmpower) {
+              navigation.reset({ index: 0, routes: [{ name: 'Feed' as any }] });
+            } else if (goalId) {
               navigation.reset({ index: 0, routes: [{ name: 'Goals' as any }] });
             } else {
               handleBackToHome();
@@ -403,7 +469,9 @@ Earn it. Unlock it. Enjoy it ??
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.homeButtonText}>{goalId ? 'Go to My Goals' : 'Back to Home'}</Text>
+          <Text style={styles.homeButtonText}>
+            {isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}
+          </Text>
         </TouchableOpacity>
       </View>
     </MainScreen>

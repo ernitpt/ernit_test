@@ -170,6 +170,8 @@ export interface Goal {
   couponCode?: string;              // Generated coupon code for completed goals
   couponGeneratedAt?: Date;         // When the coupon was generated
   empoweredBy?: string; // ID of the giver who empowered this goal
+  isMystery?: boolean;                // Gift is a mystery — details hidden, AI hints generated
+  mysteryGiftExperienceId?: string;   // The hidden experience ID (for AI hint generation)
   personalizedNextHint?: PersonalizedHint | null;
   hints?: (PersonalizedHint | { session: number; hint: string; date: number })[];
   createdAt: Date;                  // When the goal was created
@@ -324,6 +326,7 @@ export interface FeedPost {
   isFreeGoal?: boolean;
   pledgedExperienceId?: string;
   pledgedExperiencePrice?: number;
+  isMystery?: boolean;
 
   // Session media
   mediaUrl?: string;
@@ -370,7 +373,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -391,6 +394,9 @@ export interface Notification {
     suggestedSessionsPerWeek?: number;
     giverMessage?: string;
     receiverMessage?: string;
+    // Empower fields
+    giverName?: string;
+    giverId?: string;
     // Post reaction fields
     postId?: string;
     reactorNames?: string[];
@@ -398,6 +404,16 @@ export interface Notification {
     mostRecentReaction?: 'muscle' | 'heart' | 'like';
     reactorProfileImageUrl?: string;
     sessionNumber?: number;
+    // Free goal milestone/completion fields
+    goalUserId?: string;
+    goalUserName?: string;
+    goalUserProfileImageUrl?: string;
+    experienceId?: string;
+    experiencePrice?: number;
+    experienceCoverImageUrl?: string;
+    milestone?: number;
+    // Mystery flow
+    isMystery?: boolean;
   };
 }
 
@@ -523,6 +539,7 @@ export type RootStackParamList = {
   ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
   FreeGoalCompletion: { goal: Goal };
   ChallengeLanding: undefined;
+  MysteryChoice: { experience: Experience };
   ChallengeSetup: { prefill?: any } | undefined;
 };
 

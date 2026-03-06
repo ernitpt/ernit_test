@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import Colors from '../config/colors';
 import {
     View,
@@ -894,7 +895,7 @@ export default function ChallengeSetupScreen() {
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, buyNow === false && styles.rewardChoiceTitleActive]}>No reward</Text>
+                        <Text style={[styles.rewardChoiceTitle, buyNow === false && styles.rewardChoiceTitleActive]}>No reward for now</Text>
                         <Text style={styles.rewardChoiceDesc}>
                             Share your goal, friends can empower you!
                         </Text>
@@ -927,7 +928,10 @@ export default function ChallengeSetupScreen() {
         }
     };
 
+    const userId = state.user?.id || 'current_user';
+
     return (
+        <ErrorBoundary screenName="ChallengeSetupScreen" userId={userId}>
         <View style={styles.container}>
             <StatusBar style="dark" />
 
@@ -1096,7 +1100,7 @@ export default function ChallengeSetupScreen() {
                                 )}
                                 <Text style={styles.modalRow}>
                                     <Text style={styles.modalLabel}>Reward plan: </Text>
-                                    {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'Friends will gift'}
+                                    {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'No reward for now'}
                                 </Text>
                             </View>
 

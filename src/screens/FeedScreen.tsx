@@ -22,6 +22,8 @@ import { useApp } from '../context/AppContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { logErrorToFirestore } from '../utils/errorLogger';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -159,58 +161,60 @@ const FeedScreen: React.FC = () => {
     };
 
     return (
-        <MainScreen activeRoute="Feed">
-            <StatusBar style="light" />
-            <SharedHeader
-                title="Feed"
-                subtitle="See what you and your friends have achieved"
-            />
+        <ErrorBoundary screenName="FeedScreen" userId={state.user?.id}>
+            <MainScreen activeRoute="Feed">
+                <StatusBar style="light" />
+                <SharedHeader
+                    title="Feed"
+                    subtitle="See what you and your friends have achieved"
+                />
 
-            {isLoading ? (
-                <View style={styles.list}>
-                    <FeedPostSkeleton />
-                    <FeedPostSkeleton />
-                    <FeedPostSkeleton />
-                </View>
-            ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={posts}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderPost}
-                    contentContainerStyle={styles.list}
-                    ListEmptyComponent={renderEmpty}
-                    showsVerticalScrollIndicator={false}
-                    onScrollToIndexFailed={(info) => {
-                        const wait = new Promise(resolve => setTimeout(resolve, 500));
-                        wait.then(() => {
-                            flatListRef.current?.scrollToIndex({
-                                index: info.index,
-                                animated: true,
-                                viewPosition: 0.3
+                {isLoading ? (
+                    <View style={styles.list}>
+                        <FeedPostSkeleton />
+                        <FeedPostSkeleton />
+                        <FeedPostSkeleton />
+                    </View>
+                ) : (
+                    <FlatList
+                        ref={flatListRef}
+                        data={posts}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderPost}
+                        contentContainerStyle={styles.list}
+                        ListEmptyComponent={renderEmpty}
+                        showsVerticalScrollIndicator={false}
+                        onScrollToIndexFailed={(info) => {
+                            const wait = new Promise(resolve => setTimeout(resolve, 500));
+                            wait.then(() => {
+                                flatListRef.current?.scrollToIndex({
+                                    index: info.index,
+                                    animated: true,
+                                    viewPosition: 0.3
+                                });
                             });
-                        });
-                    }}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            colors={[Colors.secondary]}
-                            tintColor={Colors.secondary}
-                        />
-                    }
-                />
-            )}
+                        }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                colors={[Colors.secondary]}
+                                tintColor={Colors.secondary}
+                            />
+                        }
+                    />
+                )}
 
-            {/* Comment Modal */}
-            {selectedPostId && (
-                <CommentModal
-                    visible={selectedPostId !== null}
-                    postId={selectedPostId}
-                    onClose={() => setSelectedPostId(null)}
-                />
-            )}
-        </MainScreen>
+                {/* Comment Modal */}
+                {selectedPostId && (
+                    <CommentModal
+                        visible={selectedPostId !== null}
+                        postId={selectedPostId}
+                        onClose={() => setSelectedPostId(null)}
+                    />
+                )}
+            </MainScreen>
+        </ErrorBoundary>
     );
 };
 

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - redesigned AchievementCard and PledgedExperiencePreview, added completedAt to Goal type
 - removed snap-a-photo button from timer, made PledgedExperiencePreview a compact inline strip
 - redesigned FAB menu in GoalsScreen, used Ernit logo for redeem option
+- improved Antigravity agent skills — firebase network/retry patterns, Ernit verification commands, React/Firebase debugging, cross-platform path fix, moti StyleSheet rewrite, ui-design-system loading/accessibility
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -41,3 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - step 5 buy-now-or-pledge in challenge creation with motivational stats
 - auto-attach gift to goal on self-purchase confirmation
 - goals screen improvements - completed goals section, streak badge top-right, milestone celebrations (7/14/21/30), upgraded empty state with CTA
+- redesigned FeedPost and CelebrationModal with consistent layout — media on top, capsule progress bars for sessions/week and weeks/total
+- improved goal_completed feed posts - contextual text for goals with/without rewards, achievement card with trophy for no-reward goals, Gift an Experience button for friends to congratulate
+- empower flow - friends can gift experiences to goal owners with auto-attach via notification, choice modal for pledged vs browse, empowerContext threading through checkout
+- Phase 2 Empower & Motivate ecosystem — mystery experience flow, notification rework with Empower+Motivate buttons, inline journey motivations, already-empowered indicator

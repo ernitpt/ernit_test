@@ -37,6 +37,7 @@ import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import Colors from '../config/colors';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -260,7 +261,7 @@ const UserProfileScreen: React.FC = () => {
       >
         <Text style={styles.goalTitle}>{goal.title}</Text>
 
-        {empoweredName && (
+        {empoweredName && goal.empoweredBy !== goal.userId && !goal.isFreeGoal && (
           <Text style={styles.goalMeta}>⚡ Empowered by {empoweredName}</Text>
         )}
 
@@ -378,23 +379,15 @@ const UserProfileScreen: React.FC = () => {
     const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
     const handlePress = () => {
-      if (isSelfAchievement || hasPledgedExperience) {
-        (navigation as any).navigate('Journey', { goal });
-        return;
-      }
-      if (!gift) return;
-      navigation.navigate("Completion", {
-        goal: serializeNav(goal),
-        experienceGift: serializeNav(gift),
-      });
+      (navigation as any).navigate('Journey', { goal });
     };
 
     // Completion date
     const completedAt = goal.completedAt
       ? new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
-          ? (goal.completedAt as { toDate: () => Date }).toDate()
-          : goal.completedAt
-        ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        ? (goal.completedAt as { toDate: () => Date }).toDate()
+        : goal.completedAt
+      ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : null;
 
     // Shared stats row
@@ -461,8 +454,8 @@ const UserProfileScreen: React.FC = () => {
             </View>
           )}
           <View style={styles.achievementContent}>
-            <Text style={styles.achievementTitle} numberOfLines={1}>{pledged.title}</Text>
-            <Text style={styles.achGoalLabel} numberOfLines={1}>{goal.title}</Text>
+            <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
+            <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {pledged.title}</Text>
             <StatsRow />
           </View>
         </TouchableOpacity>
@@ -500,10 +493,9 @@ const UserProfileScreen: React.FC = () => {
           ) : (
             <>
               <Text style={styles.achievementTitle} numberOfLines={1}>
-                {experience?.title || 'Experience unlocked'}
+                {goal.title}
               </Text>
-              <Text style={styles.achPartnerLabel} numberOfLines={1}>{partnerName}</Text>
-              <Text style={styles.achGoalLabel} numberOfLines={1}>{goal.title}</Text>
+              <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {experience?.title || 'Experience'}</Text>
               <StatsRow />
             </>
           )}
@@ -622,222 +614,224 @@ const UserProfileScreen: React.FC = () => {
   };
 
   return (
-    <MainScreen activeRoute="Profile">
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <View style={styles.profileImageContainer}>
-            {userProfile?.profileImageUrl && userProfile.profileImageUrl.trim() !== '' ? (
-              <Image
-                source={{ uri: userProfile.profileImageUrl }}
-                style={styles.profileImage}
-              />
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Text style={styles.placeholderText}>
-                  {state.user?.displayName?.[0]?.toUpperCase() || 'U'}
-                </Text>
-              </View>
+    <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
+      <MainScreen activeRoute="Profile">
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+          {/* Hero Section */}
+          <View style={styles.heroSection}>
+            <View style={styles.profileImageContainer}>
+              {userProfile?.profileImageUrl && userProfile.profileImageUrl.trim() !== '' ? (
+                <Image
+                  source={{ uri: userProfile.profileImageUrl }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.placeholderImage}>
+                  <Text style={styles.placeholderText}>
+                    {state.user?.displayName?.[0]?.toUpperCase() || 'U'}
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity style={styles.editIconButton} onPress={openEditModal}>
+                <Edit2 color={Colors.secondary} size={18} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.userName}>
+              {userProfile?.name || state.user?.displayName || 'User'}
+            </Text>
+            {userProfile?.description && (
+              <Text style={styles.userDescription}>{userProfile.description}</Text>
             )}
-            <TouchableOpacity style={styles.editIconButton} onPress={openEditModal}>
-              <Edit2 color={Colors.secondary} size={18} />
+
+            {/* Stats */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{activeGoals.length}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{completedGoals.length}</Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{wishlist.length}</Text>
+                <Text style={styles.statLabel}>Wishlist</Text>
+              </View>
+            </View>
+
+
+            <TouchableOpacity
+              style={styles.friendsButton}
+              onPress={() => navigation.navigate('FriendsList')}
+            >
+              <Users color={Colors.secondary} size={20} />
+              <Text style={styles.friendsButtonText}>View Friends</Text>
+              {unreadFriendRequests > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>{unreadFriendRequests}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.userName}>
-            {userProfile?.name || state.user?.displayName || 'User'}
-          </Text>
-          {userProfile?.description && (
-            <Text style={styles.userDescription}>{userProfile.description}</Text>
-          )}
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{activeGoals.length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{completedGoals.length}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{wishlist.length}</Text>
-              <Text style={styles.statLabel}>Wishlist</Text>
-            </View>
-          </View>
-
-
-          <TouchableOpacity
-            style={styles.friendsButton}
-            onPress={() => navigation.navigate('FriendsList')}
-          >
-            <Users color={Colors.secondary} size={20} />
-            <Text style={styles.friendsButtonText}>View Friends</Text>
-            {unreadFriendRequests > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.badgeText}>{unreadFriendRequests}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          {[
-            { key: 'goals', label: 'Goals', icon: Gift },
-            { key: 'achievements', label: 'Achievements', icon: Award },
-            { key: 'wishlist', label: 'Wishlist', icon: Gift },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key as any)}
-              style={[
-                styles.tabButton,
-                activeTab === tab.key && styles.tabButtonActive,
-              ]}
-            >
-              <Text
+          {/* Tabs */}
+          <View style={styles.tabsContainer}>
+            {[
+              { key: 'goals', label: 'Goals', icon: Gift },
+              { key: 'achievements', label: 'Achievements', icon: Award },
+              { key: 'wishlist', label: 'Wishlist', icon: Gift },
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key as any)}
                 style={[
-                  styles.tabText,
-                  activeTab === tab.key && styles.tabTextActive,
+                  styles.tabButton,
+                  activeTab === tab.key && styles.tabButtonActive,
                 ]}
               >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab.key && styles.tabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          {renderContent()}
-        </Animated.View>
-
-        <View style={{ height: 80 }} />
-      </ScrollView>
-
-      {/* Edit Modal */}
-      <Modal
-        visible={isEditModalVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setIsEditModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={commonStyles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsEditModalVisible(false)}
-        >
           <Animated.View
-            style={[
-              styles.modalContainer,
-              {
-                transform: [{ translateY: slideAnim }],
-                marginTop: 50, // Top offset
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                overflow: 'hidden',
-              },
-            ]}
+            style={{
+              opacity: fadeAnim,
+              transform: [
+                {
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            }}
           >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ flex: 1 }}>
-              <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              >
-                <View style={styles.modalHeader}>
-                  <TouchableOpacity
-                    onPress={() => setIsEditModalVisible(false)}
-                    style={styles.modalCancelButton}
-                  >
-                    <Text style={styles.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.modalTitle}>Edit Profile</Text>
-                  <TouchableOpacity
-                    onPress={handleSaveProfile}
-                    disabled={isUpdating}
-                    style={[styles.modalSaveButton, isUpdating && styles.disabledButton]}
-                  >
-                    <Text
-                      style={[styles.modalSaveText, isUpdating && styles.disabledText]}
-                    >
-                      {isUpdating ? 'Saving...' : 'Save'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.modalContent}>
-                  <View style={styles.imageSection}>
-                    <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-                      {editFormData.profileImageUrl &&
-                        editFormData.profileImageUrl.trim() !== '' ? (
-                        <Image
-                          source={{ uri: editFormData.profileImageUrl }}
-                          style={styles.editProfileImage}
-                        />
-                      ) : (
-                        <View style={styles.placeholderImage}>
-                          <Text style={styles.placeholderText}>
-                            {(editFormData.name?.[0] || 'U').toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.imageOverlay}>
-                        <Text style={styles.imageOverlayText}>📷</Text>
-                      </View>
-                    </TouchableOpacity>
-                    <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
-                  </View>
-
-                  <View style={styles.inputSection}>
-                    <Text style={styles.inputLabel}>Name</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={editFormData.name}
-                      onChangeText={(text) =>
-                        setEditFormData((prev) => ({ ...prev, name: text }))
-                      }
-                      placeholder="Enter your name"
-                      maxLength={50}
-                    />
-                  </View>
-
-                  <View style={styles.inputSection}>
-                    <Text style={styles.inputLabel}>
-                      About You ({editFormData.description.length}/300)
-                    </Text>
-                    <TextInput
-                      style={[styles.textInput, styles.descriptionInput]}
-                      value={editFormData.description}
-                      onChangeText={(text) =>
-                        setEditFormData((prev) => ({ ...prev, description: text }))
-                      }
-                      placeholder="Tell us about yourself..."
-                      multiline
-                      numberOfLines={6}
-                      textAlignVertical="top"
-                      maxLength={300}
-                    />
-                  </View>
-                </ScrollView>
-              </KeyboardAvoidingView>
-            </TouchableOpacity>
+            {renderContent()}
           </Animated.View>
-        </TouchableOpacity>
-      </Modal>
-    </MainScreen>
+
+          <View style={{ height: 80 }} />
+        </ScrollView>
+
+        {/* Edit Modal */}
+        <Modal
+          visible={isEditModalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setIsEditModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={commonStyles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsEditModalVisible(false)}
+          >
+            <Animated.View
+              style={[
+                styles.modalContainer,
+                {
+                  transform: [{ translateY: slideAnim }],
+                  marginTop: 50, // Top offset
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ flex: 1 }}>
+                <KeyboardAvoidingView
+                  style={{ flex: 1 }}
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity
+                      onPress={() => setIsEditModalVisible(false)}
+                      style={styles.modalCancelButton}
+                    >
+                      <Text style={styles.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.modalTitle}>Edit Profile</Text>
+                    <TouchableOpacity
+                      onPress={handleSaveProfile}
+                      disabled={isUpdating}
+                      style={[styles.modalSaveButton, isUpdating && styles.disabledButton]}
+                    >
+                      <Text
+                        style={[styles.modalSaveText, isUpdating && styles.disabledText]}
+                      >
+                        {isUpdating ? 'Saving...' : 'Save'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={styles.modalContent}>
+                    <View style={styles.imageSection}>
+                      <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+                        {editFormData.profileImageUrl &&
+                          editFormData.profileImageUrl.trim() !== '' ? (
+                          <Image
+                            source={{ uri: editFormData.profileImageUrl }}
+                            style={styles.editProfileImage}
+                          />
+                        ) : (
+                          <View style={styles.placeholderImage}>
+                            <Text style={styles.placeholderText}>
+                              {(editFormData.name?.[0] || 'U').toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.imageOverlay}>
+                          <Text style={styles.imageOverlayText}>📷</Text>
+                        </View>
+                      </TouchableOpacity>
+                      <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
+                    </View>
+
+                    <View style={styles.inputSection}>
+                      <Text style={styles.inputLabel}>Name</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={editFormData.name}
+                        onChangeText={(text) =>
+                          setEditFormData((prev) => ({ ...prev, name: text }))
+                        }
+                        placeholder="Enter your name"
+                        maxLength={50}
+                      />
+                    </View>
+
+                    <View style={styles.inputSection}>
+                      <Text style={styles.inputLabel}>
+                        About You ({editFormData.description.length}/300)
+                      </Text>
+                      <TextInput
+                        style={[styles.textInput, styles.descriptionInput]}
+                        value={editFormData.description}
+                        onChangeText={(text) =>
+                          setEditFormData((prev) => ({ ...prev, description: text }))
+                        }
+                        placeholder="Tell us about yourself..."
+                        multiline
+                        numberOfLines={6}
+                        textAlignVertical="top"
+                        maxLength={300}
+                      />
+                    </View>
+                  </ScrollView>
+                </KeyboardAvoidingView>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      </MainScreen>
+    </ErrorBoundary>
   );
 };
 

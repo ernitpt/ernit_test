@@ -442,7 +442,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string } | undefined;
   const cartItems = routeParams?.cartItems || [];
-  const goalId = routeParams?.goalId;
+  const goalId = routeParams?.goalId || state.empowerContext?.goalId;
 
   // ✅ All useState hooks MUST be called unconditionally at the top (React Rules of Hooks)
   const [clientSecret, setClientSecret] = useState<string | null>(null);

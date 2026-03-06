@@ -23,11 +23,13 @@ import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
 import { GoalProgressNotification } from '../components/GoalProgressNotification';
+import FreeGoalNotification from '../components/FreeGoalNotification';
 import { NotificationSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -148,6 +150,25 @@ const NotificationsScreen = () => {
     if (n.type === 'post_reaction' && n.data?.postId) {
       navigation.navigate('Feed', { highlightPostId: n.data.postId });
     }
+
+    if (n.type === 'experience_empowered' && n.data?.goalId && n.data?.giftId) {
+      try {
+        await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, userId!, n.data.isMystery === true);
+        const goal = await goalService.getGoalById(n.data.goalId);
+        Alert.alert(
+          'Gift Received!',
+          n.data.isMystery
+            ? `${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`
+            : `${n.data.giverName || 'A friend'} gifted you an experience!`
+        );
+        if (goal) {
+          navigation.navigate('Journey', { goal });
+        }
+      } catch (error) {
+        logger.error('Error attaching empowered gift:', error);
+        Alert.alert('Error', 'Could not attach the gift. Please try again.');
+      }
+    }
   };
 
 
@@ -250,6 +271,16 @@ const NotificationsScreen = () => {
       const isLatest = latestNotif?.id === item.id;
 
       return <GoalProgressNotification notification={item} isLatest={isLatest} />;
+    }
+
+    // Handle free goal milestone/completion notifications with Empower + Motivate buttons
+    if (item.type === 'free_goal_milestone' || item.type === 'free_goal_completed') {
+      return (
+        <FreeGoalNotification
+          notification={item}
+          onActionComplete={handleFriendRequestHandled}
+        />
+      );
     }
 
     // Handle post reaction notifications with enhanced design
@@ -376,41 +407,43 @@ const NotificationsScreen = () => {
   };
 
   return (
-    <MainScreen activeRoute="Goals">
-      <StatusBar style="light" />
-      <SharedHeader
-        title="Notifications"
-        showBack={true}
-        rightActions={
-          notifications.length > 0 ? (
-            <TouchableOpacity
-              style={styles.clearAllButton}
-              onPress={handleClearAll}
-            >
-              <Text style={styles.clearAllButtonText}>Clear All</Text>
-            </TouchableOpacity>
-          ) : null
-        }
-      />
-
-      {loading ? (
-        <ScrollView contentContainerStyle={styles.listContainer}>
-          <NotificationSkeleton />
-          <NotificationSkeleton />
-          <NotificationSkeleton />
-          <NotificationSkeleton />
-        </ScrollView>
-      ) : notifications.length === 0 ? (
-        <Text style={styles.emptyText}>No notifications yet.</Text>
-      ) : (
-        <FlatList
-          data={notifications}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id!}
-          contentContainerStyle={styles.listContainer}
+    <ErrorBoundary screenName="NotificationsScreen" userId={userId}>
+      <MainScreen activeRoute="Goals">
+        <StatusBar style="light" />
+        <SharedHeader
+          title="Notifications"
+          showBack={true}
+          rightActions={
+            notifications.length > 0 ? (
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={handleClearAll}
+              >
+                <Text style={styles.clearAllButtonText}>Clear All</Text>
+              </TouchableOpacity>
+            ) : null
+          }
         />
-      )}
-    </MainScreen>
+
+        {loading ? (
+          <ScrollView contentContainerStyle={styles.listContainer}>
+            <NotificationSkeleton />
+            <NotificationSkeleton />
+            <NotificationSkeleton />
+            <NotificationSkeleton />
+          </ScrollView>
+        ) : notifications.length === 0 ? (
+          <Text style={styles.emptyText}>No notifications yet.</Text>
+        ) : (
+          <FlatList
+            data={notifications}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id!}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
+      </MainScreen>
+    </ErrorBoundary>
   );
 };
 

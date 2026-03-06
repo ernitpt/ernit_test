@@ -201,6 +201,12 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   };
 
   const handleBuyNow = async () => {
+    // If empowerContext is set, route through MysteryChoiceScreen first
+    if (state.empowerContext) {
+      (navigation as any).navigate("MysteryChoice", { experience });
+      return;
+    }
+
     // Add current item to cart first
     const cartItem: CartItem = {
       experienceId: experience.id,

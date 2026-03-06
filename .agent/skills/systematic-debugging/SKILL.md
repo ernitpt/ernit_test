@@ -272,6 +272,116 @@ If systematic investigation reveals issue is truly environmental, timing-depende
 
 **But:** 95% of "no root cause" cases are incomplete investigation.
 
+## React Native & Firebase — Common Bug Patterns
+
+These are the most common bugs in this codebase. Check these FIRST during Phase 1.
+
+### React Hooks Bugs
+
+**Stale Closure (most common):**
+```tsx
+// ❌ BUG — handler captures stale `count` value
+const [count, setCount] = useState(0);
+const handlePress = () => {
+  setCount(count + 1); // Always uses the value from when handlePress was created
+};
+
+// ✅ FIX — use functional updater
+const handlePress = () => {
+  setCount(prev => prev + 1);
+};
+```
+
+**Missing useEffect Dependencies:**
+```tsx
+// ❌ BUG — effect never re-runs when userId changes
+useEffect(() => {
+  fetchGoals(userId);
+}, []); // Missing userId in deps
+
+// ✅ FIX
+useEffect(() => {
+  fetchGoals(userId);
+}, [userId]);
+```
+
+**Symptom:** Data doesn't update after navigation, stale data on screen, callbacks fire with old values.
+**Investigation:** Check all `useEffect` and `useCallback` dependency arrays. React DevTools highlights stale hooks.
+
+### Firestore Listener Leaks
+
+**Symptom:** "Can't perform a React state update on an unmounted component", memory usage grows, duplicate data.
+
+**Investigation checklist:**
+1. Find every `onSnapshot` / `listenTo*` call in the component
+2. Verify each returns an unsubscribe function
+3. Verify the unsubscribe is called in useEffect cleanup
+4. Check: does the effect re-run (dependency change) without cleanup?
+
+```tsx
+// ❌ BUG — new listener on each userId change, old ones never cleaned up
+useEffect(() => {
+  if (!userId) return;
+  goalService.listenToUserGoals(userId, setGoals);
+  // No cleanup!
+}, [userId]);
+
+// ✅ FIX
+useEffect(() => {
+  if (!userId) return;
+  const unsub = goalService.listenToUserGoals(userId, setGoals);
+  return () => unsub();
+}, [userId]);
+```
+
+### Firestore Timestamp Crashes
+
+**Symptom:** `TypeError: item.createdAt.toDate is not a function` — crashes in production but works in dev.
+
+**Root cause:** Firestore returns `Timestamp` objects for server-written fields, but `Date` or `string` for locally-written fields (before server confirmation).
+
+**Investigation:** Check every `.toDate()` call — is the value guaranteed to be a Firestore Timestamp?
+
+### Navigation & State Issues
+
+**Symptom:** Screen shows stale data after navigating back, or state resets unexpectedly.
+
+**Investigation checklist:**
+1. Is the screen still in the navigation stack (data cached)?
+2. Does `useEffect` re-run on focus? (May need `useFocusEffect`)
+3. Is AppContext state being cleared/overwritten elsewhere?
+
+```tsx
+// Fix: Re-fetch on screen focus
+import { useFocusEffect } from '@react-navigation/native';
+
+useFocusEffect(
+  useCallback(() => {
+    fetchData();
+  }, [userId])
+);
+```
+
+### Firestore Security Rules
+
+**Symptom:** `FirebaseError: Missing or insufficient permissions` — works for some users but not others.
+
+**Investigation:**
+1. Check which collection/document the operation targets
+2. Read the security rules in `firestore.rules` for that path
+3. Check: does the rule require auth? Does it check `resource.data.userId == request.auth.uid`?
+4. Verify the user's auth state matches what the rule expects
+5. Test in Firebase console Rules Playground with the exact document path and auth context
+
+### Re-render Performance
+
+**Symptom:** Screen feels sluggish, animations stutter, "VirtualizedList: You have a large list" warning.
+
+**Investigation:**
+1. Add `console.log('RENDER', ComponentName)` at top of component
+2. If rendering too often: check parent re-renders, missing `useMemo`/`useCallback`
+3. For FlatList: ensure `keyExtractor` is stable, `renderItem` is memoized, items have stable references
+
 ## Related skills
 - **test-driven-development** - For creating failing test case (Phase 4, Step 1)
 - **verification-before-completion** - Verify fix worked before claiming success
