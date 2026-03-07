@@ -1,7 +1,7 @@
 import * as nodemailer from 'nodemailer';
 import { defineSecret } from 'firebase-functions/params';
 
-// Define secrets for general email credentials (used for transactional emails like Valentine codes)
+// Define secrets for general email credentials
 const GENERAL_EMAIL_USER = defineSecret('GENERAL_EMAIL_USER');
 const GENERAL_EMAIL_PASS = defineSecret('GENERAL_EMAIL_PASS');
 

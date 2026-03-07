@@ -31,6 +31,7 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
 } from 'firebase/auth';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
 import { userService } from '../services/userService';
@@ -50,13 +51,12 @@ type AuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'A
 const AuthScreen = () => {
   const navigation = useNavigation<AuthScreenNavigationProp>();
   const route = useRoute();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
   const { handleAuthSuccess } = useAuthGuard();
 
   const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [hasPendingRedemption, setHasPendingRedemption] = useState(false);
 
   // Success animation
   const successScaleAnim = useRef(new Animated.Value(0)).current;
@@ -102,22 +102,6 @@ const AuthScreen = () => {
   };
 
   // Helper: Transfer onboarding status from AsyncStorage to Firestore
-
-  // Check for pending Valentine redemption
-  useEffect(() => {
-    const checkPendingRedemption = async () => {
-      try {
-        const redemptionData = await getStorageItem('pending_valentine_redemption');
-        if (redemptionData) {
-          logger.log('?? Detected pending Valentine redemption');
-          setHasPendingRedemption(true);
-        }
-      } catch (error) {
-        logger.error('Error checking pending redemption:', error);
-      }
-    };
-    checkPendingRedemption();
-  }, []);
 
   useEffect(() => {
     // Animate background gradient
@@ -316,21 +300,6 @@ const AuthScreen = () => {
 
           // After success animation, navigate to pending route or default
           setTimeout(async () => {
-            // Check for pending Valentine redemption
-            try {
-              const redemptionData = await getStorageItem('pending_valentine_redemption');
-              if (redemptionData) {
-                logger.log('?? Navigating to redemption after auth');
-                await removeStorageItem('pending_valentine_redemption');
-                navigation.navigate('RecipientFlow', {
-                  screen: 'CouponEntry',
-                  params: {},
-                } as any);
-                return;
-              }
-            } catch (error) {
-              logger.error('Error handling redemption after auth:', error);
-            }
             // Check for pending free challenge
             try {
               const challengeData = await getStorageItem('pending_free_challenge');
@@ -401,21 +370,6 @@ const AuthScreen = () => {
                   ]).start();
 
                   setTimeout(async () => {
-                    // Check for pending Valentine redemption
-                    try {
-                      const redemptionData = await getStorageItem('pending_valentine_redemption');
-                      if (redemptionData) {
-                        logger.log('?? Navigating to redemption after auth');
-                        await removeStorageItem('pending_valentine_redemption');
-                        navigation.navigate('RecipientFlow', {
-                          screen: 'CouponEntry',
-                          params: {},
-                        } as any);
-                        return;
-                      }
-                    } catch (error) {
-                      logger.error('Error handling redemption after auth:', error);
-                    }
                     // Check for pending free challenge
                     try {
                       const challengeData = await getStorageItem('pending_free_challenge');
@@ -655,23 +609,8 @@ const AuthScreen = () => {
         }),
       ]).start();
 
-      // After success animation, navigate to pending route or redemption
+      // After success animation, navigate to pending route or default
       setTimeout(async () => {
-        // Check for pending Valentine redemption
-        try {
-          const redemptionData = await getStorageItem('pending_valentine_redemption');
-          if (redemptionData) {
-            logger.log('?? Navigating to redemption after auth');
-            await removeStorageItem('pending_valentine_redemption');
-            navigation.navigate('RecipientFlow', {
-              screen: 'CouponEntry',
-              params: {},
-            } as any);
-            return;
-          }
-        } catch (error) {
-          logger.error('Error handling redemption after auth:', error);
-        }
         // Check for pending free challenge
         try {
           const challengeData = await getStorageItem('pending_free_challenge');
@@ -830,6 +769,7 @@ const AuthScreen = () => {
   });
 
   return (
+    <ErrorBoundary screenName="AuthScreen" userId={state.user?.id}>
     <View style={{ flex: 1 }}>
       {/* Base gradient */}
       <LinearGradient
@@ -910,9 +850,7 @@ const AuthScreen = () => {
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
                 <Text style={{ fontSize: 18, color: Colors.primaryTint, textAlign: 'center', maxWidth: 280 }}>
-                  {hasPendingRedemption
-                    ? '?? Sign in to redeem your Valentine\'s code'
-                    : isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
+                  {isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
                 </Text>
               </View>
 
@@ -1306,6 +1244,7 @@ const AuthScreen = () => {
 
       </SafeAreaView>
     </View>
+    </ErrorBoundary>
   );
 };
 

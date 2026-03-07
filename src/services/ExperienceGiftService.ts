@@ -3,6 +3,7 @@ import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, q
 import { ExperienceGift } from '../types';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from './AnalyticsService';
 
 export class ExperienceGiftService {
 
@@ -14,6 +15,7 @@ export class ExperienceGiftService {
       ...experienceGift,
       createdAt: serverTimestamp(),
     });
+    analyticsService.trackEvent('gift_created', 'conversion', { giftId: docRef.id, experienceId: experienceGift.experienceId, giverId: experienceGift.giverId });
     return { ...experienceGift, id: docRef.id };
   }
 
@@ -84,6 +86,7 @@ export class ExperienceGiftService {
           personalizedMessage,
           updatedAt: serverTimestamp(),
         });
+        analyticsService.trackEvent('gift_message_updated', 'engagement', { giftId });
         return;
       }
 
@@ -100,6 +103,7 @@ export class ExperienceGiftService {
         personalizedMessage,
         updatedAt: serverTimestamp(),
       });
+      analyticsService.trackEvent('gift_message_updated', 'engagement', { giftId });
     } catch (error) {
       logger.error('Error updating personalized message:', error);
       await logErrorToFirestore(error, {

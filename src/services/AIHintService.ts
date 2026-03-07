@@ -187,7 +187,86 @@ export const aiHintService = {
     return { hint, category };
   },
 
-  // Note: saveHintToFirestore function removed - hints are saved directly via goalService.appendHint()
+  /** ✅ Generate hint for mystery gifts — experience details resolved server-side */
+  async generateMysteryHint(params: {
+    goalId: string;
+    sessionNumber: number;
+    totalSessions: number;
+    userName?: string | null;
+  }): Promise<{ hint: string; category?: HintCategory }> {
+    await loadLocalCache();
+
+    const { goalId, sessionNumber, totalSessions, userName } = params;
+    const cacheKey = `${goalId}_${sessionNumber}`;
+
+    // Check local cache first
+    if (localCache[cacheKey]) {
+      return { hint: localCache[cacheKey] };
+    }
+
+    // Check Firestore stored hint
+    try {
+      const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
+      const snap = await getDoc(ref);
+      const existing = snap.data() as SessionDoc | undefined;
+      if (existing?.hint) {
+        localCache[cacheKey] = existing.hint;
+        saveLocalCache();
+        return { hint: existing.hint, category: existing.category };
+      }
+    } catch {
+      logger.log("Session document not found for mystery hint, will generate new");
+    }
+
+    // Fetch previous hints for anti-repetition
+    let previousHints: string[] = [];
+    let previousCategories: HintCategory[] = [];
+    try {
+      const sessions = await this.getAllSessions(goalId);
+      const recentSessions = sessions.slice(0, 15).reverse();
+      previousHints = recentSessions.map(s => s.hint).filter((h): h is string => !!h);
+      previousCategories = recentSessions.map(s => s.category).filter((c): c is HintCategory => !!c);
+    } catch (err) {
+      logger.warn('Could not fetch previous hints/categories for mystery:', err);
+    }
+
+    const style = styleForSession(sessionNumber);
+
+    // Call Cloud Function with goalId — it resolves experience details server-side
+    const callable = httpsCallable(functions, "aiGenerateHint");
+    const res: any = await callable({
+      goalId,
+      sessionNumber,
+      totalSessions,
+      userName,
+      style,
+      previousHints,
+      previousCategories,
+    });
+
+    const hint = res?.data?.hint as string;
+    const category = res?.data?.category as HintCategory | undefined;
+    if (!hint) throw new Error("No hint returned for mystery");
+
+    // Save to Firestore
+    try {
+      const sessionRef = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
+      await setDoc(sessionRef, {
+        goalId,
+        sessionNumber,
+        hint,
+        category: category || null,
+        createdAt: new Date(),
+        giverName: "Anonymous",
+      });
+    } catch (err) {
+      logger.warn('Failed to save mystery hint to Firestore:', err);
+    }
+
+    localCache[cacheKey] = hint;
+    saveLocalCache();
+    return { hint, category };
+  },
 
   /** ✅ Fetch a hint already completed */
   async getHint(goalId: string, sessionNumber: number) {

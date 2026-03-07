@@ -7,7 +7,6 @@ import {
   Image,
   Alert,
   StyleSheet,
-  ActivityIndicator,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -38,6 +37,7 @@ import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { SkeletonBox } from '../components/SkeletonLoader';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -106,12 +106,7 @@ const UserProfileScreen: React.FC = () => {
       );
       const completed = userGoals.filter(
         (g) => {
-          const isDone = g.isCompleted || g.currentCount >= g.targetCount;
-          // Valentine goals: only show in achievements when fully unlocked
-          if (g.valentineChallengeId) {
-            return isDone && g.isUnlocked;
-          }
-          return isDone;
+          return g.isCompleted || g.currentCount >= g.targetCount;
         }
       );
 
@@ -316,39 +311,6 @@ const UserProfileScreen: React.FC = () => {
     useEffect(() => {
       const loadAchievementData = async () => {
         try {
-          // Valentine goals
-          if (goal.valentineChallengeId) {
-            try {
-              const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goal.valentineChallengeId));
-              if (challengeDoc.exists()) {
-                const challengeData = challengeDoc.data();
-                const valentineGift = {
-                  id: goal.valentineChallengeId,
-                  experienceId: challengeData.experienceId,
-                  giverId: challengeData.purchaserUserId,
-                  giverName: challengeData.purchaserName || '',
-                  status: 'completed' as const,
-                  createdAt: challengeData.createdAt?.toDate() || new Date(),
-                  deliveryDate: new Date(),
-                  payment: challengeData.purchaseId || '',
-                  claimCode: '',
-                  isValentineChallenge: true,
-                  mode: challengeData.mode,
-                };
-                setGift(valentineGift);
-                if (challengeData.experienceId) {
-                  const exp = await experienceService.getExperienceById(challengeData.experienceId);
-                  setExperience(exp || null);
-                  setPartnerName(exp?.subtitle || 'Partner');
-                }
-              }
-            } catch (dataErr) {
-              logger.warn('Error fetching Valentine challenge data:', dataErr);
-            }
-            setLoadingCard(false);
-            return;
-          }
-
           // Self-achievement or pledged: no remote data needed
           if (isSelfAchievement || hasPledgedExperience) {
             setLoadingCard(false);
@@ -373,7 +335,7 @@ const UserProfileScreen: React.FC = () => {
         }
       };
       loadAchievementData();
-    }, [goal.experienceGiftId, goal.valentineChallengeId]);
+    }, [goal.experienceGiftId]);
 
     const weeks = goal.targetCount || 0;
     const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
@@ -579,11 +541,12 @@ const UserProfileScreen: React.FC = () => {
   const renderContent = () => {
     if (loading) {
       return (
-        <ActivityIndicator
-          size="large"
-          color={Colors.secondary}
-          style={{ marginTop: 20 }}
-        />
+        <View style={{ marginTop: 20, gap: 16, paddingHorizontal: 20 }}>
+          <SkeletonBox width="100%" height={80} borderRadius={12} />
+          <SkeletonBox width="60%" height={20} borderRadius={8} />
+          <SkeletonBox width="100%" height={120} borderRadius={12} />
+          <SkeletonBox width="80%" height={20} borderRadius={8} />
+        </View>
       );
     }
 

@@ -2,6 +2,7 @@
 // ✅ Final version: supports multiple gifts via cartItems, with personal message
 
 import React, { useState, useEffect } from "react";
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -37,6 +38,7 @@ import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
@@ -260,6 +262,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     }
 
     setIsProcessing(true);
+    analyticsService.trackEvent('payment_initiated', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
     await setStorageItem(`pending_payment_${clientSecret}`, "true");
 
     try {
@@ -279,6 +282,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
       if (paymentIntent.status === "succeeded") {
         logger.log("💰 Payment succeeded immediately, checking gifts...");
+        analyticsService.trackEvent('payment_completed', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
         const gifts = await pollForGifts(paymentIntent.id, totalQuantity);
 
         if (gifts.length === 1) {
@@ -320,6 +324,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         }
       });
 
+      analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
       Alert.alert("Payment Failed", errorMessage);
       logger.error("Payment error:", err);
     } finally {
@@ -481,11 +486,13 @@ const ExperienceCheckoutScreen: React.FC = () => {
   // Early return AFTER all hooks are called
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Redirecting...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
@@ -503,6 +510,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
 
         // Mark as initialized before async work to prevent race conditions
         initRef.current = true;
+        analyticsService.trackEvent('checkout_started', 'conversion', { itemCount: cartItems.length }, 'ExperienceCheckoutScreen');
 
         // Load all experiences in cart
         const list: Experience[] = [];
@@ -573,6 +581,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
 
   if (!state.user) {
     return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <LoginPrompt
           visible={showLoginPrompt}
@@ -584,22 +593,26 @@ const ExperienceCheckoutScreen: React.FC = () => {
           message={loginMessage}
         />
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   if (loading) {
     return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={Colors.secondary} size="large" />
           <Text style={styles.loadingText}>Setting up checkout...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   if (!clientSecret || !paymentIntentId) {
     return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Could not initialize payment.</Text>
@@ -608,10 +621,12 @@ const ExperienceCheckoutScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
     <Elements
       stripe={stripePromise}
       options={{
@@ -640,6 +655,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
         goalId={goalId}
       />
     </Elements>
+    </ErrorBoundary>
   );
 };
 

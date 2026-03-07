@@ -4,6 +4,8 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, StyleSheet } from 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Goal } from '../types';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
 import Colors from '../config/colors';
@@ -15,6 +17,7 @@ const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const GoalDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
+  const { state } = useApp();
   const { goalId } = route.params as { goalId: string };
   const [goal, setGoal] = useState<(Goal & { sessionsPerWeek: number }) | null>(null);
 
@@ -84,15 +87,18 @@ const GoalDetailScreen: React.FC = () => {
 
   if (!goal) {
     return (
+      <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <View style={styles.loading}>
           <Text style={{ color: '#6b7280' }}>Loading goal…</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       <View style={styles.header}>
@@ -143,6 +149,7 @@ const GoalDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

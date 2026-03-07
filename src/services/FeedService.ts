@@ -1,4 +1,4 @@
-﻿import {
+import {
     collection,
     addDoc,
     query,
@@ -7,6 +7,7 @@
     limit,
     getDocs,
     doc,
+    getDoc,
     updateDoc,
     increment,
     onSnapshot,
@@ -29,7 +30,7 @@ class FeedService {
     async createFeedPost(post: Omit<FeedPost, 'id' | 'reactionCounts' | 'commentCount'>): Promise<string> {
         try {
             // Build post data object, only including fields that are defined
-            const feedPost: any = {
+            const feedPost: Record<string, unknown> = {
                 userId: post.userId,
                 userName: post.userName,
                 goalId: post.goalId,
@@ -104,8 +105,19 @@ class FeedService {
     }
 
     /**
+     * Helper: split array into chunks of given size
+     */
+    private chunk<T>(arr: T[], size: number): T[][] {
+        const chunks: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+    }
+
+    /**
      * Get feed posts for current user (friends' posts + own posts)
-     * Uses client-side filtering to ensure privacy
+     * Uses batched 'in' queries for efficient Firestore reads
      */
     async getFriendsFeed(
         userId: string,
@@ -120,45 +132,55 @@ class FeedService {
             // Include user's own posts
             const allowedUserIds = [userId, ...friendIds];
 
-            // Fetch posts and filter client-side
-            let q = query(
-                this.feedPostsCollection,
-                orderBy('createdAt', 'desc'),
-                limit(100)
-            );
+            // Use batched 'in' queries (Firestore supports up to 30 per 'in' clause)
+            const batches = this.chunk(allowedUserIds, 30);
+            const allPosts: { post: FeedPost; docSnapshot: QueryDocumentSnapshot<DocumentData> }[] = [];
 
-            if (lastDoc) {
-                q = query(
+            for (const batch of batches) {
+                let q = query(
                     this.feedPostsCollection,
+                    where('userId', 'in', batch),
                     orderBy('createdAt', 'desc'),
-                    startAfter(lastDoc),
-                    limit(100)
+                    limit(limitCount)
                 );
-            }
 
-            const snapshot = await getDocs(q);
-
-            // Filter posts to only include friends and user
-            const filteredPosts: FeedPost[] = [];
-            for (const docSnapshot of snapshot.docs) {
-                const data = docSnapshot.data();
-                if (allowedUserIds.includes(data.userId)) {
-                    filteredPosts.push({
-                        id: docSnapshot.id,
-                        ...data,
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                    } as FeedPost);
+                if (lastDoc) {
+                    q = query(
+                        this.feedPostsCollection,
+                        where('userId', 'in', batch),
+                        orderBy('createdAt', 'desc'),
+                        startAfter(lastDoc),
+                        limit(limitCount)
+                    );
                 }
 
-                // Stop once we have enough posts
-                if (filteredPosts.length >= limitCount) break;
+                const snapshot = await getDocs(q);
+
+                for (const docSnapshot of snapshot.docs) {
+                    const data = docSnapshot.data();
+                    allPosts.push({
+                        post: {
+                            id: docSnapshot.id,
+                            ...data,
+                            createdAt: data.createdAt?.toDate() || new Date(),
+                        } as FeedPost,
+                        docSnapshot,
+                    });
+                }
             }
 
-            const newLastDoc = filteredPosts.length > 0
-                ? snapshot.docs[snapshot.docs.findIndex((d: any) => d.id === filteredPosts[filteredPosts.length - 1].id)]
+            // Sort all results by createdAt descending and take limitCount
+            allPosts.sort((a, b) => b.post.createdAt.getTime() - a.post.createdAt.getTime());
+            const sliced = allPosts.slice(0, limitCount);
+
+            const newLastDoc = sliced.length > 0
+                ? sliced[sliced.length - 1].docSnapshot
                 : undefined;
 
-            return { posts: filteredPosts.slice(0, limitCount), lastDoc: newLastDoc };
+            return {
+                posts: sliced.map(item => item.post),
+                lastDoc: newLastDoc,
+            };
         } catch (error) {
             logger.error('❌ Error fetching feed:', error);
             throw error;
@@ -167,18 +189,21 @@ class FeedService {
 
     /**
      * Listen to real-time feed updates (friends' posts + own posts)
-     * ✅ FIX: Returns unsubscribe function to prevent memory leaks
+     * Returns unsubscribe function to prevent memory leaks
      */
     listenToFeed(
         userId: string,
         callback: (posts: FeedPost[]) => void,
         limitCount: number = 20
     ): () => void {
-        // Store unsubscribe function to return
         let unsubscribe: (() => void) | null = null;
+        let isCancelled = false;
 
         // Get friends first, then set up listener
         friendService.getFriends(userId).then(friends => {
+            // Guard: if cleanup was called before getFriends resolved, don't set up listener
+            if (isCancelled) return;
+
             const friendIds = friends.map(f => f.friendId);
             const allowedUserIds = [userId, ...friendIds];
 
@@ -206,10 +231,13 @@ class FeedService {
 
                 callback(posts.slice(0, limitCount));
             });
+        }).catch(error => {
+            logger.error('❌ Error setting up feed listener:', error);
         });
 
         // Return cleanup function
         return () => {
+            isCancelled = true;
             if (unsubscribe) {
                 unsubscribe();
             }
@@ -247,19 +275,18 @@ class FeedService {
     }
 
     /**
-     * Get a single feed post
+     * Get a single feed post by direct document read
      */
     async getFeedPost(postId: string): Promise<FeedPost | null> {
         try {
-            const q = query(this.feedPostsCollection, where('__name__', '==', postId));
-            const snapshot = await getDocs(q);
+            const postRef = doc(db, 'feedPosts', postId);
+            const postDoc = await getDoc(postRef);
 
-            if (snapshot.empty) return null;
+            if (!postDoc.exists()) return null;
 
-            const docData = snapshot.docs[0];
-            const data = docData.data();
+            const data = postDoc.data();
             return {
-                id: docData.id,
+                id: postDoc.id,
                 ...data,
                 createdAt: data.createdAt?.toDate() || new Date(),
             } as FeedPost;

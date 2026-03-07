@@ -99,7 +99,6 @@ export function useGoalProgress({
 
   // Start date text
   const startDateText = useMemo(() => {
-    if (goal.valentineChallengeId) return null;
     if (!goal.plannedStartDate) return null;
     const planned = new Date(goal.plannedStartDate);
     const today = new Date();
@@ -115,7 +114,7 @@ export function useGoalProgress({
     if (diffDays < 0) return `Started ${Math.abs(diffDays)} days ago`;
     if (diffDays <= 7) return `Starts in ${diffDays} days`;
     return `Starts ${planned.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-  }, [goal.valentineChallengeId, goal.plannedStartDate]);
+  }, [goal.plannedStartDate]);
 
   return {
     weekDates,

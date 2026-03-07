@@ -18,15 +18,17 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RecipientStackParamList, ExperienceGift, ValentineChallenge } from '../../types';
+import { RecipientStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, runTransaction, updateDoc } from 'firebase/firestore';
 import { useModalAnimation } from '../../hooks/useModalAnimation';
 import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
 
 type CouponEntryNavigationProp =
@@ -88,122 +90,7 @@ const CouponEntryScreen = () => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      // ✅ FIRST: Check if it's a Valentine challenge code
-      const valentineRef = collection(db, 'valentineChallenges');
-      const valentineQuery = query(
-        valentineRef,
-        where('purchaserCode', '==', trimmedCode)
-      );
-      const valentineQuerySnapshot = await getDocs(valentineQuery);
-
-      if (!valentineQuerySnapshot.empty) {
-        // It's a Valentine purchaser code
-        const challengeDoc = valentineQuerySnapshot.docs[0];
-        const challenge = { id: challengeDoc.id, ...challengeDoc.data() } as ValentineChallenge;
-
-        logger.log('💘 Valentine purchaser code detected:', challenge.id);
-
-        // ✅ SECURITY: Validate user can redeem this code
-        const userId = state.user?.id;
-
-        if (!userId) {
-          setErrorMessage('Please sign in to redeem this code');
-          triggerShake();
-          return;
-        }
-
-        // Check if this specific code already redeemed
-        if (challenge.purchaserCodeRedeemed) {
-          setErrorMessage('This code has already been redeemed');
-          triggerShake();
-          return;
-        }
-
-        // ✅ NEW: Prevent same user from redeeming BOTH codes for this challenge
-        // Query to check if user already has a goal for this Valentine challenge
-        const goalsRef = collection(db, 'goals');
-        const existingGoalQuery = query(
-          goalsRef,
-          where('userId', '==', userId),
-          where('valentineChallengeId', '==', challenge.id)
-        );
-        const existingGoalSnapshot = await getDocs(existingGoalQuery);
-
-        if (!existingGoalSnapshot.empty) {
-          setErrorMessage('You have already redeemed a code for this challenge!');
-          triggerShake();
-          return;
-        }
-
-        // Navigate to Valentine goal setting
-        navigation.reset({
-          index: 0,
-          routes: [{
-            name: 'ValentineGoalSetting' as any,
-            params: { challenge, isPurchaser: true }
-          }],
-        });
-        return;
-      }
-
-      // Check if it's a Valentine partner code
-      const partnerQuery = query(
-        valentineRef,
-        where('partnerCode', '==', trimmedCode)
-      );
-      const partnerQuerySnapshot = await getDocs(partnerQuery);
-
-      if (!partnerQuerySnapshot.empty) {
-        // It's a Valentine partner code
-        const challengeDoc = partnerQuerySnapshot.docs[0];
-        const challenge = { id: challengeDoc.id, ...challengeDoc.data() } as ValentineChallenge;
-
-        logger.log('💘 Valentine partner code detected:', challenge.id);
-
-        // ✅ SECURITY: Validate user can redeem this code
-        const userId = state.user?.id;
-
-        if (!userId) {
-          setErrorMessage('Please sign in to redeem this code');
-          triggerShake();
-          return;
-        }
-
-        // Check if this specific code already redeemed
-        if (challenge.partnerCodeRedeemed) {
-          setErrorMessage('This code has already been redeemed');
-          triggerShake();
-          return;
-        }
-
-        // ✅ NEW: Prevent same user from redeeming BOTH codes for this challenge
-        // Query to check if user already has a goal for this Valentine challenge
-        const goalsRef = collection(db, 'goals');
-        const existingGoalQuery = query(
-          goalsRef,
-          where('userId', '==', userId),
-          where('valentineChallengeId', '==', challenge.id)
-        );
-        const existingGoalSnapshot = await getDocs(existingGoalQuery);
-
-        if (!existingGoalSnapshot.empty) {
-          setErrorMessage('You have already redeemed a code for this challenge!');
-          triggerShake();
-          return;
-        }
-
-        // Navigate to Valentine goal setting
-        navigation.reset({
-          index: 0,
-          routes: [{
-            name: 'ValentineGoalSetting' as any,
-            params: { challenge, isPurchaser: false }
-          }],
-        });
-        return;
-      }
-
-      // ✅ FALLBACK: Check regular experience gifts
+      // Check regular experience gifts
       const giftsRef = collection(db, 'experienceGifts');
       const q = query(
         giftsRef,
@@ -224,6 +111,43 @@ const CouponEntryScreen = () => {
         ...(giftDoc.data() as ExperienceGift),
       };
 
+      // Check if claim code has expired
+      if (experienceGift.expiresAt) {
+        const expiresAt = experienceGift.expiresAt instanceof Date
+          ? experienceGift.expiresAt
+          : (experienceGift.expiresAt as any).toDate?.()
+            ?? new Date(experienceGift.expiresAt as any);
+        if (expiresAt < new Date()) {
+          setErrorMessage('This claim code has expired');
+          triggerShake();
+          return;
+        }
+      }
+
+      // T1-4: Atomically claim the gift to prevent race conditions
+      const giftRef = doc(db, 'experienceGifts', giftDoc.id);
+      try {
+        await runTransaction(db, async (transaction) => {
+          const freshGift = await transaction.get(giftRef);
+          if (!freshGift.exists() || freshGift.data()?.status !== 'pending') {
+            throw new Error('ALREADY_CLAIMED');
+          }
+          transaction.update(giftRef, {
+            status: 'claimed',
+            claimedBy: state.user?.id || '',
+            claimedAt: new Date(),
+          });
+        });
+      } catch (txError: any) {
+        if (txError?.message === 'ALREADY_CLAIMED') {
+          setErrorMessage('This code has already been claimed');
+          triggerShake();
+          return;
+        }
+        throw txError;
+      }
+
+      analyticsService.trackEvent('coupon_redeemed', 'conversion', { giftId: giftDoc.id }, 'CouponEntryScreen');
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
 
       // If there's a personalized message, show it in a popup first
@@ -268,6 +192,7 @@ const CouponEntryScreen = () => {
   };
 
   return (
+    <ErrorBoundary screenName="CouponEntryScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
       <LinearGradient colors={Colors.gradientPrimary} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
@@ -535,6 +460,7 @@ const CouponEntryScreen = () => {
         </TouchableOpacity>
       </Modal>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

@@ -50,7 +50,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const navigation = useNavigation<NavigationProp>();
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -167,6 +167,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     try {
       const auth = getAuth();
       await signOut(auth);
+      dispatch({ type: 'RESET_STATE' });
 
       // Navigate to CategorySelection after successful logout
       navigation.navigate('CategorySelection');

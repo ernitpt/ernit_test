@@ -10,6 +10,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
@@ -149,6 +150,7 @@ const PurchasedGiftsScreen = () => {
   };
 
   return (
+    <ErrorBoundary screenName="PurchasedGiftsScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Settings">
       <StatusBar style="light" />
       <SharedHeader
@@ -211,6 +213,7 @@ const PurchasedGiftsScreen = () => {
         />
       )}
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

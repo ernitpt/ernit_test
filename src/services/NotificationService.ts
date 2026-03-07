@@ -12,6 +12,7 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  limit,
 } from 'firebase/firestore';
 import { Notification } from '../types';
 import { logger } from '../utils/logger';
@@ -20,10 +21,10 @@ export class NotificationService {
   /** Add a new notification */
   async createNotification(
     userId: string,
-    type: string,
+    type: Notification['type'],
     title: string,
     message: string,
-    data?: any,
+    data?: Record<string, any>,
     clearable: boolean = true
   ) {
     const docRef = await addDoc(collection(db, 'notifications'), {
@@ -61,46 +62,6 @@ export class NotificationService {
         senderCountry,
       },
       true // Allow clearing after responding
-    );
-  }
-
-  /** 💝 Create notification when Valentine challenge starts (second partner joins) */
-  async createValentineStartNotification(
-    recipientId: string,
-    partnerName: string,
-    challengeId: string
-  ) {
-    await this.createNotification(
-      recipientId,
-      'valentine_start',
-      'Valentine Challenge Started! 💘',
-      `${partnerName} has joined your challenge! You're now linked and ready to go.`,
-      {
-        challengeId,
-        partnerName,
-      },
-      true
-    );
-  }
-
-  /** 💝 Create notification when Valentine reward unlocks (both finished) */
-  async createValentineUnlockNotification(
-    recipientId: string,
-    partnerName: string,
-    challengeId: string,
-    experienceTitle?: string
-  ) {
-    await this.createNotification(
-      recipientId,
-      'valentine_unlock',
-      'Reward Unlocked! 🎁',
-      `You and ${partnerName} have both finished! Your ${experienceTitle || 'experience'} is ready to redeem.`,
-      {
-        challengeId,
-        partnerName,
-        experienceTitle,
-      },
-      false // Important! Don't let them accidentally clear this before clicking
     );
   }
 
@@ -211,8 +172,9 @@ export class NotificationService {
   ) => {
     const q = query(
       collection(db, 'notifications'),
-      where('userId', '==', userId), // Fixed field name to match type definition
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -285,10 +247,15 @@ export class NotificationService {
       );
       const snapshot = await getDocs(q);
 
-      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+      const deletePromises = snapshot.docs
+        .filter(doc => {
+          const data = doc.data();
+          return data.clearable !== false;
+        })
+        .map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
 
-      logger.log(`✅ Cleared ${snapshot.docs.length} read notifications for user ${userId}`);
+      logger.log(`✅ Cleared ${deletePromises.length} read clearable notifications for user ${userId}`);
     } catch (error) {
       logger.error('❌ Error clearing read notifications:', error);
       throw error;

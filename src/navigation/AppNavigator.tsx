@@ -36,16 +36,12 @@ import FriendProfileScreen from '../screens/FriendProfileScreen';
 import FriendsListScreen from '../screens/FriendsListScreen';
 import PurchasedGiftsScreen from '../screens/PurchasedGiftsScreen';
 import FeedScreen from '../screens/FeedScreen';
-import ValentinesLandingScreen from '../screens/ValentinesLandingScreen';
-import ValentinesChallengeScreen from '../screens/ValentinesChallengeScreen';
-import ValentineCheckoutScreen from '../screens/ValentineCheckoutScreen';
-import ValentineConfirmationScreen from '../screens/ValentineConfirmationScreen';
-import ValentineGoalSettingScreen from '../screens/ValentineGoalSettingScreen';
 import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScreen';
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
 const GiverStack = createNativeStackNavigator<GiverStackParamList>() as any;
@@ -128,14 +124,12 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       // 2. On checkout page (has important state)
       // 3. URL has query parameters (might contain important data)
       // 4. On recipient redemption page (deep link)
-      // 5. On valentines pages (preserve valentines flow)
-      // 6. On challenge pages (preserve challenge flow)
+      // 5. On challenge pages (preserve challenge flow)
       const shouldNotReset =
         pathname === '/' ||
         pathname === '' ||
         pathname.includes('/checkout') ||
         pathname.includes('/recipient/redeem/') ||
-        pathname.includes('/valentines') ||
         pathname.includes('/challenge') ||
         hasQueryParams;
 
@@ -199,10 +193,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         FriendsList: 'friends',
         PurchasedGifts: 'purchased-gifts',
         GoalSetting: 'goal-setting',
-        ValentinesLanding: 'valentines',
-        ValentinesChallenge: 'valentines/create',
-        ValentineCheckout: 'valentines/checkout',
-        ValentineGoalSetting: 'valentines/goalSetting',
         FreeGoalCompletion: 'free-goal-completion',
         ChallengeLanding: '',
         ChallengeSetup: 'challenge/create',
@@ -220,8 +210,20 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         setIsNavigationReady(true);
       }}
       onStateChange={(navState) => {
-        // Only update document title, no navigation blocking
+        // Update document title
         if (Platform.OS === 'web') document.title = 'Ernit';
+
+        // Track screen views
+        if (navState) {
+          let route: { name?: string; state?: any } = navState.routes[navState.index ?? 0];
+          // Drill into nested navigators
+          while (route.state?.routes) {
+            route = route.state.routes[route.state.index ?? 0];
+          }
+          if (route.name) {
+            analyticsService.trackScreenView(route.name);
+          }
+        }
       }}
     >
       <RootStack.Navigator
@@ -236,11 +238,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="Auth" component={AuthScreen} />
         <RootStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
         <RootStack.Screen name="Cart" component={CartScreen} />
-        <RootStack.Screen name="ValentinesLanding" component={ValentinesLandingScreen} />
-        <RootStack.Screen name="ValentinesChallenge" component={ValentinesChallengeScreen} />
-        <RootStack.Screen name="ValentineCheckout" component={ValentineCheckoutScreen} />
-        <RootStack.Screen name="ValentineConfirmation" component={ValentineConfirmationScreen} />
-        <RootStack.Screen name="ValentineGoalSetting" component={ValentineGoalSettingScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
 
@@ -424,6 +421,7 @@ const AppNavigator = () => {
 
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
+        analyticsService.setUserId(firebaseUser?.uid ?? null);
         if (firebaseUser) {
           const guestCart = await cartService.getGuestCart();
           const persisted = await userService.getUserById(firebaseUser.uid);

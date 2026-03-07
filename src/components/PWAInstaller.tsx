@@ -26,12 +26,6 @@ export const PWAInstaller: React.FC = () => {
             return;
         }
 
-        // 💝 Skip PWA install prompt if user is on valentines flow
-        if (typeof window !== 'undefined' && window.location.pathname.includes('/valentines')) {
-            console.log('💝 User on valentines flow - skipping PWA install prompt');
-            return;
-        }
-
         // Detect iOS
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 

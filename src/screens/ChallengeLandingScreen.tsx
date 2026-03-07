@@ -18,6 +18,7 @@ import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft } from 'lu
 import { MotiView } from 'moti';
 import { RootStackParamList } from '../types';
 import { useApp } from '../context/AppContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import Colors from '../config/colors';
 import JourneyDemo from '../components/JourneyDemo';
 
@@ -80,6 +81,7 @@ export default function ChallengeLandingScreen() {
     const currentWord = ROTATING_WORDS[wordIndex];
 
     return (
+        <ErrorBoundary screenName="ChallengeLandingScreen" userId={state.user?.id}>
         <View style={styles.container}>
             <StatusBar style="dark" />
             <ScrollView
@@ -477,6 +479,7 @@ export default function ChallengeLandingScreen() {
                 </View>
             </ScrollView>
         </View>
+        </ErrorBoundary>
     );
 }
 

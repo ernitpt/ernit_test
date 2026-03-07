@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types'; // Ensure this path is correct
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import Colors from '../config/colors';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
@@ -21,6 +22,7 @@ const LandingScreen = () => {
   };
 
   return (
+    <ErrorBoundary screenName="LandingScreen">
     <LinearGradient
       colors={Colors.gradientPrimary}
       style={{ flex: 1 }}
@@ -137,6 +139,7 @@ const LandingScreen = () => {
         </View>
       </SafeAreaView>
     </LinearGradient>
+    </ErrorBoundary>
   );
 };
 

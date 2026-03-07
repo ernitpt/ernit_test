@@ -32,9 +32,28 @@ service cloud.firestore {
      * 👤 USERS
      * ===================== **/
     match /users/{userId} {
-      // User can manage their own user doc
+      // User can read any user doc (needed for friend profiles, feed, notifications)
       allow read: if request.auth != null;
-      allow write, update, delete: if request.auth != null && request.auth.uid == userId;
+
+      // User can create their own doc
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // User can update their own doc with field validation
+      allow update: if request.auth != null && request.auth.uid == userId
+        // Prevent changing immutable fields
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'createdAt'])
+        // Validate string lengths if profile fields are being changed
+        && (!('displayName' in request.resource.data) || (
+            request.resource.data.displayName is string &&
+            request.resource.data.displayName.size() <= 100))
+        && (!('profile' in request.resource.data) || (
+            request.resource.data.profile is map &&
+            (!('name' in request.resource.data.profile) || request.resource.data.profile.name.size() <= 100) &&
+            (!('description' in request.resource.data.profile) || request.resource.data.profile.description.size() <= 500) &&
+            (!('country' in request.resource.data.profile) || request.resource.data.profile.country.size() <= 100)));
+
+      // User can delete their own doc
+      allow delete: if request.auth != null && request.auth.uid == userId;
 
       // User coupons: users/{userId}/coupons/{couponId}
       match /coupons/{couponId} {
@@ -91,7 +110,7 @@ service cloud.firestore {
 
         // ✅ For collision detection during coupon generation,
         // allow limited queries with specific code filter
-        allow list: if request.auth != null && 
+        allow list: if request.auth != null &&
           request.query.limit == 1;
 
         // 🚫 Prevent deletes
@@ -137,7 +156,12 @@ service cloud.firestore {
              (request.resource.data.pledgedExperience.experienceId is string
               && exists(/databases/$(database)/documents/experiences/$(request.resource.data.pledgedExperience.experienceId)))
            ))
-        );
+        )
+        // Value validation on create
+        && (!('targetCount' in request.resource.data) ||
+            (request.resource.data.targetCount >= 1 && request.resource.data.targetCount <= 5))
+        && (!('sessionsPerWeek' in request.resource.data) ||
+            (request.resource.data.sessionsPerWeek >= 1 && request.resource.data.sessionsPerWeek <= 7));
 
         // ===== Allow updates =====
       allow update: if request.auth != null && (
@@ -147,17 +171,17 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId && (
           // Allow all updates if no approval process started OR already approved
           (!('approvalStatus' in resource.data) || resource.data.approvalStatus == 'approved') ||
-          
+
           // If approval is pending/requested, only allow safe field updates
           (resource.data.approvalStatus in ['pending', 'suggested_change', 'rejected'] &&
            (
              // Allow accepting a suggestion (transition to approved)
-             (resource.data.approvalStatus == 'suggested_change' && 
+             (resource.data.approvalStatus == 'suggested_change' &&
               request.resource.data.approvalStatus == 'approved' &&
               !request.resource.data.diff(resource.data).affectedKeys().hasAny(['empoweredBy'])) ||
-             
+
              // Allow resubmitting (transition to pending)
-             (resource.data.approvalStatus in ['rejected', 'suggested_change'] && 
+             (resource.data.approvalStatus in ['rejected', 'suggested_change'] &&
               request.resource.data.approvalStatus == 'pending' &&
               !request.resource.data.diff(resource.data).affectedKeys().hasAny(['empoweredBy'])) ||
 
@@ -171,16 +195,16 @@ service cloud.firestore {
                'approvalDeadline'     // Can't extend deadline
              ])
            ))
-        ) 
+        )
         // SECURITY: Add value validation for numeric fields
         && (!('weeklyCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
-            (request.resource.data.weeklyCount >= 0 && 
+            (request.resource.data.weeklyCount >= 0 &&
              request.resource.data.weeklyCount <= request.resource.data.sessionsPerWeek))
         && (!('targetCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
-            (request.resource.data.targetCount >= 1 && 
+            (request.resource.data.targetCount >= 1 &&
              request.resource.data.targetCount <= 5))
         && (!('sessionsPerWeek' in request.resource.data.diff(resource.data).affectedKeys()) ||
-            (request.resource.data.sessionsPerWeek >= 1 && 
+            (request.resource.data.sessionsPerWeek >= 1 &&
              request.resource.data.sessionsPerWeek <= 7))
         )
 
@@ -211,7 +235,7 @@ service cloud.firestore {
               'personalizedNextHint',
               'updatedAt'
             ]))
-        
+
         ||
 
         // (4) Valentine completion unlock
@@ -287,7 +311,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen']);
       }
     }
-    
+
     /** =====================
      * 💝 VALENTINE CHALLENGES
      * ===================== **/
@@ -296,20 +320,20 @@ service cloud.firestore {
       // 1. Unauthenticated with limit 1 (for confirmation screen - paymentIntentId is secret)
       // 2. Authenticated users (for redemption - querying by code)
       allow list: if request.query.limit == 1 || request.auth != null;
-      
+
       // Allow reading individual challenge documents if authenticated
       allow get: if request.auth != null;
-      
+
       // Create: only via cloud functions (server-side after payment)
       allow create: if false;
-      
+
       // Update: only if user owns the goal they're linking to this challenge
       // SECURITY: Prevents users from hijacking other people's challenges
       // NOTE: Uses getAfter() to support atomic transactions - it sees writes pending in the same transaction
-      allow update: if request.auth != null 
+      allow update: if request.auth != null
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed', 
-                      'purchaserGoalId', 'partnerGoalId', 'purchaserUserId', 
+            .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed',
+                      'purchaserGoalId', 'partnerGoalId', 'purchaserUserId',
                       'partnerUserId', 'status', 'updatedAt',
                       'bothPartnersFinished', 'completionUnlockedAt', 'firstFinishedUserId', 'firstFinishedAt'])
         && (
@@ -330,7 +354,7 @@ service cloud.firestore {
             request.auth.uid == resource.data.partnerUserId
           )
         );
-      
+
       // Delete: never allowed from client
       allow delete: if false;
     }
@@ -342,14 +366,14 @@ service cloud.firestore {
       // List: allow authenticated users to query (for viewing own gifts and claiming)
       // Queries include: where('giverId', '==', userId) and where('claimCode', '==', code)
       allow list: if request.auth != null;
-      
+
       // Get: allow any authenticated user to read gifts
       // This is needed because goal owners need to access gifts for completion screens
       allow get: if request.auth != null;
-      
+
       // Create: only via cloud functions (server-side)
       allow create: if false;
-      
+
       // Update: allow giver to update personalizedMessage, recipient to update their gift, OR allow claiming pending gifts
       allow update: if request.auth != null && (
         // Giver updating personalized message
@@ -375,7 +399,7 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).changedKeys()
              .hasOnly(['status', 'recipientId', 'claimedAt', 'updatedAt']))
       );
-      
+
       // Delete: never allowed from client
       allow delete: if false;
     }
@@ -384,7 +408,7 @@ service cloud.firestore {
      * 💡 HINTS (flat collection)
      * ===================== **/
     match /hints/{hintId} {
-      allow read, write: if request.auth != null 
+      allow read, write: if request.auth != null
         && request.auth.uid == resource.data.userId;
     }
 
@@ -397,7 +421,13 @@ service cloud.firestore {
          request.auth.uid == resource.data.recipientId);
 
       allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.senderId;
+        request.auth.uid == request.resource.data.senderId
+        // Must have required fields
+        && request.resource.data.keys().hasAll(['senderId', 'recipientId', 'status', 'createdAt'])
+        // Cannot send request to yourself
+        && request.resource.data.senderId != request.resource.data.recipientId
+        // Status must start as pending
+        && request.resource.data.status == 'pending';
 
       // Allow update: sender or recipient can update the request
       allow update: if request.auth != null &&
@@ -427,10 +457,13 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId ||
          request.auth.uid == resource.data.friendId);
 
-      // Allow either user to create the friendship doc
+      // Allow creating friendship doc — creator must be one of the users
+      // and required fields must be present
       allow create: if request.auth != null &&
         request.resource.data.userId is string &&
         request.resource.data.friendId is string &&
+        request.resource.data.keys().hasAll(['userId', 'friendId', 'createdAt']) &&
+        request.resource.data.userId != request.resource.data.friendId &&
         (request.auth.uid == request.resource.data.userId ||
          request.auth.uid == request.resource.data.friendId);
 
@@ -455,7 +488,7 @@ service cloud.firestore {
       // Allow deletion by: target user, sender of friend request, or recipient of goal change suggestion
       allow delete: if request.auth != null &&
         (
-          request.auth.uid == resource.data.userId || 
+          request.auth.uid == resource.data.userId ||
           (
             resource.data.type == "friend_request" &&
             request.auth.uid == resource.data.data.senderId
@@ -497,7 +530,7 @@ service cloud.firestore {
       // Allow reading own notifications OR post_reaction notifications (for aggregation)
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.userId ||
-         (resource.data.type == 'post_reaction' && 
+         (resource.data.type == 'post_reaction' &&
           'postId' in resource.data.data &&
           exists(/databases/$(database)/documents/feedPosts/$(resource.data.data.postId))));
 
@@ -526,8 +559,8 @@ service cloud.firestore {
          ))
         ||
         // Goal-related notifications: must have relationship to goal
-        (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request', 
-                                         'goal_change_suggested', 'goal_approval_response', 
+        (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request',
+                                         'goal_change_suggested', 'goal_approval_response',
                                          'personalized_hint_left'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data)
@@ -550,7 +583,7 @@ service cloud.firestore {
      * ===================== **/
     match /experiences/{experienceId} {
       allow read: if true;
-      allow write: if request.auth != null 
+      allow write: if request.auth != null
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner';
     }
@@ -592,65 +625,122 @@ service cloud.firestore {
         return exists(/databases/$(database)/documents/friends/$(userId1 + '_' + userId2))
             || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
       }
-      
+
       // Read: Allow all authenticated users to read posts
       // (Required because feed queries fetch globally and filter client-side)
       allow read: if request.auth != null;
-      
+
       // List: Allow all authenticated users to list posts
       allow list: if request.auth != null;
-      
+
       // Create: users can create their own posts OR givers can create goal_approved posts for recipients
       allow create: if request.auth != null && (
         request.auth.uid == request.resource.data.userId
         ||
         // Allow givers to create goal_approved posts on behalf of recipients
-        (request.resource.data.type == 'goal_approved' && 
+        (request.resource.data.type == 'goal_approved' &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.goalId)) &&
          get(/databases/$(database)/documents/goals/$(request.resource.data.goalId)).data.empoweredBy == request.auth.uid)
       );
-      
-      // Update: allow authenticated users to update (for reaction/comment counts)
-      // Posts are only accessible via queries that already filter by friends/own posts
-      allow update: if request.auth != null;
-      
+
+      // Update: owner can update anything; others can only update aggregated counts
+      // with validation to prevent arbitrary count manipulation
+      allow update: if request.auth != null && (
+        // Owner can update anything
+        request.auth.uid == resource.data.userId
+        ||
+        // Others can only update aggregated counts (for reactions/comments)
+        // Counts can only change by small amounts (prevent setting to arbitrary values)
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reactionCounts', 'commentCount'])
+         && (!('commentCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
+             (request.resource.data.commentCount >= 0 &&
+              request.resource.data.commentCount <= resource.data.commentCount + 1)))
+      );
+
       // Delete: only owner
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.userId;
-      
+
       /** Reactions subcollection **/
       match /reactions/{reactionId} {
         // Read: any authenticated user (they can only access via posts they can see)
         allow read: if request.auth != null;
-        
+
         // Create: users can create their own reactions
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
-        
+
         // Delete: users can delete their own reactions
         allow delete: if request.auth != null
           && resource.data.userId == request.auth.uid;
       }
-      
+
       /** Comments subcollection **/
       match /comments/{commentId} {
         // Read: any authenticated user (they can only access via posts they can see)
         allow read: if request.auth != null;
-        
+
         // Create: authenticated users can comment
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
-        
+
         // Update: own comments only
         allow update: if request.auth != null
           && resource.data.userId == request.auth.uid;
-        
+
         // Delete: own comments only
         allow delete: if request.auth != null
           && resource.data.userId == request.auth.uid;
       }
     }
 
+
+    /** =====================
+     * 📋 GOAL SESSIONS
+     * ===================== **/
+    match /goalSessions/{goalId} {
+      match /sessions/{sessionId} {
+        // Read/write: only the goal owner
+        allow read, write: if request.auth != null
+          && exists(/databases/$(database)/documents/goals/$(goalId))
+          && get(/databases/$(database)/documents/goals/$(goalId)).data.userId == request.auth.uid;
+      }
+    }
+
+    /** =====================
+     * 💳 PROCESSED PAYMENTS
+     * ===================== **/
+    match /processedPayments/{paymentId} {
+      // Server-side only — no client access
+      allow read, write: if false;
+    }
+
+    /** =====================
+     * ⏱️ RATE LIMITS
+     * ===================== **/
+    match /rateLimits/{limitId} {
+      // Server-side only — no client access
+      allow read, write: if false;
+    }
+
+    /** =====================
+     * 📊 ANALYTICS EVENTS
+     * ===================== **/
+    match /events/{eventId} {
+      // Write-only: authenticated users can create events, no client reads
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+
+    /** =====================
+     * 🐛 ERROR LOGS
+     * ===================== **/
+    match /errors/{errorId} {
+      // Anyone can create (ErrorBoundary may fire before auth)
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
 
     /** =====================================================================
      * 🧾 LEGACY partnerCoupons/{partnerId}/coupons

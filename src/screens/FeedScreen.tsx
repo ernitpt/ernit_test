@@ -38,9 +38,12 @@ const FeedScreen: React.FC = () => {
     const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
     const highlightAnim = React.useRef(new Animated.Value(0)).current;
     const flatListRef = React.useRef<FlatList>(null);
+    const scrollRetryCount = React.useRef(0);
 
     // Handle highlight parameter from navigation
     useEffect(() => {
+        let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
+
         if (route.params?.highlightPostId) {
             setHighlightedPostId(route.params.highlightPostId);
 
@@ -59,18 +62,25 @@ const FeedScreen: React.FC = () => {
             ]).start();
 
             // Auto-clear highlight after animation
-            setTimeout(() => {
+            highlightTimeout = setTimeout(() => {
                 setHighlightedPostId(null);
             }, 2400);
         }
+
+        return () => {
+            if (highlightTimeout) clearTimeout(highlightTimeout);
+        };
     }, [route.params?.highlightPostId]);
 
     // Scroll to highlighted post
     useEffect(() => {
+        let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
         if (highlightedPostId && posts.length > 0 && flatListRef.current) {
             const index = posts.findIndex(post => post.id === highlightedPostId);
             if (index !== -1) {
-                setTimeout(() => {
+                scrollRetryCount.current = 0;
+                scrollTimeout = setTimeout(() => {
                     flatListRef.current?.scrollToIndex({
                         index,
                         animated: true,
@@ -79,6 +89,10 @@ const FeedScreen: React.FC = () => {
                 }, 300);
             }
         }
+
+        return () => {
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+        };
     }, [highlightedPostId, posts]);
 
     useFocusEffect(
@@ -185,14 +199,15 @@ const FeedScreen: React.FC = () => {
                         ListEmptyComponent={renderEmpty}
                         showsVerticalScrollIndicator={false}
                         onScrollToIndexFailed={(info) => {
-                            const wait = new Promise(resolve => setTimeout(resolve, 500));
-                            wait.then(() => {
+                            if (scrollRetryCount.current >= 3) return;
+                            scrollRetryCount.current += 1;
+                            setTimeout(() => {
                                 flatListRef.current?.scrollToIndex({
                                     index: info.index,
                                     animated: true,
                                     viewPosition: 0.3
                                 });
-                            });
+                            }, 500);
                         }}
                         refreshControl={
                             <RefreshControl

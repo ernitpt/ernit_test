@@ -9,7 +9,6 @@ import {
   LayoutAnimation,
   Pressable,
   Platform,
-  Image,
   UIManager,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -33,29 +32,24 @@ import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { serializeNav } from '../../utils/serializeNav';
 import { db } from '../../services/firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { config } from '../../config/environment';
 import Colors from '../../config/colors';
 
 // Extracted utilities, hooks, and components
 import {
   isGoalLocked,
-  buildValentineGift,
   TIMER_STORAGE_KEY,
   HintObject,
 } from './goalCardUtils';
 import { useGoalProgress } from './hooks/useGoalProgress';
-import { useValentinePartner } from './hooks/useValentinePartner';
-import { useValentineExperience } from './hooks/useValentineExperience';
 import WeeklyCalendar from './components/WeeklyCalendar';
 import ProgressBars, { StreakBadge } from './components/ProgressBars';
 import TimerDisplay from './components/TimerDisplay';
-import ValentinePartnerSelector from './components/ValentinePartnerSelector';
 import SessionActionArea from './components/SessionActionArea';
 import {
   CancelSessionModal,
   CelebrationModal,
-  ValentineExperienceDetailsModal,
 } from './components/GoalCardModals';
 import SessionMediaPrompt from './components/SessionMediaPrompt';
 import { sessionService } from '../../services/SessionService';
@@ -104,7 +98,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     totalWeeks: number;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
-  const [showPartnerWaitingModal, setShowPartnerWaitingModal] = useState(false);
   const [cancelMessage] = useState(
     "Are you sure you want to cancel this session? Progress won't be saved."
   );
@@ -118,7 +111,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [pendingFinishData, setPendingFinishData] = useState<{
     updated: Goal;
     totalSessionsDone: number;
-    isValentineGoal: boolean;
     experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null;
     recipientName: string | null;
     gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null;
@@ -162,24 +154,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // ─── Hooks ──────────────────────────────────────────────────────
 
-  const valentine = useValentinePartner(currentGoal);
-
-  const {
-    valentineExperience,
-    valentineChallengeMode,
-    showDetailsModal,
-    setShowDetailsModal,
-  } = useValentineExperience({
-    goal: currentGoal,
-    setCurrentGoal,
-    valentinePartnerName: valentine.valentinePartnerName,
-    navigation,
-  });
-
   const progress = useGoalProgress({
     goal: currentGoal,
-    selectedView: valentine.selectedView,
-    partnerGoalData: valentine.partnerGoalData,
+    selectedView: 'user',
+    partnerGoalData: null,
     debugTimeKey,
   });
 
@@ -229,17 +207,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     return () => unsubscribe();
   }, [currentGoal.id]);
-
-  // Partner waiting modal
-  useEffect(() => {
-    if (showPartnerWaitingModal) {
-      Alert.alert(
-        'Goal Complete!',
-        `Congratulations! You've completed all your sessions!\n\nWaiting for ${valentine.valentinePartnerName || 'your partner'} to finish their goal. Once they complete, you'll both be able to redeem your experience together.\n\nWe'll notify you when they're done!`,
-        [{ text: 'Got it!', onPress: () => setShowPartnerWaitingModal(false) }]
-      );
-    }
-  }, [showPartnerWaitingModal, valentine.valentinePartnerName]);
 
   // Background timer awareness — notify when app becomes visible and timer running
   useEffect(() => {
@@ -379,11 +346,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     setSessionMediaType(null);
 
     try {
-      const isValentineGoal = !!currentGoal.valentineChallengeId;
       let experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null = null;
       const recipientName = await userService.getUserName(currentGoal.userId);
 
-      if (!isValentineGoal && currentGoal.experienceGiftId) {
+      // Only fetch experience details client-side for non-mystery gifts
+      // Mystery gifts resolve experience server-side to prevent spoiling the surprise
+      if (currentGoal.experienceGiftId && !currentGoal.isMystery) {
         const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
         experience = await experienceService.getExperienceById(gift.experienceId);
       }
@@ -415,26 +383,32 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
 
-      const hintExperience = isValentineGoal ? valentineExperience : experience;
-      const hasHintExperience = isValentineGoal ? true : !!experience;
       const canGenerateHints =
         !isSelfGift &&
         funcTotalSessionsDone !== funcTotalSessions &&
         !hasPersonalizedHintForNextSession &&
-        hasHintExperience &&
-        (!isValentineGoal || currentGoal.isRevealed === false);
+        (!!experience || !!currentGoal.isMystery); // Mystery gifts don't need client-side experience
 
       if (canGenerateHints) {
-        aiHintService.generateHint({
-          goalId,
-          experienceType: hintExperience?.title || 'experience',
-          experienceDescription: hintExperience?.description || undefined,
-          experienceCategory: hintExperience?.category || undefined,
-          experienceSubtitle: hintExperience?.subtitle || undefined,
-          sessionNumber: nextSessionNumber,
-          totalSessions: funcTotalSessions,
-          userName: recipientName || undefined,
-        }).then(({ hint, category }) => {
+        const hintPromise = currentGoal.isMystery
+          ? aiHintService.generateMysteryHint({
+              goalId,
+              sessionNumber: nextSessionNumber,
+              totalSessions: funcTotalSessions,
+              userName: recipientName || undefined,
+            })
+          : aiHintService.generateHint({
+              goalId,
+              experienceType: experience?.title || 'experience',
+              experienceDescription: experience?.description || undefined,
+              experienceCategory: experience?.category || undefined,
+              experienceSubtitle: experience?.subtitle || undefined,
+              sessionNumber: nextSessionNumber,
+              totalSessions: funcTotalSessions,
+              userName: recipientName || undefined,
+            });
+
+        hintPromise.then(({ hint, category }) => {
           logger.log(`Background hint generated for session ${nextSessionNumber}${category ? ` (category: ${category})` : ''}`);
         }).catch((err) => {
           logger.warn('Background hint generation failed:', err);
@@ -452,10 +426,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     } finally {
       setLoading(false);
     }
-  }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer, valentineExperience]);
+  }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer]);
+
+  const finishLock = useRef(false);
 
   const handleFinish = useCallback(async () => {
-    if (!isTimerRunning || !canFinish || loading) return;
+    if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
+    finishLock.current = true;
     const goalId = currentGoal.id;
     if (!goalId) return;
 
@@ -485,16 +462,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       setCurrentGoal(updated);
 
-      // Auto-switch to user's calendar after completing session
-      if (currentGoal.valentineChallengeId) {
-        valentine.setSelectedView('user');
-      }
-
-      const isValentineGoal = !!updated.valentineChallengeId;
       let gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null = null;
       let experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null = null;
 
-      if (!isValentineGoal && updated.experienceGiftId) {
+      // For mystery gifts, only fetch experience on completion (reveal time)
+      // For non-mystery gifts, always fetch for notifications and feed
+      if (updated.experienceGiftId && (!updated.isMystery || updated.isCompleted)) {
         gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
         experience = await experienceService.getExperienceById(gift.experienceId);
       }
@@ -515,33 +488,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           weekNumber: updated.currentCount,
         }).catch(err => logger.warn('Failed to save final session record:', err));
 
-        if (updated.valentineChallengeId) {
-          try {
-            const valentineGift = await buildValentineGift(updated);
-            if (valentineGift) {
-              if (updated.isUnlocked) {
-                navigation.navigate('Completion', {
-                  goal: serializeNav(updated),
-                  experienceGift: serializeNav(valentineGift),
-                });
-              } else if (updated.isFinished) {
-                setShowPartnerWaitingModal(true);
-              } else {
-                Alert.alert('Goal Progress', 'Keep going! Complete all your sessions to finish the goal.');
-              }
-            } else {
-              Alert.alert('Goal Completed!', 'Congratulations on completing your Valentine challenge!');
-            }
-          } catch (error) {
-            logger.error('Error fetching Valentine challenge for completion:', error);
-            await logErrorToFirestore(error, {
-              screenName: 'DetailedGoalCard',
-              feature: 'ValentineCompletion',
-              additionalData: { goalId: updated.id, valentineChallengeId: updated.valentineChallengeId },
-            });
-            Alert.alert('Goal Completed!', 'Congratulations on completing your Valentine challenge!');
-          }
-        } else if (gift) {
+        if (gift) {
           if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
             await notificationService.createNotification(
               updated.empoweredBy,
@@ -567,7 +514,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         setPendingFinishData({
           updated,
           totalSessionsDone,
-          isValentineGoal,
           experience,
           recipientName,
           gift,
@@ -578,7 +524,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           setShowMediaPrompt(true);
         } else {
           // Media already captured during timer — proceed directly
-          await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
+          await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
         }
       }
     } catch (err) {
@@ -586,20 +532,20 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       await logErrorToFirestore(err, {
         screenName: 'DetailedGoalCard',
         feature: 'UpdateGoalProgress',
-        additionalData: { goalId: currentGoal.id, isValentineGoal: !!currentGoal.valentineChallengeId },
+        additionalData: { goalId: currentGoal.id },
       });
       Alert.alert('Error', 'Could not update goal progress.');
     } finally {
       setLoading(false);
+      finishLock.current = false;
     }
-  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, valentine, valentineExperience, sessionMediaUri, timeElapsed]);
+  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, sessionMediaUri, timeElapsed]);
 
   // ─── Complete session flow (after media prompt resolves) ─────────
 
   const completeSessionFlow = useCallback(async (
     updated: Goal,
     totalSessionsDone: number,
-    isValentineGoal: boolean,
     experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null,
     recipientName: string | null,
     _gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null,
@@ -645,7 +591,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     // Process hints (skip for self-gifted goals)
     if (!isSelfGift) {
-      await processHintAfterSession(updated, totalSessionsDone, isValentineGoal, experience, recipientName);
+      await processHintAfterSession(updated, totalSessionsDone, experience, recipientName);
     }
 
     // Check for streak milestones (7, 14, 21, 30)
@@ -653,8 +599,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     const hitMilestone = STREAK_MILESTONES.includes(totalSessionsDone) ? totalSessionsDone : null;
 
     // Show hint popup or celebration
-    const isSecretValentine = isValentineGoal && !updated.isRevealed;
-
     // Pre-fetch user data for the celebration feed preview
     const [celebUserName, celebUserProfile] = await Promise.all([
       userService.getUserName(updated.userId),
@@ -679,7 +623,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       setShowCelebration(true);
     };
 
-    if (!isSelfGift || isSecretValentine) {
+    if (!isSelfGift) {
       if (hitMilestone) {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -693,17 +637,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       showCelebrationModal();
-    }
-
-    // Valentine week completion alert
-    if (isValentineGoal && updated.isWeekCompleted) {
-      const weeksComplete = updated.currentCount + 1;
-      const weeksRemaining = updated.targetCount - weeksComplete;
-      Alert.alert(
-        'Week Complete!',
-        `Great job! You finished week ${weeksComplete} of ${updated.targetCount}.\n\n${weeksRemaining > 0 ? `${weeksRemaining} week${weeksRemaining > 1 ? 's' : ''} remaining. Your next week starts in 7 days!` : ''}`,
-        [{ text: 'Awesome!' }]
-      );
     }
 
     onFinish?.(updated);
@@ -728,7 +661,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     // Giver notifications
     const weeksCompleted = updated.isWeekCompleted ? updated.currentCount + 1 : updated.currentCount;
-    if (!updated.valentineChallengeId && updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
+    if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
       await notificationService.createNotification(
         updated.empoweredBy,
         'goal_progress',
@@ -745,10 +678,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       );
     }
 
-    // Valentine partner notifications
-    if (updated.valentineChallengeId && updated.partnerGoalId) {
-      await sendValentinePartnerNotification(updated, recipientName, totalSessionsDone);
-    }
   }, [isSelfGift, sessionMediaUri, sessionMediaType, timeElapsed, onFinish]);
 
   // ─── Media prompt handlers ────────────────────────────────────────
@@ -756,18 +685,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const handleMediaPromptSkip = useCallback(async () => {
     setShowMediaPrompt(false);
     if (pendingFinishData) {
-      const { updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift } = pendingFinishData;
+      const { updated, totalSessionsDone, experience, recipientName, gift } = pendingFinishData;
       setSessionMediaUri(null);
       setSessionMediaType(null);
-      await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
+      await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
     }
   }, [pendingFinishData, completeSessionFlow]);
 
   const handleMediaPromptContinue = useCallback(async () => {
     setShowMediaPrompt(false);
     if (pendingFinishData) {
-      const { updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift } = pendingFinishData;
-      await completeSessionFlow(updated, totalSessionsDone, isValentineGoal, experience, recipientName, gift);
+      const { updated, totalSessionsDone, experience, recipientName, gift } = pendingFinishData;
+      await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
     }
   }, [pendingFinishData, completeSessionFlow]);
 
@@ -811,7 +740,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const processHintAfterSession = async (
     updated: Goal,
     totalSessionsDone: number,
-    isValentineGoal: boolean,
     experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null,
     recipientName: string | null,
   ) => {
@@ -872,25 +800,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       (updated as any).hints = [...(updated.hints || []), hintObj];
     } else {
       const aiHintSessionNumber = totalSessionsDone + 1;
-      const isSecretValentine = isValentineGoal && !updated.isRevealed;
-      const hintExperience = isValentineGoal ? valentineExperience : experience;
 
       try {
-        let cachedHint = await aiHintService.getHint(updated.id, aiHintSessionNumber);
-
-        if (!cachedHint && isSecretValentine) {
-          const generated = await aiHintService.generateHint({
-            goalId: updated.id,
-            experienceType: hintExperience?.title || 'experience',
-            experienceDescription: hintExperience?.description || undefined,
-            experienceCategory: hintExperience?.category || undefined,
-            experienceSubtitle: hintExperience?.subtitle || undefined,
-            sessionNumber: aiHintSessionNumber,
-            totalSessions: updated.targetCount * updated.sessionsPerWeek,
-            userName: recipientName || undefined,
-          });
-          cachedHint = generated.hint;
-        }
+        const cachedHint = await aiHintService.getHint(updated.id, aiHintSessionNumber);
 
         hintToShow = cachedHint || "Keep going! You're doing great";
 
@@ -915,73 +827,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         hintToShow = "Keep going! You're doing great";
       }
       setLastHint(hintToShow);
-    }
-  };
-
-  // ─── Valentine partner notification (extracted for readability) ────
-
-  const sendValentinePartnerNotification = async (
-    updated: Goal,
-    recipientName: string | null,
-    totalSessionsDone: number,
-  ) => {
-    try {
-      const partnerGoalDoc = await getDoc(doc(db, 'goals', updated.partnerGoalId!));
-      if (!partnerGoalDoc.exists()) return;
-      const partnerUserId = partnerGoalDoc.data().userId;
-      const partnerGoal = partnerGoalDoc.data();
-
-      const isFirstSession = updated.weeklyCount === 1;
-      const isHalfway = updated.weeklyCount === Math.floor(updated.sessionsPerWeek / 2) && updated.sessionsPerWeek >= 3;
-      const sessionsRemaining = updated.sessionsPerWeek - updated.weeklyCount;
-      const isAlmostDone = sessionsRemaining === 1 && !updated.isWeekCompleted;
-
-      let notificationType = 'valentine_partner_progress';
-      let notificationTitle = `${recipientName} completed a session!`;
-      let notificationMessage = `Progress: ${updated.weeklyCount}/${updated.sessionsPerWeek} sessions this week.`;
-
-      if (isFirstSession) {
-        notificationType = 'valentine_milestone';
-        notificationTitle = `${recipientName} started the week!`;
-        notificationMessage = `Your partner completed their first session for week ${updated.currentCount + 1}. Let's keep the momentum going!`;
-      } else if (updated.isWeekCompleted) {
-        const partnerSessionsRemaining = partnerGoal.sessionsPerWeek - partnerGoal.weeklyCount;
-        if (partnerGoal.isWeekCompleted) {
-          notificationType = 'valentine_celebration';
-          notificationTitle = 'Both ready for next week!';
-          notificationMessage = `You've both completed week ${updated.currentCount + 1}! Moving forward together.`;
-        } else {
-          notificationType = 'valentine_sync';
-          notificationTitle = `${recipientName} finished the week!`;
-          notificationMessage = partnerSessionsRemaining === 1
-            ? 'Complete your last session to advance together!'
-            : `Complete your last ${partnerSessionsRemaining} sessions to advance together!`;
-        }
-      } else if (isAlmostDone) {
-        notificationType = 'valentine_milestone';
-        notificationTitle = `${recipientName} almost finished!`;
-        notificationMessage = 'Just 1 more session to complete the week together!';
-      } else if (isHalfway) {
-        notificationType = 'valentine_milestone';
-        notificationTitle = `${recipientName} is halfway there!`;
-        notificationMessage = `Progress: ${updated.weeklyCount}/${updated.sessionsPerWeek} sessions. You're both doing great!`;
-      }
-
-      await notificationService.createNotification(
-        partnerUserId,
-        notificationType,
-        notificationTitle,
-        notificationMessage,
-        {
-          goalId: updated.id,
-          partnerGoalId: updated.partnerGoalId,
-          valentineChallengeId: updated.valentineChallengeId,
-          sessionNumber: totalSessionsDone,
-          weekNumber: updated.currentCount + 1,
-        }
-      );
-    } catch (error) {
-      logger.warn('Failed to notify Valentine partner:', error);
     }
   };
 
@@ -1034,18 +879,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             </View>
           )}
 
-          {/* Hearts background for Valentine goals */}
-          {!!currentGoal.valentineChallengeId && (
-            <View style={styles.heartsBackground}>
-              <Text style={[styles.heartIcon, { top: 8, right: 15, fontSize: 18, transform: [{ rotate: '15deg' }], opacity: 0.3 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { top: 22, right: 35, fontSize: 14, transform: [{ rotate: '-25deg' }], opacity: 0.25 }]}>❤️</Text>
-              <Text style={[styles.heartIcon, { top: 38, right: 20, fontSize: 20, transform: [{ rotate: '18deg' }], opacity: 0.2 }]}>❤️</Text>
-            </View>
-          )}
-
           {/* Title & badges */}
           <Text style={styles.title}>
-            {currentGoal.valentineChallengeId ? valentine.displayedTitle : currentGoal.title}
+            {currentGoal.title}
           </Text>
           {!!empoweredName && !isSelfGift && (
             <Text style={styles.empoweredText}>Empowered by {empoweredName}</Text>
@@ -1055,80 +891,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               <Text style={styles.mysteryBadgeText}>Mystery Gift</Text>
             </View>
           )}
-          {!!currentGoal.valentineChallengeId && (
-            <Text style={styles.valentineChallengeText}>
-              Valentine's Challenge{valentine.valentinePartnerName ? ` with ${valentine.valentinePartnerName}` : ''}
-            </Text>
-          )}
           {/* startDateText removed — was showing "started X days ago" */}
 
-          {/* Valentine partner selector */}
-          {!!currentGoal.valentineChallengeId && (
-            <ValentinePartnerSelector
-              partnerGoalData={valentine.partnerGoalData}
-              isLoading={!!currentGoal.partnerGoalId && !valentine.partnerGoalData}
-              selectedView={valentine.selectedView}
-              onViewSwitch={valentine.handleViewSwitch}
-              currentUserName={valentine.currentUserName}
-              currentUserProfileImage={valentine.currentUserProfileImage}
-              valentinePartnerName={valentine.valentinePartnerName}
-              partnerProfileImage={valentine.partnerProfileImage}
-              partnerJustUpdated={valentine.partnerJustUpdated}
-              motivationalNudge={valentine.motivationalNudge}
-            />
-          )}
-
-          {/* Valentine experience details (revealed mode) */}
-          {valentineChallengeMode === 'revealed' && valentineExperience && (
-            <View style={styles.valentineExperienceSection}>
-              <View style={styles.valentineExperienceHeader}>
-                <Image
-                  source={{ uri: valentineExperience.coverImageUrl }}
-                  style={styles.valentineExperienceThumbnail}
-                />
-                <View style={styles.valentineExperienceInfo}>
-                  <Text style={styles.valentineExperienceTitle} numberOfLines={1}>
-                    {valentineExperience.title}
-                  </Text>
-                  {valentineExperience.subtitle && (
-                    <Text style={styles.valentineExperienceSubtitle} numberOfLines={1}>
-                      {valentineExperience.subtitle}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.viewExperienceButton}
-                onPress={() => setShowDetailsModal(true)}
-              >
-                <Text style={styles.viewExperienceButtonText}>View Experience Details</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Calendar owner label (Valentine) */}
-          {!!currentGoal.valentineChallengeId && valentine.partnerGoalData && (
-            <Animated.View style={[styles.calendarOwnerLabel, { opacity: valentine.viewTransitionAnim }]}>
-              <View style={styles.calendarOwnerContent}>
-                <Text style={styles.calendarOwnerText}>
-                  {valentine.displayedName}'s Calendar
-                </Text>
-              </View>
-              <View style={[styles.calendarOwnerUnderline, { backgroundColor: valentine.displayedColor }]} />
-            </Animated.View>
-          )}
-
           {/* Weekly Calendar */}
-          <Animated.View style={{
-            opacity: valentine.viewTransitionAnim,
-            transform: [{ scale: valentine.viewTransitionAnim }],
-          }}>
-            <WeeklyCalendar
-              weekDates={progress.weekDates}
-              loggedSet={progress.loggedSet}
-              todayIso={progress.todayIso}
-            />
-          </Animated.View>
+          <WeeklyCalendar
+            weekDates={progress.weekDates}
+            loggedSet={progress.loggedSet}
+            todayIso={progress.todayIso}
+          />
 
           {/* Progress Bars */}
           <ProgressBars
@@ -1150,7 +920,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 alreadyLoggedToday={progress.alreadyLoggedToday}
                 totalSessionsDone={progress.totalSessionsDone}
                 hasPersonalizedHintWaiting={progress.hasPersonalizedHintWaiting && !isTimerRunning}
-                valentinePartnerName={valentine.valentinePartnerName}
                 loading={loading}
                 onStart={handleStart}
               />
@@ -1239,12 +1008,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         totalWeeks={celebrationData?.totalWeeks}
       />
 
-      <ValentineExperienceDetailsModal
-        visible={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        experience={valentineExperience}
-      />
-
       <SessionMediaPrompt
         visible={showMediaPrompt}
         capturedMediaUri={sessionMediaUri}
@@ -1318,45 +1081,7 @@ const styles = StyleSheet.create({
   },
   mysteryBadgeText: { fontSize: 13, fontWeight: '700', color: '#92400e' },
   selfChallengeText: { fontSize: 14, color: Colors.primary, marginBottom: 14, fontWeight: '600', textAlign: 'center' },
-  valentineChallengeText: { fontSize: 14, color: '#ec4899', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
-
-  // Hearts decoration
-  heartsBackground: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-  heartIcon: {
-    position: 'absolute',
-    fontSize: 20,
-    opacity: 0.15,
-  },
-
-  // Calendar owner label
-  calendarOwnerLabel: { marginTop: 16, marginBottom: 8, alignItems: 'center' },
-  calendarOwnerContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  calendarOwnerText: { fontSize: 14, fontWeight: '600', color: '#6B7280', letterSpacing: 0.2 },
-  calendarOwnerUnderline: { height: 2, width: 40, borderRadius: 1, marginTop: 6, opacity: 0.6 },
-
-  // Valentine experience section
-  valentineExperienceSection: {
-    marginTop: 16, marginBottom: 16, padding: 16,
-    backgroundColor: '#FAFAFA', borderRadius: 12,
-    borderWidth: 1, borderColor: '#F3F4F6',
-  },
-  valentineExperienceHeader: { flexDirection: 'row', gap: 12, marginBottom: 12, alignItems: 'center' },
-  valentineExperienceThumbnail: { width: 60, height: 60, borderRadius: 8, backgroundColor: '#E5E7EB' },
-  valentineExperienceInfo: { flex: 1, gap: 4 },
-  valentineExperienceTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  valentineExperienceSubtitle: { fontSize: 13, fontWeight: '500', color: '#6B7280' },
-  viewExperienceButton: {
-    paddingVertical: 10, paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF', borderRadius: 8,
-    borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center',
-  },
-  viewExperienceButtonText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
 
   // Debug
   debugContainer: {

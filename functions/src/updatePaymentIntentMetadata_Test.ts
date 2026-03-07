@@ -77,11 +77,19 @@ export const updatePaymentIntentMetadata_Test = onRequest(
         apiVersion: "2024-06-20" as any,
       });
 
+      // ✅ SECURITY: Verify ownership before updating
+      const existingIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (existingIntent.metadata?.giverId !== userId) {
+        console.error(`❌ Ownership mismatch: user ${userId} tried to update PI owned by ${existingIntent.metadata?.giverId}`);
+        res.status(403).json({ error: "Forbidden: You do not own this payment intent" });
+        return;
+      }
+
       // ✅ Update payment intent metadata
       await stripe.paymentIntents.update(paymentIntentId, {
         metadata: {
           personalizedMessage: personalizedMessage || "",
-          userId: userId, // ✅ Track which user made the update
+          userId: userId,
         },
       });
 
@@ -89,7 +97,7 @@ export const updatePaymentIntentMetadata_Test = onRequest(
       res.status(200).json({ success: true });
     } catch (err: any) {
       console.error("❌ Error updating metadata:", err);
-      res.status(500).json({ error: err.message || "Internal error" });
+      res.status(500).json({ error: "Failed to update payment metadata" });
     }
   }
 );

@@ -11,6 +11,7 @@ import {
 import { db } from './firebase';
 import type { SessionRecord } from '../types';
 import { logger } from '../utils/logger';
+import { analyticsService } from './AnalyticsService';
 
 class SessionService {
     /**
@@ -38,6 +39,7 @@ class SessionService {
             if (sessionData.notes) docData.notes = sessionData.notes;
 
             const docRef = await addDoc(sessionsRef, docData);
+            analyticsService.trackEvent('session_logged', 'engagement', { goalId, sessionId: docRef.id, sessionNumber: sessionData.sessionNumber, weekNumber: sessionData.weekNumber, duration: sessionData.duration, hasMedia: !!sessionData.mediaUrl });
             logger.log('Session record created:', docRef.id);
 
             return {

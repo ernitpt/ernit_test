@@ -16,11 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, UserSearchResult } from '../types';
 import { friendService } from '../services/FriendService';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { commonStyles } from '../themes/commonStyles';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
@@ -80,6 +82,7 @@ const AddFriendScreen: React.FC = () => {
         currentUserProfileImageUrl
       );
 
+      analyticsService.trackEvent('friend_request_sent', 'social', { recipientId: user.id }, 'AddFriendScreen');
       Alert.alert('Success', `Friend request sent to ${user.name}!`);
 
       // Refresh search results to update the button state
@@ -147,6 +150,7 @@ const AddFriendScreen: React.FC = () => {
     </View>
   );
   return (
+    <ErrorBoundary screenName="AddFriendScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
       <SharedHeader
         title="Add Friend"
@@ -201,6 +205,7 @@ const AddFriendScreen: React.FC = () => {
         )}
       </View>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

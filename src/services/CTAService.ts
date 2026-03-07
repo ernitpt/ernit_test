@@ -11,6 +11,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
+import { analyticsService } from './AnalyticsService';
 
 const DISMISS_KEY_PREFIX = 'cta_dismissed_';
 const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours after dismiss
@@ -79,16 +80,19 @@ class CTAService {
         // Streak milestones: 7, 14, 21
         const STREAK_MILESTONES = [7, 14, 21];
         if (STREAK_MILESTONES.includes(ctx.sessionNumber)) {
+            analyticsService.trackEvent('cta_shown', 'engagement', { goalId: ctx.goalId, reason: 'streak_milestone' });
             return { shouldShow: true, reason: 'streak_milestone', message };
         }
 
         // Every 3rd session
         if (ctx.sessionNumber > 0 && ctx.sessionNumber % 3 === 0) {
+            analyticsService.trackEvent('cta_shown', 'engagement', { goalId: ctx.goalId, reason: 'every_3rd' });
             return { shouldShow: true, reason: 'every_3rd', message };
         }
 
         // First session of new week (weeklyCount === 1 after increment)
         if (ctx.weeklyCount === 1 && ctx.currentCount >= 1) {
+            analyticsService.trackEvent('cta_shown', 'engagement', { goalId: ctx.goalId, reason: 'week_reset' });
             return { shouldShow: true, reason: 'week_reset', message };
         }
 
@@ -109,6 +113,7 @@ class CTAService {
      * Record that the user dismissed the CTA.
      */
     async recordDismiss(goalId: string): Promise<void> {
+        analyticsService.trackEvent('cta_dismissed', 'engagement', { goalId });
         try {
             await AsyncStorage.setItem(
                 `${DISMISS_KEY_PREFIX}${goalId}`,

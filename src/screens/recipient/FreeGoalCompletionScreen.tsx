@@ -20,6 +20,8 @@ import { Trophy, CheckCircle, Sparkles, Star, Zap, Heart, Clock, ExternalLink } 
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList, Goal } from '../../types';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
@@ -29,6 +31,7 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, 'FreeGoalCompletion
 const FreeGoalCompletionScreen = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
+  const { state } = useApp();
 
   const routeParams = route.params as { goal?: any } | undefined;
   const rawGoal = routeParams?.goal;
@@ -186,12 +189,14 @@ const FreeGoalCompletionScreen = () => {
 
   if (!hasValidData || !goal || !pledgedExperience) {
     return (
+      <ErrorBoundary screenName="FreeGoalCompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
@@ -203,6 +208,7 @@ const FreeGoalCompletionScreen = () => {
   const daysRemaining = getDaysRemaining();
 
   return (
+    <ErrorBoundary screenName="FreeGoalCompletionScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
 
@@ -426,6 +432,7 @@ const FreeGoalCompletionScreen = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

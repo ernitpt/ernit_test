@@ -21,6 +21,7 @@ import { Copy, CheckCircle, Gift, ArrowRight } from 'lucide-react-native';
 import { GiverStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
@@ -40,7 +41,7 @@ interface GiftWithExperience {
 const ConfirmationMultipleScreen = () => {
   const navigation = useNavigation<ConfirmationMultipleNavigationProp>();
   const route = useRoute();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { experienceGifts?: ExperienceGift[] } | undefined;
@@ -188,15 +189,18 @@ Earn it. Unlock it. Enjoy it ??
 
   if (loading) {
     return (
+      <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading gifts...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="dark" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -395,6 +399,7 @@ Earn it. Unlock it. Enjoy it ??
         </TouchableOpacity>
       </View>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

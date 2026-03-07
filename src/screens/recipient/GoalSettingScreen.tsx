@@ -1,5 +1,6 @@
 // screens/Recipient/GoalSettingScreen.tsx
 import React, { useEffect, useRef, useState } from 'react';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ import {
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { goalService } from '../../services/GoalService';
+import { analyticsService } from '../../services/AnalyticsService';
 import { notificationService } from '../../services/NotificationService';
 import { userService } from '../../services/userService';
 import MainScreen from '../MainScreen';
@@ -52,6 +54,9 @@ const GoalSettingScreen = () => {
   const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
   const experienceGift = routeParams?.experienceGift;
 
+  // ✅ FIX BUG 1: Move useApp() hook call BEFORE any conditional returns (React hooks rule)
+  const { state, dispatch } = useApp();
+
   // Validate required data
   const hasValidData = Boolean(
     experienceGift?.id &&
@@ -73,6 +78,7 @@ const GoalSettingScreen = () => {
   // Early return if data is invalid
   if (!hasValidData || !experienceGift) {
     return (
+      <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <SharedHeader title="Set Your Goal ✨" showBack={false} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -80,9 +86,9 @@ const GoalSettingScreen = () => {
           <Text style={{ marginTop: 20, color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
-  const { state, dispatch } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategory, setCustomCategory] = useState('');
@@ -123,15 +129,8 @@ const GoalSettingScreen = () => {
         throw new Error('User not authenticated');
       }
 
-      // Find the gift document
-      const qGift = query(collection(db, 'experienceGifts'), where('id', '==', experienceGiftId));
-      const snap = await getDocs(qGift);
-
-      if (snap.empty) {
-        throw new Error('Gift not found');
-      }
-
-      const giftDocRef = doc(db, 'experienceGifts', snap.docs[0].id);
+      // ✅ FIX BUG 2: Use direct doc reference instead of query
+      const giftDocRef = doc(db, 'experienceGifts', experienceGiftId);
 
       // ✅ Use transaction to atomically claim
       await runTransaction(db, async (transaction) => {
@@ -242,6 +241,14 @@ const GoalSettingScreen = () => {
     setIsSubmitting(true); // start loading
 
     try {
+      // ✅ FIX BUG 3: Validate userId upfront - no unsafe fallback
+      const currentUserId = state.user?.id;
+      if (!currentUserId) {
+        Alert.alert('Error', 'Please sign in to continue.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const finalCategory =
         selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
 
@@ -278,7 +285,7 @@ const GoalSettingScreen = () => {
           await logErrorToFirestore(claimError, {
             screenName: 'GoalSettingScreen',
             feature: 'ClaimGift',
-            userId: state.user?.id,
+            userId: currentUserId,
             additionalData: { giftId: experienceGift.id }
           });
           Alert.alert('Error', 'Failed to claim this gift. Please try again.');
@@ -288,7 +295,7 @@ const GoalSettingScreen = () => {
 
       // If we got here, gift claim succeeded - now create the goal
       const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
-        userId: state.user?.id || 'recipient',
+        userId: currentUserId,
         experienceGiftId: experienceGift.id,
         title: `Attend ${finalCategory} Sessions`,
         description: `Work on ${finalCategory} for ${totalWeeks} weeks, ${sessionsPerWeekNum} times per week.`,
@@ -313,20 +320,25 @@ const GoalSettingScreen = () => {
         weeklyLogDates: [],
         empoweredBy: experienceGift.giverId,
         // Approval fields - auto-approve if self-gifted
-        approvalStatus: experienceGift.giverId === state.user?.id ? 'approved' : 'pending',
+        approvalStatus: experienceGift.giverId === currentUserId ? 'approved' : 'pending',
         initialTargetCount: totalWeeks,
         initialSessionsPerWeek: sessionsPerWeekNum,
         approvalRequestedAt: now,
         approvalDeadline,
-        giverActionTaken: experienceGift.giverId === state.user?.id, // Mark as handled for self-gifts
+        giverActionTaken: experienceGift.giverId === currentUserId, // Mark as handled for self-gifts
       };
 
 
       const goal = await goalService.createGoal(goalData as Goal);
+      analyticsService.trackEvent('goal_creation_completed', 'conversion', {
+        category: finalCategory,
+        durationWeeks: totalWeeks,
+        sessionsPerWeek: sessionsPerWeekNum,
+      }, 'GoalSettingScreen');
       const recipientName = await userService.getUserName(goalData.userId);
 
       // Only send approval notification if NOT self-gifted
-      const isSelfGift = experienceGift.giverId === state.user?.id;
+      const isSelfGift = experienceGift.giverId === currentUserId;
       if (!isSelfGift) {
         await notificationService.createNotification(
           goalData.empoweredBy! || '',
@@ -397,10 +409,11 @@ const GoalSettingScreen = () => {
 
     } catch (error) {
       logger.error('Error creating goal:', error);
+      const currentUserId = state.user?.id;
       await logErrorToFirestore(error, {
         screenName: 'GoalSettingScreen',
         feature: 'CreateGoal',
-        userId: state.user?.id,
+        userId: currentUserId,
         additionalData: {
           giftId: experienceGift.id,
           category: selectedCategory === 'Other' ? customCategory : selectedCategory
@@ -462,6 +475,7 @@ const GoalSettingScreen = () => {
 
 
   return (
+    <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
       <SharedHeader
         title="Set Your Goal ✨"
@@ -805,6 +819,7 @@ const GoalSettingScreen = () => {
       )}
 
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

@@ -1,5 +1,6 @@
 // screens/CartScreen.tsx
 import React, { useEffect, useState, useRef } from "react";
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -220,6 +221,7 @@ export default function CartScreen() {
 
   if (loading) {
     return (
+      <ErrorBoundary screenName="CartScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
@@ -232,12 +234,14 @@ export default function CartScreen() {
           </View>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   const isEmpty = !currentCart || currentCart.length === 0;
 
   return (
+    <ErrorBoundary screenName="CartScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <LoginPrompt
         visible={showLoginPrompt}
@@ -390,6 +394,7 @@ export default function CartScreen() {
         )}
       </View>
     </MainScreen>
+    </ErrorBoundary>
   );
 }
 

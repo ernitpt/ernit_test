@@ -9,10 +9,11 @@
     Timestamp,
     limit as firestoreLimit,
     updateDoc,
+    writeBatch,
+    increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Comment } from '../types';
-import { feedService } from './FeedService';
 import { sanitizeComment, sanitizeText } from '../utils/sanitization';
 
 import { logger } from '../utils/logger';
@@ -45,10 +46,13 @@ class CommentService {
                 commentData.userProfileImageUrl = comment.userProfileImageUrl;
             }
 
-            await addDoc(commentsCollection, commentData);
-
-            // Increment comment count
-            await feedService.updateCommentCount(postId, 1);
+            // T2-2: Atomic comment add + count increment
+            const batch = writeBatch(db);
+            const newCommentRef = doc(commentsCollection);
+            batch.set(newCommentRef, commentData);
+            const postRef = doc(db, 'feedPosts', postId);
+            batch.update(postRef, { commentCount: increment(1) });
+            await batch.commit();
 
             logger.log('✅ Comment added');
         } catch (error) {
@@ -83,10 +87,10 @@ class CommentService {
     async getComments(postId: string, limitCount?: number): Promise<Comment[]> {
         try {
             const commentsCollection = collection(db, 'feedPosts', postId, 'comments');
-            let q = query(commentsCollection, orderBy('createdAt', 'desc'));
+            let q = query(commentsCollection, orderBy('createdAt', 'asc'));
 
             if (limitCount) {
-                q = query(commentsCollection, orderBy('createdAt', 'desc'), firestoreLimit(limitCount));
+                q = query(commentsCollection, orderBy('createdAt', 'asc'), firestoreLimit(limitCount));
             }
 
             const snapshot = await getDocs(q);
@@ -115,11 +119,13 @@ class CommentService {
      */
     async deleteComment(postId: string, commentId: string): Promise<void> {
         try {
-            const commentDoc = doc(db, 'feedPosts', postId, 'comments', commentId);
-            await deleteDoc(commentDoc);
-
-            // Decrement comment count
-            await feedService.updateCommentCount(postId, -1);
+            // T2-2: Atomic comment delete + count decrement
+            const batch = writeBatch(db);
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            batch.delete(commentRef);
+            const postRef = doc(db, 'feedPosts', postId);
+            batch.update(postRef, { commentCount: increment(-1) });
+            await batch.commit();
 
             logger.log('✅ Comment deleted');
         } catch (error) {

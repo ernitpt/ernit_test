@@ -1,6 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
+import { db } from "./index";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 
@@ -90,6 +91,56 @@ export const stripeCreatePaymentIntent_Test = onRequest(
         return;
       }
 
+      // ✅ Validate cart structure and quantities
+      if (cart.length === 0 || cart.length > 50) {
+        res.status(400).json({ error: "Invalid cart size" });
+        return;
+      }
+
+      let totalQuantity = 0;
+      for (const item of cart) {
+        if (!item.experienceId || typeof item.experienceId !== 'string') {
+          res.status(400).json({ error: "Invalid cart item: missing experienceId" });
+          return;
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) {
+          res.status(400).json({ error: "Invalid cart item: quantity must be 1-10" });
+          return;
+        }
+        totalQuantity += item.quantity;
+      }
+      if (totalQuantity > 50) {
+        res.status(400).json({ error: "Total quantity exceeds maximum" });
+        return;
+      }
+
+      // ✅ Server-side price validation — never trust client-sent amount
+      let serverTotal = 0;
+
+      for (const item of cart) {
+        const expDoc = await db.collection('experiences').doc(item.experienceId).get();
+        if (!expDoc.exists) {
+          console.error(`❌ Experience not found: ${item.experienceId}`);
+          res.status(400).json({ error: "Experience not found in cart" });
+          return;
+        }
+        const expData = expDoc.data();
+        if (!expData || typeof expData.price !== 'number' || expData.price <= 0) {
+          console.error(`❌ Invalid price for experience: ${item.experienceId}`);
+          res.status(400).json({ error: "Invalid experience price" });
+          return;
+        }
+        serverTotal += Math.round(expData.price * 100) * item.quantity;
+      }
+
+      // T2-3: Compare in cents to avoid floating-point errors
+      const clientCents = Math.round(amount * 100);
+      if (Math.abs(serverTotal - clientCents) > 1) {
+        console.error(`❌ Price mismatch: client=${amount}, server=${serverTotal}`);
+        res.status(400).json({ error: "Price mismatch — cart total does not match" });
+        return;
+      }
+
       const stripe = new Stripe(STRIPE_SECRET.value(), {
         apiVersion: "2024-06-20" as any,
       });
@@ -99,9 +150,9 @@ export const stripeCreatePaymentIntent_Test = onRequest(
       // Convert cart to metadata-safe format
       const cartJSON = JSON.stringify(cart);
 
-      // Create PaymentIntent
+      // Create PaymentIntent — use server-validated amount
       const intent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100),
+        amount: serverTotal, // Already in cents from T2-3 fix
         currency: "eur",
         automatic_payment_methods: {
           enabled: true,

@@ -15,6 +15,7 @@ This directory contains the "Source of Truth" for Ernit's architecture.
 | **Experiences** | `experiences-gifts-system.md` | Product catalog, Gift objects, and Empower flow. |
 | **Hints & Coupons** | `hints-coupons-system.md` | AI/Personal hints storage and coupon reward logic. |
 | **UI & UX** | `ui-ux-system.md` | Color system (Emerald/Teal), Moti animations, NativeWind, components. |
+| **Analytics** | `analytics-system.md` | AnalyticsService, event tracking, Firestore events collection. |
 
 ## Usage
 Use the `accessing-knowledge` skill to read these files. Do NOT try to memorize them. Read them when needed to ensure you have the latest context.

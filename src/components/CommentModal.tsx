@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     Image,
     Animated,
+    Alert,
 } from 'react-native';
 import { X, Send, MoreHorizontal, Edit2, Trash2 } from 'lucide-react-native';
 import { commentService } from '../services/CommentService';
@@ -21,6 +22,8 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { CommentSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
+import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
 
 interface CommentModalProps {
@@ -73,6 +76,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 setEditingCommentId(null);
                 setOriginalCommentText('');
             } else {
+                analyticsService.trackEvent('feed_comment', 'social', { postId }, 'CommentModal');
                 await commentService.addComment(postId, {
                     userId: state.user.id,
                     userName: state.user.displayName || state.user.profile?.name || 'User',
@@ -86,6 +90,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             onChange?.();
         } catch (error) {
             logger.error('Error sending/updating comment:', error);
+            Alert.alert('Error', 'Could not send comment. Please try again.');
         } finally {
             setIsSending(false);
         }
@@ -112,6 +117,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             setMenuVisibleId(null);
         } catch (error) {
             logger.error('Error deleting comment:', error);
+            Alert.alert('Error', 'Could not delete comment. Please try again.');
         }
     };
 
@@ -264,21 +270,6 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             </View>
         </Modal>
     );
-};
-
-const getTimeAgo = (date: Date): string => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-
-    return date.toLocaleDateString();
 };
 
 const styles = StyleSheet.create({

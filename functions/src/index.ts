@@ -1,8 +1,8 @@
 import { setGlobalOptions } from "firebase-functions";
 import { aiGenerateHint } from "./aiGenerateHint";
+import { searchUsers } from "./searchUsers";
 // Test functions
 import { stripeCreatePaymentIntent_Test } from "./stripeCreatePaymentIntent_Test";
-import { stripeCreateValentinePaymentIntent_Test } from "./stripeCreateValentinePaymentIntent_Test";
 import { getGiftsByPaymentIntent_Test } from "./getGiftsByPaymentIntent_Test";
 import { stripeWebhook_Test } from "./stripeWebhook_Test";
 import { updatePaymentIntentMetadata_Test } from "./updatePaymentIntentMetadata_Test";
@@ -10,7 +10,6 @@ import { onNotificationCreated_Test } from "./triggers/onNotificationCreated_Tes
 import { checkUnstartedGoals_Test } from "./scheduled/checkUnstartedGoals_Test";
 // Production functions
 import { stripeCreatePaymentIntent } from "./stripeCreatePaymentIntent";
-import { stripeCreateValentinePaymentIntent } from "./stripeCreateValentinePaymentIntent";
 import { getGiftsByPaymentIntent } from "./getGiftsByPaymentIntent";
 import { stripeWebhook } from "./stripeWebhook";
 import { updatePaymentIntentMetadata } from "./updatePaymentIntentMetadata";
@@ -34,10 +33,10 @@ export const dbProd = getFirestore(firebaseApp);
 export {
     // Shared
     aiGenerateHint,
+    searchUsers,
     sendContactEmail,
     // Test
     stripeCreatePaymentIntent_Test,
-    stripeCreateValentinePaymentIntent_Test,
     getGiftsByPaymentIntent_Test,
     stripeWebhook_Test,
     updatePaymentIntentMetadata_Test,
@@ -45,7 +44,6 @@ export {
     checkUnstartedGoals_Test,
     // Production
     stripeCreatePaymentIntent,
-    stripeCreateValentinePaymentIntent,
     getGiftsByPaymentIntent,
     stripeWebhook,
     updatePaymentIntentMetadata,

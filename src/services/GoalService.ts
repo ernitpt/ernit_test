@@ -1,4 +1,4 @@
-﻿import { DateHelper } from '../utils/DateHelper';
+import { DateHelper } from '../utils/DateHelper';
 import { db } from './firebase';
 import {
   collection,
@@ -27,6 +27,7 @@ import { friendService } from './FriendService';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from './AnalyticsService';
 
 // ===== Helpers =====
 const isoDateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -72,12 +73,10 @@ function normalizeGoal(g: any): Goal {
     currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
     sessionsPerWeek: typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1,
     isCompleted: !!g.isCompleted,
-    isFinished: !!g.isFinished,
-    isUnlocked: !!g.isUnlocked,
     isWeekCompleted: !!g.isWeekCompleted,
     updatedAt: toJSDate(g.updatedAt) ?? DateHelper.now(),
     // Approval fields
-    approvalStatus: g.approvalStatus || 'pending',
+    approvalStatus: g.approvalStatus || (g.isFreeGoal ? 'approved' : 'pending'),
     initialTargetCount: typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
     initialSessionsPerWeek: typeof g.initialSessionsPerWeek === 'number' ? g.initialSessionsPerWeek : g.sessionsPerWeek,
     suggestedTargetCount: typeof g.suggestedTargetCount === 'number' ? g.suggestedTargetCount : null,
@@ -149,13 +148,14 @@ export class GoalService {
           goalId: docRef.id,
           goalDescription: normalized.description,
           type: 'goal_started',
-          totalSessions: normalized.targetCount,
+          totalSessions: normalized.targetCount * normalized.sessionsPerWeek,
           createdAt: new Date(),
         });
       } catch (error) {
         logger.error('Error creating feed post:', error);
       }
 
+      analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: false });
       return { ...normalized, id: docRef.id };
     } catch (error) {
       // Log error to Firestore
@@ -197,7 +197,7 @@ export class GoalService {
           goalId: docRef.id,
           goalDescription: normalized.description,
           type: 'goal_started',
-          totalSessions: normalized.targetCount,
+          totalSessions: normalized.targetCount * normalized.sessionsPerWeek,
           experienceTitle: normalized.pledgedExperience?.title,
           experienceImageUrl: normalized.pledgedExperience?.coverImageUrl,
           isFreeGoal: true,
@@ -209,6 +209,7 @@ export class GoalService {
         logger.error('Error creating feed post for free goal:', error);
       }
 
+      analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: true, pledgedExperienceId: normalized.pledgedExperience?.experienceId });
       return { ...normalized, id: docRef.id };
     } catch (error) {
       await logErrorToFirestore(error, {
@@ -254,319 +255,18 @@ export class GoalService {
 
     if (isMystery) {
       updateFields.isMystery = true;
-      updateFields.mysteryGiftExperienceId = giftSnap.data().experienceId;
+      // Note: experienceId is resolved server-side via Cloud Function for hint generation
+      // Never store it on the goal document to prevent the recipient from spoiling the mystery
     }
 
     await updateDoc(goalRef, updateFields);
 
+    analyticsService.trackEvent('gift_attached_to_goal', 'conversion', { goalId, experienceGiftId, giverId, isMystery });
     logger.log(`✅ Gift attached to free goal: ${goalId}${isMystery ? ' (mystery)' : ''}`);
   }
 
-  /**
-   * Create a Valentine goal with atomic transaction
-   * Eliminates race conditions by creating goal and updating challenge in single atomic operation
-   */
-  async createValentineGoal(
-    userId: string,
-    challengeId: string,
-    goalParams: Omit<Goal, 'id'>,
-    isPurchaser: boolean
-  ): Promise<{ goal: Goal; isNowActive: boolean }> {
-    try {
-      const transactionResult = await runTransaction(db, async (transaction) => {
-        // 1. Read and validate challenge
-        const challengeRef = doc(db, 'valentineChallenges', challengeId);
-        const challengeSnap = await transaction.get(challengeRef);
 
-        if (!challengeSnap.exists()) {
-          throw new Error('Challenge not found');
-        }
 
-        const challengeData = challengeSnap.data();
-        const alreadyRedeemed = isPurchaser
-          ? challengeData.purchaserCodeRedeemed
-          : challengeData.partnerCodeRedeemed;
-
-        if (alreadyRedeemed) {
-          throw new Error('Code already redeemed');
-        }
-
-        // 2. Create goal document atomically
-        const newGoalRef = doc(collection(db, 'goals'));
-        const normalizedGoal = normalizeGoal({
-          ...goalParams,
-          id: newGoalRef.id,
-        });
-
-        transaction.set(newGoalRef, {
-          ...normalizedGoal,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        // 3. Update challenge with goal link
-        const updateField = isPurchaser ? 'purchaserGoalId' : 'partnerGoalId';
-        const redeemedField = isPurchaser ? 'purchaserCodeRedeemed' : 'partnerCodeRedeemed';
-        const userIdField = isPurchaser ? 'purchaserUserId' : 'partnerUserId';
-
-        const partnerGoalId = isPurchaser
-          ? challengeData.partnerGoalId
-          : challengeData.purchaserGoalId;
-
-        // Determine the OTHER user's ID (the partner in this context)
-        const partnerUserId = isPurchaser
-          ? challengeData.partnerUserId
-          : challengeData.purchaserUserId;
-
-        const isNowActive = !!partnerGoalId; // Both codes redeemed
-
-        transaction.update(challengeRef, {
-          [updateField]: newGoalRef.id,
-          [redeemedField]: true,
-          [userIdField]: userId,
-          status: isNowActive ? 'active' : challengeData.status,
-          updatedAt: serverTimestamp(),
-        });
-
-        // 4. Cross-link partner goals if both exist (atomic linking)
-        if (partnerGoalId) {
-          transaction.update(newGoalRef, { partnerGoalId });
-          transaction.update(doc(db, 'goals', partnerGoalId), {
-            partnerGoalId: newGoalRef.id
-          });
-        }
-
-        // Return data needed for post-transaction side effects
-        return {
-          goal: normalizedGoal as Goal,
-          isNowActive,
-          partnerUserId
-        };
-      });
-
-      // === Post-Transaction Side Effects ===
-
-      const { goal, isNowActive, partnerUserId } = transactionResult;
-
-      // 1. Create Feed Post (Bug Fix: Was missing for Valentine goals)
-      try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-
-        await feedService.createFeedPost({
-          userId,
-          userName: userData?.displayName || userData?.profile?.name || 'User',
-          userProfileImageUrl: userData?.profile?.profileImageUrl,
-          goalId: goal.id,
-          goalDescription: goal.description,
-          type: 'goal_started',
-          totalSessions: goal.targetCount, // Total weeks for Valentine goals
-          createdAt: new Date(),
-          isValentineChallenge: true
-        });
-      } catch (error) {
-        logger.error('Error creating Valentine feed post:', error);
-      }
-
-      // 2. Send Notifications if Challenge is Now Active (Both partners joined)
-      if (isNowActive && partnerUserId) {
-        try {
-          const currentUserName = await userService.getUserName(userId);
-          const partnerName = await userService.getUserName(partnerUserId);
-
-          // Notify Partner (User A): "User B has joined!"
-          await notificationService.createValentineStartNotification(
-            partnerUserId,
-            currentUserName,
-            challengeId
-          );
-
-          // Notify Current User (User B): "Challenge Started with User A!"
-          await notificationService.createValentineStartNotification(
-            userId,
-            partnerName,
-            challengeId
-          );
-
-          logger.log(`✅ Sent Valentine start notifications to both partners (${userId}, ${partnerUserId})`);
-        } catch (error) {
-          logger.error('Error sending Valentine start notifications:', error);
-        }
-      }
-
-      return { goal, isNowActive };
-    } catch (error) {
-      // Log error to Firestore
-      await logErrorToFirestore(error, {
-        feature: 'ValentineGoalCreation',
-        userId,
-        additionalData: {
-          challengeId,
-          isPurchaser,
-          goalDescription: goalParams.description,
-        },
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Check if Valentine partner has completed their ENTIRE goal (not just current week)
-   * Used for experience unlock when both partners finish
-   */
-  async checkPartnerCompleted(goal: Goal): Promise<boolean> {
-    try {
-      if (!goal.valentineChallengeId) {
-        return false;
-      }
-
-      // Fetch challenge to get partner goal ID
-      const challengeSnap = await getDoc(doc(db, 'valentineChallenges', goal.valentineChallengeId));
-      if (!challengeSnap.exists()) {
-        logger.warn('Valentine challenge not found');
-        return false;
-      }
-
-      const challengeData = challengeSnap.data();
-
-      // Determine partner's goal ID
-      const partnerGoalId = goal.id === challengeData.purchaserGoalId
-        ? challengeData.partnerGoalId
-        : challengeData.purchaserGoalId;
-
-      // If partner hasn't redeemed code yet
-      if (!partnerGoalId) {
-        logger.log('Partner has not redeemed code yet');
-        return false;
-      }
-
-      // Get partner's goal
-      const partnerGoal = await this.getGoalById(partnerGoalId);
-      if (!partnerGoal) {
-        logger.warn(`Partner goal ${partnerGoalId} not found`);
-        return false;
-      }
-
-      // Check if partner completed ENTIRE goal
-      const isCompleted = partnerGoal.isCompleted === true;
-      logger.log(`Partner completion check: ${isCompleted ? 'COMPLETED' : 'IN PROGRESS'} (${partnerGoal.currentCount + 1}/${partnerGoal.targetCount} weeks)`);
-
-      return isCompleted;
-    } catch (error) {
-      logger.error('Error checking partner completion:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 💝 VALENTINE: Check if both partners have finished their goals
-   * If yes, atomically unlock both goals and update challenge
-   * Returns true if both are now finished and unlocked
-   */
-  async checkAndUnlockBothPartners(goal: Goal): Promise<boolean> {
-    if (!goal.valentineChallengeId) return false;
-
-    try {
-      return await runTransaction(db, async (transaction) => {
-        // 1. Fetch challenge
-        const challengeRef = doc(db, 'valentineChallenges', goal.valentineChallengeId!);
-        const challengeSnap = await transaction.get(challengeRef);
-
-        if (!challengeSnap.exists()) {
-          throw new Error('Valentine challenge not found');
-        }
-
-        const challengeData = challengeSnap.data();
-        const { purchaserGoalId, partnerGoalId } = challengeData;
-
-        if (!purchaserGoalId || !partnerGoalId) {
-          logger.log('💕 Partner has not redeemed yet');
-          return false;
-        }
-
-        // 2. Fetch both goals
-        const goal1Ref = doc(db, 'goals', purchaserGoalId);
-        const goal2Ref = doc(db, 'goals', partnerGoalId);
-
-        const [goal1Snap, goal2Snap] = await Promise.all([
-          transaction.get(goal1Ref),
-          transaction.get(goal2Ref)
-        ]);
-
-        if (!goal1Snap.exists() || !goal2Snap.exists()) {
-          logger.warn('💕 One or both partner goals not found');
-          return false;
-        }
-
-        const goal1Data = goal1Snap.data();
-        const goal2Data = goal2Snap.data();
-
-        logger.log('💕 checkAndUnlockBothPartners — goal ids:', {
-          currentGoalId: goal.id,
-          purchaserGoalId,
-          partnerGoalId,
-          goal1DataId: goal1Data.id,
-          goal2DataId: goal2Data.id,
-        });
-
-        // 3. Check if both are finished
-        // Current goal is marked as finished, check if partner is also finished
-        const goal1Finished = goal1Data.isFinished || (goal1Data.id === goal.id);
-        const goal2Finished = goal2Data.isFinished || (goal2Data.id === goal.id);
-
-        const bothFinished = goal1Finished && goal2Finished;
-
-        logger.log('💕 checkAndUnlockBothPartners — finish flags:', {
-          goal1IsFinished: goal1Data.isFinished,
-          goal2IsFinished: goal2Data.isFinished,
-          goal1MatchesCurrent: goal1Data.id === goal.id,
-          goal2MatchesCurrent: goal2Data.id === goal.id,
-          goal1Finished,
-          goal2Finished,
-          bothFinished,
-        });
-
-        if (bothFinished) {
-          const now = serverTimestamp();
-
-          logger.log(`💕 Both Valentine partners finished! Unlocking completion for challenge ${goal.valentineChallengeId}`);
-
-          // 4. Unlock both goals
-          transaction.update(goal1Ref, {
-            isUnlocked: true,
-            unlockedAt: now,
-          });
-
-          transaction.update(goal2Ref, {
-            isUnlocked: true,
-            unlockedAt: now,
-          });
-
-          // 5. Update challenge
-          transaction.update(challengeRef, {
-            bothPartnersFinished: true,
-            completionUnlockedAt: now,
-          });
-
-          return true;
-        } else {
-          // Only one finished - update challenge with first finisher info
-          if (!challengeData.firstFinishedUserId) {
-            logger.log(`💕 First partner finished (${goal.userId}), waiting for other partner`);
-            transaction.update(challengeRef, {
-              firstFinishedUserId: goal.userId,
-              firstFinishedAt: serverTimestamp(),
-            });
-          }
-
-          return false;
-        }
-      });
-    } catch (error) {
-      logger.error('💕 Error checking/unlocking both partners:', error);
-      return false;
-    }
-  }
 
   /** Real-time listener */
   listenToUserGoals(userId: string, cb: (goals: Goal[]) => void) {
@@ -790,400 +490,254 @@ export class GoalService {
     // ✅ Skip completed goals - no need to sweep them
     if (g.isCompleted) return g;
 
-    // 💝 VALENTINE: Don't reset if goal is finished but locked (waiting for partner)
-    if (g.isFinished && !g.isUnlocked) {
-      logger.log(`💕 Goal ${g.id} is finished but locked, skipping weekly reset`);
-      return g;
-    }
-
     let anchor = new Date(g.weekStartAt);
     const now = DateHelper.now();
+    let didSweep = false;
 
-    // If 7+ days have passed since the week started
-    if (now >= addDaysSafe(anchor, 7)) {
+    // Use a while loop to process ALL expired weeks, not just one
+    while (now > addDaysSafe(anchor, 7)) {
+      didSweep = true;
       const weekWasCompleted = g.isWeekCompleted || g.weeklyCount >= g.sessionsPerWeek;
 
       // Only count completed weeks toward progress
       if (weekWasCompleted) {
         g.currentCount += 1;
+        // T1-1: Detect goal completion during sweep
+        if (g.currentCount >= g.targetCount) {
+          g.isCompleted = true;
+          g.completedAt = DateHelper.now();
+        }
       }
 
       // Advance to next week window
       anchor = addDaysSafe(anchor, 7);
-      g.weekStartAt = anchor;
 
       // PENALTY: If week wasn't completed, deduct 1 session (min 0)
       // If week was completed, reset to 0 for fresh start
       g.weeklyCount = weekWasCompleted ? 0 : Math.max(0, g.weeklyCount - 1);
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
+    }
 
-      // Persist the week rollover to database
+    // Only write to Firestore if weeks were actually swept
+    // This prevents infinite loops in real-time listeners (write → snapshot → sweep → write)
+    if (didSweep) {
+      g.weekStartAt = anchor;
       const ref = doc(db, 'goals', g.id);
-      await updateDoc(ref, {
+      const sweepUpdate: any = {
         currentCount: g.currentCount,
         weekStartAt: anchor,
         weeklyCount: g.weeklyCount,
         weeklyLogDates: [],
         isWeekCompleted: false,
+        isCompleted: !!g.isCompleted,
         updatedAt: serverTimestamp(),
-      } as any);
+      };
+      if (g.isCompleted) {
+        sweepUpdate.completedAt = serverTimestamp();
+      }
+      await updateDoc(ref, sweepUpdate);
     }
 
     return g;
   }
 
-  /**
-   * Check if Valentine partner has completed their weekly goal
-   * Returns true if:
-   * - Not a Valentine challenge (allow normal progression)
-   * - Partner hasn't redeemed code yet (allow first partner to progress alone)
-   * - Partner has completed their weekly goal
-   */
-  async checkPartnerProgress(goalId: string): Promise<boolean> {
-    try {
-      const goal = await this.getGoalById(goalId);
-      if (!goal) return true;
-
-      // Not a Valentine challenge - allow normal progression
-      if (!goal.valentineChallengeId) return true;
-
-      // Fetch Valentine challenge to get partner's goal
-      const challengeRef = doc(db, 'valentineChallenges', goal.valentineChallengeId);
-      const challengeSnap = await getDoc(challengeRef);
-
-      if (!challengeSnap.exists()) {
-        logger.warn(`Valentine challenge ${goal.valentineChallengeId} not found`);
-        return true; // Allow progression if challenge not found
-      }
-
-      const challengeData = challengeSnap.data();
-
-      // Determine partner's goal ID
-      const partnerGoalId = goal.id === challengeData.purchaserGoalId
-        ? challengeData.partnerGoalId
-        : challengeData.purchaserGoalId;
-
-      // If partner hasn't redeemed code yet, allow first partner to progress
-      if (!partnerGoalId) {
-        logger.log('Partner has not redeemed code yet - allowing progression');
-        return true;
-      }
-
-      // Get partner's goal
-      const partnerGoal = await this.getGoalById(partnerGoalId);
-      if (!partnerGoal) {
-        logger.warn(`Partner goal ${partnerGoalId} not found`);
-        return true;
-      }
-
-      // Both must complete their week to progress
-      const partnerCompleted = partnerGoal.isWeekCompleted ||
-        partnerGoal.weeklyCount >= partnerGoal.sessionsPerWeek;
-
-      logger.log(`Partner progress check: ${partnerCompleted ? 'COMPLETED' : 'PENDING'} (${partnerGoal.weeklyCount}/${partnerGoal.sessionsPerWeek})`);
-
-      return partnerCompleted;
-    } catch (error) {
-      logger.error('Error checking partner progress:', error);
-      return true; // Allow progression on error to avoid blocking users
-    }
-  }
 
   /** Increment a session for the current anchored week */
   async tickWeeklySession(goalId: string): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error('Goal not found');
 
-    let g = normalizeGoal({ id: snap.id, ...snap.data() });
+    // ✅ SECURITY: Atomic read-modify-write via Firestore transaction
+    // Prevents race condition when user taps "Log Session" rapidly
+    const txResult = await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new Error('Goal not found');
 
-    // 🔍 DIAGNOSTIC: Log goal state before processing
-    if (g.valentineChallengeId) {
-      logger.log(`💝 tickWeeklySession START — Goal ${g.id}`, {
-        currentCount: g.currentCount,
-        targetCount: g.targetCount,
+      let g = normalizeGoal({ id: snap.id, ...snap.data() });
+
+      // If it's the user's first session
+      if (!g.weekStartAt) {
+        g.weekStartAt = DateHelper.now();
+        g.weeklyCount = 0;
+        g.weeklyLogDates = [];
+      }
+
+      // Inline expired weeks sweep (pure computation inside transaction, no standalone writes)
+      if (g.weekStartAt && g.id && !g.isCompleted) {
+        let anchor = new Date(g.weekStartAt);
+        const now = DateHelper.now();
+        while (now > addDaysSafe(anchor, 7)) {
+          const weekWasCompleted = g.isWeekCompleted || g.weeklyCount >= g.sessionsPerWeek;
+          if (weekWasCompleted) {
+            g.currentCount += 1;
+            // T1-1: Detect goal completion during inline sweep
+            if (g.currentCount >= g.targetCount) {
+              g.isCompleted = true;
+              g.completedAt = DateHelper.now();
+            }
+          }
+          anchor = addDaysSafe(anchor, 7);
+          g.weeklyCount = weekWasCompleted ? 0 : Math.max(0, g.weeklyCount - 1);
+          g.weeklyLogDates = [];
+          g.isWeekCompleted = false;
+        }
+        g.weekStartAt = anchor;
+      }
+
+      const todayIso = isoDateOnly(DateHelper.now());
+
+      // Prevent multiple sessions same day (unless debug)
+      if (!this.DEBUG_ALLOW_MULTIPLE_PER_DAY && g.weeklyLogDates.includes(todayIso)) {
+        return { goal: g, didIncrement: false, previousWeeklyCount: 0, totalCompletedSessions: 0, totalSessions: 0, progressPercentage: 0 };
+      }
+
+      // Prevent extra sessions if week already completed
+      if (g.weeklyCount >= g.sessionsPerWeek) {
+        throw new Error("Week already completed. Wait until next week to continue!");
+      }
+
+      // Add new session
+      const previousWeeklyCount = g.weeklyCount;
+      g.weeklyCount += 1;
+      if (!g.weeklyLogDates.includes(todayIso)) {
+        g.weeklyLogDates = [...g.weeklyLogDates, todayIso];
+      }
+
+      // Calculate total completed sessions
+      const totalCompletedSessions = g.currentCount * g.sessionsPerWeek + g.weeklyCount;
+      const totalSessions = g.targetCount * g.sessionsPerWeek;
+      const progressPercentage = Math.round((totalCompletedSessions / totalSessions) * 100);
+
+      // If weekly goal reached → mark as completed
+      if (g.weeklyCount >= g.sessionsPerWeek) {
+        g.isWeekCompleted = true;
+        if (g.currentCount + 1 >= g.targetCount) {
+          g.isCompleted = true;
+          g.completedAt = DateHelper.now();
+        }
+      }
+
+      // Persist atomically via transaction
+      const updateData: any = {
         weeklyCount: g.weeklyCount,
-        sessionsPerWeek: g.sessionsPerWeek,
-        isCompleted: g.isCompleted,
-        isFinished: g.isFinished,
-        isUnlocked: g.isUnlocked,
-        isWeekCompleted: g.isWeekCompleted,
+        weeklyLogDates: g.weeklyLogDates,
+        isWeekCompleted: g.isWeekCompleted || false,
+        isCompleted: !!g.isCompleted,
         weekStartAt: g.weekStartAt,
-        valentineChallengeId: g.valentineChallengeId,
-      });
-    }
-
-    // If it's the user's first session
-    if (!g.weekStartAt) {
-      g.weekStartAt = DateHelper.now();
-      g.weeklyCount = 0;
-      g.weeklyLogDates = [];
-    }
-
-    // Sweep expired weeks
-    g = await this.applyExpiredWeeksSweep(g);
-
-    const todayIso = isoDateOnly(DateHelper.now());
-
-    // Prevent multiple sessions same day (unless debug)
-    if (!this.DEBUG_ALLOW_MULTIPLE_PER_DAY && g.weeklyLogDates.includes(todayIso)) {
-      if (g.valentineChallengeId) {
-        logger.log(`💝 tickWeeklySession — SKIPPED (same day duplicate). weeklyLogDates:`, g.weeklyLogDates, `todayIso:`, todayIso);
+        currentCount: g.currentCount,
+        updatedAt: serverTimestamp(),
+      };
+      if (g.isCompleted) {
+        updateData.completedAt = serverTimestamp();
       }
-      return { ...g };
-    }
+      transaction.update(ref, updateData);
 
-    // Prevent extra sessions if week already completed
-    if (g.weeklyCount >= g.sessionsPerWeek) {
-      if (g.valentineChallengeId) {
-        logger.log(`💝 tickWeeklySession — BLOCKED (week already completed). weeklyCount=${g.weeklyCount}, sessionsPerWeek=${g.sessionsPerWeek}`);
-      }
-      throw new Error("Week already completed. Wait until next week to continue!");
-    }
+      return { goal: g, didIncrement: true, previousWeeklyCount, totalCompletedSessions, totalSessions, progressPercentage };
+    });
 
-    // Add new session
-    const previousWeeklyCount = g.weeklyCount;
-    g.weeklyCount += 1;
-    if (!g.weeklyLogDates.includes(todayIso)) {
-      g.weeklyLogDates = [...g.weeklyLogDates, todayIso];
-    }
+    const { goal: g, didIncrement, previousWeeklyCount, totalCompletedSessions, totalSessions, progressPercentage } = txResult;
 
-    // Calculate total completed sessions
-    const totalCompletedSessions = g.currentCount * g.sessionsPerWeek + g.weeklyCount;
-    const totalSessions = g.targetCount * g.sessionsPerWeek;
-    const progressPercentage = Math.round((totalCompletedSessions / totalSessions) * 100);
+    // If no increment happened (already logged today), return early
+    if (!didIncrement) return { ...g };
 
-    // If weekly goal reached → mark as completed
-    if (g.weeklyCount >= g.sessionsPerWeek) {
-      g.isWeekCompleted = true;
+    // Analytics (non-critical, outside transaction)
+    analyticsService.trackEvent('session_logged', 'engagement', { goalId, weeklyCount: g.weeklyCount, sessionsPerWeek: g.sessionsPerWeek, currentCount: g.currentCount, targetCount: g.targetCount });
 
-      if (g.valentineChallengeId) {
-        logger.log(`💝 tickWeeklySession — WEEK COMPLETED! weeklyCount=${g.weeklyCount}/${g.sessionsPerWeek}, checking goal completion: currentCount+1=${g.currentCount + 1} >= targetCount=${g.targetCount} → ${g.currentCount + 1 >= g.targetCount}`);
-      }
+    // === Side effects: Feed posts & notifications (outside transaction) ===
 
-      // If it's the final week
-      if (g.currentCount + 1 >= g.targetCount) {
-        g.isCompleted = true;
-        g.completedAt = DateHelper.now();
+    if (g.isCompleted) {
+      // Goal completed — create feed post & notifications
+      try {
+          const userDoc = await getDoc(doc(db, 'users', g.userId));
+          const userData = userDoc.exists() ? userDoc.data() : null;
 
-        // 💝 VALENTINE: Mark as finished and check if both partners ready to unlock
-        if (g.valentineChallengeId) {
-          g.isFinished = true;
-          g.finishedAt = DateHelper.now();
+          // Fetch experience details for the completion post
+          let experienceTitle: string | undefined;
+          let experienceImageUrl: string | undefined;
+          let partnerName: string | undefined;
 
-          logger.log(`💕 Valentine goal finished! Goal ID: ${g.id}, Challenge ID: ${g.valentineChallengeId}`);
-          logger.log(`💕 Setting isFinished=true, finishedAt=${g.finishedAt}`);
-          logger.log(`💕 Checking if partner also finished...`);
+          if (g.isFreeGoal && g.pledgedExperience) {
+            // FREE GOAL: use pledged experience snapshot
+            experienceTitle = g.pledgedExperience.title;
+            experienceImageUrl = g.pledgedExperience.coverImageUrl;
+            partnerName = g.pledgedExperience.subtitle;
 
-          const bothFinished = await this.checkAndUnlockBothPartners(g);
-
-          if (bothFinished) {
-            g.isUnlocked = true;
-            g.unlockedAt = DateHelper.now();
-            logger.log(`💕 ✅ BOTH PARTNERS FINISHED! Setting isUnlocked=true, unlockedAt=${g.unlockedAt}`);
-            logger.log(`💕 Goal ${g.id} is now UNLOCKED and ready for completion screen`);
-
-            // Create feed posts for BOTH Valentine partners
+            // Set 30-day gift attach deadline
+            const deadline = new Date();
+            deadline.setDate(deadline.getDate() + 30);
+            const goalRef = doc(db, 'goals', g.id);
+            await updateDoc(goalRef, { giftAttachDeadline: deadline });
+            g.giftAttachDeadline = deadline;
+          } else if (g.experienceGiftId) {
+            // STANDARD GOAL: fetch from gift
             try {
-              // Fetch experience details from valentine challenge
-              let experienceTitle: string | undefined;
-              let experienceImageUrl: string | undefined;
+              const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
+              const experience = await experienceService.getExperienceById(experienceGift.experienceId);
 
-              try {
-                const challengeSnap = await getDoc(doc(db, 'valentineChallenges', g.valentineChallengeId!));
-                if (challengeSnap.exists()) {
-                  const challengeData = challengeSnap.data();
-                  const experience = await experienceService.getExperienceById(challengeData.experienceId);
-                  experienceTitle = experience?.title;
-                  experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
-                }
-              } catch (expError) {
-                logger.warn('Could not fetch valentine experience for feed posts:', expError);
-              }
-
-              // Feed post for current user (user 2 - just finished)
-              const userDoc = await getDoc(doc(db, 'users', g.userId));
-              const userData = userDoc.exists() ? userDoc.data() : null;
-
-              await feedService.createFeedPost({
-                userId: g.userId,
-                userName: userData?.displayName || userData?.profile?.name || 'User',
-                userProfileImageUrl: userData?.profile?.profileImageUrl,
-                goalId: g.id,
-                goalDescription: g.description,
-                type: 'goal_completed',
-                sessionNumber: totalSessions,
-                totalSessions: totalSessions,
-                progressPercentage: 100,
-                experienceTitle,
-                experienceImageUrl,
-                createdAt: new Date(),
-              });
-
-              // Feed post for partner (user 1 - finished earlier, never got a feed post)
-              if (g.partnerGoalId) {
-                try {
-                  const partnerGoalDoc = await getDoc(doc(db, 'goals', g.partnerGoalId));
-                  if (partnerGoalDoc.exists()) {
-                    const partnerGoalData = partnerGoalDoc.data();
-                    const partnerUserDoc = await getDoc(doc(db, 'users', partnerGoalData.userId));
-                    const partnerUserData = partnerUserDoc.exists() ? partnerUserDoc.data() : null;
-                    const partnerTotalSessions = (partnerGoalData.targetCount || 0) * (partnerGoalData.sessionsPerWeek || 0);
-
-                    await feedService.createFeedPost({
-                      userId: partnerGoalData.userId,
-                      userName: partnerUserData?.displayName || partnerUserData?.profile?.name || 'User',
-                      userProfileImageUrl: partnerUserData?.profile?.profileImageUrl,
-                      goalId: g.partnerGoalId,
-                      goalDescription: partnerGoalData.description,
-                      type: 'goal_completed',
-                      sessionNumber: partnerTotalSessions,
-                      totalSessions: partnerTotalSessions,
-                      progressPercentage: 100,
-                      experienceTitle,
-                      experienceImageUrl,
-                      createdAt: new Date(),
-                    });
-
-                    // 💝 Notification for Partner (User A)
-                    await notificationService.createValentineUnlockNotification(
-                      partnerGoalData.userId,
-                      userData?.displayName || 'your partner',
-                      g.valentineChallengeId!,
-                      experienceTitle
-                    );
-                  }
-                } catch (partnerFeedError) {
-                  logger.error('Error creating partner feed post:', partnerFeedError);
-                }
-              }
-
-              // 💝 Notification for Current User (User B)
-              // (Need partner name for notification)
-              let partnerName = 'your partner';
-              if (g.partnerGoalId) {
-                try {
-                  const partnerGoalDoc = await getDoc(doc(db, 'goals', g.partnerGoalId));
-                  if (partnerGoalDoc.exists()) {
-                    const partnerUserId = partnerGoalDoc.data().userId;
-                    const name = await userService.getUserName(partnerUserId);
-                    if (name) partnerName = name;
-                  }
-                } catch (e) { }
-              }
-
-              await notificationService.createValentineUnlockNotification(
-                g.userId,
-                partnerName,
-                g.valentineChallengeId!,
-                experienceTitle
-              );
-
-            } catch (feedError) {
-              logger.error('Error creating Valentine completion feed posts:', feedError);
+              experienceTitle = experience?.title;
+              experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
+              partnerName = experience?.subtitle;
+            } catch (expError) {
+              logger.warn('Could not fetch experience details for feed post:', expError);
             }
-          } else {
-            logger.log(`💕 ⏳ Only one partner finished. Goal ${g.id} remains LOCKED (isUnlocked=false)`);
-            logger.log(`💕 Waiting state should be displayed. Partner must finish before unlock.`);
           }
-        }
 
-        // Create feed post for goal completion (skip Valentine - handled above when both unlock)
-        if (!g.valentineChallengeId) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', g.userId));
-            const userData = userDoc.exists() ? userDoc.data() : null;
+          await feedService.createFeedPost({
+            userId: g.userId,
+            userName: userData?.displayName || userData?.profile?.name || 'User',
+            userProfileImageUrl: userData?.profile?.profileImageUrl,
+            goalId: g.id,
+            goalDescription: g.description,
+            type: 'goal_completed',
+            sessionNumber: totalSessions,
+            totalSessions: totalSessions,
+            progressPercentage: 100,
+            experienceTitle,
+            experienceImageUrl,
+            partnerName,
+            experienceGiftId: g.experienceGiftId || undefined,
+            isFreeGoal: g.isFreeGoal,
+            pledgedExperienceId: g.pledgedExperience?.experienceId,
+            pledgedExperiencePrice: g.pledgedExperience?.price,
+            isMystery: g.isMystery || false,
+            createdAt: new Date(),
+          });
 
-            // Fetch experience details for the completion post
-            let experienceTitle: string | undefined;
-            let experienceImageUrl: string | undefined;
-            let partnerName: string | undefined;
+          // 🎯 FREE GOAL COMPLETION: Notify friends to empower
+          if (g.isFreeGoal && g.pledgedExperience) {
+            try {
+              const friends = await friendService.getFriends(g.userId);
+              const uName = userData?.displayName || userData?.profile?.name || 'Your friend';
+              const expTitle = g.pledgedExperience.title;
 
-            if (g.isFreeGoal && g.pledgedExperience) {
-              // FREE GOAL: use pledged experience snapshot
-              experienceTitle = g.pledgedExperience.title;
-              experienceImageUrl = g.pledgedExperience.coverImageUrl;
-              partnerName = g.pledgedExperience.subtitle;
-
-              // Set 30-day gift attach deadline
-              const deadline = new Date();
-              deadline.setDate(deadline.getDate() + 30);
-              const goalRef = doc(db, 'goals', g.id);
-              await updateDoc(goalRef, { giftAttachDeadline: deadline });
-              g.giftAttachDeadline = deadline;
-            } else if (g.experienceGiftId) {
-              // STANDARD GOAL: fetch from gift
-              try {
-                const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
-                const experience = await experienceService.getExperienceById(experienceGift.experienceId);
-
-                experienceTitle = experience?.title;
-                experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
-                partnerName = experience?.subtitle;
-              } catch (expError) {
-                logger.warn('Could not fetch experience details for feed post:', expError);
+              for (const friend of friends) {
+                await notificationService.createNotification(
+                  friend.friendId,
+                  'free_goal_completed',
+                  `🏆 ${uName} completed their challenge!`,
+                  `${uName} finished their ${g.targetCount}-week challenge! Gift them "${expTitle}" to celebrate 🎁`,
+                  {
+                    goalId: g.id,
+                    goalUserId: g.userId,
+                    goalUserName: uName,
+                    goalUserProfileImageUrl: userData?.profile?.profileImageUrl,
+                    experienceId: g.pledgedExperience.experienceId,
+                    experienceTitle: expTitle,
+                    experiencePrice: g.pledgedExperience.price,
+                    experienceCoverImageUrl: g.pledgedExperience.coverImageUrl,
+                    milestone: 100,
+                  },
+                  true
+                );
               }
+              logger.log(`🎯 Sent completion notifications to ${friends.length} friends for free goal ${g.id}`);
+            } catch (completionNotifError) {
+              logger.error('Error sending free goal completion notifications:', completionNotifError);
             }
-
-            await feedService.createFeedPost({
-              userId: g.userId,
-              userName: userData?.displayName || userData?.profile?.name || 'User',
-              userProfileImageUrl: userData?.profile?.profileImageUrl,
-              goalId: g.id,
-              goalDescription: g.description,
-              type: 'goal_completed',
-              sessionNumber: totalSessions,
-              totalSessions: totalSessions,
-              progressPercentage: 100,
-              experienceTitle,
-              experienceImageUrl,
-              partnerName,
-              experienceGiftId: g.experienceGiftId || undefined,
-              isFreeGoal: g.isFreeGoal,
-              pledgedExperienceId: g.pledgedExperience?.experienceId,
-              pledgedExperiencePrice: g.pledgedExperience?.price,
-              isMystery: g.isMystery || false,
-              createdAt: new Date(),
-            });
-
-            // 🎯 FREE GOAL COMPLETION: Notify friends to empower
-            if (g.isFreeGoal && g.pledgedExperience) {
-              try {
-                const friends = await friendService.getFriends(g.userId);
-                const uName = userData?.displayName || userData?.profile?.name || 'Your friend';
-                const expTitle = g.pledgedExperience.title;
-
-                for (const friend of friends) {
-                  await notificationService.createNotification(
-                    friend.friendId,
-                    'free_goal_completed',
-                    `🏆 ${uName} completed their challenge!`,
-                    `${uName} finished their ${g.targetCount}-week challenge! Gift them "${expTitle}" to celebrate 🎁`,
-                    {
-                      goalId: g.id,
-                      goalUserId: g.userId,
-                      goalUserName: uName,
-                      goalUserProfileImageUrl: userData?.profile?.profileImageUrl,
-                      experienceId: g.pledgedExperience.experienceId,
-                      experienceTitle: expTitle,
-                      experiencePrice: g.pledgedExperience.price,
-                      experienceCoverImageUrl: g.pledgedExperience.coverImageUrl,
-                      milestone: 100,
-                    },
-                    true
-                  );
-                }
-                logger.log(`🎯 Sent completion notifications to ${friends.length} friends for free goal ${g.id}`);
-              } catch (completionNotifError) {
-                logger.error('Error sending free goal completion notifications:', completionNotifError);
-              }
-            }
-          } catch (error) {
-            logger.error('Error creating goal completion feed post:', error);
           }
+        } catch (error) {
+          logger.error('Error creating goal completion feed post:', error);
         }
-      }
     } else if (previousWeeklyCount < g.weeklyCount) {
       // Create feed post for every session progress (not just milestones)
       try {
@@ -1254,35 +808,6 @@ export class GoalService {
       }
     } // end else if (previousWeeklyCount < g.weeklyCount)
 
-    // Persist updates
-    const updateData: any = {
-      weeklyCount: g.weeklyCount,
-      weeklyLogDates: g.weeklyLogDates,
-      isWeekCompleted: g.isWeekCompleted || false,
-      isCompleted: !!g.isCompleted,
-      weekStartAt: g.weekStartAt,
-      updatedAt: serverTimestamp(),
-    };
-
-    // Persist completedAt when goal is completed
-    if (g.isCompleted) {
-      updateData.completedAt = serverTimestamp();
-    }
-
-    // 💝 VALENTINE: Persist finished/unlocked state
-    if (g.valentineChallengeId) {
-      if (g.isFinished) {
-        updateData.isFinished = true;
-        updateData.finishedAt = serverTimestamp();
-      }
-      if (g.isUnlocked) {
-        updateData.isUnlocked = true;
-        updateData.unlockedAt = serverTimestamp();
-      }
-    }
-
-    await updateDoc(ref, updateData);
-
     return { ...(g as any) } as Goal;
   }
 
@@ -1332,6 +857,8 @@ export class GoalService {
     await updateDoc(ref, updates);
     const updatedSnap = await getDoc(ref);
     const goal = normalizeGoal({ id: updatedSnap.id, ...updatedSnap.data() });
+
+    analyticsService.trackEvent('goal_approved', 'conversion', { goalId, targetCount: finalTargetCount, sessionsPerWeek: finalSessionsPerWeek });
 
     // Create feed post for goal approval
     try {

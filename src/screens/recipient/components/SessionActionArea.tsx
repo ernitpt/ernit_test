@@ -65,7 +65,6 @@ interface SessionActionAreaProps {
   alreadyLoggedToday: boolean;
   totalSessionsDone: number;
   hasPersonalizedHintWaiting: boolean;
-  valentinePartnerName: string | null;
   loading: boolean;
   onStart: () => void;
 }
@@ -76,7 +75,6 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   alreadyLoggedToday,
   totalSessionsDone,
   hasPersonalizedHintWaiting,
-  valentinePartnerName,
   loading,
   onStart,
 }) => {
@@ -101,27 +99,6 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   const showBanner1 = !isSelfGift && locked && totalSessionsDone === 1;
   const banner1Message = getApprovalBlockMessage(goal, empoweredName, 'banner');
 
-  // Valentine: finished but waiting for partner
-  if (goal.valentineChallengeId && goal.isFinished && !goal.isUnlocked) {
-    return (
-      <LinearGradient
-        colors={['#FFF4ED', '#FFE5EF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.waitingBanner}
-      >
-        <View style={styles.waitingTextContainer}>
-          <Text style={styles.waitingTitle}>
-            You've Completed Your Goal!
-          </Text>
-          <Text style={styles.waitingSubtext}>
-            Waiting for {valentinePartnerName || 'partner'} to finish...
-          </Text>
-        </View>
-      </LinearGradient>
-    );
-  }
-
   // Locked: 1-day/1-session OR has done 1 session already
   if ((locked && goal.targetCount === 1 && goal.sessionsPerWeek === 1)
     || (locked && goal.targetCount >= 1 && goal.weeklyCount >= 1)) {
@@ -136,18 +113,6 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
           <Text style={styles.disabledStartText}>Waiting for approval</Text>
         </View>
       </>
-    );
-  }
-
-  // Valentine: waiting for partner to redeem
-  if (goal.valentineChallengeId && !goal.partnerGoalId) {
-    return (
-      <View style={styles.disabledStartContainer}>
-        <Text style={styles.disabledStartText}>Waiting for Partner</Text>
-        <Text style={[styles.disabledStartText, { fontSize: 13, marginTop: 4 }]}>
-          Your partner needs to redeem their code first
-        </Text>
-      </View>
     );
   }
 
@@ -243,31 +208,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  waitingBanner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFD6E8',
-  },
-  waitingTextContainer: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  waitingTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#BE185D',
-    textAlign: 'center',
-  },
-  waitingSubtext: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#9F1239',
-    opacity: 0.8,
     textAlign: 'center',
   },
   startButton: { backgroundColor: Colors.secondary, paddingVertical: 14, borderRadius: 12 },

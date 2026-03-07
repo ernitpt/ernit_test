@@ -15,6 +15,8 @@ import { RootStackParamList, Experience } from '../../types';
 import { useApp } from '../../context/AppContext';
 import SharedHeader from '../../components/SharedHeader';
 import MainScreen from '../MainScreen';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
 
 type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryChoice'>;
@@ -30,6 +32,7 @@ const MysteryChoiceScreen = () => {
     const [showHowItWorks, setShowHowItWorks] = useState(false);
 
     const handleOpenGift = () => {
+        analyticsService.trackEvent('mystery_choice_selected', 'social', { choice: 'open', experienceId: experience.id }, 'MysteryChoiceScreen');
         if (empowerContext) {
             dispatch({
                 type: 'SET_EMPOWER_CONTEXT',
@@ -42,6 +45,7 @@ const MysteryChoiceScreen = () => {
     };
 
     const handleMysteryGift = () => {
+        analyticsService.trackEvent('mystery_choice_selected', 'social', { choice: 'mystery', experienceId: experience.id }, 'MysteryChoiceScreen');
         if (empowerContext) {
             dispatch({
                 type: 'SET_EMPOWER_CONTEXT',
@@ -54,6 +58,7 @@ const MysteryChoiceScreen = () => {
     };
 
     return (
+        <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
         <MainScreen activeRoute="Home">
             <SharedHeader title="Gift Style" showBack />
 
@@ -188,6 +193,7 @@ const MysteryChoiceScreen = () => {
                 )}
             </ScrollView>
         </MainScreen>
+        </ErrorBoundary>
     );
 };
 

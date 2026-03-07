@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -81,19 +81,25 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
         onClose();
     };
 
-    const groupedReactions = reactions.reduce((acc, reaction) => {
-        if (!acc[reaction.type]) {
-            acc[reaction.type] = [];
-        }
-        acc[reaction.type].push(reaction);
-        return acc;
-    }, {} as Record<ReactionType, Reaction[]>);
+    const groupedReactions = useMemo(() =>
+        reactions.reduce((acc, reaction) => {
+            if (!acc[reaction.type]) {
+                acc[reaction.type] = [];
+            }
+            acc[reaction.type].push(reaction);
+            return acc;
+        }, {} as Record<ReactionType, Reaction[]>),
+        [reactions]
+    );
 
     const reactionTypes = Object.keys(groupedReactions) as ReactionType[];
 
-    const filteredReactions = selectedTab === 'all'
-        ? reactions
-        : groupedReactions[selectedTab] || [];
+    const filteredReactions = useMemo(() =>
+        selectedTab === 'all'
+            ? reactions
+            : groupedReactions[selectedTab] || [],
+        [selectedTab, reactions, groupedReactions]
+    );
 
     const getTabCount = (type: ReactionType | 'all') => {
         if (type === 'all') return reactions.length;

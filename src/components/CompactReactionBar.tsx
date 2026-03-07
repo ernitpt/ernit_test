@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -6,11 +6,17 @@ import {
     TouchableOpacity,
     Animated,
     Image,
+    Platform,
 } from 'react-native';
 import { SmilePlus } from 'lucide-react-native';
 import type { ReactionType } from '../types';
 import ReactionPicker from './ReactionPicker';
 import Colors from '../config/colors';
+
+let Haptics: typeof import('expo-haptics') | null = null;
+if (Platform.OS !== 'web') {
+    import('expo-haptics').then(mod => { Haptics = mod; }).catch(() => {});
+}
 
 interface CompactReactionBarProps {
     reactionCounts: {
@@ -44,13 +50,16 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
     const heartAnim = useRef(new Animated.Value(1)).current;
     const muscleAnim = useRef(new Animated.Value(0)).current;
 
-    const activeReactions = (Object.keys(reactionCounts) as ReactionType[])
-        .filter((type) => reactionCounts[type] > 0)
-        .sort((a, b) => {
-            if (a === userReaction) return -1;
-            if (b === userReaction) return 1;
-            return reactionCounts[b] - reactionCounts[a];
-        });
+    const activeReactions = useMemo(() =>
+        (Object.keys(reactionCounts) as ReactionType[])
+            .filter((type) => reactionCounts[type] > 0)
+            .sort((a, b) => {
+                if (a === userReaction) return -1;
+                if (b === userReaction) return 1;
+                return reactionCounts[b] - reactionCounts[a];
+            }),
+        [reactionCounts, userReaction]
+    );
 
     const animateReaction = (type: ReactionType) => {
         switch (type) {
@@ -148,6 +157,11 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
     const handleSelectReaction = (type: ReactionType) => {
         setShowPicker(false);
         onReact(type);
+
+        // Haptic feedback on reaction
+        if (Haptics) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
 
         // Trigger theme-specific animation for the selected reaction
         animateReaction(type);

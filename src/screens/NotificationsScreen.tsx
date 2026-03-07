@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { NotificationSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -39,11 +40,15 @@ type NotificationNavigationProp = NativeStackNavigationProp<
 
 // Format notification date (shared utility)
 const formatNotificationDate = (createdAt: any) => {
+  if (!createdAt) return '';
+
   // Handle Firestore Timestamp or Date
   const date =
     createdAt && typeof createdAt.toDate === 'function'
       ? createdAt.toDate()
       : new Date(createdAt);
+
+  if (isNaN(date.getTime())) return '';
 
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -76,38 +81,64 @@ const NotificationsScreen = () => {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<NotificationNavigationProp>();
 
+  // Pre-compute latest goal_progress notification per goal (avoids O(n²) in renderItem)
+  const latestGoalProgressMap = useMemo(() => {
+    const map: Record<string, string> = {}; // goalId -> notificationId of latest
+    for (const n of notifications) {
+      if (n.type !== 'goal_progress' || !n.data?.goalId) continue;
+      const goalId = n.data.goalId;
+      if (!map[goalId]) {
+        map[goalId] = n.id!;
+      } else {
+        // Compare session numbers - keep the highest
+        const existing = notifications.find(x => x.id === map[goalId]);
+        if ((n.data?.sessionNumber || 0) > (existing?.data?.sessionNumber || 0)) {
+          map[goalId] = n.id!;
+        }
+      }
+    }
+    return map;
+  }, [notifications]);
 
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
 
-
+    let isCancelled = false;
     let unsubscribeNotifs: (() => void) | undefined;
     let unsubscribeGoals: (() => void) | undefined;
 
-
     const subscribe = async () => {
-      // Listen to notifications
+      // T3-4: Guard against stale callbacks if userId changed
       unsubscribeNotifs = await notificationService.listenToUserNotifications(userId, (notifications) => {
+        if (isCancelled) return;
         setNotifications(notifications);
         setLoading(false);
       });
 
-      // Listen to goals to track completion status
+      if (isCancelled) {
+        unsubscribeNotifs?.();
+        return;
+      }
+
       unsubscribeGoals = goalService.listenToUserGoals(userId, (goals) => {
+        if (isCancelled) return;
         const goalsMap: Record<string, boolean> = {};
         goals.forEach(g => {
           goalsMap[g.id] = !!g.isCompleted;
         });
         setUserGoals(goalsMap);
       });
-    };
 
+      if (isCancelled) {
+        unsubscribeGoals?.();
+      }
+    };
 
     subscribe();
 
-
     return () => {
+      isCancelled = true;
       if (unsubscribeNotifs) unsubscribeNotifs();
       if (unsubscribeGoals) unsubscribeGoals();
     };
@@ -117,6 +148,7 @@ const NotificationsScreen = () => {
 
 
   const handlePress = async (n: Notification) => {
+    analyticsService.trackEvent('notification_tapped', 'engagement', { type: n.type }, 'NotificationsScreen');
     await notificationService.markAsRead(n.id!);
 
     if (n.type === 'gift_received') {
@@ -153,8 +185,12 @@ const NotificationsScreen = () => {
 
     if (n.type === 'experience_empowered' && n.data?.goalId && n.data?.giftId) {
       try {
-        await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, userId!, n.data.isMystery === true);
-        const goal = await goalService.getGoalById(n.data.goalId);
+        // Check if gift is already attached before attempting
+        const existingGoal = await goalService.getGoalById(n.data.goalId);
+        if (!existingGoal?.giftAttachedAt) {
+          await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, userId!, n.data.isMystery === true);
+        }
+        const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
         Alert.alert(
           'Gift Received!',
           n.data.isMystery
@@ -173,12 +209,7 @@ const NotificationsScreen = () => {
 
 
   const handleFriendRequestHandled = () => {
-    // Refresh notifications after friend request is handled
-    if (userId) {
-      notificationService.listenToUserNotifications(userId, (notifications) => {
-        setNotifications(notifications);
-      });
-    }
+    // No-op: the real-time onSnapshot listener in useEffect handles updates automatically
   };
 
 
@@ -215,12 +246,7 @@ const NotificationsScreen = () => {
 
 
   const handleApprovalActionTaken = () => {
-    // Refresh notifications after approval action
-    if (userId) {
-      notificationService.listenToUserNotifications(userId, (notifications) => {
-        setNotifications(notifications);
-      });
-    }
+    // No-op: the real-time onSnapshot listener in useEffect handles updates automatically
   };
 
   const renderItem = ({ item }: { item: Notification }) => {
@@ -256,19 +282,9 @@ const NotificationsScreen = () => {
 
     // Handle goal progress notifications (for givers to leave hints)
     if (item.type === 'goal_progress') {
-      // Determine if this is the latest notification for this goal
-      const goalProgressNotifs = notifications.filter(
-        n => n.type === 'goal_progress' && n.data?.goalId === item.data?.goalId
-      );
-
-      // Find the one with the highest sessionNumber (most recent)
-      const latestNotif = goalProgressNotifs.reduce((latest, current) => {
-        const latestSession = latest.data?.sessionNumber || 0;
-        const currentSession = current.data?.sessionNumber || 0;
-        return currentSession > latestSession ? current : latest;
-      }, goalProgressNotifs[0]);
-
-      const isLatest = latestNotif?.id === item.id;
+      const isLatest = item.data?.goalId
+        ? latestGoalProgressMap[item.data.goalId] === item.id
+        : true;
 
       return <GoalProgressNotification notification={item} isLatest={isLatest} />;
     }
@@ -438,7 +454,7 @@ const NotificationsScreen = () => {
           <FlatList
             data={notifications}
             renderItem={renderItem}
-            keyExtractor={(item) => item.id!}
+            keyExtractor={(item, index) => item.id || index.toString()}
             contentContainerStyle={styles.listContainer}
           />
         )}

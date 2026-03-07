@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
@@ -39,7 +39,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             setShowHintModal(true);
         } catch (error) {
             logger.error('Error fetching goal:', error);
-            alert('Could not load goal details');
+            Alert.alert('Error', 'Could not load goal details');
         } finally {
             setLoading(false);
         }
@@ -54,7 +54,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                 setShowHistoryModal(true);
             } catch (error) {
                 logger.error('Error fetching goal:', error);
-                alert('Could not load goal details');
+                Alert.alert('Error', 'Could not load goal details');
             } finally {
                 setLoading(false);
             }

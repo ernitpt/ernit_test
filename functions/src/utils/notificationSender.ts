@@ -56,7 +56,7 @@ export async function sendPushNotification(
     );
 
     // Prepare click action URL based on notification type
-    let clickAction = '/';
+    let clickAction = '/notifications';
     if (type === 'friend_request') {
         clickAction = '/notifications';
     } else if (type === 'goal_progress') {
@@ -65,6 +65,12 @@ export async function sendPushNotification(
         clickAction = `/goal/${data?.goalId}`;
     } else if (type === 'post_reaction') {
         clickAction = `/feed`;
+    } else if (type === 'gift_received' || type === 'experience_empowered') {
+        clickAction = '/notifications';
+    } else if (type === 'goal_approval_request' || type === 'goal_change_suggested') {
+        clickAction = '/notifications';
+    } else if (type === 'free_goal_milestone' || type === 'free_goal_completed') {
+        clickAction = '/notifications';
     }
 
     // Prepare notification data - FCM requires all values to be strings

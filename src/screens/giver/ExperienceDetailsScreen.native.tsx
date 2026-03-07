@@ -19,6 +19,7 @@ import {
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import HowItWorksModal from '../../components/HowItWorksModal';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { partnerService } from '../../services/PartnerService';
@@ -56,11 +57,13 @@ export default function ExperienceDetailsScreen() {
   // Early return if data is invalid
   if (!experience?.id) {
     return (
+      <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -134,6 +137,7 @@ export default function ExperienceDetailsScreen() {
   };
 
   return (
+    <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
@@ -193,6 +197,7 @@ export default function ExperienceDetailsScreen() {
         />
       </LinearGradient>
     </MainScreen>
+    </ErrorBoundary>
   );
 }
 

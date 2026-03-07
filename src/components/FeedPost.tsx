@@ -23,6 +23,8 @@ import { commentService } from '../services/CommentService';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from '../services/AnalyticsService';
+import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
 
 interface FeedPostProps {
@@ -53,6 +55,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
     // Animate highlight effect
     useEffect(() => {
+        const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+
         if (isHighlighted) {
             // Fade in with easing
             Animated.timing(highlightAnim, {
@@ -62,7 +66,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 easing: (t) => t * t, // Ease in
             }).start(() => {
                 // Wait 3 seconds, then fade out
-                setTimeout(() => {
+                timeoutRef.current = setTimeout(() => {
                     Animated.timing(highlightAnim, {
                         toValue: 0,
                         duration: 800,
@@ -74,6 +78,10 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         } else {
             highlightAnim.setValue(0);
         }
+
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
     }, [isHighlighted]);
 
     const loadUserReaction = async () => {
@@ -96,8 +104,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         try {
             const loadedComments = await commentService.getComments(post.id, 3);
             setComments(loadedComments);
-            const allComments = await commentService.getComments(post.id);
-            setCommentCount(allComments.length);
         } catch (error) {
             logger.error('Error loading comments:', error);
             await logErrorToFirestore(error, {
@@ -109,8 +115,11 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
     };
 
-    const handleCommentsChange = async () => {
+    const handleCommentsChange = async (newCount?: number) => {
         await loadComments();
+        if (newCount !== undefined) {
+            setCommentCount(newCount);
+        }
     };
 
     const handleReact = async (type: ReactionType) => {
@@ -136,11 +145,13 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
 
         try {
+            analyticsService.trackEvent('feed_reaction', 'social', { postId: post.id, reactionType: type }, 'FeedPost');
             await reactionService.addReaction(
                 post.id,
                 state.user.id,
                 state.user.displayName || state.user.profile?.name || 'User',
-                type
+                type,
+                state.user.profile?.profileImageUrl
             );
         } catch (error) {
             logger.error('Error reacting:', error);
@@ -173,7 +184,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     };
 
     // get third word from goal description
-    const getActivityType = (text) => {
+    const getActivityType = (text: string) => {
         if (!text) return '';
         const words = text.trim().split(/\s+/);
         return words[2] || words[words.length - 1]; // fallback if fewer than 3 words
@@ -569,21 +580,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             )}
         </Animated.View>
     );
-};
-
-const getTimeAgo = (date: Date): string => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString();
 };
 
 const styles = StyleSheet.create({

@@ -26,8 +26,8 @@ import ImageViewer from '../../components/ImageViewer';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
-import { ValentineExperienceDetailsModal } from './components/GoalCardModals';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Journey'>;
 
@@ -416,7 +416,6 @@ const JourneyScreen = () => {
   const [activeTab, setActiveTab] = useState<TabKey>(TAB_SESSIONS);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [showExpDetailsModal, setShowExpDetailsModal] = useState(false);
   const [motivations, setMotivations] = useState<Motivation[]>([]);
 
   // Completed goal state
@@ -963,33 +962,24 @@ const JourneyScreen = () => {
 
             {/* Experience image + details */}
             {currentGoal.pledgedExperience?.coverImageUrl && (
-              <View style={styles.imageOverlayContainer}>
-                <Image
-                  source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                  style={[styles.experienceCover, { height: 180 }]}
-                />
-                <TouchableOpacity
-                  style={styles.viewDetailsButtonOverlay}
-                  activeOpacity={0.9}
-                  onPress={() => setShowExpDetailsModal(true)}
-                >
-                  <Text style={styles.viewDetailsTextOverlay}>View Details</Text>
-                </TouchableOpacity>
-              </View>
+              <Image
+                source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                style={[styles.experienceCover, { height: 180 }]}
+              />
             )}
 
             <View style={cStyles.experienceBody}>
               <Text style={cStyles.experienceName}>
                 {currentGoal.pledgedExperience?.title || experience?.title || 'Experience'}
               </Text>
-              {(currentGoal.pledgedExperience?.price ?? experience?.price) > 0 && (
-                <Text style={cStyles.experiencePrice}>€{currentGoal.pledgedExperience?.price || experience?.price}</Text>
-              )}
-            </View>
+              {(currentGoal.pledgedExperience?.subtitle || experience?.subtitle) ? (
+                <Text style={cStyles.experienceSubtitle}>{currentGoal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
+              ) : null}
 
-            {/* State: Gift bought → show coupon/partner contact */}
-            {hasGift && (
-              <View style={cStyles.redemptionArea}>
+              {/* Coupon & partner contact */}
+              {hasGift && (
+              <>
+                <View style={cStyles.rewardDivider} />
                 {/* Coupon */}
                 {couponCode ? (
                   <View style={cStyles.couponCard}>
@@ -1067,8 +1057,9 @@ const JourneyScreen = () => {
                     </View>
                   </View>
                 )}
-              </View>
-            )}
+              </>
+              )}
+            </View>
 
             {/* State: Buy CTA (within 2-week window) */}
             {showBuyCTA && (
@@ -1129,6 +1120,7 @@ const JourneyScreen = () => {
 
   // ─── Main render ──────────────────────────────────────────────────────────
   return (
+    <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
       <SharedHeader title="Journey" showBack />
@@ -1207,23 +1199,14 @@ const JourneyScreen = () => {
                   /* Open gift — show actual experience details */
                   <>
                     {currentGoal.pledgedExperience.coverImageUrl ? (
-                      <View style={styles.imageOverlayContainer}>
-                        <Image
-                          source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                          style={[styles.experienceCover, { height: 180 }]}
-                        />
-                        <TouchableOpacity
-                          style={styles.viewDetailsButtonOverlay}
-                          activeOpacity={0.9}
-                          onPress={() => setShowExpDetailsModal(true)}
-                        >
-                          <Text style={styles.viewDetailsTextOverlay}>View Details</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <Image
+                        source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                        style={[styles.experienceCover, { height: 180 }]}
+                      />
                     ) : null}
                     <View style={styles.experienceInfo}>
                       <View style={styles.experienceHeader}>
-                        <Text style={styles.experienceLabel}>Your Reward</Text>
+                        <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? 'Your Reward' : 'Your Dream Reward'}</Text>
                         {currentGoal.pledgedExperience.price > 0 && (
                           <Text style={styles.experiencePrice}>
                             ${currentGoal.pledgedExperience.price}
@@ -1298,17 +1281,6 @@ const JourneyScreen = () => {
         />
       )}
 
-      {currentGoal.pledgedExperience && (
-        <ValentineExperienceDetailsModal
-          visible={showExpDetailsModal}
-          onClose={() => setShowExpDetailsModal(false)}
-          experience={{
-            ...currentGoal.pledgedExperience,
-            id: currentGoal.pledgedExperience.experienceId,
-          } as any}
-        />
-      )}
-
       {/* Booking Calendar (for completed goals) */}
       <BookingCalendar
         visible={showCalendar}
@@ -1318,6 +1290,7 @@ const JourneyScreen = () => {
         minimumDate={new Date()}
       />
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 
@@ -1388,35 +1361,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 16,
   },
-  imageOverlayContainer: {
-    position: 'relative',
-    width: '100%',
-  },
   experienceCover: {
     width: '100%',
     height: 140,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     backgroundColor: '#f3f4f6',
-  },
-  viewDetailsButtonOverlay: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  viewDetailsTextOverlay: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1f2937',
   },
   experienceInfo: {
     backgroundColor: '#fff',
@@ -1610,6 +1560,16 @@ const cStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: Colors.primary,
+  },
+  experienceSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  rewardDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 14,
   },
   redemptionArea: {
     marginTop: 12,

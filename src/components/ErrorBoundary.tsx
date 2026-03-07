@@ -2,6 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { db } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
 
 interface Props {
@@ -38,6 +39,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
         // Also log to console for development
         console.error('🔴 ErrorBoundary caught:', error.message, errorInfo);
+
+        // Track in analytics
+        analyticsService.trackEvent('error_boundary_triggered', 'error', {
+            screenName: this.props.screenName,
+            errorMessage: error.message,
+        });
 
         // Try Firestore first
         try {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { SkeletonBox } from '../components/SkeletonLoader';
 import Colors from '../config/colors';
 import {
     View,
@@ -13,7 +14,6 @@ import {
     Alert,
     Image,
     Animated,
-    ActivityIndicator,
     Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -32,7 +32,6 @@ import { commonStyles } from '../styles/commonStyles';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import { ValentineExperienceDetailsModal } from './recipient/components/GoalCardModals';
 
 const { width } = Dimensions.get('window');
 const TOTAL_STEPS = 5;
@@ -170,8 +169,6 @@ export default function ChallengeSetupScreen() {
     const [showConfirm, setShowConfirm] = useState(false);
     const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false, buyNow: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
-    const [showExpDetailsModal, setShowExpDetailsModal] = useState(false);
-    const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
 
     // Animations
     const slideAnim = useModalAnimation(showConfirm);
@@ -740,19 +737,6 @@ export default function ChallengeSetupScreen() {
                 {isSelected && (
                     <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
                 )}
-                {isSelected && (
-                    <TouchableOpacity
-                        style={styles.viewDetailsBtn}
-                        onPress={(e) => {
-                            e.stopPropagation();
-                            setDetailExperience(exp);
-                            setShowExpDetailsModal(true);
-                        }}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.viewDetailsBtnText}>View Details</Text>
-                    </TouchableOpacity>
-                )}
             </TouchableOpacity>
         );
     };
@@ -814,7 +798,11 @@ export default function ChallengeSetupScreen() {
                 </View>
 
                 {loadingExperiences ? (
-                    <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
+                    <View style={{ marginVertical: 20, gap: 12 }}>
+                        <SkeletonBox width="100%" height={60} borderRadius={12} />
+                        <SkeletonBox width="100%" height={60} borderRadius={12} />
+                        <SkeletonBox width="100%" height={60} borderRadius={12} />
+                    </View>
                 ) : (
                     <View style={styles.stackedCategories}>
                         {visibleCategories.map((cat) => {
@@ -1128,11 +1116,9 @@ export default function ChallengeSetupScreen() {
                                         activeOpacity={0.8}
                                         disabled={isSubmitting}
                                     >
-                                        {isSubmitting ? (
-                                            <ActivityIndicator color="#fff" size="small" />
-                                        ) : (
-                                            <Text style={styles.confirmText}>{buyNow ? 'Buy & Create' : "Let's Go!"}</Text>
-                                        )}
+                                        <Text style={styles.confirmText}>
+                                            {isSubmitting ? 'Creating...' : buyNow ? 'Buy & Create' : "Let's Go!"}
+                                        </Text>
                                     </TouchableOpacity>
                                 </Animated.View>
                             </View>
@@ -1140,14 +1126,8 @@ export default function ChallengeSetupScreen() {
                     </Animated.View>
                 </TouchableOpacity>
             </Modal>
-
-            {/* Experience Details Popup */}
-            <ValentineExperienceDetailsModal
-                visible={showExpDetailsModal}
-                onClose={() => setShowExpDetailsModal(false)}
-                experience={detailExperience}
-            />
         </View>
+        </ErrorBoundary>
     );
 }
 

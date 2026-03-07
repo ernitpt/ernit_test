@@ -431,7 +431,7 @@ export const aiGenerateHint = onCall(
 
     // `requestData.data` for Firebase SDK clients
     const data = (requestData?.data || requestData) as any;
-    const {
+    let {
       experienceType,
       experienceDescription,
       experienceCategory,
@@ -442,7 +442,43 @@ export const aiGenerateHint = onCall(
       style,
       previousHints = [],
       previousCategories = [], // NEW: Extract previous categories
+      goalId, // For mystery gifts: look up experience details server-side
     } = data;
+
+    // ✅ Mystery gift mode: look up experience from goal → gift → experience server-side
+    if (goalId && !experienceType) {
+      console.log(`🔍 Mystery hint: looking up experience for goalId=${goalId}`);
+      const goalDoc = await db.collection('goals').doc(goalId).get();
+      if (!goalDoc.exists) throw new Error("Goal not found");
+
+      const goalData = goalDoc.data();
+      if (!goalData?.experienceGiftId) throw new Error("No gift attached to goal");
+
+      // Verify the requesting user owns this goal
+      if (goalData.userId !== userId) {
+        throw new Error("Unauthorized: you do not own this goal");
+      }
+
+      const giftDoc = await db.collection('experienceGifts').doc(goalData.experienceGiftId).get();
+      if (!giftDoc.exists) throw new Error("Gift not found");
+
+      const giftData = giftDoc.data();
+      const expDoc = await db.collection('experiences').doc(giftData?.experienceId).get();
+      if (!expDoc.exists) throw new Error("Experience not found");
+
+      const expData = expDoc.data();
+      experienceType = expData?.title || 'experience';
+      experienceDescription = expData?.description;
+      experienceCategory = expData?.category;
+      experienceSubtitle = expData?.subtitle;
+
+      // Also pull session info from goal if not provided
+      if (!totalSessions && goalData.targetCount && goalData.sessionsPerWeek) {
+        totalSessions = goalData.targetCount * goalData.sessionsPerWeek;
+      }
+
+      console.log(`✅ Mystery experience resolved: "${experienceType}"`);
+    }
 
     if (!experienceType || !sessionNumber || !totalSessions || !style) {
       console.error("❌ Missing required fields", data);

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- updated analytics tracking tables in data-gathering skill and analytics knowledge
+
 ### Changed
 - migrate all colors to centralized Colors config - fix string literals, update SVG icon gradients to emerald/teal palette
 - install react-native-worklets (reanimated v4 peer dep)
@@ -17,12 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - removed snap-a-photo button from timer, made PledgedExperiencePreview a compact inline strip
 - redesigned FAB menu in GoalsScreen, used Ernit logo for redeem option
 - improved Antigravity agent skills — firebase network/retry patterns, Ernit verification commands, React/Firebase debugging, cross-platform path fix, moti StyleSheet rewrite, ui-design-system loading/accessibility
+- add ErrorBoundary to ConfirmationScreen and JourneyScreen, replace ActivityIndicator with SkeletonBox in UserProfileScreen and ChallengeSetupScreen
+- fixed N+1 query in FriendService.searchUsers() with batch fetch
+- remove Valentine-specific Cloud Functions code
+- surgically remove all Valentine-specific code from GoalService
+- remove Valentine flow (keep type fields for backward compat)
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
 - navigation reset using correct CategorySelection route name instead of non-existent Main
 - error guard on free goal creation, stale prefill date recovery, removed dead code (PledgeGoalSetting, OnboardingScreen, advanceBothPartners, onboardingStatus)
 - CTA buy buttons now go directly to checkout for current goal instead of creating new goal
+- notification system bugs - memory leak, type safety, clearable bypass, double-attach guard, push routing, query performance
+- comprehensive FeedPost system fixes — security rules, transaction-based reactions, memory leak cleanup, performance optimizations, haptic feedback, error alerts
+- critical security audit fixes - server-side price validation, mystery gift protection, user search Cloud Function, payment ownership checks, Firestore rules hardening, transaction-safe session logging, logout state clearing
+- atomic comment add/delete with count updates using writeBatch
+- make reaction creation fully transactional with deterministic doc IDs
+- atomic gift claiming with transaction to prevent race condition (T1-4)
+- 12 logic bug fixes from system audit (goal sweep completion, webhook error handling, atomic transactions, price rounding, double-tap prevention, friend ops atomicity, count desync, gift claiming race, week boundary, reverse friend requests, orphaned notifications, listener memory leak)
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -46,3 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - improved goal_completed feed posts - contextual text for goals with/without rewards, achievement card with trophy for no-reward goals, Gift an Experience button for friends to congratulate
 - empower flow - friends can gift experiences to goal owners with auto-attach via notification, choice modal for pledged vs browse, empowerContext threading through checkout
 - Phase 2 Empower & Motivate ecosystem — mystery experience flow, notification rework with Empower+Motivate buttons, inline journey motivations, already-empowered indicator
+- add ErrorBoundary to 12 critical screens, create AnalyticsService with buffered Firestore writes, add screen view tracking, high-value event tracking, data-gathering skill, and Firestore rules for events/errors collections
+- added 7 missing analytics tracking calls (friend_request_sent, feed_reaction, feed_comment, cta_shown, cta_dismissed, mystery_choice_selected, coupon_redeemed)
+- added ErrorBoundary to CouponEntryScreen and FreeGoalCompletionScreen
+- added AppState flush listener to AnalyticsService for background event persistence
+- added ErrorBoundary to 5 remaining screens and analytics tracking to GoalService, SessionService, FriendService, ExperienceGiftService
+- ErrorBoundary now fires error_boundary_triggered analytics event on crash
+- added server-side searchUsers Cloud Function with rate limiting and safe data filtering

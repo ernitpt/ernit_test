@@ -1,4 +1,4 @@
-﻿import {
+import {
     collection,
     addDoc,
     query,
@@ -10,96 +10,107 @@
     Timestamp,
     orderBy,
     limit as firestoreLimit,
+    runTransaction,
+    increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Reaction, ReactionType } from '../types';
-import { feedService } from './FeedService';
 import { notificationService } from './NotificationService';
 
 import { logger } from '../utils/logger';
 class ReactionService {
     /**
-     * Add or update a reaction to a post
+     * Add or toggle a reaction on a post (atomic via transaction)
+     * Accepts userProfileImageUrl to avoid extra Firestore read
      */
     async addReaction(
         postId: string,
         userId: string,
         userName: string,
-        type: ReactionType
+        type: ReactionType,
+        userProfileImageUrl?: string
     ): Promise<void> {
         try {
-            // First, check if user already has a reaction on this post
-            const existingReaction = await this.getUserReaction(postId, userId);
-
-            if (existingReaction) {
-                // If same type, remove it (toggle off)
-                if (existingReaction.type === type) {
-                    await this.removeReaction(postId, userId);
-                    return;
-                }
-
-                // If different type, remove old and add new
-                await this.removeReaction(postId, userId);
-            }
-
-            // Fetch user profile image
-            let userProfileImageUrl: string | undefined;
-            try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    userProfileImageUrl = userData?.profile?.profileImageUrl;
-                }
-            } catch (error) {
-                logger.warn('Could not fetch user profile image:', error);
-            }
-
-            // Add new reaction
+            const postRef = doc(db, 'feedPosts', postId);
             const reactionsCollection = collection(db, 'feedPosts', postId, 'reactions');
-            const reactionData: any = {
-                postId,
-                userId,
-                userName,
-                type,
-                createdAt: Timestamp.now(),
-            };
 
-            // Only add userProfileImageUrl if it exists
-            if (userProfileImageUrl) {
-                reactionData.userProfileImageUrl = userProfileImageUrl;
-            }
+            // Track what happened for notification logic (outside transaction)
+            let reactionAdded = false;
+            let postOwnerId: string | null = null;
 
-            await addDoc(reactionsCollection, reactionData);
-
-            // Update reaction count
-            await feedService.updateReactionCount(postId, type, 1);
-
-            // Create notification for post owner (exclude self-reactions)
-            try {
-                const postDoc = await getDoc(doc(db, 'feedPosts', postId));
-                if (postDoc.exists()) {
-                    const postData = postDoc.data();
-                    const postOwnerId = postData.userId;
-
-                    // Don't notify if user is reacting to their own post
-                    if (postOwnerId !== userId) {
-                        await notificationService.createOrUpdatePostReactionNotification(
-                            postOwnerId,
-                            postId,
-                            userId,
-                            userName,
-                            userProfileImageUrl,
-                            type
-                        );
-                    }
+            await runTransaction(db, async (transaction) => {
+                // 1. Read the post doc (for owner ID and count updates)
+                const postDoc = await transaction.get(postRef);
+                if (!postDoc.exists()) {
+                    throw new Error('Post not found');
                 }
-            } catch (error) {
-                logger.warn('Could not create reaction notification:', error);
+                postOwnerId = postDoc.data().userId;
+
+                // 2. T2-2: Use deterministic doc ID for transactional read
+                const reactionDocId = `${postId}_${userId}`;
+                const reactionRef = doc(db, 'feedPosts', postId, 'reactions', reactionDocId);
+                const existingDoc = await transaction.get(reactionRef);
+
+                if (existingDoc.exists()) {
+                    const existingType = existingDoc.data().type as ReactionType;
+
+                    if (existingType === type) {
+                        // Same type → toggle off (remove)
+                        transaction.delete(reactionRef);
+                        transaction.update(postRef, {
+                            [`reactionCounts.${type}`]: increment(-1),
+                        });
+                        reactionAdded = false;
+                        return;
+                    }
+
+                    // Different type → remove old, add new
+                    transaction.delete(reactionRef);
+                    transaction.update(postRef, {
+                        [`reactionCounts.${existingType}`]: increment(-1),
+                    });
+                }
+
+                // 3. Add new reaction with deterministic ID
+                const newReactionRef = reactionRef;
+                const reactionData: Record<string, unknown> = {
+                    postId,
+                    userId,
+                    userName,
+                    type,
+                    createdAt: Timestamp.now(),
+                };
+
+                if (userProfileImageUrl) {
+                    reactionData.userProfileImageUrl = userProfileImageUrl;
+                }
+
+                transaction.set(newReactionRef, reactionData);
+                transaction.update(postRef, {
+                    [`reactionCounts.${type}`]: increment(1),
+                });
+                reactionAdded = true;
+            });
+
+            // Create notification outside transaction (fire-and-forget, non-critical)
+            if (reactionAdded && postOwnerId && postOwnerId !== userId) {
+                try {
+                    await notificationService.createOrUpdatePostReactionNotification(
+                        postOwnerId,
+                        postId,
+                        userId,
+                        userName,
+                        userProfileImageUrl,
+                        type
+                    );
+                } catch (error) {
+                    logger.warn('Could not create reaction notification:', error);
+                }
             }
 
-            logger.log('✅ Reaction added');
+            logger.log('✅ Reaction toggled');
         } catch (error) {
-            logger.error('❌ Error adding reaction:', error);
+            logger.error('❌ Error toggling reaction:', error);
             throw error;
         }
     }
@@ -112,11 +123,15 @@ class ReactionService {
             const reaction = await this.getUserReaction(postId, userId);
             if (!reaction) return;
 
-            const reactionDoc = doc(db, 'feedPosts', postId, 'reactions', reaction.id);
-            await deleteDoc(reactionDoc);
+            const postRef = doc(db, 'feedPosts', postId);
+            const reactionRef = doc(db, 'feedPosts', postId, 'reactions', reaction.id);
 
-            // Decrement reaction count
-            await feedService.updateReactionCount(postId, reaction.type, -1);
+            await runTransaction(db, async (transaction) => {
+                transaction.delete(reactionRef);
+                transaction.update(postRef, {
+                    [`reactionCounts.${reaction.type}`]: increment(-1),
+                });
+            });
 
             logger.log('✅ Reaction removed');
         } catch (error) {
@@ -159,10 +174,10 @@ class ReactionService {
 
             if (snapshot.empty) return null;
 
-            const doc = snapshot.docs[0];
-            const data = doc.data();
+            const reactionDoc = snapshot.docs[0];
+            const data = reactionDoc.data();
             return {
-                id: doc.id,
+                id: reactionDoc.id,
                 ...data,
                 createdAt: data.createdAt?.toDate() || new Date(),
             } as Reaction;

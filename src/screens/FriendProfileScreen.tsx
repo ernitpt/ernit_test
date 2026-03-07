@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -518,16 +519,19 @@ const FriendProfileScreen: React.FC = () => {
 
   if (isLoading && !userProfile) {
     return (
+      <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Profile">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.secondary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -718,6 +722,7 @@ const FriendProfileScreen: React.FC = () => {
         </Animated.View>
       )}
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

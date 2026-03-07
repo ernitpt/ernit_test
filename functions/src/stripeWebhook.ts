@@ -4,7 +4,6 @@ import Stripe from "stripe";
 import * as admin from "firebase-admin";
 import { getFirestore, Transaction } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
-import { generateValentineEmail } from "./templates/valentineEmail";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -64,8 +63,8 @@ export const stripeWebhook = onRequest(
                 res.status(200).json({ received: true });
             } catch (err: any) {
                 console.error("❌ Error handling payment:", err);
-                // Still return 200 to acknowledge receipt, but log error
-                res.status(200).json({ received: true, error: err.message });
+                // T1-2: Return 500 so Stripe retries — gifts must be created
+                res.status(500).json({ error: "Payment processing failed" });
             }
             return;
         }
@@ -87,12 +86,6 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const paymentIntentId = paymentIntent.id;
 
     console.log("📦 [PROD] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
-
-    // ✅ ROUTE TO VALENTINE HANDLER
-    if (metadata.type === 'valentine_challenge') {
-        console.log("💘 Detected Valentine's challenge payment");
-        return await handleValentinePayment(paymentIntent);
-    }
 
     // ✅ STANDARD GIFT PURCHASE FLOW
     if (!metadata.giverId || !metadata.cart) {
@@ -135,9 +128,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
             return existingGifts.filter(Boolean);
         }
 
-        // --- Create multiple experience gifts ---
+        // --- Create multiple experience gifts using transaction ---
         const createdGifts: any[] = [];
-        const batch = db.batch();
 
         for (const item of cart) {
             const { experienceId, quantity } = item;
@@ -168,7 +160,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
                     updatedAt: admin.firestore.Timestamp.now(),
                 };
 
-                batch.set(db.collection("experienceGifts").doc(id), newGift);
+                transaction.set(db.doc(`experienceGifts/${id}`), newGift);
                 createdGifts.push(newGift);
             }
         }
@@ -180,7 +172,6 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
             gifts: createdGifts.map(g => g.id),
         });
 
-        await batch.commit();
         console.log(`✅ [PROD] Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
 
         return createdGifts;
@@ -232,162 +223,4 @@ async function generateUniqueClaimCode(): Promise<string> {
     }
 
     throw new Error('Failed to generate unique claim code after 10 attempts');
-}
-
-// ========== VALENTINE CHALLENGE HANDLER ==========
-async function handleValentinePayment(paymentIntent: Stripe.PaymentIntent) {
-    const metadata = paymentIntent.metadata;
-    const paymentIntentId = paymentIntent.id;
-    const db = getDbProd();
-
-    // Validate Valentine metadata
-    if (!metadata.purchaserEmail || !metadata.experienceId) {
-        throw new Error("Missing required Valentine metadata");
-    }
-
-    // Check idempotency
-    const processedRef = db.collection("processedPayments").doc(paymentIntentId);
-    const processedDoc = await processedRef.get();
-
-    if (processedDoc.exists) {
-        console.log("⚠️ Valentine payment already processed");
-        return;
-    }
-
-    // Generate unique codes for both partners
-    // CRITICAL: Generate sequentially to avoid race condition where both get same code
-    const purchaserCode = await generateUniqueValentineCode();
-    console.log(`✅ Generated purchaser code: ${purchaserCode}`);
-
-    let partnerCode = await generateUniqueValentineCode();
-    console.log(`✅ Generated partner code (initial): ${partnerCode}`);
-
-    // Ensure partner code is different from purchaser code
-    let attempts = 0;
-    while (partnerCode === purchaserCode && attempts < 10) {
-        console.warn(`⚠️ Partner code matched purchaser code, regenerating (attempt ${attempts + 1}/10)...`);
-        partnerCode = await generateUniqueValentineCode();
-        console.log(`✅ Generated partner code (attempt ${attempts + 1}): ${partnerCode}`);
-        attempts++;
-    }
-
-    // CRITICAL: Validate codes are different BEFORE saving to Firestore
-    if (partnerCode === purchaserCode) {
-        console.error(`❌ CRITICAL: Failed to generate distinct codes after 10 attempts!`);
-        console.error(`   Purchaser code: ${purchaserCode}`);
-        console.error(`   Partner code: ${partnerCode}`);
-        throw new Error('Failed to generate distinct codes for partners after 10 attempts');
-    }
-
-    console.log(`✅ Final codes - Purchaser: ${purchaserCode}, Partner: ${partnerCode}`);
-    console.log(`✅ Codes are distinct: ${purchaserCode !== partnerCode}`);
-
-
-    // Create Valentine challenge document
-    const challengeId = db.collection("valentineChallenges").doc().id;
-    const challengeData = {
-        id: challengeId,
-        purchaserEmail: metadata.purchaserEmail,
-        partnerEmail: metadata.partnerEmail,
-        experienceId: metadata.experienceId,
-        experiencePrice: parseFloat(metadata.experiencePrice || "0"),
-        mode: metadata.mode as 'revealed' | 'secret',
-        goalType: metadata.goalType,
-        weeks: parseInt(metadata.weeks),
-        sessionsPerWeek: parseInt(metadata.sessionsPerWeek),
-        paymentIntentId,
-        purchaseDate: admin.firestore.Timestamp.now(),
-        totalAmount: paymentIntent.amount / 100, // Convert from cents
-        purchaserCode,
-        partnerCode,
-        purchaserCodeRedeemed: false,
-        partnerCodeRedeemed: false,
-        status: 'pending_redemption',
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
-    };
-
-    // Save to Firestore
-    await db.collection("valentineChallenges").doc(challengeId).set(challengeData);
-
-    // Mark as processed
-    await processedRef.set({
-        processed: true,
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        type: 'valentine_challenge',
-        challengeId,
-    });
-
-    // Update lead to mark payment as completed
-    try {
-        const leadRef = db.collection("valentineLeads").doc(paymentIntentId);
-        const leadDoc = await leadRef.get();
-
-        if (leadDoc.exists) {
-            await leadRef.update({
-                paymentCompleted: true,
-                completedAt: admin.firestore.FieldValue.serverTimestamp(),
-                challengeId, // Link to the challenge document
-            });
-            console.log("✅ Valentine lead marked as completed");
-        } else {
-            console.warn("⚠️ No lead found for paymentIntentId:", paymentIntentId);
-        }
-    } catch (leadError) {
-        console.error("❌ Failed to update lead:", leadError);
-        // Don't throw - payment succeeded, this is just analytics
-    }
-
-    // Send single email to purchaser with both codes
-    try {
-        const emailHtml = generateValentineEmail(
-            metadata.purchaserEmail,
-            purchaserCode,
-            partnerCode
-        );
-        await sendEmail(
-            metadata.purchaserEmail,
-            "💕 Your Valentine's Challenge Codes",
-            emailHtml
-        );
-        console.log("📧 Email sent to purchaser:", metadata.purchaserEmail);
-    } catch (emailError) {
-        // Log but don't fail the payment flow if email fails
-        console.error("❌ Failed to send valentine email:", emailError);
-    }
-
-    console.log("✅ Valentine challenge created:", challengeId);
-
-    return { challengeId, purchaserCode, partnerCode };
-}
-
-// ========== GENERATE UNIQUE VALENTINE CODE ==========
-async function generateUniqueValentineCode(): Promise<string> {
-    const maxAttempts = 10;
-    const db = getDbProd();
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const code = generateClaimCode(); // Reuse existing 12-char generator
-
-        // Check for collisions in valentine challenges
-        const existing = await db
-            .collection('valentineChallenges')
-            .where('purchaserCode', '==', code)
-            .limit(1)
-            .get();
-
-        const existing2 = await db
-            .collection('valentineChallenges')
-            .where('partnerCode', '==', code)
-            .limit(1)
-            .get();
-
-        if (existing.empty && existing2.empty) {
-            return code;
-        }
-
-        console.warn(`⚠️ Valentine code collision (attempt ${attempt + 1})`);
-    }
-
-    throw new Error('Failed to generate unique Valentine code');
 }

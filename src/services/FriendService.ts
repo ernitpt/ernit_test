@@ -9,12 +9,15 @@
   query,
   where,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from './firebase';
 import { FriendRequest, Friend, UserSearchResult } from '../types';
 import { notificationService } from './NotificationService';
 import { logger } from '../utils/logger';
+import { analyticsService } from './AnalyticsService';
 
 export class FriendService {
   private static instance: FriendService;
@@ -27,48 +30,25 @@ export class FriendService {
   }
 
   /**
-   * 🔍 Search users by displayName, profile.name, email, or country (case-insensitive)
+   * 🔍 Search users via Cloud Function (server-side, no email exposure)
    */
-  async searchUsers(searchTerm: string, currentUserId: string): Promise<UserSearchResult[]> {
+  async searchUsers(searchTerm: string, _currentUserId: string): Promise<UserSearchResult[]> {
     try {
-      const usersRef = collection(db, 'users');
-      const snapshot = await getDocs(usersRef);
-      const lowerSearch = searchTerm.toLowerCase();
+      const callable = httpsCallable(functions, 'searchUsers');
+      const result: any = await callable({ searchTerm });
+      const users = result?.data?.users || [];
 
-      const users: UserSearchResult[] = [];
-
-      for (const userDoc of snapshot.docs) {
-        const userData = userDoc.data();
-        if (userDoc.id === currentUserId) continue;
-
-        const profile = userData.profile || {};
-        const displayName = (userData.displayName || '').toLowerCase();
-        const name = (profile.name || '').toLowerCase();
-        const country = (profile.country || '').toLowerCase();
-
-        const matches =
-          displayName.includes(lowerSearch) ||
-          name.includes(lowerSearch) ||
-          country.includes(lowerSearch);
-
-        if (matches) {
-          const isFriend = await this.areFriends(currentUserId, userDoc.id);
-          const hasPendingRequest = await this.hasPendingRequest(currentUserId, userDoc.id);
-
-          users.push({
-            id: userDoc.id,
-            name: userData.displayName || profile.name || 'Unknown User',
-            email: userData.email || '',
-            profileImageUrl: profile.profileImageUrl || null,
-            country: profile.country || '',
-            description: profile.description || '',
-            isFriend,
-            hasPendingRequest,
-          });
-        }
-      }
-
-      return users;
+      // Map server response to UserSearchResult (email intentionally omitted for privacy)
+      return users.map((u: any) => ({
+        id: u.id,
+        name: u.name || 'Unknown User',
+        email: '', // Not returned from server for privacy
+        profileImageUrl: u.profileImageUrl || null,
+        country: u.country || '',
+        description: u.description || '',
+        isFriend: u.isFriend || false,
+        hasPendingRequest: u.hasPendingRequest || false,
+      }));
     } catch (error) {
       logger.error('❌ Error searching users:', error);
       return [];
@@ -123,6 +103,10 @@ export class FriendService {
 
       const existingRequest = await this.getFriendRequest(senderId, recipientId);
       if (existingRequest) throw new Error('Friend request already exists');
+
+      // T3-2: Check reverse direction — prevent simultaneous cross-requests
+      const reverseRequest = await this.getFriendRequest(recipientId, senderId);
+      if (reverseRequest) throw new Error('This person has already sent you a friend request');
 
       const alreadyFriends = await this.areFriends(senderId, recipientId);
       if (alreadyFriends) throw new Error('Users are already friends');
@@ -196,17 +180,49 @@ export class FriendService {
         logger.warn('Could not fetch recipient profile image:', error);
       }
 
-      // Create bidirectional friendship with correct profile images
-      await Promise.all([
-        // Sender sees recipient's profile image
-        this.addFriend(senderId, recipientId, recipientName, recipientProfileImageUrl),
-        // Recipient sees sender's profile image  
-        this.addFriend(recipientId, senderId, senderName, senderProfileImageUrl),
-      ]);
+      // T2-1: Atomic batch — create both friend docs + delete request
+      const batch = writeBatch(db);
+
+      // Sender sees recipient's profile image
+      const friendDoc1Ref = doc(collection(db, 'friends'));
+      batch.set(friendDoc1Ref, {
+        userId: senderId,
+        friendId: recipientId,
+        friendName: recipientName,
+        friendProfileImageUrl: recipientProfileImageUrl ?? null,
+        createdAt: serverTimestamp(),
+      });
+
+      // Recipient sees sender's profile image
+      const friendDoc2Ref = doc(collection(db, 'friends'));
+      batch.set(friendDoc2Ref, {
+        userId: recipientId,
+        friendId: senderId,
+        friendName: senderName,
+        friendProfileImageUrl: senderProfileImageUrl ?? null,
+        createdAt: serverTimestamp(),
+      });
 
       // Delete the friend request
-      await deleteDoc(requestRef);
+      batch.delete(requestRef);
+      await batch.commit();
 
+      // T3-3: Clean up friend request notifications
+      try {
+        const notifsRef = collection(db, 'notifications');
+        const notifQuery = query(notifsRef,
+          where('userId', '==', recipientId),
+          where('type', '==', 'friend_request'),
+          where('data.senderId', '==', senderId)
+        );
+        const notifSnap = await getDocs(notifQuery);
+        const deletePromises = notifSnap.docs.map(d => deleteDoc(d.ref));
+        if (deletePromises.length > 0) await Promise.all(deletePromises);
+      } catch (err) {
+        logger.warn('Could not clean up friend request notifications:', err);
+      }
+
+      analyticsService.trackEvent('friend_request_accepted', 'social', { requestId, senderId, recipientId });
       logger.log(`✅ Friend request accepted and removed: ${senderName} ↔ ${recipientName}`);
     } catch (error) {
       logger.error('❌ Error accepting friend request:', error);
@@ -222,8 +238,31 @@ export class FriendService {
       if (!requestId) return;
 
       const requestRef = doc(db, 'friendRequests', requestId);
+
+      // T3-3: Read request data before deleting to clean up notifications
+      const requestDoc = await getDoc(requestRef);
+      const requestData = requestDoc.exists() ? requestDoc.data() : null;
+
       await deleteDoc(requestRef);
 
+      // T3-3: Clean up friend request notifications
+      if (requestData?.senderId && requestData?.recipientId) {
+        try {
+          const notifsRef = collection(db, 'notifications');
+          const notifQuery = query(notifsRef,
+            where('userId', '==', requestData.recipientId),
+            where('type', '==', 'friend_request'),
+            where('data.senderId', '==', requestData.senderId)
+          );
+          const notifSnap = await getDocs(notifQuery);
+          const deletePromises = notifSnap.docs.map(d => deleteDoc(d.ref));
+          if (deletePromises.length > 0) await Promise.all(deletePromises);
+        } catch (err) {
+          logger.warn('Could not clean up friend request notifications:', err);
+        }
+      }
+
+      analyticsService.trackEvent('friend_request_declined', 'social', { requestId });
       logger.log(`❌ Friend request declined and removed: ${requestId}`);
     } catch (error) {
       logger.error('❌ Error declining friend request:', error);
@@ -308,12 +347,14 @@ export class FriendService {
         getDocs(query(friendsRef, where('userId', '==', friendId), where('friendId', '==', userId))),
       ]);
 
-      const deletions = [
-        ...userToFriend.docs.map(doc => deleteDoc(doc.ref)),
-        ...friendToUser.docs.map(doc => deleteDoc(doc.ref)),
-      ];
-
-      if (deletions.length > 0) await Promise.all(deletions);
+      // T2-1: Atomic batch for bidirectional friend deletion
+      const allDocs = [...userToFriend.docs, ...friendToUser.docs];
+      if (allDocs.length > 0) {
+        const batch = writeBatch(db);
+        allDocs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+      analyticsService.trackEvent('friend_removed', 'social', { userId, friendId });
     } catch (error) {
       logger.error('❌ Error removing friend:', error);
       throw error;

@@ -26,6 +26,7 @@ import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
 
 type ConfirmationNavigationProp = NativeStackNavigationProp<
@@ -269,6 +270,7 @@ Earn it. Unlock it. Enjoy it ??
     : experience.imageUrl;
 
   return (
+    <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="dark" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -475,6 +477,7 @@ Earn it. Unlock it. Enjoy it ??
         </TouchableOpacity>
       </View>
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -349,6 +350,7 @@ const CategorySelectionScreen = () => {
   };
 
   return (
+    <ErrorBoundary screenName="CategorySelectionScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <View style={{ zIndex: 100 }}>
@@ -456,6 +458,7 @@ const CategorySelectionScreen = () => {
       )}
 
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

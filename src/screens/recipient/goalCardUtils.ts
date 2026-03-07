@@ -122,42 +122,6 @@ export function getApprovalBlockMessage(
   return null;
 }
 
-// ─── Valentine utilities ────────────────────────────────────────────
-
-/** Build a valentine gift object from challenge data */
-export async function buildValentineGift(goalData: Goal): Promise<{
-  id: string;
-  experienceId: string;
-  giverId: string;
-  giverName: string;
-  status: 'completed';
-  createdAt: Date;
-  deliveryDate: Date;
-  payment: string;
-  claimCode: string;
-  isValentineChallenge: boolean;
-  mode: string;
-} | null> {
-  if (!goalData.valentineChallengeId) return null;
-  const challengeDoc = await getDoc(doc(db, 'valentineChallenges', goalData.valentineChallengeId));
-  if (!challengeDoc.exists()) return null;
-  const challengeData = challengeDoc.data();
-
-  return {
-    id: goalData.valentineChallengeId,
-    experienceId: challengeData.experienceId,
-    giverId: challengeData.purchaserUserId,
-    giverName: challengeData.purchaserName || '',
-    status: 'completed' as const,
-    createdAt: challengeData.createdAt?.toDate() || new Date(),
-    deliveryDate: new Date(),
-    payment: challengeData.purchaseId || '',
-    claimCode: '',
-    isValentineChallenge: true,
-    mode: challengeData.mode,
-  };
-}
-
 // ─── Types for extracted components ─────────────────────────────────
 
 export interface PartnerGoalData {

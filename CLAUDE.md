@@ -33,6 +33,14 @@
     - **Firestore**: Never bypass security rules.
     - **Cloud Functions**: Validate all inputs (`httpsCallable`).
 
+## 🧮 Model Strategy (Token Optimization)
+- **Opus = Orchestrator**: Use the main Opus context for planning, complex reasoning, architectural decisions, debugging, and review.
+- **Sonnet/Haiku = Executors**: When executing multi-step plans, delegate well-defined, mechanical subtasks to subagents via the Task tool with `model: "sonnet"` or `model: "haiku"`.
+  - Use **Sonnet** for: file edits, implementing clearly defined steps, straightforward refactors, search/exploration.
+  - Use **Haiku** for: simple lookups, quick searches, boilerplate generation, running commands.
+- **Decision rule**: If the subtask can be described in a single clear sentence with no ambiguity, delegate it. If it requires judgment or context-heavy reasoning, keep it in Opus.
+- **Never** delegate tasks that require understanding the full conversation context or making architectural choices.
+
 ## 🚀 Workflow
 1.  **Plan**: Use `writing-plans` skill for complex tasks.
 2.  **Debug**: Use `systematic-debugging` for bugs.

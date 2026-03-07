@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -46,7 +47,7 @@ type CompletionNavigationProp = NativeStackNavigationProp<
 const CompletionScreen = () => {
   const navigation = useNavigation<CompletionNavigationProp>();
   const route = useRoute();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -88,11 +89,6 @@ const CompletionScreen = () => {
     }
   }, [hasValidData, navigation]);
 
-  // ?? SECURITY: Block access to locked Valentine goals
-  // If isUnlocked is already true in nav params, trust it (set by unlock flow).
-  // If not, fetch fresh from Firestore to verify actual state.
-  const [isValidating, setIsValidating] = useState(true);
-  const [unlockVerified, setUnlockVerified] = useState(false);
 
   const [experience, setExperience] = useState<any>(null);
   const [partner, setPartner] = useState<any>(null);
@@ -103,49 +99,6 @@ const CompletionScreen = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
 
-  useEffect(() => {
-    if (!hasValidData) {
-      setIsValidating(false);
-      return;
-    }
-
-    if (rawGoal?.valentineChallengeId) {
-      if (rawGoal?.isUnlocked) {
-        // Already unlocked in nav params — trust the navigation source
-        setUnlockVerified(true);
-        setIsValidating(false);
-      } else {
-        // Not unlocked in params — fetch fresh from Firestore to verify
-        const checkUnlock = async () => {
-          try {
-            const freshGoalDoc = await getDoc(doc(db, 'goals', rawGoal.id));
-            if (freshGoalDoc.exists() && freshGoalDoc.data().isUnlocked) {
-              // Goal IS unlocked in Firestore, nav params were just stale
-              setUnlockVerified(true);
-              setIsValidating(false);
-            } else {
-              logger.error('?? SECURITY: Attempted unauthorized access to locked Valentine goal');
-              Alert.alert(
-                'Not Yet! ??',
-                'Both partners must complete their goals before accessing the experience. Keep going!',
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
-              );
-            }
-          } catch (error) {
-            logger.error('Error validating Valentine goal unlock:', error);
-            navigation.goBack();
-          }
-        };
-        checkUnlock();
-      }
-    } else {
-      setIsValidating(false);
-    }
-  }, [hasValidData, rawGoal?.id, rawGoal?.isUnlocked, rawGoal?.valentineChallengeId, navigation]);
-
-  // Early return if data is missing, invalid, locked Valentine goal, or still validating
-  const isUnlocked = !!(rawGoal?.isUnlocked || unlockVerified);
-  const isLockedValentineGoal = rawGoal?.valentineChallengeId && !isUnlocked;
 
   const toDate = (value: any): Date | undefined => {
     if (!value) return undefined;
@@ -175,12 +128,6 @@ const CompletionScreen = () => {
     }
     : null;
 
-  // ?? FINAL DEFENSIVE CHECK: This should NEVER be reached if navigation checks are correct
-  if (goal?.valentineChallengeId && !isUnlocked) {
-    logger.error('?? CRITICAL SECURITY BYPASS: Unauthorized access to locked Valentine goal detected!');
-    throw new Error('Unauthorized access to locked Valentine goal');
-  }
-
   useEffect(() => {
     if (!goal || !experienceGift) return;
 
@@ -190,21 +137,6 @@ const CompletionScreen = () => {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
         logger.log('? Experience loaded:', exp);
         setExperience(exp);
-
-        // ?? VALENTINE: Check if both partners finished before allowing access
-        if (goal.valentineChallengeId && !isUnlocked) {
-          Alert.alert(
-            'Not Yet! ??',
-            'Both partners must complete their goals before accessing the experience.',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack()
-              }
-            ]
-          );
-          return;
-        }
 
         // Fetch partner contact info
         if (exp?.partnerId) {
@@ -227,7 +159,7 @@ const CompletionScreen = () => {
       }
     };
     fetchExperience();
-  }, [experienceGift?.experienceId, goal?.userId, isUnlocked, goal?.valentineChallengeId]);
+  }, [experienceGift?.experienceId, goal?.userId]);
 
   useEffect(() => {
     // Pick random celebration message
@@ -585,16 +517,16 @@ const CompletionScreen = () => {
     }
   };
 
-  if (!hasValidData || !goal || !experienceGift || (isLockedValentineGoal && !isValidating) || isValidating) {
+  if (!hasValidData || !goal || !experienceGift) {
     return (
+      <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>
-            {!hasValidData ? 'Redirecting...' : isValidating ? 'Validating access...' : 'Checking access...'}
-          </Text>
+          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
+      </ErrorBoundary>
     );
   }
 
@@ -607,6 +539,7 @@ const CompletionScreen = () => {
   const totalSessions = goal.sessionsPerWeek * goal.targetCount;
 
   return (
+    <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
 
@@ -946,6 +879,7 @@ const CompletionScreen = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
     </MainScreen >
+    </ErrorBoundary>
   );
 };
 

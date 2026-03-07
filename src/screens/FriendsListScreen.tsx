@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   View,
   Text,
@@ -191,6 +192,7 @@ const FriendsListScreen: React.FC = () => {
   };
 
   return (
+    <ErrorBoundary screenName="FriendsListScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
       <SharedHeader
         title="Your Friends"
@@ -286,6 +288,7 @@ const FriendsListScreen: React.FC = () => {
         </Animated.View>
       )}
     </MainScreen>
+    </ErrorBoundary>
   );
 };
 

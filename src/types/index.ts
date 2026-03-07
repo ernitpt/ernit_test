@@ -171,7 +171,6 @@ export interface Goal {
   couponGeneratedAt?: Date;         // When the coupon was generated
   empoweredBy?: string; // ID of the giver who empowered this goal
   isMystery?: boolean;                // Gift is a mystery — details hidden, AI hints generated
-  mysteryGiftExperienceId?: string;   // The hidden experience ID (for AI hint generation)
   personalizedNextHint?: PersonalizedHint | null;
   hints?: (PersonalizedHint | { session: number; hint: string; date: number })[];
   createdAt: Date;                  // When the goal was created
@@ -373,7 +372,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -461,50 +460,6 @@ export interface PartnerCoupon {
   redeemedAt?: Date;
 }
 
-// Valentine's Pack Types
-export interface ValentineChallenge {
-  id: string;
-  purchaserEmail: string;
-  partnerEmail: string;
-  experienceId: string;
-  experiencePrice: number;
-  mode: 'revealed' | 'secret';
-
-  // Challenge parameters
-  goalType: string; // 'Gym', 'Yoga', 'Run', or custom
-  weeks: number;
-  sessionsPerWeek: number;
-
-  // Purchase info
-  paymentIntentId: string;
-  purchaseDate: Date;
-  totalAmount: number;
-
-  // Partner tracking
-  purchaserUserId?: string;
-  partnerUserId?: string;
-  purchaserCodeRedeemed: boolean;
-  partnerCodeRedeemed: boolean;
-  purchaserCode: string; // 12-char redemption code
-  partnerCode: string; // 12-char redemption code
-
-  // Goal references
-  purchaserGoalId?: string;
-  partnerGoalId?: string;
-
-  status: 'pending_redemption' | 'partially_redeemed' | 'active' | 'completed';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Extended Goal type for Valentine coupled challenges
-export interface ValentineGoalExtensions {
-  valentineChallengeId?: string;
-  partnerGoalId?: string;
-  isLeader?: boolean; // Purchaser is leader to prevent circular checks
-  canProgress?: boolean; // Computed: both completed their week
-}
-
 // Navigation types
 export type RootStackParamList = {
   Landing: undefined;
@@ -531,12 +486,6 @@ export type RootStackParamList = {
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
-  ValentinesLanding: undefined;
-  ValentinesChallenge: undefined;
-  ValentineCheckout: { valentineData: any; totalAmount: number };
-  ValentineConfirmation: { purchaserEmail: string; partnerEmail: string; paymentIntentId: string };
-  ValentineRedemption: { code: string };
-  ValentineGoalSetting: { challenge: ValentineChallenge; isPurchaser: boolean };
   FreeGoalCompletion: { goal: Goal };
   ChallengeLanding: undefined;
   MysteryChoice: { experience: Experience };
@@ -558,3 +507,61 @@ export type RecipientStackParamList = {
   Journey: { goal: Goal };
   Completion: { goal: Goal; experienceGift?: ExperienceGift };
 };
+
+// Analytics types
+export type AnalyticsEventCategory =
+  | 'navigation'
+  | 'engagement'
+  | 'conversion'
+  | 'social'
+  | 'error';
+
+export type AnalyticsEventName =
+  // Navigation
+  | 'screen_view'
+  // Engagement
+  | 'button_click'
+  | 'cta_shown'
+  | 'cta_dismissed'
+  | 'cta_accepted'
+  | 'notification_tapped'
+  | 'notification_dismissed'
+  // Conversion
+  | 'goal_creation_started'
+  | 'goal_creation_completed'
+  | 'checkout_started'
+  | 'payment_initiated'
+  | 'payment_completed'
+  | 'payment_failed'
+  | 'coupon_redeemed'
+  // Social
+  | 'friend_request_sent'
+  | 'friend_request_accepted'
+  | 'friend_request_declined'
+  | 'friend_removed'
+  | 'friend_search'
+  | 'feed_reaction'
+  | 'feed_comment'
+  | 'empower_started'
+  | 'motivation_sent'
+  | 'mystery_choice_selected'
+  // Lifecycle
+  | 'session_logged'
+  | 'goal_approved'
+  | 'gift_attached_to_goal'
+  | 'gift_created'
+  | 'gift_message_updated'
+  // Error
+  | 'error_boundary_triggered';
+
+export interface AnalyticsEvent {
+  eventName: AnalyticsEventName;
+  category: AnalyticsEventCategory;
+  properties: Record<string, unknown>;
+  screenName: string | null;
+  userId: string | null;
+  sessionId: string;
+  timestamp: Date;
+  userAgent: string;
+  environment: 'development' | 'production';
+}
