@@ -97,3 +97,6 @@ functions/.expo/
 
 # Windows reserved device name — cannot be a real file on Windows
 nul
+
+# Claude Code worktrees
+.claude/worktrees/
