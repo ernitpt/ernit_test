@@ -34,6 +34,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
         visible={showLoginPrompt}
         onClose={closeLoginPrompt}
         message={loginMessage}
+        accessibilityViewIsModal={showLoginPrompt}
       />
 
       {/* Footer Navigation with guarded navigation */}

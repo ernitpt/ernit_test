@@ -5,7 +5,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ScrollView,
   Image,
@@ -26,6 +25,7 @@ import { CartItemSkeleton } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -33,6 +33,7 @@ export default function CartScreen() {
   const { state, dispatch } = useApp();
   const navigation = useNavigation<NavProp>();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { showSuccess, showError, showInfo } = useToast();
 
   const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +108,7 @@ export default function CartScreen() {
       return removeItem(experienceId);
     }
     if (newQty > 10) {
-      Alert.alert("Maximum Quantity", "You can add up to 10 items of each experience.");
+      showInfo("You can add up to 10 items of each experience.");
       return;
     }
 
@@ -136,7 +137,7 @@ export default function CartScreen() {
         userId: state.user?.id,
         additionalData: { experienceId, newQty }
       });
-      Alert.alert("Error", "Failed to update quantity. Please try again.");
+      showError("Failed to update quantity. Please try again.");
     } finally {
       // Remove updating flag
       setUpdatingItems(prev => {
@@ -175,7 +176,7 @@ export default function CartScreen() {
         userId: state.user?.id,
         additionalData: { experienceId }
       });
-      Alert.alert("Error", "Failed to remove item. Please try again.");
+      showError("Failed to remove item. Please try again.");
       // Reload to ensure consistency
       loadItems();
     } finally {
@@ -196,7 +197,7 @@ export default function CartScreen() {
 
   const proceedToCheckout = () => {
     if (!currentCart || currentCart.length === 0) {
-      Alert.alert("Empty Cart", "Your cart is empty. Add items to cart first.");
+      showInfo("Your cart is empty. Add items to cart first.");
       return;
     }
 
@@ -269,6 +270,8 @@ export default function CartScreen() {
               style={styles.keepShoppingButton}
               onPress={handleKeepShopping}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Start shopping"
             >
               <Text style={styles.keepShoppingText}>Start Shopping</Text>
               <ArrowRight size={20} color={Colors.secondary} />
@@ -299,11 +302,14 @@ export default function CartScreen() {
                     <TouchableOpacity
                       onPress={() => handleExperiencePress(exp)}
                       activeOpacity={0.9}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${exp.title} details`}
                     >
                       <Image
                         source={{ uri: imageUrl }}
                         style={styles.cartItemImage}
                         resizeMode="cover"
+                        accessibilityLabel={`${exp.title} image`}
                       />
                     </TouchableOpacity>
 
@@ -323,6 +329,8 @@ export default function CartScreen() {
                           onPress={() => removeItem(item.experienceId)}
                           disabled={isUpdating}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel="Remove item from cart"
                         >
                           <X size={18} color="#ef4444" />
                         </TouchableOpacity>
@@ -338,6 +346,8 @@ export default function CartScreen() {
                             onPress={() => updateQuantity(item.experienceId, item.quantity - 1)}
                             disabled={item.quantity === 1 || isUpdating}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Decrease quantity"
                           >
                             <Minus size={16} color={item.quantity === 1 ? "#d1d5db" : Colors.secondary} />
                           </TouchableOpacity>
@@ -352,6 +362,8 @@ export default function CartScreen() {
                             onPress={() => updateQuantity(item.experienceId, item.quantity + 1)}
                             disabled={item.quantity === 10 || isUpdating}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Increase quantity"
                           >
                             <Plus size={16} color={item.quantity === 10 ? "#d1d5db" : Colors.secondary} />
                           </TouchableOpacity>
@@ -377,6 +389,8 @@ export default function CartScreen() {
                 style={styles.checkoutButton}
                 onPress={proceedToCheckout}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Proceed to checkout"
               >
                 <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
                 <ArrowRight size={20} color="#fff" />
@@ -386,6 +400,8 @@ export default function CartScreen() {
                 style={styles.keepShoppingButton}
                 onPress={handleKeepShopping}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Keep shopping"
               >
                 <Text style={styles.keepShoppingText}>Keep Shopping</Text>
               </TouchableOpacity>
@@ -401,7 +417,7 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.surface,
   },
   loadingContainer: {
     flex: 1,
@@ -414,17 +430,17 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     fontWeight: "500",
   },
   scrollView: {
@@ -443,13 +459,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     marginTop: 24,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 32,
@@ -469,7 +485,7 @@ const styles = StyleSheet.create({
   cartItemImage: {
     width: 120,
     height: 120,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: Colors.border,
   },
   cartItemContent: {
     flex: 1,
@@ -489,12 +505,12 @@ const styles = StyleSheet.create({
   cartItemTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   cartItemSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.textSecondary,
   },
   removeButton: {
     padding: 4,
@@ -512,7 +528,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: Colors.backgroundLight,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -532,7 +548,7 @@ const styles = StyleSheet.create({
   quantityValue: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     minWidth: 24,
     textAlign: "center",
   },
@@ -544,7 +560,7 @@ const styles = StyleSheet.create({
   bottomContainer: {
     backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: Colors.border,
     padding: 20,
     paddingBottom: 32,
   },
@@ -557,7 +573,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    color: Colors.textPrimary,
   },
   totalAmount: {
     fontSize: 24,

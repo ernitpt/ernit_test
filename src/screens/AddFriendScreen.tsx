@@ -7,8 +7,6 @@ import {
   FlatList,
   Image,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
   StatusBar,
   Platform,
 } from 'react-native';
@@ -18,28 +16,33 @@ import { RootStackParamList, UserSearchResult } from '../types';
 import { friendService } from '../services/FriendService';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import MainScreen from './MainScreen';
 import { commonStyles } from '../themes/commonStyles';
+import { ListItemSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
+import ErrorRetry from '../components/ErrorRetry';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
 const AddFriendScreen: React.FC = () => {
   const navigation = useNavigation<AddFriendNavigationProp>();
   const { state } = useApp();
+  const { showSuccess, showError } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   const currentUserId = state.user?.id;
   const currentUserName = state.user?.displayName || state.user?.profile?.name || 'User';
   const currentUserProfileImageUrl = state.user?.profile?.profileImageUrl;
 
-  const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (searchTerm.length >= 2) {
@@ -58,11 +61,13 @@ const AddFriendScreen: React.FC = () => {
 
     try {
       setIsSearching(true);
+      setSearchError(false);
       const results = await friendService.searchUsers(searchTerm, currentUserId);
       setSearchResults(results);
     } catch (error) {
       logger.error('Error searching users:', error);
-      Alert.alert('Error', 'Failed to search users. Please try again.');
+      setSearchError(true);
+      showError('Failed to search users. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -83,14 +88,14 @@ const AddFriendScreen: React.FC = () => {
       );
 
       analyticsService.trackEvent('friend_request_sent', 'social', { recipientId: user.id }, 'AddFriendScreen');
-      Alert.alert('Success', `Friend request sent to ${user.name}!`);
+      showSuccess(`Friend request sent to ${user.name}!`);
 
       // Refresh search results to update the button state
       const updatedResults = await friendService.searchUsers(searchTerm, currentUserId);
       setSearchResults(updatedResults);
     } catch (error) {
       logger.error('Error sending friend request:', error);
-      Alert.alert('Error', 'Failed to send friend request. Please try again.');
+      showError('Failed to send friend request. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -106,12 +111,15 @@ const AddFriendScreen: React.FC = () => {
         style={styles.userInfo}
         onPress={() => handleViewProfile(item.id)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.name}'s profile`}
       >
-        {item.profileImageUrl && !imageLoadError ? (
+        {item.profileImageUrl && !imageLoadErrors.has(item.id) ? (
           <Image
             source={{ uri: item.profileImageUrl }}
             style={styles.profileImage}
-            onError={() => setImageLoadError(true)}
+            onError={() => setImageLoadErrors(prev => new Set(prev).add(item.id))}
+            accessibilityLabel={`${item.name}'s profile picture`}
           />
         ) : (
           <View style={styles.placeholderImage}>
@@ -142,6 +150,8 @@ const AddFriendScreen: React.FC = () => {
             style={styles.addButton}
             onPress={() => handleSendFriendRequest(item)}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel={`Send friend request to ${item.name}`}
           >
             <Text style={styles.addButtonText}>Add Friend</Text>
           </TouchableOpacity>
@@ -168,15 +178,16 @@ const AddFriendScreen: React.FC = () => {
             onChangeText={setSearchTerm}
             autoCapitalize="none"
             autoCorrect={false}
+            accessibilityLabel="Search for friends by name or email"
           />
-          {isSearching && (
-            <ActivityIndicator
-              size="small"
-              color={Colors.secondary}
-              style={styles.searchLoader}
-            />
-          )}
         </View>
+        {isSearching && (
+          <View style={{ marginTop: 12, gap: 8 }}>
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+          </View>
+        )}
       </View>
 
       {/* Search Results */}
@@ -185,7 +196,11 @@ const AddFriendScreen: React.FC = () => {
           <Text style={styles.hintText}>Enter at least 2 characters to search</Text>
         )}
 
-        {searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
+        {searchError && !isSearching && searchTerm.length >= 2 && (
+          <ErrorRetry message="Could not search users" onRetry={handleSearch} />
+        )}
+
+        {!searchError && searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
           <Text style={styles.noResultsText}>No users found</Text>
         )}
 
@@ -218,21 +233,21 @@ const styles = StyleSheet.create({
   searchLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   searchContainer: {
     position: 'relative',
   },
   searchInput: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   searchLoader: {
     position: 'absolute',
@@ -245,20 +260,20 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 32,
   },
   noResultsText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 32,
   },
   resultsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   resultsList: {
@@ -293,17 +308,17 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 2,
   },
   userCountry: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
   actionButton: {
     marginLeft: 12,

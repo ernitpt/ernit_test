@@ -13,7 +13,6 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import MainScreen from './MainScreen';
 import SharedHeader from '../components/SharedHeader';
 import FeedPost from '../components/FeedPost';
-import CommentModal from '../components/CommentModal';
 import { MotiView } from 'moti';
 import { FeedPostSkeleton } from '../components/SkeletonLoader';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../types';
@@ -24,6 +23,8 @@ import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { useToast } from '../context/ToastContext';
+import ErrorRetry from '../components/ErrorRetry';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -31,10 +32,11 @@ type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 const FeedScreen: React.FC = () => {
     const { state } = useApp();
     const route = useRoute<FeedScreenRouteProp>();
+    const { showError } = useToast();
     const [posts, setPosts] = useState<FeedPostType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+    const [error, setError] = useState(false);
     const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
     const highlightAnim = React.useRef(new Animated.Value(0)).current;
     const flatListRef = React.useRef<FlatList>(null);
@@ -109,10 +111,13 @@ const FeedScreen: React.FC = () => {
 
         try {
             setIsLoading(true);
+            setError(false);
             const { posts: loadedPosts } = await feedService.getFriendsFeed(state.user.id);
             setPosts(loadedPosts);
         } catch (error) {
             logger.error('Error loading feed:', error);
+            setError(true);
+            showError('Could not load feed. Pull to refresh to try again.');
         } finally {
             setIsLoading(false);
         }
@@ -163,9 +168,13 @@ const FeedScreen: React.FC = () => {
     const renderEmpty = () => {
         if (isLoading) return null;
 
+        if (error) {
+            return <ErrorRetry message="Could not load your feed" onRetry={loadFeed} />;
+        }
+
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>??</Text>
+                <Text style={styles.emptyIcon}>👥</Text>
                 <Text style={styles.emptyTitle}>No Activity Yet</Text>
                 <Text style={styles.emptyText}>
                     Add friends to see their goal progress and celebrate together!
@@ -219,15 +228,6 @@ const FeedScreen: React.FC = () => {
                         }
                     />
                 )}
-
-                {/* Comment Modal */}
-                {selectedPostId && (
-                    <CommentModal
-                        visible={selectedPostId !== null}
-                        postId={selectedPostId}
-                        onClose={() => setSelectedPostId(null)}
-                    />
-                )}
             </MainScreen>
         </ErrorBoundary>
     );
@@ -256,12 +256,12 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 8,
     },
     emptyText: {
         fontSize: 15,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
     },

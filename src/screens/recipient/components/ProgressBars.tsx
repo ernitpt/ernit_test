@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Platform, Pressable, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CARD_COLORS } from '../goalCardUtils';
+import Colors from '../../../config/colors';
 
 // ─── Capsule ────────────────────────────────────────────────────────
 
@@ -364,7 +365,7 @@ const styles = StyleSheet.create({
   progressBlock: { marginBottom: 24 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   progressLabel: { color: '#4b5563' },
-  progressText: { color: '#111827', fontWeight: '600' },
+  progressText: { color: Colors.textPrimary, fontWeight: '600' },
   capsuleRow: { flexDirection: 'row', gap: 3 },
   capsule: {
     flex: 1,
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   tooltipText: {
-    color: '#F9FAFB',
+    color: Colors.surface,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,

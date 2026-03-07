@@ -35,6 +35,108 @@ type FooterNavigationProps = {
   onMenuPress: () => void;
 };
 
+const NavButton: React.FC<{
+  icon: React.FC<any>;
+  activeIcon: React.FC<any>;
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+  badgeCount?: number;
+}> = ({ icon: Icon, activeIcon: IconActive, label, isActive, onPress, badgeCount }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const colorAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(colorAnim, {
+      toValue: isActive ? 1 : 0,
+      useNativeDriver: false,
+      friction: 5,
+    }).start();
+  }, [isActive]);
+
+  const handlePress = () => {
+    onPress();
+
+    Animated.sequence([
+      Animated.spring(scaleAnim, {
+        toValue: 0.9,
+        useNativeDriver: true,
+        speed: 20,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        friction: 3,
+        tension: 40,
+      }),
+    ]).start();
+
+    rotateAnim.setValue(0);
+    Animated.timing(rotateAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const labelColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(156,163,175,1)', Colors.secondary],
+  });
+
+  const backgroundColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(16,185,129,0)', 'rgba(16,185,129,0.10)'],
+  });
+
+  const iconRotate = rotateAnim.interpolate({
+    inputRange: [0, 0.25, 0.75, 1],
+    outputRange: ['0deg', '-15deg', '15deg', '0deg'],
+  });
+
+  const SelectedIcon = isActive ? IconActive : Icon;
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      style={styles.navButton}
+      activeOpacity={0.9}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={`${label} tab`}
+    >
+      <Animated.View
+        style={[
+          styles.navButtonContent,
+          {
+            backgroundColor,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <View style={styles.iconWrapper}>
+          <Animated.View style={{ transform: [{ rotate: iconRotate }] }}>
+            <SelectedIcon width={26} height={26} />
+          </Animated.View>
+        </View>
+
+        {badgeCount !== undefined && badgeCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {badgeCount > 9 ? '9+' : badgeCount}
+            </Text>
+          </View>
+        )}
+
+        <Animated.Text style={[styles.navLabel, { color: labelColor }]}>
+          {label}
+        </Animated.Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
 const FooterNavigation: React.FC<FooterNavigationProps> = ({
   activeRoute,
   onMenuPress,
@@ -63,105 +165,6 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
       if (route === 'Feed') navigation.navigate('Feed' as any);
       if (route === 'Profile') navigation.navigate('Profile');
     }
-  };
-
-  const NavButton: React.FC<{
-    icon: React.FC<any>;
-    activeIcon: React.FC<any>;
-    label: string;
-    isActive: boolean;
-    onPress: () => void;
-    badgeCount?: number;
-  }> = ({ icon: Icon, activeIcon: IconActive, label, isActive, onPress, badgeCount }) => {
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-    const colorAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-    const rotateAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.spring(colorAnim, {
-        toValue: isActive ? 1 : 0,
-        useNativeDriver: false,
-        friction: 5,
-      }).start();
-    }, [isActive]);
-
-    const handlePress = () => {
-      onPress();
-
-      Animated.sequence([
-        Animated.spring(scaleAnim, {
-          toValue: 0.9,
-          useNativeDriver: true,
-          speed: 20,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 3,
-          tension: 40,
-        }),
-      ]).start();
-
-      rotateAnim.setValue(0);
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const labelColor = colorAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['rgba(156,163,175,1)', Colors.secondary],
-    });
-
-    const backgroundColor = colorAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['rgba(16,185,129,0)', 'rgba(16,185,129,0.10)'],
-    });
-
-    const iconRotate = rotateAnim.interpolate({
-      inputRange: [0, 0.25, 0.75, 1],
-      outputRange: ['0deg', '-15deg', '15deg', '0deg'],
-    });
-
-    const SelectedIcon = isActive ? IconActive : Icon;
-
-    return (
-      <TouchableOpacity
-        onPress={handlePress}
-        style={styles.navButton}
-        activeOpacity={0.9}
-      >
-        <Animated.View
-          style={[
-            styles.navButtonContent,
-            {
-              backgroundColor,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <View style={styles.iconWrapper}>
-            <Animated.View style={{ transform: [{ rotate: iconRotate }] }}>
-              <SelectedIcon width={26} height={26} />
-            </Animated.View>
-          </View>
-
-          {badgeCount !== undefined && badgeCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {badgeCount > 9 ? '9+' : badgeCount}
-              </Text>
-            </View>
-          )}
-
-          <Animated.Text style={[styles.navLabel, { color: labelColor }]}>
-            {label}
-          </Animated.Text>
-        </Animated.View>
-      </TouchableOpacity>
-    );
   };
 
   const footerHeight = 70;
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: Colors.backgroundLight,
     paddingTop: 8,
     paddingHorizontal: 4,
     shadowColor: '#000',
@@ -281,7 +284,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.error,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',

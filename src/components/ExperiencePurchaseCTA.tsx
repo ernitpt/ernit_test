@@ -50,7 +50,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = ({
         >
             {/* Dismiss */}
             <TouchableOpacity style={inlineStyles.dismiss} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={16} color="#9ca3af" />
+                <X size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
             {/* Stat message */}
@@ -138,7 +138,7 @@ const inlineStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         borderRadius: 10,
         padding: 10,
         marginBottom: 12,
@@ -147,7 +147,7 @@ const inlineStyles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 8,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     thumbPlaceholder: {
         alignItems: 'center',

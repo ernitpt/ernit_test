@@ -224,6 +224,7 @@ const CouponEntryScreen = () => {
                     source={require('../../assets/favicon.png')}
                     style={{ width: 80, height: 80 }}
                     resizeMode="contain"
+                    accessibilityLabel="Ernit logo"
                   />
                 </View>
 
@@ -287,11 +288,11 @@ const CouponEntryScreen = () => {
                         shadowRadius: 8,
                         elevation: 3,
                         borderWidth: errorMessage ? 2 : 0,
-                        borderColor: errorMessage ? '#EF4444' : 'transparent',
+                        borderColor: errorMessage ? Colors.error : 'transparent',
                         width: '100%',
                       }}
                       placeholder="ABC123DEF456"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={Colors.textMuted}
                       value={claimCode}
                       onChangeText={(text) => {
                         const clean = text.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -310,6 +311,7 @@ const CouponEntryScreen = () => {
                       editable={!isLoading}
                       returnKeyType="done"
                       onSubmitEditing={() => handleClaimCode()}
+                      accessibilityLabel="Coupon code input"
                     />
                   </Animated.View>
 
@@ -484,17 +486,17 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 20,
     textAlign: 'center',
   },
   messageBox: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
   },
   messageText: {
     fontSize: 16,
@@ -505,7 +507,7 @@ const styles = StyleSheet.create({
   },
   signatureText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'right',
     marginBottom: 20,

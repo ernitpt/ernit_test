@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         textAlign: 'center',
     },
     header: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 13,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     daysGrid: {
         flexDirection: 'row',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
         marginTop: 16,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
+        borderTopColor: Colors.border,
         gap: 12,
     },
     cancelButton: {
@@ -316,11 +316,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         alignItems: 'center',
     },
     cancelText: {
-        color: '#6b7280',
+        color: Colors.textSecondary,
         fontSize: 15,
         fontWeight: '600',
     },

@@ -8,6 +8,7 @@ import {
     Easing,
     Image,
 } from 'react-native';
+import Colors from '../config/colors';
 import type { ReactionType } from '../types';
 
 interface ReactionPickerProps {
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
     },
     selectedReaction: {
         backgroundColor: '#e0e7ff',

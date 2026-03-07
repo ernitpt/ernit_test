@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         gap: 4,
     },
     reactionButtonActive: {
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     count: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     countActive: {
         color: Colors.secondary,

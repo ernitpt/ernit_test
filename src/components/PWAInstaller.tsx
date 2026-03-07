@@ -135,7 +135,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleIOSDismiss}
                         >
-                            <X size={24} color="#9CA3AF" />
+                            <X size={24} color={Colors.textMuted} />
                         </TouchableOpacity>
 
                         {/* Header */}
@@ -224,7 +224,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleAndroidDismiss}
                         >
-                            <X size={24} color="#9CA3AF" />
+                            <X size={24} color={Colors.textMuted} />
                         </TouchableOpacity>
 
                         {/* Header */}
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 15,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         textAlign: 'center',
     },
     instructions: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     },
     stepDescription: {
         fontSize: 14,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         lineHeight: 20,
     },
     shareIconDemo: {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     dismissButtonText: {
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         fontSize: 14,
     },
 });

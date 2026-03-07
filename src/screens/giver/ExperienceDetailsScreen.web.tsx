@@ -10,13 +10,11 @@ import {
   Modal,
   Platform,
   Dimensions,
-  Alert
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { loadStripe } from "@stripe/stripe-js";
 import { ChevronLeft, MapPin, Clock, ShoppingCart, Info, Target } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
@@ -29,6 +27,7 @@ import { useAuthGuard } from "../../hooks/useAuthGuard";
 import LoginPrompt from "../../components/LoginPrompt";
 import { cartService } from "../../services/CartService";
 import HowItWorksModal from "../../components/HowItWorksModal";
+import { ExperienceDetailSkeleton } from "../../components/SkeletonLoader";
 
 import {
   GiverStackParamList,
@@ -40,8 +39,7 @@ import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
-
-const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
+import { useToast } from '../../context/ToastContext';
 
 const { width, height } = Dimensions.get("window");
 
@@ -56,7 +54,7 @@ const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) =
     <Modal visible transparent animationType="fade">
       <View style={styles.zoomModalContainer}>
         <TouchableOpacity style={styles.zoomCloseButton} onPress={onClose}>
-          <Text style={styles.zoomCloseText}>?</Text>
+          <Text style={styles.zoomCloseText}>✕</Text>
         </TouchableOpacity>
 
         <ScrollView
@@ -83,6 +81,22 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
   const { state, dispatch } = useApp();
 
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const auth = getAuth();
+  const user = auth.currentUser;
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { showSuccess, showError } = useToast();
+
+  // Save guest cart to local storage whenever it changes
+  const prevCartRef = useRef<string>('');
+
   // Redirect if data is missing (e.g., after page refresh)
   useEffect(() => {
     if (!experience?.id) {
@@ -93,6 +107,37 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       });
     }
   }, [experience, navigation]);
+
+  useEffect(() => {
+    const loadPartner = async () => {
+      const p = await partnerService.getPartnerById(experience?.partnerId);
+      setPartner(p);
+    };
+    loadPartner();
+  }, [experience?.partnerId]);
+
+  useEffect(() => {
+    const loadWishlist = async () => {
+      if (!user) return;
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        setIsWishlisted((data.wishlist || []).includes(experience?.id));
+      }
+    };
+    loadWishlist();
+  }, [user, experience?.id]);
+
+  useEffect(() => {
+    if (!state.user && state.guestCart) {
+      const cartString = JSON.stringify(state.guestCart);
+      if (cartString !== prevCartRef.current) {
+        prevCartRef.current = cartString;
+        cartService.saveGuestCart(state.guestCart);
+      }
+    }
+  }, [state.guestCart, state.user]);
 
   // Early return if data is invalid
   if (!experience?.id) {
@@ -107,18 +152,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     );
   }
 
-  const [partner, setPartner] = useState<PartnerUser | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const auth = getAuth();
-  const user = auth.currentUser;
-  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
-
   const images = Array.isArray(experience.imageUrl) ? experience.imageUrl : [experience.imageUrl];
 
   const handleScroll = (event: any) => {
@@ -127,27 +160,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     const index = Math.round(offset / slideSize);
     setActiveIndex(index);
   };
-
-  useEffect(() => {
-    const loadPartner = async () => {
-      const p = await partnerService.getPartnerById(experience.partnerId);
-      setPartner(p);
-    };
-    loadPartner();
-  }, [experience.partnerId]);
-
-  useEffect(() => {
-    const loadWishlist = async () => {
-      if (!user) return;
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        setIsWishlisted((data.wishlist || []).includes(experience.id));
-      }
-    };
-    loadWishlist();
-  }, [user, experience.id]);
 
   const streetMapUrl = partner?.mapsUrl
     ? partner.mapsUrl.includes("?")
@@ -173,7 +185,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       setIsWishlisted(newValue);
     } catch (error) {
       logger.error("Error updating wishlist:", error);
-      Alert.alert("Error", "Failed to update wishlist. Please try again.");
+      showError("Failed to update wishlist. Please try again.");
     }
   };
 
@@ -194,11 +206,11 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       }
       // Guest cart is saved automatically via useEffect
 
-      Alert.alert("Success", `Added ${quantity} item(s) to cart!`);
+      showSuccess(`Added ${quantity} item(s) to cart!`);
     } catch (error: any) {
       logger.error("Error adding to cart:", error);
-      Alert.alert("Error", error.message || "Failed to add item to cart.");
-    } finally {
+      showError(error.message || "Failed to add item to cart.");
+    } finally{
       setIsAddingToCart(false);
     }
   };
@@ -225,7 +237,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         await userService.addToCart(user.uid, cartItem);
       } catch (error: any) {
         logger.error("Error adding to cart:", error);
-        Alert.alert("Error", error.message || "Failed to add item to cart.");
+        showError(error.message || "Failed to add item to cart.");
         return;
       }
     }
@@ -249,18 +261,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
-
-  // Save guest cart to local storage whenever it changes
-  const prevCartRef = useRef<string>('');
-  useEffect(() => {
-    if (!state.user && state.guestCart) {
-      const cartString = JSON.stringify(state.guestCart);
-      if (cartString !== prevCartRef.current) {
-        prevCartRef.current = cartString;
-        cartService.saveGuestCart(state.guestCart);
-      }
-    }
-  }, [state.guestCart, state.user]);
 
   const handleCartPress = () => {
     // Allow opening cart even when empty - CartScreen handles empty state
@@ -289,6 +289,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButtonHero}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <ChevronLeft color="#fff" size={24} />
             </TouchableOpacity>
@@ -296,6 +298,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               <TouchableOpacity
                 onPress={handleCartPress}
                 style={styles.cartButtonHero}
+                accessibilityRole="button"
+                accessibilityLabel={`View cart, ${cartItemCount} items`}
               >
                 <ShoppingCart color="#fff" size={24} />
                 {cartItemCount > 0 && (
@@ -309,6 +313,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               <TouchableOpacity
                 onPress={toggleWishlist}
                 style={styles.heartButtonHero}
+                accessibilityRole="button"
+                accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
                 {isWishlisted ? (
                   <Heart fill="#ef4444" color="#ef4444" size={24} />
@@ -336,8 +342,15 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 key={index}
                 activeOpacity={0.9}
                 onPress={() => setSelectedImage(url)}
+                accessibilityRole="button"
+                accessibilityLabel={`View full size image ${index + 1} of ${images.length}`}
               >
-                <Image source={{ uri: url }} style={styles.heroImage} resizeMode="contain" />
+                <Image
+                  source={{ uri: url }}
+                  style={styles.heroImage}
+                  resizeMode="contain"
+                  accessibilityLabel={`${experience.title} image ${index + 1}`}
+                />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -398,6 +411,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               <TouchableOpacity
                 onPress={() => setShowHowItWorks(true)}
                 style={styles.howItWorksButton}
+                accessibilityRole="button"
+                accessibilityLabel="How it works"
               >
                 <Info color={Colors.secondary} size={18} />
               </TouchableOpacity>
@@ -454,6 +469,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               style={[styles.quantityButton, quantity === 1 && styles.quantityButtonDisabled]}
               onPress={decreaseQuantity}
               disabled={quantity === 1}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease quantity"
             >
               <Text style={[styles.quantityButtonText, quantity === 1 && styles.quantityButtonTextDisabled]}>-</Text>
             </TouchableOpacity>
@@ -462,6 +479,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               style={[styles.quantityButton, quantity === 10 && styles.quantityButtonDisabled]}
               onPress={increaseQuantity}
               disabled={quantity === 10}
+              accessibilityRole="button"
+              accessibilityLabel="Increase quantity"
             >
               <Text style={[styles.quantityButtonText, quantity === 10 && styles.quantityButtonTextDisabled]}>+</Text>
             </TouchableOpacity>
@@ -474,6 +493,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             style={[styles.addToCartButton, isAddingToCart && styles.buttonDisabled]}
             onPress={handleAddToCart}
             disabled={isAddingToCart}
+            accessibilityRole="button"
+            accessibilityLabel="Add to cart"
           >
             <Text style={styles.addToCartButtonText}>
               {isAddingToCart ? "Adding..." : "Add to Cart"}
@@ -482,6 +503,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
           <TouchableOpacity
             style={styles.buyNowButton}
             onPress={handleBuyNow}
+            accessibilityRole="button"
+            accessibilityLabel="Buy now"
           >
             <Text style={styles.buyNowButtonText}>Buy Now</Text>
           </TouchableOpacity>
@@ -492,6 +515,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
           style={styles.setAsGoalButton}
           onPress={handleSetAsGoal}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Set as goal"
         >
           <Target color="#16a34a" size={20} />
           <Text style={styles.setAsGoalText}>Set as Goal</Text>
@@ -605,25 +630,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#111827",
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: Colors.textSecondary,
   },
   howItWorksButton: {
     width: 35,
     height: 35,
     borderRadius: 16,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.border,
   },
   priceTag: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: Colors.backgroundLight,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 12,
@@ -636,7 +661,7 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     marginTop: 2,
   },
   quickInfoContainer: {
@@ -692,7 +717,7 @@ const styles = StyleSheet.create({
   quickInfoItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -715,14 +740,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
   },
   descriptionCard: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.border,
   },
   descriptionText: {
     fontSize: 16,
@@ -738,14 +763,14 @@ const styles = StyleSheet.create({
   },
   addressText: {
     fontSize: 15,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     flex: 1,
   },
   mapContainer: {
     height: 220,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#e5e7eb",
+    backgroundColor: Colors.border,
     marginBottom: 12,
   },
   webview: {
@@ -789,11 +814,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.border,
   },
   quantityButtonDisabled: {
     opacity: 0.5,
@@ -804,12 +829,12 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
   },
   quantityButtonTextDisabled: {
-    color: "#9ca3af",
+    color: Colors.textMuted,
   },
   quantityValue: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     minWidth: 30,
     textAlign: "center",
   },

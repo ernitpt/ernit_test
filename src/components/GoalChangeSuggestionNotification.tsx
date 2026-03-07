@@ -12,6 +12,7 @@ import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import GoalChangeSuggestionModal from './GoalChangeSuggestionModal';
 import { logger } from '../utils/logger';
+import Colors from '../config/colors';
 
 interface GoalChangeSuggestionNotificationProps {
   notification: Notification;
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   content: {
     marginBottom: 12,
@@ -234,12 +235,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   message: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   messageBox: {
@@ -259,12 +260,12 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontStyle: 'italic',
   },
   details: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     marginTop: 8,
   },
   errorBox: {
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
+    borderLeftColor: Colors.error,
   },
   errorText: {
     color: '#991b1b',

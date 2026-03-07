@@ -10,13 +10,13 @@ import {
   Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { notificationService } from '../services/NotificationService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { RootStackParamList, Notification } from '../types';
 import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
@@ -75,6 +75,7 @@ const formatNotificationDate = (createdAt: any) => {
 
 const NotificationsScreen = () => {
   const { state } = useApp();
+  const { showSuccess, showError, showInfo } = useToast();
   const userId = state.user?.id;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [userGoals, setUserGoals] = useState<Record<string, boolean>>({}); // Map goalId -> isCompleted
@@ -135,7 +136,10 @@ const NotificationsScreen = () => {
       }
     };
 
-    subscribe();
+    subscribe().catch((error) => {
+      logger.error('Error subscribing to notifications:', error);
+      setLoading(false);
+    });
 
     return () => {
       isCancelled = true;
@@ -191,18 +195,17 @@ const NotificationsScreen = () => {
           await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, userId!, n.data.isMystery === true);
         }
         const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
-        Alert.alert(
-          'Gift Received!',
-          n.data.isMystery
-            ? `${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`
-            : `${n.data.giverName || 'A friend'} gifted you an experience!`
-        );
+        if (n.data.isMystery) {
+          showSuccess(`${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`);
+        } else {
+          showSuccess(`${n.data.giverName || 'A friend'} gifted you an experience!`);
+        }
         if (goal) {
           navigation.navigate('Journey', { goal });
         }
       } catch (error) {
         logger.error('Error attaching empowered gift:', error);
-        Alert.alert('Error', 'Could not attach the gift. Please try again.');
+        showError('Could not attach the gift. Please try again.');
       }
     }
   };
@@ -215,32 +218,32 @@ const NotificationsScreen = () => {
 
   const handleClearAll = async () => {
     if (!userId) {
-      Alert.alert('Error', 'User not authenticated');
+      showError('User not authenticated');
       return;
     }
 
     try {
       await notificationService.clearAllNotifications(userId);
-      Alert.alert('Success', 'All notifications have been cleared.');
+      showSuccess('All notifications have been cleared.');
     } catch (error) {
       logger.error('Error clearing all notifications:', error);
-      Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+      showError('Failed to clear notifications. Please try again.');
     }
   };
 
 
   const handleClearNotification = async (notificationId: string) => {
     if (!notificationId) {
-      Alert.alert('Error', 'Cannot clear notification: missing ID');
+      showError('Cannot clear notification: missing ID');
       return;
     }
 
     try {
       await notificationService.deleteNotification(notificationId);
-      // Alert.alert('Success', 'Notification has been cleared.'); // <-- THIS LINE IS REMOVED
+      // No toast needed - the notification just disappears
     } catch (error) {
       logger.error('Error clearing notification:', error);
-      Alert.alert('Error', 'Failed to clear notification. Please try again.');
+      showError('Failed to clear notification. Please try again.');
     }
   };
 
@@ -311,6 +314,8 @@ const NotificationsScreen = () => {
             styles.reactionCard,
             !item.read && styles.reactionCardUnread
           ]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.message}. Tap to view post`}
         >
           <View style={styles.reactionCardContent}>
             {/* Profile Image or Placeholder */}
@@ -319,6 +324,7 @@ const NotificationsScreen = () => {
                 <Image
                   source={{ uri: item.data.reactorProfileImageUrl }}
                   style={styles.reactorProfileImage}
+                  accessibilityLabel={`${item.data?.reactorNames?.[0] || 'User'}'s profile picture`}
                 />
               ) : (
                 <View style={styles.placeholderAvatar}>
@@ -373,6 +379,8 @@ const NotificationsScreen = () => {
               e.stopPropagation();
               handleClearNotification(item.id!);
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear this notification"
           >
             <Text style={styles.reactionClearText}>×</Text>
           </TouchableOpacity>
@@ -414,6 +422,8 @@ const NotificationsScreen = () => {
           <TouchableOpacity
             style={styles.clearNotificationButton}
             onPress={() => handleClearNotification(item.id!)}
+            accessibilityRole="button"
+            accessibilityLabel="Clear this notification"
           >
             <Text style={styles.clearNotificationText}>×</Text>
           </TouchableOpacity>
@@ -434,6 +444,8 @@ const NotificationsScreen = () => {
               <TouchableOpacity
                 style={styles.clearAllButton}
                 onPress={handleClearAll}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all notifications"
               >
                 <Text style={styles.clearAllButtonText}>Clear All</Text>
               </TouchableOpacity>
@@ -486,7 +498,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -511,7 +523,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     flex: 1,
   },
   unreadDot: {
@@ -527,7 +539,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   cardDate: {
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontSize: 12,
   },
   cardFooter: {
@@ -544,7 +556,7 @@ const styles = StyleSheet.create({
   clearNotificationButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -553,13 +565,13 @@ const styles = StyleSheet.create({
     margin: 8,
   },
   clearNotificationText: {
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontSize: 18,
     fontWeight: 'bold',
   },
   emptyText: {
     textAlign: 'center',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginTop: 50,
     fontSize: 16,
   },
@@ -628,7 +640,7 @@ const styles = StyleSheet.create({
   reactionMessage: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     lineHeight: 20,
     flex: 1,
   },
@@ -646,7 +658,7 @@ const styles = StyleSheet.create({
   },
   reactionDate: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     marginBottom: 4,
   },
   reactionCta: {
@@ -679,7 +691,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reactionClearText: {
-    color: '#6b7280',
+    color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -163,11 +163,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     marginBottom: 20,
   },
   captureButtons: {
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
   },
   previewVideoOverlay: {
     position: 'absolute',
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   continueButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: Colors.textMuted,
   },
   continueButtonText: {
     color: '#fff',
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   skipLinkText: {
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 14,
   },
 });

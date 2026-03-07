@@ -118,7 +118,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 <Text style={styles.headerTitle}>{title}</Text>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <X color="#6b7280" size={24} />
+                                <X color={Colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
@@ -147,7 +147,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder={type === 'feedback' ? 'Feature request, UI improvement, etc.' : 'Bug report, payment issue, etc.'}
-                                        placeholderTextColor="#9ca3af"
+                                        placeholderTextColor={Colors.textMuted}
                                         value={subject}
                                         onChangeText={setSubject}
                                         maxLength={100}
@@ -162,7 +162,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     <TextInput
                                         style={[styles.input, styles.textArea]}
                                         placeholder={placeholder}
-                                        placeholderTextColor="#9ca3af"
+                                        placeholderTextColor={Colors.textMuted}
                                         value={message}
                                         onChangeText={setMessage}
                                         multiline
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: Colors.backgroundLight,
     },
     headerTitleContainer: {
         flexDirection: 'row',
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -263,14 +263,14 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 15,
-        color: '#111827',
+        color: Colors.textPrimary,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     textArea: {
         minHeight: 120,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     },
     charCount: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: Colors.textMuted,
         textAlign: 'right',
         marginTop: 4,
     },
@@ -327,13 +327,13 @@ const styles = StyleSheet.create({
     successTitle: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginTop: 16,
         marginBottom: 12,
     },
     successMessage: {
         fontSize: 15,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
     },

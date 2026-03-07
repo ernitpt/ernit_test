@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     },
     message: {
         fontSize: 16,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 24,
         marginBottom: 32,

@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   content: {
     marginBottom: 12,
@@ -369,17 +369,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   message: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   details: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
   buttons: {
     flexDirection: 'row',
@@ -421,12 +421,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
   inputRow: {
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   confirmButton: {
     backgroundColor: Colors.primary,
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
+    borderLeftColor: Colors.error,
   },
   errorText: {
     color: '#991b1b',

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity,
-  Platform, Linking, Alert, LayoutAnimation,
+  Platform, Linking, LayoutAnimation,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -23,11 +23,13 @@ import { motivationService } from '../../services/MotivationService';
 import SharedHeader from '../../components/SharedHeader';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
+import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Journey'>;
 
@@ -73,6 +75,8 @@ const SegmentedControl = ({
           style={segStyles.tab}
           onPress={() => onTabChange(tab as TabKey)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${tab} tab`}
         >
           <Text
             style={[
@@ -91,7 +95,7 @@ const SegmentedControl = ({
 const segStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     borderRadius: 12,
     padding: 3,
     marginBottom: 16,
@@ -119,7 +123,7 @@ const segStyles = StyleSheet.create({
   tabLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
   tabLabelActive: {
     color: Colors.primaryDark,
@@ -216,6 +220,8 @@ const SessionCard = ({
             style={sessStyles.motivationToggle}
             onPress={toggleMotivations}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${expanded ? 'Hide' : 'Show'} motivations`}
           >
             <MessageCircle size={14} color={Colors.primary} />
             <Text style={sessStyles.motivationToggleText}>
@@ -262,7 +268,7 @@ const sessStyles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: Colors.backgroundLight,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -327,7 +333,7 @@ const sessStyles = StyleSheet.create({
   thumbImg: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -342,7 +348,7 @@ const sessStyles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: Colors.border,
   },
   motivationToggleText: {
     fontSize: 13,
@@ -431,6 +437,7 @@ const JourneyScreen = () => {
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const couponRequestedRef = useRef(false);
+  const { showSuccess, showError, showInfo } = useToast();
 
   // Redirect if no goal
   useEffect(() => {
@@ -633,11 +640,11 @@ const JourneyScreen = () => {
       await generateCouponWithTransaction();
     } catch (err) {
       logger.error('Coupon generation failed:', err);
-      Alert.alert('Error', 'Could not generate your coupon. Please try again.');
+      showError('Could not generate your coupon. Please try again.');
     } finally {
       setCouponLoading(false);
     }
-  }, [generateCouponWithTransaction]);
+  }, [generateCouponWithTransaction, showError]);
 
   const handleCopyCoupon = useCallback(async () => {
     if (!couponCode) return;
@@ -675,7 +682,7 @@ const JourneyScreen = () => {
     });
     Linking.canOpenURL(url!).then(ok => {
       if (ok) Linking.openURL(url!);
-      else Alert.alert('WhatsApp Not Available', 'WhatsApp is not installed.');
+      else showInfo('WhatsApp is not installed.');
     });
   }, [partner, experience, preferredDate, userName]);
 
@@ -774,10 +781,10 @@ const JourneyScreen = () => {
           ],
           paddingVertical: 12,
           borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: '#e5e7eb',
+          borderBottomColor: Colors.border,
         }}
       >
-        <Text style={{ fontWeight: '700', color: '#111827', marginBottom: 4 }}>
+        <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 }}>
           {fmt(dateMs)}
         </Text>
 
@@ -785,8 +792,10 @@ const JourneyScreen = () => {
           <TouchableOpacity
             onPress={() => setSelectedImageUri(hint.imageUrl)}
             activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="View hint image"
           >
-            <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
+            <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} accessibilityLabel="Hint image" />
           </TouchableOpacity>
         )}
 
@@ -814,8 +823,11 @@ const JourneyScreen = () => {
   const renderSessionsTab = () => {
     if (sessionsLoading && sessions.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Loading sessions…</Text>
+        <View style={{ padding: 20, gap: 10 }}>
+          <SessionCardSkeleton />
+          <SessionCardSkeleton />
+          <SessionCardSkeleton />
+          <SessionCardSkeleton />
         </View>
       );
     }
@@ -903,7 +915,7 @@ const JourneyScreen = () => {
         <StatusBar style="light" />
         <SharedHeader title="Journey" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
     );
@@ -990,7 +1002,7 @@ const JourneyScreen = () => {
                     <View style={cStyles.couponCodeBox}>
                       <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                     </View>
-                    <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7}>
+                    <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
                       {isCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.primary} />}
                       <Text style={[cStyles.copyText, isCopied && { color: '#10b981' }]}>
                         {isCopied ? 'Copied!' : 'Copy Code'}
@@ -1003,6 +1015,8 @@ const JourneyScreen = () => {
                     onPress={handleGenerateCoupon}
                     activeOpacity={0.8}
                     disabled={couponLoading}
+                    accessibilityRole="button"
+                    accessibilityLabel="Generate redemption code"
                   >
                     <Ticket size={16} color="#fff" />
                     <Text style={cStyles.generateCouponText}>
@@ -1022,8 +1036,8 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
                           <Text style={cStyles.contactValue}>{partner.phone}</Text>
                         </View>
-                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn}>
-                          {isPhoneCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color="#6b7280" />}
+                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                          {isPhoneCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1034,8 +1048,8 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactLabel}>Email</Text>
                           <Text style={[cStyles.contactValue, { fontSize: 13 }]}>{partner.contactEmail || partner.email}</Text>
                         </View>
-                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn}>
-                          {isEmailCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color="#6b7280" />}
+                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
+                          {isEmailCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1043,13 +1057,13 @@ const JourneyScreen = () => {
                     {/* Schedule buttons */}
                     <View style={cStyles.scheduleRow}>
                       {partner.phone && (
-                        <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookWhatsApp} activeOpacity={0.8}>
+                        <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via WhatsApp">
                           <MessageCircle size={16} color="#fff" />
                           <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
                         </TouchableOpacity>
                       )}
                       {(partner.contactEmail || partner.email) && (
-                        <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookEmail} activeOpacity={0.8}>
+                        <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via Email">
                           <Mail size={16} color="#fff" />
                           <Text style={cStyles.scheduleBtnText}>Email</Text>
                         </TouchableOpacity>
@@ -1202,6 +1216,7 @@ const JourneyScreen = () => {
                       <Image
                         source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
                         style={[styles.experienceCover, { height: 180 }]}
+                        accessibilityLabel={`${currentGoal.pledgedExperience.title} cover image`}
                       />
                     ) : null}
                     <View style={styles.experienceInfo}>
@@ -1333,12 +1348,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   emptyText: {
-    color: '#6b7280',
+    color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
   emptySubText: {
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
@@ -1352,7 +1367,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   // ── Experience Showcase ──
   experienceShowcase: {
@@ -1366,7 +1381,7 @@ const styles = StyleSheet.create({
     height: 140,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   experienceInfo: {
     backgroundColor: '#fff',
@@ -1375,7 +1390,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderTopWidth: 0,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   experienceHeader: {
     flexDirection: 'row',
@@ -1407,7 +1422,7 @@ const styles = StyleSheet.create({
   },
   experienceProgressTrack: {
     height: 6,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -1548,7 +1563,7 @@ const cStyles = StyleSheet.create({
     borderBottomRightRadius: 16,
     borderWidth: 1,
     borderTopWidth: 0,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   experienceName: {
     fontSize: 16,
@@ -1568,7 +1583,7 @@ const cStyles = StyleSheet.create({
   },
   rewardDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
     marginVertical: 14,
   },
   redemptionArea: {
@@ -1599,7 +1614,7 @@ const cStyles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginBottom: 10,
   },
   couponCodeText: {
@@ -1640,7 +1655,7 @@ const cStyles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginBottom: 12,
   },
   contactTitle: {
@@ -1654,7 +1669,7 @@ const cStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: Colors.border,
   },
   contactLabel: {
     fontSize: 11,
@@ -1722,7 +1737,7 @@ const cStyles = StyleSheet.create({
     marginBottom: 12,
   },
   expiredCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
     borderRadius: 10,
     padding: 12,
     marginTop: 12,

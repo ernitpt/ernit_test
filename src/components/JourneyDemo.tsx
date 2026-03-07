@@ -355,17 +355,17 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
   },
   replayIcon: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     fontWeight: '700',
   },
   replayText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
 
   // Demo card
@@ -376,7 +376,7 @@ const s = StyleSheet.create({
     padding: 24,
     paddingTop: 16,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: Colors.backgroundLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
@@ -390,7 +390,7 @@ const s = StyleSheet.create({
   progressTrack: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
     marginBottom: 16,
     overflow: 'hidden',
   },
@@ -439,7 +439,7 @@ const s = StyleSheet.create({
   },
   goalSubtitle: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontWeight: '500',
     marginTop: 2,
   },
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.border,
     overflow: 'hidden',
   },
   capsuleFill: {
@@ -487,7 +487,7 @@ const s = StyleSheet.create({
   progressCount: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
 
   // Streak badge
@@ -590,7 +590,7 @@ const s = StyleSheet.create({
   },
   scheduleText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',

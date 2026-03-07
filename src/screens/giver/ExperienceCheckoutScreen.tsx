@@ -8,13 +8,13 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  Alert,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
+import { CheckoutSkeleton } from '../../components/SkeletonLoader';
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -40,6 +40,7 @@ import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -152,6 +153,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 }) => {
   const navigation = useNavigation<NavigationProp>();
   const { state, dispatch } = useApp();
+  const { showSuccess, showError, showInfo } = useToast();
 
   const stripe = useStripe();
   const elements = useElements();
@@ -186,10 +188,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         const { paymentIntent, error } = await stripe.retrievePaymentIntent(redirectClientSecret);
         if (error) {
           logger.error("Error retrieving payment intent:", error);
-          Alert.alert(
-            "Payment Verification Failed",
-            "Could not verify payment. Please contact support if payment was deducted."
-          );
+          showError("Could not verify payment. Please contact support if payment was deducted.");
           setIsCheckingRedirect(false);
           return;
         }
@@ -207,7 +206,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               window.history.replaceState({}, document.title, window.location.pathname);
             }
 
-            Alert.alert("Success", "Your payment was processed successfully!");
+            showSuccess("Your payment was processed successfully!");
             navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
             dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
@@ -218,21 +217,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
           } else {
             logger.warn("⚠️ Gifts not found after polling");
-            Alert.alert(
-              "Payment Processed",
-              "Your payment was successful. Your gifts are being prepared and will be available shortly."
-            );
+            showInfo("Your payment was successful. Your gifts are being prepared and will be available shortly.");
           }
         } else if (paymentIntent?.status === "processing") {
-          Alert.alert(
-            "Payment Processing",
-            "Your payment is being processed. You will receive a confirmation shortly."
-          );
+          showInfo("Your payment is being processed. You will receive a confirmation shortly.");
         } else if (paymentIntent?.status === "requires_action") {
-          Alert.alert(
-            "Action Required",
-            "Additional action is required to complete your payment."
-          );
+          showInfo("Additional action is required to complete your payment.");
         }
       } catch (err: any) {
         logger.error("Error handling redirect return:", err);
@@ -245,7 +235,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             paymentIntentId: redirectClientSecret
           }
         });
-        Alert.alert("Error", "Failed to verify payment status. Please contact support.");
+        showError("Failed to verify payment status. Please contact support.");
       } finally {
         setIsCheckingRedirect(false);
       }
@@ -257,7 +247,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
   const handlePurchase = async () => {
     if (!stripe || !elements) {
-      Alert.alert("Stripe not ready", "Please wait a few seconds and try again.");
+      showInfo("Please wait a few seconds and try again.");
       return;
     }
 
@@ -289,7 +279,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
-          Alert.alert("Success", "Your payment was processed successfully!");
+          showSuccess("Your payment was processed successfully!");
           navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
@@ -297,16 +287,10 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
         } else {
           logger.warn("⚠️ Gifts not found after polling");
-          Alert.alert(
-            "Payment Processed",
-            "Your payment was successful. Your gifts are being prepared and will be available shortly."
-          );
+          showInfo("Your payment was successful. Your gifts are being prepared and will be available shortly.");
         }
       } else if (paymentIntent.status === "processing") {
-        Alert.alert(
-          "Payment Processing",
-          "Your payment is being processed. You will receive confirmation shortly."
-        );
+        showInfo("Your payment is being processed. You will receive confirmation shortly.");
       }
       // If redirect happens, the useEffect above will handle it
     } catch (err: any) {
@@ -325,7 +309,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       });
 
       analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
-      Alert.alert("Payment Failed", errorMessage);
+      showError(errorMessage);
       logger.error("Payment error:", err);
     } finally {
       setIsProcessing(false);
@@ -341,7 +325,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
               <ChevronLeft color="#111827" size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
@@ -423,6 +412,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               onPress={handlePurchase}
               disabled={isProcessing}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Complete purchase"
             >
               {isProcessing ? (
                 <ActivityIndicator color="#fff" />
@@ -483,19 +474,6 @@ const ExperienceCheckoutScreen: React.FC = () => {
     }
   }, [cartItems, navigation]);
 
-  // Early return AFTER all hooks are called
-  if (!Array.isArray(cartItems) || cartItems.length === 0) {
-    return (
-      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Redirecting...</Text>
-        </View>
-      </MainScreen>
-      </ErrorBoundary>
-    );
-  }
-
   // Ref to ensure initialization only happens once
   const initRef = React.useRef(false);
 
@@ -525,7 +503,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
         }
 
         if (list.length === 0) {
-          Alert.alert("Error", "Could not load experiences for checkout.");
+          showError("Could not load experiences for checkout.");
           initRef.current = false; // Allow retry
           navigation.goBack();
           return;
@@ -568,7 +546,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
             itemCount: cartItems.length
           }
         });
-        Alert.alert("Error", err.message || "Failed to initialize payment.");
+        showError(err.message || "Failed to initialize payment.");
         initRef.current = false; // Allow retry
         navigation.goBack();
       } finally {
@@ -578,6 +556,19 @@ const ExperienceCheckoutScreen: React.FC = () => {
 
     init();
   }, []); // Empty deps - only run once on mount
+
+  // Early return AFTER all hooks are called
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
+      <MainScreen activeRoute="Home">
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Redirecting...</Text>
+        </View>
+      </MainScreen>
+      </ErrorBoundary>
+    );
+  }
 
   if (!state.user) {
     return (
@@ -602,8 +593,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.secondary} size="large" />
-          <Text style={styles.loadingText}>Setting up checkout...</Text>
+          <CheckoutSkeleton />
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -663,7 +653,7 @@ export default ExperienceCheckoutScreen;
 
 // --- Styles (based on your original) ---
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9fafb" },
+  container: { flex: 1, backgroundColor: Colors.surface },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -673,20 +663,20 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: Colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     flex: 1,
     textAlign: "center",
   },
@@ -707,7 +697,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -716,7 +706,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -727,7 +717,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: Colors.border,
   },
   summaryInfo: {
     flex: 1,
@@ -736,9 +726,9 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: Colors.textPrimary,
   },
-  subtitle: { fontSize: 14, color: "#6b7280", marginTop: 2 },
+  subtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 2 },
   quantityText: {
     marginTop: 4,
     fontSize: 13,
@@ -750,7 +740,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 16,
   },
-  priceLabel: { fontSize: 16, color: "#6b7280", fontWeight: "600" },
+  priceLabel: { fontSize: 16, color: Colors.textSecondary, fontWeight: "600" },
   priceAmount: { fontSize: 18, fontWeight: "700", color: Colors.secondary },
 
   section: { marginBottom: 28 },
@@ -760,15 +750,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
-  sectionSubtitle: { fontSize: 14, color: "#6b7280", marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: Colors.textPrimary },
+  sectionSubtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 12 },
 
   paymentBox: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -782,11 +772,11 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.surface,
     borderRadius: 8,
     marginBottom: 20,
   },
-  securityText: { fontSize: 13, color: "#6b7280", fontWeight: "500" },
+  securityText: { fontSize: 13, color: Colors.textSecondary, fontWeight: "500" },
 
   bottomBar: {
     position: "absolute",
@@ -798,7 +788,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: Platform.OS === "ios" ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: Colors.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -811,8 +801,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  totalLabel: { fontSize: 16, color: "#6b7280", fontWeight: "600" },
-  totalAmount: { fontSize: 28, fontWeight: "700", color: "#111827" },
+  totalLabel: { fontSize: 16, color: Colors.textSecondary, fontWeight: "600" },
+  totalAmount: { fontSize: 28, fontWeight: "700", color: Colors.textPrimary },
   payButton: {
     backgroundColor: Colors.secondary,
     paddingVertical: 16,
@@ -831,10 +821,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.surface,
   },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#6b7280" },
-  errorText: { fontSize: 18, color: "#ef4444", marginBottom: 16 },
+  loadingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary },
+  errorText: { fontSize: 18, color: Colors.error, marginBottom: 16 },
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -853,5 +843,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 1000,
   },
-  processingText: { marginTop: 12, fontSize: 16, color: "#6b7280", fontWeight: "500" },
+  processingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary, fontWeight: "500" },
 });

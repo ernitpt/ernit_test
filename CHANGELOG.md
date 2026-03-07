@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove Valentine-specific Cloud Functions code
 - surgically remove all Valentine-specific code from GoalService
 - remove Valentine flow (keep type fields for backward compat)
+- move inline component definitions outside parent components to fix performance issues
+- move inline component definitions outside parent components for performance
+- replaced Alert.alert with toast system in giver screens (CartScreen, CategorySelectionScreen, ConfirmationScreen, ConfirmationMultipleScreen)
+- replaced Alert.alert with toast in ExperienceCheckoutScreen, ExperienceDetailsScreen (native/web), CompletionScreen
+- replace ActivityIndicator spinners with skeleton loaders in 6 screen files
+- migrated hardcoded hex colors to design tokens in 12 component files
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -38,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - make reaction creation fully transactional with deterministic doc IDs
 - atomic gift claiming with transaction to prevent race condition (T1-4)
 - 12 logic bug fixes from system audit (goal sweep completion, webhook error handling, atomic transactions, price rounding, double-tap prevention, friend ops atomicity, count desync, gift claiming race, week boundary, reverse friend requests, orphaned notifications, listener memory leak)
+- move hooks before early return in FriendProfileScreen to fix Rules of Hooks violation
+- per-item image error tracking in FriendsListScreen and AddFriendScreen to prevent one broken avatar hiding all avatars
+- move useRef and useEffect above early return in ExperienceCheckoutScreen to fix Rules of Hooks violation
+- restore emoji encoding in share messages and empty state icons
+- resolve Rules of Hooks violation in ConfirmationScreen and null crash in ConfirmationMultipleScreen
+- add null guards and error handling in MysteryChoiceScreen, NotificationsScreen, and PurchasedGiftsScreen
+- resolve React Rules of Hooks violation in ExperienceDetailsScreen.web.tsx by moving all hook declarations before the early return
+- P0 critical bugs - hooks violations, null guards, emoji encoding, error handling, imageLoadError isolation
+- resolve Colors is not defined runtime error - add missing imports and fix 252 quoted Colors string literals across 18 files
+- wrap App with SafeAreaProvider so ToastOverlay can use useSafeAreaInsets
+- replace nested TouchableOpacity with Pressable in ExperienceCard to avoid nested button HTML on web
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -68,3 +85,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added ErrorBoundary to 5 remaining screens and analytics tracking to GoalService, SessionService, FriendService, ExperienceGiftService
 - ErrorBoundary now fires error_boundary_triggered analytics event on crash
 - added server-side searchUsers Cloud Function with rate limiting and safe data filtering
+- add error states with retry UI to 5 screens (Feed, FriendsList, UserProfile, Goals, AddFriend)
+- redesigned GoalSettingScreen as 4-step wizard with ModernSlider, inline calendar, AnimatePresence transitions, and LinearGradient CTA
+- comprehensive accessibility pass across all screens and components

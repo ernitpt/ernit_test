@@ -1,9 +1,10 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import { logger } from '../utils/logger';
 import { Play, Pause } from 'lucide-react-native';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 function formatDuration(seconds: number) {
     const m = Math.floor(seconds / 60);
@@ -18,6 +19,7 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) => {
+    const { showError } = useToast();
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [position, setPosition] = useState(0);
@@ -54,7 +56,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
             }
         } catch (error) {
             logger.error("Error loading audio:", error);
-            Alert.alert('Error', 'Failed to load audio');
+            showError('Failed to load audio');
         }
     };
 
@@ -113,7 +115,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#6b7280',
+        backgroundColor: Colors.textSecondary,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,

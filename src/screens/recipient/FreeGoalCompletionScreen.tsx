@@ -193,7 +193,7 @@ const FreeGoalCompletionScreen = () => {
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -357,6 +357,7 @@ const FreeGoalCompletionScreen = () => {
               source={{ uri: experienceImage }}
               style={styles.experienceImage}
               resizeMode="cover"
+              accessibilityLabel={`${pledgedExperience.title} image`}
             />
           )}
           <View style={styles.experienceContent}>
@@ -408,6 +409,8 @@ const FreeGoalCompletionScreen = () => {
             style={styles.shareButton}
             onPress={handleShareAchievement}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Share achievement"
           >
             <LinearGradient
               colors={[Colors.secondary, Colors.primary]}
@@ -424,6 +427,8 @@ const FreeGoalCompletionScreen = () => {
             style={styles.goalsButton}
             onPress={handleGoToGoals}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Back to Goals"
           >
             <Text style={styles.goalsButtonText}>Back to Goals</Text>
           </TouchableOpacity>
@@ -439,7 +444,7 @@ const FreeGoalCompletionScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
   },
   heroSection: {
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
@@ -552,17 +557,17 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   goalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   goalDesc: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
   },
@@ -608,12 +613,12 @@ const styles = StyleSheet.create({
   experienceHeaderText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   experienceImage: {
     width: '100%',
     height: 220,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   experienceContent: {
     padding: 20,
@@ -621,12 +626,12 @@ const styles = StyleSheet.create({
   experienceTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   experienceSubtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   priceTag: {
@@ -668,7 +673,7 @@ const styles = StyleSheet.create({
   },
   empowerDescription: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 16,
@@ -716,7 +721,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   goalsButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',

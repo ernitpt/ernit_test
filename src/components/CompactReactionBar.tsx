@@ -205,7 +205,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                         activeOpacity={0.8}
                     >
                         <SmilePlus
-                            color={(showPicker || userReaction) ? Colors.secondary : "#6b7280"}
+                            color={(showPicker || userReaction) ? Colors.secondary : Colors.textSecondary}
                             size={20}
                         />
                     </TouchableOpacity>
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     reactionCount: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 2,
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     countText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     userCountText: {
         color: Colors.secondary,

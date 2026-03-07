@@ -223,7 +223,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 // Fallback for unknown post types
                 return {
                     text: 'made progress',
-                    color: '#6b7280',
+                    color: Colors.textSecondary,
                 };
         }
     };
@@ -283,8 +283,15 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     activeOpacity={0.9}
                     onPress={() => setFullscreenMedia(true)}
                     style={styles.sessionMediaContainer}
+                    accessibilityRole="button"
+                    accessibilityLabel="View session media in fullscreen"
                 >
-                    <Image source={{ uri: post.mediaUrl }} style={styles.sessionMediaImage} resizeMode="cover" />
+                    <Image
+                        source={{ uri: post.mediaUrl }}
+                        style={styles.sessionMediaImage}
+                        resizeMode="cover"
+                        accessibilityLabel={`Session ${post.mediaType || 'photo'} from ${post.userName}`}
+                    />
                     {post.mediaType === 'video' && (
                         <View style={styles.sessionMediaVideoOverlay}>
                             <Text style={styles.sessionMediaPlayIcon}>▶</Text>
@@ -294,11 +301,17 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             )}
 
             <View style={styles.header}>
-                <TouchableOpacity onPress={handleUserPress} style={styles.clickableHeader}>
+                <TouchableOpacity
+                    onPress={handleUserPress}
+                    style={styles.clickableHeader}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${post.userName}'s profile`}
+                >
                     {post.userProfileImageUrl ? (
                         <Image
                             source={{ uri: post.userProfileImageUrl }}
                             style={styles.avatar}
+                            accessibilityLabel={`${post.userName}'s profile picture`}
                         />
                     ) : (
                         <View style={styles.avatarPlaceholder}>
@@ -335,7 +348,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                                             styles.capsule,
                                             i < (post.weeklyCount || 0)
                                                 ? { backgroundColor: Colors.primary }
-                                                : { backgroundColor: '#E5E7EB' },
+                                                : { backgroundColor: Colors.border },
                                         ]}
                                     />
                                 ))}
@@ -357,7 +370,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                                             styles.capsule,
                                             i < Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))
                                                 ? { backgroundColor: Colors.secondary }
-                                                : { backgroundColor: '#E5E7EB' },
+                                                : { backgroundColor: Colors.border },
                                         ]}
                                     />
                                 ))}
@@ -447,8 +460,10 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     style={styles.commentIconButton}
                     onPress={() => setShowCommentModal(true)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
                 >
-                    <MessageCircle color="#6b7280" size={18} />
+                    <MessageCircle color={Colors.textSecondary} size={18} />
                     {commentCount > 0 && (
                         <Text style={styles.commentCountText}>{commentCount}</Text>
                     )}
@@ -461,7 +476,11 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 post.experienceTitle && !post.isMystery && (
                     <TouchableOpacity style={styles.experiencePreviewCard} onPress={handleEmpower} activeOpacity={0.85}>
                         {post.experienceImageUrl && (
-                            <Image source={{ uri: post.experienceImageUrl }} style={styles.experiencePreviewImage} />
+                            <Image
+                                source={{ uri: post.experienceImageUrl }}
+                                style={styles.experiencePreviewImage}
+                                accessibilityLabel={`${post.experienceTitle} experience`}
+                            />
                         )}
                         <View style={styles.experiencePreviewInfo}>
                             <Text style={styles.experiencePreviewTitle} numberOfLines={1}>{post.experienceTitle}</Text>
@@ -486,6 +505,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                             ]}
                             onPress={handleEmpower}
                             activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Empower ${post.userName} with this experience`}
                         >
                             <Heart
                                 color={(post.type === 'session_progress' || post.type === 'goal_completed') ? '#fff' : '#ec4899'}
@@ -504,6 +525,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                         style={styles.motivateButton}
                         onPress={() => setShowMotivationModal(true)}
                         activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Send motivation message to ${post.userName}`}
                     >
                         <Send color={Colors.secondary} size={16} />
                         <Text style={styles.motivateButtonText}>Motivate</Text>
@@ -631,12 +654,12 @@ const styles = StyleSheet.create({
     },
     userName: {
         fontSize: 14,
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 1,
     },
     timeAgo: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: Colors.textMuted,
     },
     content: {
         paddingHorizontal: 16,
@@ -666,12 +689,12 @@ const styles = StyleSheet.create({
     },
     progressLabel: {
         fontSize: 13,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         fontWeight: '500',
     },
     progressText: {
         fontSize: 13,
-        color: '#111827',
+        color: Colors.textPrimary,
         fontWeight: '600',
     },
     capsuleRow: {
@@ -698,16 +721,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 18,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
     },
     commentCountText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     divider: {
         height: 1,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
         marginVertical: 8,
         marginHorizontal: 16,
     },
@@ -721,13 +744,13 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         marginTop: 8,
     },
     experienceImage: {
         width: '100%',
         height: 140,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     experienceImagePlaceholder: {
         justifyContent: 'center',
@@ -743,22 +766,22 @@ const styles = StyleSheet.create({
     experienceTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 4,
     },
     partnerName: {
         fontSize: 14,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         marginBottom: 4,
     },
     goalDescriptionText: {
         fontSize: 14,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         marginBottom: 6,
     },
     experienceMeta: {
         fontSize: 13,
-        color: '#9ca3af',
+        color: Colors.textMuted,
     },
     // Completed goal without experience
     achievementCard: {
@@ -865,7 +888,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 8,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
     },
     experiencePreviewInfo: {
         flex: 1,
@@ -909,7 +932,7 @@ const styles = StyleSheet.create({
     },
     // Session media (top of card)
     sessionMediaContainer: {
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
     },
     sessionMediaImage: {
         width: '100%',

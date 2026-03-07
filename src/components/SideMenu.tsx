@@ -7,7 +7,6 @@ import {
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
-  Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +28,7 @@ import ContactModal from './ContactModal';
 import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
 const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
@@ -48,10 +48,32 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: screenWidth } = Dimensions.get('window');
 
+// Reusable menu item
+const MenuItem: React.FC<{
+  Icon: React.FC<{ width?: number; height?: number; color?: string }>;
+  title: string;
+  onPress: () => void;
+  isLast?: boolean;
+}> = ({ Icon, title, onPress, isLast = false }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
+    activeOpacity={0.8}
+    accessibilityRole="button"
+    accessibilityLabel={title}
+  >
+    <View style={styles.iconWrapper}>
+      <Icon width={26} height={26} color={Colors.primary} />
+    </View>
+    <Text style={styles.menuTitle}>{title}</Text>
+  </TouchableOpacity>
+);
+
 const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const navigation = useNavigation<NavigationProp>();
   const { state, dispatch } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { showError } = useToast();
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
@@ -173,7 +195,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       navigation.navigate('CategorySelection');
     } catch (error) {
       logger.error('Logout failed:', error);
-      Alert.alert('Error', 'Failed to log out. Please try again.');
+      showError('Failed to log out. Please try again.');
     }
   };
 
@@ -181,25 +203,6 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     setShowLogoutConfirmation(false);
     // Keep side menu open when canceling
   };
-
-  // 🔹 Reusable menu item
-  const MenuItem: React.FC<{
-    Icon: React.FC<{ width?: number; height?: number; color?: string }>;
-    title: string;
-    onPress: () => void;
-    isLast?: boolean;
-  }> = ({ Icon, title, onPress, isLast = false }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
-      activeOpacity={0.8}
-    >
-      <View style={styles.iconWrapper}>
-        <Icon width={26} height={26} color={Colors.primary} />
-      </View>
-      <Text style={styles.menuTitle}>{title}</Text>
-    </TouchableOpacity>
-  );
 
   return (
     <>
@@ -217,8 +220,8 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
             <SafeAreaView style={styles.menuContent}>
               {/* Header */}
               <View style={styles.menuHeader}>
-                <Text style={styles.menuHeaderTitle}>Menu</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.menuHeaderTitle} accessibilityRole="header">Menu</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close menu">
                   <Text style={styles.closeButtonText}>×</Text>
                 </TouchableOpacity>
               </View>

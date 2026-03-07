@@ -367,12 +367,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   modalSubtitle: {
     fontSize: 15,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
@@ -389,10 +389,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonPopup: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
   },
   confirmButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: Colors.error,
   },
   cancelText: {
     fontSize: 16,
@@ -427,17 +427,17 @@ const styles = StyleSheet.create({
   celebrationHeader: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
   },
   // Feed post preview
   feedPreviewCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginBottom: 16,
   },
   feedMediaWrapper: {
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   feedMediaAdaptive: {
     width: '100%',
     aspectRatio: 4 / 3,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   feedAuthorRow: {
     flexDirection: 'row',
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   feedAvatarPlaceholder: {
     alignItems: 'center',
@@ -474,11 +474,11 @@ const styles = StyleSheet.create({
   },
   feedAuthorName: {
     fontSize: 13,
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   feedTimestamp: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
   feedProgressBlock: {
     paddingHorizontal: 14,
@@ -492,12 +492,12 @@ const styles = StyleSheet.create({
   },
   feedProgressBlockLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   feedProgressBlockCount: {
     fontSize: 12,
-    color: '#111827',
+    color: Colors.textPrimary,
     fontWeight: '600',
   },
   feedCapsuleRow: {
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   celebrationCloseBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
 });
 

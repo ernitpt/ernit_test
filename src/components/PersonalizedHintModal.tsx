@@ -12,7 +12,6 @@ import {
     Platform,
     ScrollView,
     Image,
-    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
@@ -22,6 +21,7 @@ import { commonStyles } from '../styles/commonStyles';
 import { Trash2, Mic, Square, Play, Pause, Image as ImageIcon, X } from 'lucide-react-native';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 export interface HintSubmission {
     type: 'text' | 'audio' | 'image' | 'mixed';
@@ -58,6 +58,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     onClose,
     onSubmit,
 }) => {
+    const { showInfo, showError } = useToast();
     const [mode, setMode] = useState<'text' | 'voice'>('text');
     const [hintText, setHintText] = useState('');
     const [imageUri, setImageUri] = useState<string | null>(null);
@@ -112,7 +113,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
         try {
             const permission = await Audio.requestPermissionsAsync();
             if (permission.status !== 'granted') {
-                Alert.alert('Permission needed', 'Please grant microphone permission to record voice hints.');
+                showInfo('Please grant microphone permission to record voice hints.');
                 return;
             }
 
@@ -212,7 +213,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     const pickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permission.status !== 'granted') {
-            Alert.alert('Permission needed', 'Please grant photo library permission to attach images.');
+            showInfo('Please grant photo library permission to attach images.');
             return;
         }
 
@@ -256,7 +257,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
             onClose();
         } catch (error) {
             logger.error('Error submitting hint:', error);
-            Alert.alert('Error', 'Failed to send hint. Please try again.');
+            showError('Failed to send hint. Please try again.');
         } finally {
             setSubmitting(false);
         }

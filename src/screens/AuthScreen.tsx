@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -34,6 +33,7 @@ import {
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
+import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -53,10 +53,11 @@ const AuthScreen = () => {
   const route = useRoute();
   const { state, dispatch } = useApp();
   const { handleAuthSuccess } = useAuthGuard();
+  const { showSuccess, showError, showInfo } = useToast();
 
   const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
   // Success animation
   const successScaleAnim = useRef(new Animated.Value(0)).current;
@@ -283,7 +284,7 @@ const AuthScreen = () => {
           });
 
           // Show success animation
-          setShowSuccess(true);
+          setShowSuccessOverlay(true);
           Animated.parallel([
             Animated.spring(successScaleAnim, {
               toValue: 1,
@@ -331,11 +332,7 @@ const AuthScreen = () => {
                 logger.log('Existing sign-in methods for', email, ':', methods);
 
                 if (methods.includes('password')) {
-                  Alert.alert(
-                    'Account Linking',
-                    'An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.',
-                    [{ text: 'OK' }]
-                  );
+                  showInfo('An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.');
 
                   // The account is already linked by Firebase automatically in newer versions
                   // Just sign in with the credential
@@ -354,7 +351,7 @@ const AuthScreen = () => {
                     },
                   });
 
-                  setShowSuccess(true);
+                  setShowSuccessOverlay(true);
                   Animated.parallel([
                     Animated.spring(successScaleAnim, {
                       toValue: 1,
@@ -400,11 +397,11 @@ const AuthScreen = () => {
             additionalData: { errorCode: error.code }
           });
 
-          Alert.alert('Google Sign-In Failed', 'Unable to sign in with Google. Please try again.');
+          showError('Unable to sign in with Google. Please try again.');
           setIsLoading(false);
         });
     } else if (response?.type === 'error') {
-      Alert.alert('Google Sign-In Canceled', 'The sign-in process was canceled or failed.');
+      showError('The sign-in process was canceled or failed.');
     }
   }, [response]);
 
@@ -513,30 +510,30 @@ const AuthScreen = () => {
     const sanitizedConfirmPassword = sanitizeInput(confirmPassword);
 
     if (!sanitizedEmail || !sanitizedPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
     if (!validateEmail(sanitizedEmail)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      showError('Please enter a valid email address');
       return;
     }
 
     if (!isLogin) {
       if (!sanitizedDisplayName.trim()) {
-        Alert.alert('Error', 'Please enter your name');
+        showError('Please enter your name');
         return;
       }
       if (!isPasswordValid()) {
-        Alert.alert('Error', 'Password does not meet security requirements');
+        showError('Password does not meet security requirements');
         return;
       }
       if (sanitizedPassword !== sanitizedConfirmPassword) {
-        Alert.alert('Error', 'Passwords do not match');
+        showError('Passwords do not match');
         return;
       }
       const emailExists = await checkEmailExists(sanitizedEmail);
       if (emailExists) {
-        Alert.alert('Error', 'Email already in use');
+        showError('Email already in use');
         return;
       }
     }
@@ -594,7 +591,7 @@ const AuthScreen = () => {
       });
 
       // Show success animation
-      setShowSuccess(true);
+      setShowSuccessOverlay(true);
       Animated.parallel([
         Animated.spring(successScaleAnim, {
           toValue: 1,
@@ -656,7 +653,7 @@ const AuthScreen = () => {
           if (methods.includes('google.com') && !methods.includes('password')) {
             errorMessage = 'This email is registered with Google Sign-In. Please use the "Continue with Google" button to sign in.';
             setEmailError(errorMessage);
-            Alert.alert('Sign In Method Mismatch', errorMessage);
+            showError(errorMessage);
             setIsLoading(false);
             dispatch({ type: 'SET_LOADING', payload: false });
             return;
@@ -689,8 +686,8 @@ const AuthScreen = () => {
             setPasswordError(errorMessage);
             break;
           default:
-            // For other errors, show in alert
-            Alert.alert('Sign In Failed', errorMessage);
+            // For other errors, show toast
+            showError(errorMessage);
             return;
         }
       } else {
@@ -709,17 +706,17 @@ const AuthScreen = () => {
             setEmailError(errorMessage);
             break;
           default:
-            Alert.alert('Sign Up Failed', errorMessage);
+            showError(errorMessage);
             return;
         }
       }
 
-      // Show alert for login errors with inline feedback
+      // Show toast for login errors with inline feedback
       if (isLogin) {
-        Alert.alert('Sign In Failed', errorMessage);
+        showError(errorMessage);
       }
     } finally {
-      if (!showSuccess) {
+      if (!showSuccessOverlay) {
         setIsLoading(false);
         dispatch({ type: 'SET_LOADING', payload: false });
       }
@@ -728,13 +725,13 @@ const AuthScreen = () => {
 
   const handlePasswordReset = async () => {
     if (!email) {
-      Alert.alert('Reset Password', 'Please enter your email address first.');
+      showInfo('Please enter your email address first.');
       return;
     }
 
     try {
       await sendPasswordResetEmail(auth, email);
-      Alert.alert('Email Sent', 'A password reset link has been sent to your email. Please check your spam folder.');
+      showSuccess('A password reset link has been sent to your email. Please check your spam folder.');
     } catch (error: any) {
       await logErrorToFirestore(error, {
         screenName: 'AuthScreen',
@@ -744,7 +741,7 @@ const AuthScreen = () => {
       let message = 'Failed to send reset email.';
       if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
       if (error.code === 'auth/user-not-found') message = 'No account found with that email.';
-      Alert.alert('Error', message);
+      showError(message);
     }
   };
 
@@ -828,6 +825,8 @@ const AuthScreen = () => {
                   elevation: 3,
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
               >
                 <ChevronLeft color="white" size={24} />
               </TouchableOpacity>
@@ -845,6 +844,7 @@ const AuthScreen = () => {
                     marginBottom: 24,
                   }}
                   resizeMode="contain"
+                  accessibilityLabel="Ernit app logo"
                 />
                 <Text style={{ fontSize: 48, fontWeight: 'bold', color: 'white', textAlign: 'center', marginBottom: 16 }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
@@ -907,6 +907,8 @@ const AuthScreen = () => {
                       elevation: 2,
                     }}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continue with Google"
                   >
                     <View style={{
                       width: 20,
@@ -950,6 +952,7 @@ const AuthScreen = () => {
                         value={displayName}
                         onChangeText={handleDisplayNameChange}
                         autoCapitalize="words"
+                        accessibilityLabel="Username"
                       />
                     </View>
                   )}
@@ -971,6 +974,7 @@ const AuthScreen = () => {
                       onChangeText={handleEmailChange}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      accessibilityLabel="Email address"
                     />
                     {emailError && (
                       <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
@@ -1002,11 +1006,14 @@ const AuthScreen = () => {
                         value={password}
                         onChangeText={handlePasswordChange}
                         secureTextEntry={!showPassword}
+                        accessibilityLabel="Password"
                       />
                       <TouchableOpacity
                         onPress={() => setShowPassword(!showPassword)}
                         style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
                           <EyeOff size={20} color="#9CA3AF" />
@@ -1072,7 +1079,12 @@ const AuthScreen = () => {
                     )}
 
                     {isLogin && (
-                      <TouchableOpacity onPress={handlePasswordReset} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+                      <TouchableOpacity
+                        onPress={handlePasswordReset}
+                        style={{ alignSelf: 'flex-end', marginTop: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reset password"
+                      >
                         <Text style={{ color: Colors.primary, fontSize: 14, fontWeight: '500' }}>Forgot password?</Text>
                       </TouchableOpacity>
                     )}
@@ -1100,11 +1112,14 @@ const AuthScreen = () => {
                             setConfirmPassword(sanitized);
                           }}
                           secureTextEntry={!showConfirmPassword}
+                          accessibilityLabel="Confirm password"
                         />
                         <TouchableOpacity
                           onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                           style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                         >
                           {showConfirmPassword ? (
                             <EyeOff size={20} color="#9CA3AF" />
@@ -1164,6 +1179,8 @@ const AuthScreen = () => {
                         onPressOut={handleButtonPressOut}
                         disabled={isButtonDisabled}
                         activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel={isLogin ? "Sign in to your account" : "Create your account"}
                       >
                         <LinearGradient
                           colors={isButtonDisabled ? ['#D1D5DB', '#D1D5DB'] : Colors.gradientTriple}
@@ -1179,7 +1196,7 @@ const AuthScreen = () => {
                             elevation: isButtonDisabled ? 2 : 12,
                           }}
                         >
-                          {showSuccess ? (
+                          {showSuccessOverlay ? (
                             <Animated.View
                               style={{
                                 flexDirection: 'row',
@@ -1230,6 +1247,8 @@ const AuthScreen = () => {
                       setPasswordError('');
                     }}
                     style={{ alignItems: 'center' }}
+                    accessibilityRole="button"
+                    accessibilityLabel={isLogin ? "Switch to sign up" : "Switch to sign in"}
                   >
                     <Text style={{ fontSize: 16, color: Colors.primary, fontWeight: '600' }}>
                       {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}

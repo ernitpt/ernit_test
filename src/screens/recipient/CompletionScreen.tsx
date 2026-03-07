@@ -6,9 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   StyleSheet,
-  ActivityIndicator,
   Animated,
   Platform,
   Linking,
@@ -38,6 +36,8 @@ import { userService } from '../../services/userService';
 import { logger } from '../../utils/logger';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import Colors from '../../config/colors';
+import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
+import { useToast } from '../../context/ToastContext';
 
 type CompletionNavigationProp = NativeStackNavigationProp<
   RecipientStackParamList,
@@ -48,6 +48,7 @@ const CompletionScreen = () => {
   const navigation = useNavigation<CompletionNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
+  const { showError, showInfo } = useToast();
 
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -61,8 +62,6 @@ const CompletionScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const trophyPulse = useRef(new Animated.Value(1)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
-  const colorCycle = useRef(new Animated.Value(0)).current;
-  const gradientAnim = useRef(new Animated.Value(0)).current;
   const floatAnim1 = useRef(new Animated.Value(0)).current;
   const floatAnim2 = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<any>(null);
@@ -155,7 +154,7 @@ const CompletionScreen = () => {
         }
       } catch (error) {
         logger.error("? Error fetching data:", error);
-        Alert.alert("Error", "Could not load experience details.");
+        showError("Could not load experience details.");
       }
     };
     fetchExperience();
@@ -227,22 +226,6 @@ const CompletionScreen = () => {
       ])
     ).start();
 
-    // ?? Gradient sweep animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(gradientAnim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-
     // ?? Floating particles
     Animated.loop(
       Animated.timing(floatAnim1, {
@@ -277,7 +260,7 @@ const CompletionScreen = () => {
     } catch (error) {
       couponRequestedRef.current = false;
       logger.error('Error fetching/generating coupon:', error);
-      Alert.alert('Error', 'Could not load or generate your coupon. Please try again.');
+      showError('Could not load or generate your coupon. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -403,7 +386,7 @@ const CompletionScreen = () => {
     } else if (partner.contactEmail) {
       handleEmailSchedule();
     } else {
-      Alert.alert('No Contact Info', 'Partner contact information is not available.');
+      showInfo('Partner contact information is not available.');
     }
   };
 
@@ -432,7 +415,7 @@ const CompletionScreen = () => {
       if (supported) {
         Linking.openURL(whatsappUrl!);
       } else {
-        Alert.alert('WhatsApp Not Available', 'WhatsApp is not installed. Please use email to contact the partner.');
+        showInfo('WhatsApp is not installed. Please use email to contact the partner.');
       }
     });
   };
@@ -441,7 +424,7 @@ const CompletionScreen = () => {
     if (!partner || !experience) return;
     const contactEmail = partner.contactEmail || partner.email;
     if (!contactEmail) {
-      Alert.alert('No Email', 'Partner email is not available.');
+      showInfo('Partner email is not available.');
       return;
     }
 
@@ -523,7 +506,7 @@ const CompletionScreen = () => {
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -663,7 +646,7 @@ const CompletionScreen = () => {
               {celebrationMessage}
             </Animated.Text>
             <Text style={styles.heroSubtitle}>
-              You did it! Your reward is now unlocked ??
+              You did it! Your reward is now unlocked 🎉
             </Text>
 
             {/* Enhanced completion stats */}
@@ -709,6 +692,7 @@ const CompletionScreen = () => {
             source={{ uri: experienceImage }}
             style={styles.experienceImage}
             resizeMode="cover"
+            accessibilityLabel={`${experience?.title || 'Experience'} image`}
           />
           <View style={styles.experienceContent}>
             {experience ? (
@@ -720,7 +704,10 @@ const CompletionScreen = () => {
                 <Text style={styles.experienceDescription}>{experience.description}</Text>
               </>
             ) : (
-              <ActivityIndicator size="small" color={Colors.secondary} />
+              <View style={{ padding: 20, gap: 12 }}>
+                <ExperienceCardSkeleton />
+                <SkeletonBox width="100%" height={48} borderRadius={12} />
+              </View>
             )}
           </View>
         </View>
@@ -737,9 +724,9 @@ const CompletionScreen = () => {
           </Text>
 
           {isLoading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color={Colors.secondary} />
-              <Text style={styles.loadingText}>Generating your code...</Text>
+            <View style={{ padding: 20, gap: 12 }}>
+              <SkeletonBox width="100%" height={80} borderRadius={12} />
+              <SkeletonBox width="100%" height={48} borderRadius={12} />
             </View>
           ) : couponCode ? (
             <View>
@@ -753,6 +740,8 @@ const CompletionScreen = () => {
                     style={styles.copyCodeButton}
                     onPress={handleCopy}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy coupon code"
                   >
                     <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
                     <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
@@ -785,6 +774,8 @@ const CompletionScreen = () => {
                           onPress={handleCopyPhone}
                           style={styles.smallCopyButton}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel="Copy phone number"
                         >
                           {isPhoneCopied ? (
                             <CheckCircle size={18} color="#10b981" />
@@ -807,6 +798,8 @@ const CompletionScreen = () => {
                           onPress={handleCopyEmail}
                           style={styles.smallCopyButton}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel="Copy email address"
                         >
                           {isEmailCopied ? (
                             <CheckCircle size={18} color="#10b981" />
@@ -827,6 +820,8 @@ const CompletionScreen = () => {
                         ]}
                         onPress={handleBookNowWhatsApp}
                         activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Schedule via WhatsApp"
                       >
                         <LinearGradient
                           colors={['#25D366', '#1ebe57']}
@@ -848,6 +843,8 @@ const CompletionScreen = () => {
                         ]}
                         onPress={handleBookNowEmail}
                         activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Schedule via Email"
                       >
                         <LinearGradient
                           colors={[Colors.secondary, Colors.primary]}
@@ -965,17 +962,17 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   goalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   goalDesc: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
   },
@@ -1020,7 +1017,7 @@ const styles = StyleSheet.create({
   experienceHeaderText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   experienceImage: {
     width: '100%',
@@ -1033,12 +1030,12 @@ const styles = StyleSheet.create({
   experienceTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   experienceSubtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   experienceDescription: {
@@ -1067,11 +1064,11 @@ const styles = StyleSheet.create({
   couponHeaderText: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   couponInstructions: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 22,
     marginBottom: 24,
     textAlign: 'center',
@@ -1083,7 +1080,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   couponCard: {
     backgroundColor: '#fff',
@@ -1193,7 +1190,7 @@ const styles = StyleSheet.create({
   contactInfoTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   contactInfoRow: {
@@ -1215,7 +1212,7 @@ const styles = StyleSheet.create({
   contactInfoValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   smallCopyButton: {
     padding: 8,

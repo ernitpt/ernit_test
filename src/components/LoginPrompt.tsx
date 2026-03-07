@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   cancelLinkText: {
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 15,
     fontWeight: '600',
   },

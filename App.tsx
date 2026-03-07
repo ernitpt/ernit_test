@@ -11,6 +11,9 @@ import { PWAInstaller } from './src/components/PWAInstaller';
 import { pushNotificationService } from './src/services/PushNotificationService';
 import { initializeAnalytics } from './src/utils/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { ToastProvider } from './src/context/ToastContext';
+import ToastOverlay from './src/components/Toast';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import {
   useFonts,
@@ -103,15 +106,20 @@ export default function App() {
   console.log('[App] Rendering AppProvider and AppNavigator');
 
   return (
-    <ErrorBoundary screenName="App">
-      <AppProvider>
-        <AuthGuardProvider>
-          <TimerProvider>
-            <AppNavigator />
-            <PWAInstaller />
-          </TimerProvider>
-        </AuthGuardProvider>
-      </AppProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary screenName="App">
+        <AppProvider>
+          <AuthGuardProvider>
+            <ToastProvider>
+              <TimerProvider>
+                <AppNavigator />
+                <PWAInstaller />
+              </TimerProvider>
+              <ToastOverlay />
+            </ToastProvider>
+          </AuthGuardProvider>
+        </AppProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

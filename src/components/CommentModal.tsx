@@ -12,7 +12,6 @@ import {
     ActivityIndicator,
     Image,
     Animated,
-    Alert,
 } from 'react-native';
 import { X, Send, MoreHorizontal, Edit2, Trash2 } from 'lucide-react-native';
 import { commentService } from '../services/CommentService';
@@ -25,6 +24,7 @@ import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 interface CommentModalProps {
     visible: boolean;
@@ -35,6 +35,7 @@ interface CommentModalProps {
 
 const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, onChange }) => {
     const { state } = useApp();
+    const { showError } = useToast();
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -90,7 +91,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             onChange?.();
         } catch (error) {
             logger.error('Error sending/updating comment:', error);
-            Alert.alert('Error', 'Could not send comment. Please try again.');
+            showError('Could not send comment. Please try again.');
         } finally {
             setIsSending(false);
         }
@@ -117,7 +118,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             setMenuVisibleId(null);
         } catch (error) {
             logger.error('Error deleting comment:', error);
-            Alert.alert('Error', 'Could not delete comment. Please try again.');
+            showError('Could not delete comment. Please try again.');
         }
     };
 
@@ -146,7 +147,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                     hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
                                     style={styles.moreButton}
                                 >
-                                    <MoreHorizontal size={16} color="#9ca3af" />
+                                    <MoreHorizontal size={16} color={Colors.textMuted} />
                                 </TouchableOpacity>
 
                                 {menuVisibleId === item.id && (
@@ -163,8 +164,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             style={styles.menuItem}
                                             onPress={() => handleDeleteComment(item.id)}
                                         >
-                                            <Trash2 size={14} color="#ef4444" />
-                                            <Text style={[styles.menuText, { color: '#ef4444' }]}>Delete</Text>
+                                            <Trash2 size={14} color={Colors.error} />
+                                            <Text style={[styles.menuText, { color: Colors.error }]}>Delete</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}
@@ -207,7 +208,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         <View style={styles.header}>
                             <Text style={styles.headerTitle}>Comments</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <X color="#6b7280" size={24} />
+                                <X color={Colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
@@ -235,13 +236,13 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         <View style={styles.inputContainer}>
                             {editingCommentId && (
                                 <TouchableOpacity onPress={cancelEditing} style={styles.cancelEditButton}>
-                                    <X size={20} color="#6b7280" />
+                                    <X size={20} color={Colors.textSecondary} />
                                 </TouchableOpacity>
                             )}
                             <TextInput
                                 style={styles.input}
                                 placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
-                                placeholderTextColor="#9ca3af"
+                                placeholderTextColor={Colors.textMuted}
                                 value={commentText}
                                 onChangeText={setCommentText}
                                 multiline
@@ -298,12 +299,12 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: Colors.backgroundLight,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -322,12 +323,12 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
         marginBottom: 8,
     },
     emptySubtext: {
         fontSize: 14,
-        color: '#9ca3af',
+        color: Colors.textMuted,
     },
     commentsList: {
         padding: 20,
@@ -371,12 +372,12 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         flexShrink: 1,
     },
     deleteText: {
         fontSize: 13,
-        color: '#ef4444',
+        color: Colors.error,
         fontWeight: '600',
     },
     commentText: {
@@ -387,24 +388,24 @@ const styles = StyleSheet.create({
     },
     timestamp: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: Colors.textMuted,
     },
     inputContainer: {
         flexDirection: 'row',
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: '#f3f4f6',
+        borderTopColor: Colors.backgroundLight,
         gap: 12,
         alignItems: 'flex-end',
     },
     input: {
         flex: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         borderRadius: 20,
         paddingHorizontal: 16,
         paddingVertical: 10,
         fontSize: 15,
-        color: '#111827',
+        color: Colors.textPrimary,
         maxHeight: 100,
     },
     sendButton: {
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
         zIndex: 1000,
         minWidth: 140,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     menuItem: {
         flexDirection: 'row',
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     },
     menuDivider: {
         height: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
     },
     metaRow: {
         flexDirection: 'row',
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
     },
     editedText: {
         fontSize: 11,
-        color: '#9ca3af',
+        color: Colors.textMuted,
         fontStyle: 'italic',
     },
     cancelEditButton: {

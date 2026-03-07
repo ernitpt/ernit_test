@@ -33,6 +33,8 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                 style={styles.card}
                 activeOpacity={0.7}
                 onPress={handlePress}
+                accessibilityRole="button"
+                accessibilityLabel={`View completed goal: ${goal.title}`}
             >
                 {/* Left accent */}
                 <View style={styles.accentBar} />
@@ -76,6 +78,7 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                                 <Image
                                     source={{ uri: goal.pledgedExperience.coverImageUrl }}
                                     style={styles.experienceThumb}
+                                    accessibilityLabel={`${goal.pledgedExperience.title} thumbnail`}
                                 />
                             ) : null}
                             <Text style={styles.experienceTitle} numberOfLines={1}>

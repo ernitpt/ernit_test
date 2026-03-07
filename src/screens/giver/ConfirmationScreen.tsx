@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   StyleSheet,
   Animated,
   Platform,
@@ -27,7 +26,9 @@ import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 type ConfirmationNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -38,6 +39,7 @@ const ConfirmationScreen = () => {
   const navigation = useNavigation<ConfirmationNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
+  const { showSuccess, showError } = useToast();
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { experienceGift?: ExperienceGift; goalId?: string } | undefined;
@@ -68,17 +70,6 @@ const ConfirmationScreen = () => {
     }
   }, [hasValidData, navigation]);
 
-  // Early return if data is invalid
-  if (!hasValidData || !experienceGift) {
-    return (
-      <MainScreen activeRoute="Home">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
-        </View>
-      </MainScreen>
-    );
-  }
-
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, {
@@ -96,13 +87,14 @@ const ConfirmationScreen = () => {
   }, []);
 
   const [experience, setExperience] = useState<any>(null);
-  const [personalizedMessage, setPersonalizedMessage] = useState(experienceGift.personalizedMessage || '');
-  const [charCount, setCharCount] = useState((experienceGift.personalizedMessage || '').length);
+  const [personalizedMessage, setPersonalizedMessage] = useState(experienceGift?.personalizedMessage || '');
+  const [charCount, setCharCount] = useState((experienceGift?.personalizedMessage || '').length);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [messageSent, setMessageSent] = useState(!!experienceGift.personalizedMessage);
+  const [messageSent, setMessageSent] = useState(!!experienceGift?.personalizedMessage);
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
+    if (!experienceGift?.experienceId) return;
     const fetchExperience = async () => {
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
@@ -115,11 +107,11 @@ const ConfirmationScreen = () => {
           userId: state.user?.id || 'unknown',
           additionalData: { experienceId: experienceGift.experienceId },
         });
-        Alert.alert("Error", "Could not load experience details.");
+        showError("Could not load experience details.");
       }
     };
     fetchExperience();
-  }, [experienceGift.experienceId]);
+  }, [experienceGift?.experienceId]);
 
   // Auto-attach gift to goal (self-purchase) OR notify goal owner (empower)
   useEffect(() => {
@@ -184,6 +176,17 @@ const ConfirmationScreen = () => {
     }
   }, [goalId, experienceGift?.id]);
 
+  // Early return if data is invalid
+  if (!hasValidData || !experienceGift) {
+    return (
+      <MainScreen activeRoute="Home">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+        </View>
+      </MainScreen>
+    );
+  }
+
   const handleMessageChange = (text: string) => {
     if (text.length <= 500) {
       setPersonalizedMessage(text);
@@ -193,7 +196,7 @@ const ConfirmationScreen = () => {
 
   const handleSendMessage = async () => {
     if (!personalizedMessage.trim()) {
-      Alert.alert('Error', 'Please enter a message before sending.');
+      showError('Please enter a message before sending.');
       return;
     }
 
@@ -201,7 +204,7 @@ const ConfirmationScreen = () => {
     try {
       await experienceGiftService.updatePersonalizedMessage(experienceGift.id, personalizedMessage.trim());
       setMessageSent(true);
-      Alert.alert('Success', 'Your personalized message has been saved!');
+      showSuccess('Your personalized message has been saved!');
     } catch (error) {
       logger.error('Error updating personalized message:', error);
       await logErrorToFirestore(error, {
@@ -210,7 +213,7 @@ const ConfirmationScreen = () => {
         userId: state.user?.id || 'unknown',
         additionalData: { giftId: experienceGift.id },
       });
-      Alert.alert('Error', 'Failed to save message. Please try again.');
+      showError('Failed to save message. Please try again.');
     } finally {
       setIsSendingMessage(false);
     }
@@ -229,9 +232,9 @@ const ConfirmationScreen = () => {
         message: `
 Hey! Got you an Ernit experience, a little boost for your goals.
 
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to set up your goals. Once you complete your goals, you'll see what I got you ??
+Sign up and redeem your gift at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to set up your goals. Once you complete your goals, you'll see what I got you 🎁
 
-Earn it. Unlock it. Enjoy it ??
+Earn it. Unlock it. Enjoy it 🚀
         `
       };
 
@@ -245,7 +248,7 @@ Earn it. Unlock it. Enjoy it ??
         logger.log('Share dismissed');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to share the code');
+      showError(error.message || 'Failed to share the code');
     }
   };
 
@@ -259,8 +262,9 @@ Earn it. Unlock it. Enjoy it ??
   // Show loading state
   if (!experience) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ fontSize: 16, color: "#6b7280" }}>Loading experience...</Text>
+      <View style={{ padding: 20, gap: 12 }}>
+        <ExperienceCardSkeleton />
+        <SkeletonBox width="100%" height={48} borderRadius={12} />
       </View>
     );
   }
@@ -307,6 +311,7 @@ Earn it. Unlock it. Enjoy it ??
             source={{ uri: experienceImage }}
             style={styles.experienceImage}
             resizeMode="cover"
+            accessibilityLabel={`${experience.title} experience image`}
           />
           <View style={styles.experienceOverlay}>
             <Gift color="#fff" size={24} />
@@ -340,13 +345,14 @@ Earn it. Unlock it. Enjoy it ??
               <TextInput
                 style={styles.messageInput}
                 placeholder="Your message here..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={Colors.textMuted}
                 multiline
                 value={personalizedMessage}
                 onChangeText={handleMessageChange}
                 textAlignVertical="top"
                 maxLength={500}
                 editable={!messageSent}
+                accessibilityLabel="Personal message"
               />
               {!messageSent && (
                 <TouchableOpacity
@@ -354,6 +360,8 @@ Earn it. Unlock it. Enjoy it ??
                   onPress={handleSendMessage}
                   disabled={isSendingMessage || !personalizedMessage.trim()}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Attach message"
                 >
                   <Text style={styles.sendMessageButtonText}>
                     {isSendingMessage ? 'Sending...' : 'Attach Message'}
@@ -389,6 +397,8 @@ Earn it. Unlock it. Enjoy it ??
                 style={styles.copyCodeButton}
                 onPress={handleCopyCode}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Copy gift code"
               >
                 <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
                 <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
@@ -400,6 +410,8 @@ Earn it. Unlock it. Enjoy it ??
                 style={styles.shareCodeButton}
                 onPress={handleShareCode}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Share gift code"
               >
                 <Text style={styles.shareCodeText}>Share</Text>
                 <ArrowRight color="#fff" size={20} />
@@ -470,6 +482,8 @@ Earn it. Unlock it. Enjoy it ??
             }
           }}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={isEmpower ? 'Back to feed' : goalId ? 'Go to my goals' : 'Back to home'}
         >
           <Text style={styles.homeButtonText}>
             {isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}
@@ -484,7 +498,7 @@ Earn it. Unlock it. Enjoy it ??
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
   },
   heroSection: {
     backgroundColor: '#fff',
@@ -499,13 +513,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -524,7 +538,7 @@ const styles = StyleSheet.create({
   experienceImage: {
     width: '100%',
     height: 200,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   experienceOverlay: {
     position: 'absolute',
@@ -543,12 +557,12 @@ const styles = StyleSheet.create({
   experienceTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   experienceSubtitle: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
   priceTag: {
@@ -582,12 +596,12 @@ const styles = StyleSheet.create({
   },
   charCounter: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontWeight: '500',
   },
   messageSubtitle: {
     fontSize: 13,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   messageInput: {
@@ -595,10 +609,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 15,
-    color: '#111827',
+    color: Colors.textPrimary,
     minHeight: 100,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginBottom: 12,
   },
   sendMessageButton: {
@@ -638,12 +652,12 @@ const styles = StyleSheet.create({
   codeSectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   codeSectionSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   codeCard: {
     backgroundColor: '#fff',
@@ -656,13 +670,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   codeDisplay: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     paddingVertical: 20,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     borderStyle: 'dashed',
   },
   codeText: {
@@ -726,7 +740,7 @@ const styles = StyleSheet.create({
   howItWorksTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 20,
   },
   stepsContainer: {
@@ -766,12 +780,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   stepDesc: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   bottomBar: {
@@ -784,7 +798,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: Colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

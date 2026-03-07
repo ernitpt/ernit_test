@@ -9,10 +9,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
-  Alert,
   Platform,
   Modal,
 } from 'react-native';
+import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare } from 'lucide-react-native';
@@ -21,6 +21,7 @@ import { userService } from '../services/userService';
 import { friendService } from '../services/FriendService';
 import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
@@ -38,24 +39,341 @@ type FriendProfileNavigationProp = NativeStackNavigationProp<
 >;
 type FriendProfileRouteProp = RouteProp<RootStackParamList, 'FriendProfile'>;
 
+// ------------------------------------------------------------------
+// Helper Components (moved outside parent for performance)
+// ------------------------------------------------------------------
+
+const CapsuleMini = ({ filled }: { filled: boolean }) => (
+  <View
+    style={{
+      flex: 1,
+      height: 8,
+      borderRadius: 50,
+      backgroundColor: filled ? Colors.primary : Colors.border,
+      marginHorizontal: 2,
+    }}
+  />
+);
+
+const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string | undefined }) => {
+  const [giverName, setGiverName] = useState<string | null>(null);
+  const [showHintHistory, setShowHintHistory] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const isGiver = currentUserId === goal.empoweredBy;
+
+  useEffect(() => {
+    if (goal.empoweredBy) {
+      userService.getUserName(goal.empoweredBy).then(setGiverName);
+    }
+  }, [goal.empoweredBy]);
+
+  // Sessions this week
+  const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
+  const weeklyTotal = Math.max(1, goal.sessionsPerWeek || 1);
+
+  // Weeks completed
+  const finishedThisWeek = goal.weeklyCount >= goal.sessionsPerWeek;
+  const totalWeeks = goal.targetCount || 1;
+  const base = goal.currentCount || 0;
+  const completedWeeks = goal.isCompleted
+    ? totalWeeks
+    : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
+
+  return (
+    <View style={styles.goalCard}>
+      <Text style={styles.goalTitle}>{goal.title}</Text>
+
+      {giverName && (
+        <Text style={styles.goalMeta}>⚡ Empowered by {giverName}</Text>
+      )}
+
+      {/* Sessions this week */}
+      <View style={{ marginTop: 12 }}>
+        <View style={styles.progressHeaderRow}>
+          <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
+          <Text style={styles.progressHeaderValue}>
+            {weeklyFilled}/{weeklyTotal}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: "row" }}>
+          {Array.from({ length: weeklyTotal }).map((_, i) => (
+            <CapsuleMini key={i} filled={i < weeklyFilled} />
+          ))}
+        </View>
+      </View>
+
+      {/* Weeks completed */}
+      <View style={{ marginTop: 14 }}>
+        <View style={styles.progressHeaderRow}>
+          <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
+          <Text style={styles.progressHeaderValue}>
+            {completedWeeks}/{totalWeeks}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: "row" }}>
+          {Array.from({ length: totalWeeks }).map((_, i) => (
+            <CapsuleMini key={i} filled={i < completedWeeks} />
+          ))}
+        </View>
+      </View>
+
+      {/* View Hints Button (only for giver) */}
+      {isGiver && (
+        <TouchableOpacity
+          onPress={() => setShowHintHistory(true)}
+          style={{
+            marginTop: 16,
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            backgroundColor: Colors.backgroundLight,
+            borderWidth: 1,
+            borderColor: Colors.border,
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.textSecondary, textAlign: 'center' }}>
+            View Hint History
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Hint History Modal */}
+      {showHintHistory && (
+        <Modal
+          visible={showHintHistory}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowHintHistory(false)}
+        >
+          <TouchableOpacity
+            style={historyModalStyles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowHintHistory(false)}
+          >
+            <View style={historyModalStyles.modalContainer}>
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <View style={historyModalStyles.modalHeader}>
+                  <Text style={historyModalStyles.modalTitle}>Hint History</Text>
+                  <TouchableOpacity onPress={() => setShowHintHistory(false)}>
+                    <Text style={historyModalStyles.closeButton}>×</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={historyModalStyles.scrollView}>
+                  {goal?.hints && goal.hints.length > 0 ? (
+                    [...goal.hints].reverse().map((hint: any, index: number) => {
+                      const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+                      const hasImage = hint.imageUrl;
+                      const text = hint.text || hint.hint;
+
+                      // Handle date
+                      let dateMs = 0;
+                      if (hint.createdAt) {
+                        if (typeof hint.createdAt.toMillis === 'function') {
+                          dateMs = hint.createdAt.toMillis();
+                        } else if (hint.createdAt instanceof Date) {
+                          dateMs = hint.createdAt.getTime();
+                        } else {
+                          dateMs = new Date(hint.createdAt).getTime();
+                        }
+                      } else if (hint.date) {
+                        dateMs = hint.date;
+                      }
+
+                      return (
+                        <View key={hint.id || index} style={historyModalStyles.hintItem}>
+                          <View style={historyModalStyles.hintHeader}>
+                            <Text style={historyModalStyles.sessionLabel}>
+                              Session {hint.session || index + 1}
+                            </Text>
+                            <Text style={historyModalStyles.dateLabel}>
+                              {new Date(dateMs).toLocaleDateString()}
+                            </Text>
+                          </View>
+
+                          {text && (
+                            <Text style={historyModalStyles.hintText}>{text}</Text>
+                          )}
+
+                          {hasImage && (
+                            <TouchableOpacity
+                              onPress={() => setSelectedImageUri(hint.imageUrl)}
+                              activeOpacity={0.9}
+                            >
+                              <Image
+                                source={{ uri: hint.imageUrl }}
+                                style={historyModalStyles.hintImage}
+                              />
+                            </TouchableOpacity>
+                          )}
+
+                          {isAudio && hint.audioUrl && (
+                            <View style={historyModalStyles.audioContainer}>
+                              <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={historyModalStyles.emptyText}>
+                      No hints have been sent yet.
+                    </Text>
+                  )}
+                </ScrollView>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Fullscreen Image Viewer */}
+      {selectedImageUri && (
+        <ImageViewer
+          visible={!!selectedImageUri}
+          imageUri={selectedImageUri}
+          onClose={() => setSelectedImageUri(null)}
+        />
+      )}
+    </View>
+  );
+};
+
+const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [partnerName, setPartnerName] = useState<string>("Partner");
+  const [gift, setGift] = useState<any>(null);
+  const [loadingCard, setLoadingCard] = useState<boolean>(true);
+
+  useEffect(() => {
+    const loadAchievementData = async () => {
+      try {
+        if (!goal.experienceGiftId) return;
+
+        const giftData = await experienceGiftService.getExperienceGiftById(
+          goal.experienceGiftId
+        );
+        setGift(giftData);
+
+        const exp = await experienceService.getExperienceById(
+          giftData.experienceId
+        );
+        setExperience(exp || null);
+
+        setPartnerName(exp?.subtitle)
+      } catch (err) {
+        logger.error("Error loading achievement data:", err);
+      } finally {
+        setLoadingCard(false);
+      }
+    };
+
+    loadAchievementData();
+  }, [goal.experienceGiftId]);
+
+  const weeks = goal.targetCount || 0;
+  const sessions =
+    (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
+
+  const cover =
+    experience?.coverImageUrl ||
+    (experience?.imageUrl && experience.imageUrl.length > 0
+      ? experience.imageUrl[0]
+      : undefined);
+
+  return (
+    <View style={styles.achievementCard}>
+      {/* Square photo */}
+      {cover ? (
+        <Image source={{ uri: cover }} style={styles.achievementImage} />
+      ) : (
+        <View
+          style={[
+            styles.achievementImage,
+            styles.achievementImagePlaceholder,
+          ]}
+        >
+          <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
+        </View>
+      )}
+
+      <View style={styles.achievementContent}>
+        {loadingCard ? (
+          <Text style={styles.achievementLoadingText}>Loading...</Text>
+        ) : (
+          <>
+            <Text style={styles.achievementTitle} numberOfLines={1}>
+              🎁 {experience?.title || "Experience unlocked"}
+            </Text>
+
+            <Text style={styles.achievementPartner} numberOfLines={1}>
+              👤 {partnerName}
+            </Text>
+
+            <Text style={styles.achievementGoal} numberOfLines={2}>
+              Goal: {goal.title}
+            </Text>
+
+            <Text style={styles.achievementMeta}>
+              {sessions} sessions completed • {weeks} weeks
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const ExperienceCard = ({ experience }: { experience: Experience }) => {
+  const navigation = useNavigation<FriendProfileNavigationProp>();
+
+  const handlePress = () =>
+    navigation.navigate('ExperienceDetails', { experience });
+
+  const experienceImage = Array.isArray(experience.imageUrl)
+    ? experience.imageUrl[0]
+    : experience.imageUrl;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      style={styles.experienceCard}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${experience.title} experience details`}
+    >
+      <Image
+        source={{ uri: experienceImage }}
+        style={styles.experienceImage}
+        resizeMode="cover"
+        accessibilityLabel={`${experience.title} experience`}
+      />
+      <View style={styles.experienceContent}>
+        <Text style={styles.experienceTitle} numberOfLines={1}>
+          {experience.title}
+        </Text>
+        <Text style={styles.experienceDescription} numberOfLines={2}>
+          {experience.description}
+        </Text>
+        <Text style={styles.experiencePrice}>
+          €{Number(experience.price || 0).toFixed(2)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 const FriendProfileScreen: React.FC = () => {
   const navigation = useNavigation<FriendProfileNavigationProp>();
   const route = useRoute<FriendProfileRouteProp>();
   const { state } = useApp();
+  const { showError } = useToast();
 
   const { userId } = route.params as { userId: string };
 
-  // Redirect if userId is missing (e.g., after bad navigation)
-  useEffect(() => {
-    if (!userId) {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'FriendsList' }],
-      });
-    }
-  }, [userId, navigation]);
-
-  if (!userId) return null; // Early return to avoid render errors
   const currentUserId = state.user?.id;
   const currentUserName =
     state.user?.displayName || state.user?.profile?.name || 'User';
@@ -80,6 +398,18 @@ const FriendProfileScreen: React.FC = () => {
   const removeScale = useRef(new Animated.Value(0.9)).current;
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Redirect if userId is missing (e.g., after bad navigation)
+  useEffect(() => {
+    if (!userId) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'FriendsList' }],
+      });
+    }
+  }, [userId, navigation]);
+
+  if (!userId) return null; // Early return to avoid render errors
 
   useEffect(() => {
     loadFriendProfile();
@@ -161,332 +491,10 @@ const FriendProfileScreen: React.FC = () => {
       }
     } catch (error) {
       logger.error('Error loading profile:', error);
-      Alert.alert('Error', 'Failed to load profile. Please try again.');
+      showError('Failed to load profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // ------------------------------------------------------------------
-  // NEW GOAL CARD (from UserProfileScreen) — nondisabled touch
-  // ------------------------------------------------------------------
-  const GoalCard = ({ goal }: { goal: Goal }) => {
-    const [giverName, setGiverName] = useState<string | null>(null);
-    const [showHintHistory, setShowHintHistory] = useState(false);
-    const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
-    const isGiver = currentUserId === goal.empoweredBy;
-
-    useEffect(() => {
-      if (goal.empoweredBy) {
-        userService.getUserName(goal.empoweredBy).then(setGiverName);
-      }
-    }, [goal.empoweredBy]);
-
-    // Sessions this week
-    const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
-    const weeklyTotal = Math.max(1, goal.sessionsPerWeek || 1);
-
-    // Weeks completed
-    const finishedThisWeek = goal.weeklyCount >= goal.sessionsPerWeek;
-    const totalWeeks = goal.targetCount || 1;
-    const base = goal.currentCount || 0;
-    const completedWeeks = goal.isCompleted
-      ? totalWeeks
-      : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
-
-    const CapsuleMini = ({ filled }: { filled: boolean }) => (
-      <View
-        style={{
-          flex: 1,
-          height: 8,
-          borderRadius: 50,
-          backgroundColor: filled ? Colors.primary : "#e5e7eb",
-          marginHorizontal: 2,
-        }}
-      />
-    );
-
-    return (
-      <View style={styles.goalCard}>
-        <Text style={styles.goalTitle}>{goal.title}</Text>
-
-        {giverName && (
-          <Text style={styles.goalMeta}>⚡ Empowered by {giverName}</Text>
-        )}
-
-        {/* Sessions this week */}
-        <View style={{ marginTop: 12 }}>
-          <View style={styles.progressHeaderRow}>
-            <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
-            <Text style={styles.progressHeaderValue}>
-              {weeklyFilled}/{weeklyTotal}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row" }}>
-            {Array.from({ length: weeklyTotal }).map((_, i) => (
-              <CapsuleMini key={i} filled={i < weeklyFilled} />
-            ))}
-          </View>
-        </View>
-
-        {/* Weeks completed */}
-        <View style={{ marginTop: 14 }}>
-          <View style={styles.progressHeaderRow}>
-            <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
-            <Text style={styles.progressHeaderValue}>
-              {completedWeeks}/{totalWeeks}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row" }}>
-            {Array.from({ length: totalWeeks }).map((_, i) => (
-              <CapsuleMini key={i} filled={i < completedWeeks} />
-            ))}
-          </View>
-        </View>
-
-        {/* View Hints Button (only for giver) */}
-        {isGiver && (
-          <TouchableOpacity
-            onPress={() => setShowHintHistory(true)}
-            style={{
-              marginTop: 16,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-              backgroundColor: '#f3f4f6',
-              borderWidth: 1,
-              borderColor: '#e5e7eb',
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#6b7280', textAlign: 'center' }}>
-              View Hint History
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Hint History Modal */}
-        {showHintHistory && (
-          <Modal
-            visible={showHintHistory}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowHintHistory(false)}
-          >
-            <TouchableOpacity
-              style={historyModalStyles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowHintHistory(false)}
-            >
-              <View style={historyModalStyles.modalContainer}>
-                <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                  <View style={historyModalStyles.modalHeader}>
-                    <Text style={historyModalStyles.modalTitle}>Hint History</Text>
-                    <TouchableOpacity onPress={() => setShowHintHistory(false)}>
-                      <Text style={historyModalStyles.closeButton}>×</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView style={historyModalStyles.scrollView}>
-                    {goal?.hints && goal.hints.length > 0 ? (
-                      [...goal.hints].reverse().map((hint: any, index: number) => {
-                        const isAudio = hint.type === 'audio' || hint.type === 'mixed';
-                        const hasImage = hint.imageUrl;
-                        const text = hint.text || hint.hint;
-
-                        // Handle date
-                        let dateMs = 0;
-                        if (hint.createdAt) {
-                          if (typeof hint.createdAt.toMillis === 'function') {
-                            dateMs = hint.createdAt.toMillis();
-                          } else if (hint.createdAt instanceof Date) {
-                            dateMs = hint.createdAt.getTime();
-                          } else {
-                            dateMs = new Date(hint.createdAt).getTime();
-                          }
-                        } else if (hint.date) {
-                          dateMs = hint.date;
-                        }
-
-                        return (
-                          <View key={hint.id || index} style={historyModalStyles.hintItem}>
-                            <View style={historyModalStyles.hintHeader}>
-                              <Text style={historyModalStyles.sessionLabel}>
-                                Session {hint.session || index + 1}
-                              </Text>
-                              <Text style={historyModalStyles.dateLabel}>
-                                {new Date(dateMs).toLocaleDateString()}
-                              </Text>
-                            </View>
-
-                            {text && (
-                              <Text style={historyModalStyles.hintText}>{text}</Text>
-                            )}
-
-                            {hasImage && (
-                              <TouchableOpacity
-                                onPress={() => setSelectedImageUri(hint.imageUrl)}
-                                activeOpacity={0.9}
-                              >
-                                <Image
-                                  source={{ uri: hint.imageUrl }}
-                                  style={historyModalStyles.hintImage}
-                                />
-                              </TouchableOpacity>
-                            )}
-
-                            {isAudio && hint.audioUrl && (
-                              <View style={historyModalStyles.audioContainer}>
-                                <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })
-                    ) : (
-                      <Text style={historyModalStyles.emptyText}>
-                        No hints have been sent yet.
-                      </Text>
-                    )}
-                  </ScrollView>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
-
-        {/* Fullscreen Image Viewer */}
-        {selectedImageUri && (
-          <ImageViewer
-            visible={!!selectedImageUri}
-            imageUri={selectedImageUri}
-            onClose={() => setSelectedImageUri(null)}
-          />
-        )}
-      </View>
-    );
-  };
-
-  const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-    const [experience, setExperience] = useState<Experience | null>(null);
-    const [partnerName, setPartnerName] = useState<string>("Partner");
-    const [gift, setGift] = useState<any>(null);
-    const [loadingCard, setLoadingCard] = useState<boolean>(true);
-
-    useEffect(() => {
-      const loadAchievementData = async () => {
-        try {
-          if (!goal.experienceGiftId) return;
-
-          const giftData = await experienceGiftService.getExperienceGiftById(
-            goal.experienceGiftId
-          );
-          setGift(giftData);
-
-          const exp = await experienceService.getExperienceById(
-            giftData.experienceId
-          );
-          setExperience(exp || null);
-
-          setPartnerName(exp?.subtitle)
-        } catch (err) {
-          logger.error("Error loading achievement data:", err);
-        } finally {
-          setLoadingCard(false);
-        }
-      };
-
-      loadAchievementData();
-    }, [goal.experienceGiftId]);
-
-    const weeks = goal.targetCount || 0;
-    const sessions =
-      (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
-
-    const cover =
-      experience?.coverImageUrl ||
-      (experience?.imageUrl && experience.imageUrl.length > 0
-        ? experience.imageUrl[0]
-        : undefined);
-
-    return (
-      <View style={styles.achievementCard}>
-        {/* Square photo */}
-        {cover ? (
-          <Image source={{ uri: cover }} style={styles.achievementImage} />
-        ) : (
-          <View
-            style={[
-              styles.achievementImage,
-              styles.achievementImagePlaceholder,
-            ]}
-          >
-            <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
-          </View>
-        )}
-
-        <View style={styles.achievementContent}>
-          {loadingCard ? (
-            <Text style={styles.achievementLoadingText}>Loading...</Text>
-          ) : (
-            <>
-              <Text style={styles.achievementTitle} numberOfLines={1}>
-                🎁 {experience?.title || "Experience unlocked"}
-              </Text>
-
-              <Text style={styles.achievementPartner} numberOfLines={1}>
-                👤 {partnerName}
-              </Text>
-
-              <Text style={styles.achievementGoal} numberOfLines={2}>
-                Goal: {goal.title}
-              </Text>
-
-              <Text style={styles.achievementMeta}>
-                {sessions} sessions completed • {weeks} weeks
-              </Text>
-            </>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  // Wishlist card unchanged
-  const ExperienceCard = ({ experience }: { experience: Experience }) => {
-    const handlePress = () =>
-      navigation.navigate('ExperienceDetails', { experience });
-
-    const experienceImage = Array.isArray(experience.imageUrl)
-      ? experience.imageUrl[0]
-      : experience.imageUrl;
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={styles.experienceCard}
-        onPress={handlePress}
-      >
-        <Image
-          source={{ uri: experienceImage }}
-          style={styles.experienceImage}
-          resizeMode="cover"
-        />
-        <View style={styles.experienceContent}>
-          <Text style={styles.experienceTitle} numberOfLines={1}>
-            {experience.title}
-          </Text>
-          <Text style={styles.experienceDescription} numberOfLines={2}>
-            {experience.description}
-          </Text>
-          <Text style={styles.experiencePrice}>
-            €{Number(experience.price || 0).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   const renderData = () => {
@@ -509,7 +517,7 @@ const FriendProfileScreen: React.FC = () => {
       activeTab === 'wishlist' ? (
         <ExperienceCard key={item.id} experience={item} />
       ) : activeTab === 'goals' ? (
-        <GoalCard key={item.id} goal={item} />
+        <GoalCard key={item.id} goal={item} currentUserId={currentUserId} />
       ) : (
         // Achievements not clickable (unchanged)
         <AchievementCard key={item.id} goal={item} />
@@ -521,10 +529,7 @@ const FriendProfileScreen: React.FC = () => {
     return (
       <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Profile">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.secondary} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
-        </View>
+        <ProfileSkeleton />
       </MainScreen>
       </ErrorBoundary>
     );
@@ -540,7 +545,7 @@ const FriendProfileScreen: React.FC = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <ChevronLeft color="#111827" size={24} />
+            <ChevronLeft color={Colors.textPrimary} size={24} />
           </TouchableOpacity>
           <View style={{ width: 40 }} />
         </View>
@@ -552,6 +557,7 @@ const FriendProfileScreen: React.FC = () => {
               source={{ uri: userProfile.profileImageUrl }}
               style={styles.profileImage}
               onError={() => setImageLoadError(true)}
+              accessibilityLabel={`${userName}'s profile picture`}
             />
           ) : (
             <View style={styles.placeholderImage}>
@@ -644,6 +650,8 @@ const FriendProfileScreen: React.FC = () => {
                 styles.tabButton,
                 activeTab === tab.key && styles.tabButtonActive,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${tab.label} tab`}
             >
               <Text
                 style={[
@@ -727,7 +735,7 @@ const FriendProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: Colors.surface },
 
   // HEADER
   header: {
@@ -764,7 +772,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 4,
-    borderColor: '#f3f4f6',
+    borderColor: Colors.backgroundLight,
   },
   placeholderImage: {
     width: 100,
@@ -778,13 +786,13 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
     marginTop: 14,
   },
   userDescription: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 16,
@@ -795,7 +803,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 20 },
   statItem: { alignItems: 'center' },
   statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
-  statLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  statLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
 
   // Friend buttons
   friendButtonContainer: { flexDirection: 'row', justifyContent: 'center' },
@@ -824,7 +832,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabButtonActive: { backgroundColor: Colors.secondary },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  tabText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
   tabTextActive: { color: '#fff' },
 
   // NEW GOAL CARD STYLES (copied from user profile)
@@ -840,16 +848,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  goalTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 4 },
-  goalMeta: { fontSize: 14, color: "#6b7280", marginTop: 4 },
+  goalTitle: { fontSize: 18, fontWeight: "700", color: Colors.textPrimary, marginBottom: 4 },
+  goalMeta: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
 
   progressHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 4,
   },
-  progressHeaderLabel: { fontSize: 13, color: "#6b7280" },
-  progressHeaderValue: { fontSize: 13, color: "#111827", fontWeight: "600" },
+  progressHeaderLabel: { fontSize: 13, color: Colors.textSecondary },
+  progressHeaderValue: { fontSize: 13, color: Colors.textPrimary, fontWeight: "600" },
 
   // Wishlist card
   experienceCard: {
@@ -864,12 +872,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  experienceImage: { width: '100%', height: 140, backgroundColor: '#e5e7eb' },
+  experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
   experienceContent: { padding: 16 },
-  experienceTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  experienceTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   experienceDescription: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -878,7 +886,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     textAlign: 'center',
     marginTop: 40,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontSize: 16,
   },
   // ACHIEVEMENT CARD (copied from UserProfileScreen)
@@ -897,7 +905,7 @@ const styles = StyleSheet.create({
   achievementImage: {
     width: "100%",
     height: 140,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: Colors.border,
   },
   achievementImagePlaceholder: {
     justifyContent: "center",
@@ -912,32 +920,32 @@ const styles = StyleSheet.create({
   },
   achievementLoadingText: {
     fontSize: 14,
-    color: "#9ca3af",
+    color: Colors.textMuted,
   },
   achievementTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   achievementPartner: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     marginBottom: 4,
   },
   achievementGoal: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     marginBottom: 6,
   },
   achievementMeta: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.textSecondary,
   },
 
   // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 16, color: '#6b7280' },
+  loadingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary },
 
   // Popup overlay
   modalOverlay: {
@@ -987,7 +995,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonPopup: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   confirmButton: {
     backgroundColor: Colors.primary,
@@ -1027,16 +1035,16 @@ const historyModalStyles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: Colors.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   closeButton: {
     fontSize: 32,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontWeight: '300',
   },
   scrollView: {
@@ -1046,10 +1054,10 @@ const historyModalStyles = StyleSheet.create({
   hintItem: {
     marginBottom: 20,
     padding: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   hintHeader: {
     flexDirection: 'row',
@@ -1063,14 +1071,14 @@ const historyModalStyles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   hintImage: {
     width: '100%',
     height: 150,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   hintText: {
     fontSize: 15,
@@ -1081,16 +1089,16 @@ const historyModalStyles = StyleSheet.create({
   audioContainer: {
     marginTop: 8,
     padding: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     borderRadius: 8,
   },
   audioText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontSize: 15,
     paddingVertical: 40,
   },

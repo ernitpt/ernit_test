@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -24,12 +24,32 @@ type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryCh
 const MysteryChoiceScreen = () => {
     const navigation = useNavigation<MysteryChoiceNav>();
     const route = useRoute();
-    const { experience } = route.params as { experience: Experience };
+    const routeParams = route.params as { experience?: Experience } | undefined;
+    const experience = routeParams?.experience;
     const { state, dispatch } = useApp();
     const empowerContext = state.empowerContext;
     const userName = empowerContext?.userName || 'your friend';
 
     const [showHowItWorks, setShowHowItWorks] = useState(false);
+
+    // Redirect if experience is missing
+    useEffect(() => {
+        if (!experience) {
+            navigation.goBack();
+        }
+    }, [experience, navigation]);
+
+    if (!experience) {
+        return (
+            <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
+            <MainScreen activeRoute="Home">
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+                </View>
+            </MainScreen>
+            </ErrorBoundary>
+        );
+    }
 
     const handleOpenGift = () => {
         analyticsService.trackEvent('mystery_choice_selected', 'social', { choice: 'open', experienceId: experience.id }, 'MysteryChoiceScreen');
@@ -72,6 +92,8 @@ const MysteryChoiceScreen = () => {
                     style={styles.optionCard}
                     onPress={handleOpenGift}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Gift openly"
                 >
                     <View style={styles.optionHeader}>
                         <View style={styles.optionIconContainer}>
@@ -84,6 +106,7 @@ const MysteryChoiceScreen = () => {
                         <Image
                             source={{ uri: experience.coverImageUrl }}
                             style={styles.previewImage}
+                            accessibilityLabel={`${experience.title} preview image`}
                         />
                         <View style={styles.previewInfo}>
                             <Text style={styles.previewTitle} numberOfLines={2}>
@@ -105,6 +128,8 @@ const MysteryChoiceScreen = () => {
                     style={[styles.optionCard, styles.optionCardMystery]}
                     onPress={handleMysteryGift}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Make it a mystery"
                 >
                     <View style={styles.optionHeader}>
                         <View style={[styles.optionIconContainer, styles.mysteryIconContainer]}>
@@ -118,6 +143,7 @@ const MysteryChoiceScreen = () => {
                             <Image
                                 source={{ uri: experience.coverImageUrl }}
                                 style={[styles.previewImage, styles.mysteryImageBlur]}
+                                accessibilityLabel="Mystery experience hidden image"
                             />
                             <View style={styles.mysteryOverlay}>
                                 <Text style={styles.mysteryOverlayText}>?</Text>
@@ -141,13 +167,15 @@ const MysteryChoiceScreen = () => {
                     style={styles.howItWorksToggle}
                     onPress={() => setShowHowItWorks(!showHowItWorks)}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={showHowItWorks ? "Hide how mystery hints work" : "Show how mystery hints work"}
                 >
                     <Sparkles color="#f59e0b" size={18} />
                     <Text style={styles.howItWorksTitle}>How Mystery Hints Work</Text>
                     {showHowItWorks ? (
-                        <ChevronUp color="#6b7280" size={18} />
+                        <ChevronUp color={Colors.textSecondary} size={18} />
                     ) : (
-                        <ChevronDown color="#6b7280" size={18} />
+                        <ChevronDown color={Colors.textSecondary} size={18} />
                     )}
                 </TouchableOpacity>
 
@@ -208,7 +236,7 @@ const styles = StyleSheet.create({
     heading: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 20,
         textAlign: 'center',
     },
@@ -218,7 +246,7 @@ const styles = StyleSheet.create({
         padding: 16,
         marginBottom: 14,
         borderWidth: 2,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         shadowColor: '#000',
         shadowOpacity: 0.06,
         shadowRadius: 8,
@@ -249,13 +277,13 @@ const styles = StyleSheet.create({
     optionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     experiencePreview: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         padding: 10,
         borderRadius: 12,
         marginBottom: 12,
@@ -264,7 +292,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 10,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     previewInfo: {
         flex: 1,
@@ -272,7 +300,7 @@ const styles = StyleSheet.create({
     previewTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     previewPrice: {
         fontSize: 14,
@@ -313,7 +341,7 @@ const styles = StyleSheet.create({
     },
     optionDescription: {
         fontSize: 14,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         lineHeight: 20,
     },
     howItWorksToggle: {

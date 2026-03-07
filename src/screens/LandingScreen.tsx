@@ -43,6 +43,7 @@ const LandingScreen = () => {
                 marginBottom: 16,
               }}
               resizeMode="contain"
+              accessibilityLabel="Ernit app logo"
             />
 
             {/* Logo Text */}
@@ -83,6 +84,8 @@ const LandingScreen = () => {
                 elevation: 5,
               }}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in to your account"
             >
               <Text style={{
                 fontSize: 20,
@@ -93,7 +96,7 @@ const LandingScreen = () => {
                 Sign In
               </Text>
               <Text style={{
-                color: '#6B7280',
+                color: Colors.textSecondary,
                 textAlign: 'center',
                 fontSize: 14,
                 marginTop: 4
@@ -117,6 +120,8 @@ const LandingScreen = () => {
                 elevation: 5,
               }}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Create a new account"
             >
               <Text style={{
                 fontSize: 20,

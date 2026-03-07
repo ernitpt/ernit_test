@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
@@ -13,6 +13,7 @@ import ImageViewer from './ImageViewer';
 import { commonStyles } from '../styles/commonStyles';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 interface GoalProgressNotificationProps {
     notification: Notification;
@@ -24,6 +25,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     isLatest = true, // Default to true for backwards compatibility
 }) => {
     const { state } = useApp();
+    const { showError } = useToast();
     const [showHintModal, setShowHintModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             setShowHintModal(true);
         } catch (error) {
             logger.error('Error fetching goal:', error);
-            Alert.alert('Error', 'Could not load goal details');
+            showError('Could not load goal details');
         } finally {
             setLoading(false);
         }
@@ -54,7 +56,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                 setShowHistoryModal(true);
             } catch (error) {
                 logger.error('Error fetching goal:', error);
-                Alert.alert('Error', 'Could not load goal details');
+                showError('Could not load goal details');
             } finally {
                 setLoading(false);
             }
@@ -320,7 +322,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         shadowColor: '#000',
         shadowOpacity: 0.08,
         shadowRadius: 4,
@@ -341,7 +343,7 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         flex: 1,
     },
     cardMessage: {
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     buttonDisabled: {
-        backgroundColor: '#9ca3af',
+        backgroundColor: Colors.textMuted,
     },
     buttonText: {
         color: '#fff',
@@ -370,12 +372,12 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 8,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     historyButtonText: {
-        color: '#6b7280',
+        color: Colors.textSecondary,
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
@@ -386,7 +388,7 @@ const styles = StyleSheet.create({
     },
     clearNotificationText: {
         fontSize: 24,
-        color: '#9ca3af',
+        color: Colors.textMuted,
         fontWeight: '300',
     },
     unreadDot: {
@@ -415,16 +417,16 @@ const historyStyles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: Colors.border,
     },
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     closeButton: {
         fontSize: 32,
-        color: '#9ca3af',
+        color: Colors.textMuted,
         fontWeight: '300',
     },
     scrollView: {
@@ -434,10 +436,10 @@ const historyStyles = StyleSheet.create({
     hintItem: {
         marginBottom: 20,
         padding: 16,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     hintHeader: {
         flexDirection: 'row',
@@ -451,14 +453,14 @@ const historyStyles = StyleSheet.create({
     },
     dateLabel: {
         fontSize: 12,
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     hintImage: {
         width: '100%',
         height: 150,
         borderRadius: 8,
         marginBottom: 8,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     hintText: {
         fontSize: 15,
@@ -471,7 +473,7 @@ const historyStyles = StyleSheet.create({
     },
     emptyText: {
         textAlign: 'center',
-        color: '#9ca3af',
+        color: Colors.textMuted,
         fontSize: 15,
         paddingVertical: 40,
     },

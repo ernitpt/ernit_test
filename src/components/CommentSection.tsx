@@ -90,14 +90,14 @@ const styles = StyleSheet.create({
     },
     commentContent: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         padding: 8,
         borderRadius: 12,
     },
     userName: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 2,
     },
     commentText: {

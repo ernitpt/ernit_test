@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: { fontSize: 28, fontWeight: 'bold', color: '#111827' },
+  timerText: { fontSize: 28, fontWeight: 'bold', color: Colors.textPrimary },
   almostDoneText: {
     fontSize: 12,
     fontWeight: '600',
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   finishButtonActive: { backgroundColor: Colors.primary },
-  finishButtonDisabled: { backgroundColor: '#9ca3af' },
+  finishButtonDisabled: { backgroundColor: Colors.textMuted },
   finishButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
   cancelButton: {
     marginTop: 12,
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: '#fff', fontSize: 16, fontWeight: '400', textAlign: 'center' },
   sessionDurationText: {
     marginTop: 8,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     fontSize: 13,
     textAlign: 'center',
   },

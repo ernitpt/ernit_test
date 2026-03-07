@@ -35,6 +35,7 @@ import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { config } from '../../config/environment';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 // Extracted utilities, hooks, and components
 import {
@@ -85,6 +86,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const { showSuccess, showError, showInfo } = useToast();
   const [celebrationData, setCelebrationData] = useState<{
     userName: string;
     userProfileImageUrl?: string;
@@ -275,7 +277,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera access is required to capture session media.');
+        showInfo('Camera access is required to capture session media.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -298,7 +300,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Gallery access is required to select session media.');
+        showInfo('Gallery access is required to select session media.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -329,14 +331,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const message = currentGoal.approvalStatus === 'suggested_change'
         ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting a session.`
         : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
-      Alert.alert('Goal Not Approved', message);
+      showError(message);
       return;
     }
     if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
       const message = currentGoal.approvalStatus === 'suggested_change'
         ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting another session.`
         : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
-      Alert.alert('Goal Not Approved', message);
+      showError(message);
       return;
     }
 
@@ -365,7 +367,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         const timeSinceLastSession = nowCheck - lastSessionTime;
         if (timeSinceLastSession > 0 && timeSinceLastSession < MIN_SESSION_INTERVAL_MS) {
           const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSinceLastSession) / 1000);
-          Alert.alert('Too Fast!', `Please wait ${secondsRemaining} seconds between sessions to ensure quality completion.`, [{ text: 'OK' }]);
+          showInfo(`Please wait ${secondsRemaining} seconds between sessions to ensure quality completion.`);
           setLoading(false);
           return;
         }
@@ -443,14 +445,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         const message = currentGoal.approvalStatus === 'suggested_change'
           ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
           : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
-        Alert.alert('Goal Not Approved', message);
+        showError(message);
         return;
       }
       if (sessionsDoneBeforeFinish >= 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
           ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
           : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
-        Alert.alert('Goal Not Approved', message);
+        showError(message);
         return;
       }
     }
@@ -534,7 +536,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         feature: 'UpdateGoalProgress',
         additionalData: { goalId: currentGoal.id },
       });
-      Alert.alert('Error', 'Could not update goal progress.');
+      showError('Could not update goal progress.');
     } finally {
       setLoading(false);
       finishLock.current = false;
@@ -1072,8 +1074,8 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 10,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 22, textAlign: 'center' },
-  empoweredText: { fontSize: 14, color: '#6b7280', marginBottom: 14, textAlign: 'center' },
+  title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
+  empoweredText: { fontSize: 14, color: Colors.textSecondary, marginBottom: 14, textAlign: 'center' },
   mysteryBadge: {
     alignSelf: 'center', backgroundColor: '#fef3c7', paddingHorizontal: 14,
     paddingVertical: 6, borderRadius: 10, marginBottom: 14,
@@ -1086,16 +1088,16 @@ const styles = StyleSheet.create({
   // Debug
   debugContainer: {
     marginTop: 20, padding: 16,
-    backgroundColor: '#F3F4F6', borderRadius: 12,
-    borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed',
+    backgroundColor: Colors.backgroundLight, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
   },
   debugTitle: {
-    fontSize: 12, fontWeight: '700', color: '#6B7280',
+    fontSize: 12, fontWeight: '700', color: Colors.textSecondary,
     marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   debugButtonsRow: { flexDirection: 'row', gap: 10 },
   debugButton: {
-    flex: 1, backgroundColor: '#E5E7EB',
+    flex: 1, backgroundColor: Colors.border,
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8,
     alignItems: 'center', borderWidth: 1, borderColor: '#D1D5DB',
   },

@@ -48,7 +48,7 @@ export default function HowItWorksModal({ visible, onClose }: HowItWorksModalPro
                     <View style={styles.header}>
                         <Text style={styles.title}>How Ernit Works</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color="#6b7280" />
+                            <X size={24} color={Colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
 
@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: Colors.backgroundLight,
     },
     title: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -181,11 +181,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 24,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         padding: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     exampleIcon: {
         fontSize: 32,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     exampleTitle: {
         fontSize: 17,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         flex: 1,
     },
     step: {
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
     stepTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 6,
     },
     stepDescription: {
         fontSize: 15,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         lineHeight: 21,
     },
     ctaContainer: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#f3f4f6',
+        borderTopColor: Colors.backgroundLight,
     },
     gotItButton: {
         backgroundColor: Colors.secondary,

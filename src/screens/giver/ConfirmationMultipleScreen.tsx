@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   StyleSheet,
   Animated,
   Platform,
@@ -22,11 +21,13 @@ import { GiverStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { GiftCardSkeleton } from '../../components/SkeletonLoader';
 import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -42,6 +43,7 @@ const ConfirmationMultipleScreen = () => {
   const navigation = useNavigation<ConfirmationMultipleNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
+  const { showSuccess, showError } = useToast();
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { experienceGifts?: ExperienceGift[] } | undefined;
@@ -96,6 +98,7 @@ const ConfirmationMultipleScreen = () => {
   useEffect(() => {
     const fetchExperiences = async () => {
       try {
+        if (!experienceGifts || !Array.isArray(experienceGifts)) return;
         const promises = experienceGifts.map(async (gift) => {
           const experience = await experienceService.getExperienceById(gift.experienceId);
           return { gift, experience };
@@ -116,7 +119,7 @@ const ConfirmationMultipleScreen = () => {
         setMessageSentStatus(initialSentStatus);
       } catch (error) {
         logger.error("Error fetching experiences:", error);
-        Alert.alert("Error", "Could not load experience details.");
+        showError("Could not load experience details.");
       } finally {
         setLoading(false);
       }
@@ -136,7 +139,7 @@ const ConfirmationMultipleScreen = () => {
   const handleSendMessage = async (giftId: string) => {
     const message = personalizedMessages[giftId]?.trim() || '';
     if (!message) {
-      Alert.alert('Error', 'Please enter a message before sending.');
+      showError('Please enter a message before sending.');
       return;
     }
 
@@ -147,10 +150,10 @@ const ConfirmationMultipleScreen = () => {
         ...prev,
         [giftId]: true,
       }));
-      Alert.alert('Success', 'Your personalized message has been saved!');
+      showSuccess('Your personalized message has been saved!');
     } catch (error) {
       logger.error('Error updating personalized message:', error);
-      Alert.alert('Error', 'Failed to save message. Please try again.');
+      showError('Failed to save message. Please try again.');
     } finally {
       setSendingMessageId(null);
     }
@@ -158,7 +161,7 @@ const ConfirmationMultipleScreen = () => {
 
   const handleCopyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
-    Alert.alert('? Copied!', 'Claim code copied to clipboard.');
+    showSuccess('Claim code copied to clipboard.');
   };
 
   const handleShareCode = async (code: string, experienceTitle?: string) => {
@@ -168,15 +171,15 @@ const ConfirmationMultipleScreen = () => {
         message: `
 Hey! Got you an Ernit experience, a little boost for your goals.
 
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you ??
+Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you 🎁
 
-Earn it. Unlock it. Enjoy it ??
+Earn it. Unlock it. Enjoy it 🚀
         `
       };
 
       const result = await Share.share(shareOptions);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to share the code');
+      showError(error.message || 'Failed to share the code');
     }
   };
 
@@ -191,8 +194,9 @@ Earn it. Unlock it. Enjoy it ??
     return (
       <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading gifts...</Text>
+        <View style={{ padding: 20, gap: 12 }}>
+          <GiftCardSkeleton />
+          <GiftCardSkeleton />
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -241,6 +245,7 @@ Earn it. Unlock it. Enjoy it ??
                   source={{ uri: experienceImage }}
                   style={styles.giftImage}
                   resizeMode="cover"
+                  accessibilityLabel={`${item.experience.title} experience image`}
                 />
                 <View style={styles.giftOverlay}>
                   <Gift color="#fff" size={20} />
@@ -273,13 +278,14 @@ Earn it. Unlock it. Enjoy it ??
                     <TextInput
                       style={styles.messageInput}
                       placeholder="Your message here..."
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={Colors.textMuted}
                       multiline
                       value={personalizedMessages[item.gift.id || ''] || ''}
                       onChangeText={(text) => handleMessageChange(item.gift.id || '', text)}
                       textAlignVertical="top"
                       maxLength={500}
                       editable={!messageSentStatus[item.gift.id || '']}
+                      accessibilityLabel={`Personal message for ${item.experience.title}`}
                     />
                     {!messageSentStatus[item.gift.id || ''] && (
                       <TouchableOpacity
@@ -291,6 +297,8 @@ Earn it. Unlock it. Enjoy it ??
                         onPress={() => handleSendMessage(item.gift.id || '')}
                         disabled={sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()}
                         activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Attach message"
                       >
                         {sendingMessageId === item.gift.id ? (
                           <ActivityIndicator color="#fff" size="small" />
@@ -319,6 +327,8 @@ Earn it. Unlock it. Enjoy it ??
                         style={styles.copyCodeButton}
                         onPress={() => handleCopyCode(item.gift.claimCode)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Copy gift code for ${item.experience?.title}`}
                       >
                         <Copy color={Colors.secondary} size={18} />
                         <Text style={styles.copyCodeText}>Copy</Text>
@@ -328,6 +338,8 @@ Earn it. Unlock it. Enjoy it ??
                         style={styles.shareCodeButton}
                         onPress={() => handleShareCode(item.gift.claimCode, item.experience?.title)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Share gift code for ${item.experience?.title}`}
                       >
                         <Text style={styles.shareCodeText}>Share</Text>
                         <ArrowRight color="#fff" size={18} />
@@ -394,6 +406,8 @@ Earn it. Unlock it. Enjoy it ??
           style={styles.homeButton}
           onPress={handleBackToHome}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Back to home"
         >
           <Text style={styles.homeButtonText}>Back to Home</Text>
         </TouchableOpacity>
@@ -406,17 +420,17 @@ Earn it. Unlock it. Enjoy it ??
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
   },
   loadingText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   heroSection: {
     backgroundColor: '#fff',
@@ -431,13 +445,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -459,7 +473,7 @@ const styles = StyleSheet.create({
   giftImage: {
     width: '100%',
     height: 180,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   giftOverlay: {
     position: 'absolute',
@@ -478,12 +492,12 @@ const styles = StyleSheet.create({
   giftTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   giftSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   priceTag: {
@@ -517,12 +531,12 @@ const styles = StyleSheet.create({
   },
   charCounter: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     fontWeight: '500',
   },
   messageSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 10,
   },
   messageInput: {
@@ -530,10 +544,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 14,
-    color: '#111827',
+    color: Colors.textPrimary,
     minHeight: 80,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginBottom: 10,
   },
   sendMessageButton: {
@@ -569,17 +583,17 @@ const styles = StyleSheet.create({
   codeLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   codeDisplay: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     borderStyle: 'dashed',
   },
   codeText: {
@@ -640,7 +654,7 @@ const styles = StyleSheet.create({
   howItWorksTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 20,
   },
   stepsContainer: {
@@ -680,12 +694,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   stepDesc: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   bottomBar: {
@@ -698,7 +712,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: Colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

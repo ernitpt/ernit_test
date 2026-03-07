@@ -409,14 +409,14 @@ const styles = StyleSheet.create({
   h1: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   subHeader: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 18,
     textAlign: 'center',
   },
@@ -435,11 +435,11 @@ const styles = StyleSheet.create({
   hintContainer: {
     width: '100%',
     maxHeight: 400,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
     position: 'relative',
   },
   hintContent: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
   audioContainer: {
     width: '100%',
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   signatureText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     fontStyle: 'italic',
   },
   blurOverlay: {

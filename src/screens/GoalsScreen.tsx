@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   FlatList,
   ScrollView,
   Animated,
@@ -17,20 +16,20 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MotiView } from 'moti';
 import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Goal, RootStackParamList } from '../types';
 import { goalService } from '../services/GoalService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
 import CompletedGoalCard from './recipient/CompletedGoalCard';
 import MainScreen from './MainScreen';
-import { db } from '../services/firebase';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
+import ErrorRetry from '../components/ErrorRetry';
 
 
 
@@ -39,44 +38,21 @@ type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 const GoalsScreen: React.FC = () => {
   const { state, dispatch } = useApp();
   const navigation = useNavigation<GoalsScreenNavigationProp>();
+  const { showError } = useToast();
   const userId = state.user?.id || 'current_user';
 
   const [currentGoals, setCurrentGoals] = useState<Goal[]>([]);
   const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const updateGiftStatus = async (experienceGiftId: string) => {
-    try {
-      // Query the experienceGifts collection for the document where the field 'id' equals your experienceGift.id
-      const q = query(
-        collection(db, 'experienceGifts'),
-        where('id', '==', experienceGiftId)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        logger.log('No matching gift found');
-        return;
-      }
-
-      // There should only be one document matching this id
-      const giftDoc = querySnapshot.docs[0];
-
-      // Update status to 'completed'
-      await updateDoc(doc(db, 'experienceGifts', giftDoc.id), {
-        status: 'completed',
-      });
-
-      logger.log('Gift status updated successfully');
-    } catch (error) {
-      logger.error('Failed to update gift status:', error);
-    }
+  const loadGoals = () => {
+    // Trigger re-render by forcing a re-mount of the listener
+    setLoading(true);
+    setError(false);
   };
-
-
 
   useEffect(() => {
     if (!userId) return;
@@ -84,6 +60,7 @@ const GoalsScreen: React.FC = () => {
     setLoading(true);
     const unsubscribe = goalService.listenToUserGoals(userId, async (goals) => {
       try {
+        setError(false);
         // Check for pending goals that need auto-approval
         for (const goal of goals) {
           if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
@@ -116,6 +93,8 @@ const GoalsScreen: React.FC = () => {
         setCompletedGoals(finished);
       } catch (error) {
         logger.error('Error processing goals in GoalsScreen:', error);
+        setError(true);
+        showError('Could not load goals. Please try again.');
         // Show whatever goals we can rather than crashing
         setCurrentGoals([]);
         setCompletedGoals([]);
@@ -196,7 +175,7 @@ const GoalsScreen: React.FC = () => {
           experienceGift: serializeNav(experienceGift),
         });
       }
-      // Don't show Alert here - the hint popup from DetailedGoalCard already provides feedback
+      // Don't show toast here - the hint popup from DetailedGoalCard already provides feedback
     } catch (err) {
       logger.error('Error finishing goal:', err);
       await logErrorToFirestore(err, {
@@ -205,7 +184,7 @@ const GoalsScreen: React.FC = () => {
         userId,
         additionalData: { goalId: updatedGoal.id }
       });
-      Alert.alert('Error', 'Failed to update goal progress.');
+      showError('Failed to update goal progress.');
     }
   };
 
@@ -237,6 +216,8 @@ const GoalsScreen: React.FC = () => {
             <GoalCardSkeleton />
             <GoalCardSkeleton />
           </ScrollView>
+        ) : error && currentGoals.length === 0 && completedGoals.length === 0 ? (
+          <ErrorRetry message="Could not load goals" onRetry={loadGoals} />
         ) : currentGoals.length === 0 && completedGoals.length === 0 ? (
           /* ── Upgraded Empty State ── */
           <View style={styles.emptyContainer}>
@@ -248,6 +229,8 @@ const GoalsScreen: React.FC = () => {
               style={styles.emptyCTA}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('ChallengeSetup' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Create your first goal"
             >
               <Rocket color="#fff" size={18} strokeWidth={2.5} />
               <Text style={styles.emptyCTAText}>Create Your First Goal</Text>
@@ -277,6 +260,8 @@ const GoalsScreen: React.FC = () => {
                   style={styles.completedHeader}
                   activeOpacity={0.7}
                   onPress={() => setShowCompleted((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${showCompleted ? 'Hide' : 'Show'} ${completedGoals.length} completed goals`}
                 >
                   <View style={styles.completedHeaderLeft}>
                     <Trophy color={Colors.primary} size={18} strokeWidth={2.5} />
@@ -285,9 +270,9 @@ const GoalsScreen: React.FC = () => {
                     </Text>
                   </View>
                   {showCompleted ? (
-                    <ChevronUp color="#6b7280" size={20} />
+                    <ChevronUp color={Colors.textSecondary} size={20} />
                   ) : (
-                    <ChevronDown color="#6b7280" size={20} />
+                    <ChevronDown color={Colors.textSecondary} size={20} />
                   )}
                 </TouchableOpacity>
 
@@ -332,6 +317,8 @@ const GoalsScreen: React.FC = () => {
                 toggleFabMenu();
                 navigation.navigate('ChallengeSetup' as any);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Create new goal"
             >
               <View style={[styles.fabMenuIconBg, { backgroundColor: Colors.primarySurface }]}>
                 <Target color={Colors.primary} size={20} strokeWidth={2.5} />
@@ -348,6 +335,8 @@ const GoalsScreen: React.FC = () => {
                 toggleFabMenu();
                 navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem your Ernit coupon"
             >
               <View style={styles.fabMenuIconBg}>
                 <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} />
@@ -371,6 +360,8 @@ const GoalsScreen: React.FC = () => {
             style={[styles.fab, fabMenuOpen && styles.fabOpen]}
             activeOpacity={0.85}
             onPress={toggleFabMenu}
+            accessibilityRole="button"
+            accessibilityLabel={fabMenuOpen ? "Close menu" : "Open menu to create goal or redeem coupon"}
           >
             <Animated.View style={{
               transform: [{
@@ -484,13 +475,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
@@ -516,7 +507,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginTop: 50,
     fontSize: 16,
   },
@@ -528,7 +519,7 @@ const styles = StyleSheet.create({
   },
   noActiveText: {
     fontSize: 15,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     marginBottom: 16,
   },
   noActiveCTA: {

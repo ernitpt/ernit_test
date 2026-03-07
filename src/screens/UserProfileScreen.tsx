@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   StyleSheet,
   Modal,
   TextInput,
@@ -20,6 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Goal, UserProfile, Experience, User, RootStackParamList } from '../types';
 import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
@@ -38,14 +38,334 @@ import { serializeNav } from '../utils/serializeNav';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
+import ErrorRetry from '../components/ErrorRetry';
 
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+
+// =========================
+// Goal Card (Active goals)
+// =========================
+const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => (
+  <View
+    style={{
+      flex: 1,
+      height: 8,
+      borderRadius: 50,
+      backgroundColor: filled ? Colors.primary : Colors.border,
+      marginHorizontal: 2,
+    }}
+  />
+);
+
+const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+  const navigation = useNavigation<UserProfileNavigationProp>();
+  const [empoweredName, setEmpoweredName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (goal.empoweredBy) {
+      userService.getUserName(goal.empoweredBy).then(setEmpoweredName);
+    }
+  }, [goal.empoweredBy]);
+
+  // Sessions this week
+  const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
+  const weeklyTotal = Math.max(1, goal.sessionsPerWeek || 1);
+
+  // Weeks completed
+  const finishedThisWeek = goal.weeklyCount >= goal.sessionsPerWeek;
+  const totalWeeks = goal.targetCount || 1;
+  const base = goal.currentCount || 0;
+  const completedWeeks = goal.isCompleted
+    ? totalWeeks
+    : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
+
+  const handlePress = () => {
+    navigation.navigate('Journey', { goal });
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.8}
+      style={styles.goalCard}
+    >
+      <Text style={styles.goalTitle}>{goal.title}</Text>
+
+      {empoweredName && goal.empoweredBy !== goal.userId && !goal.isFreeGoal && (
+        <Text style={styles.goalMeta}>⚡ Empowered by {empoweredName}</Text>
+      )}
+
+      {/* Sessions this week */}
+      <View style={{ marginTop: 12 }}>
+        <View style={styles.progressHeaderRow}>
+          <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
+          <Text style={styles.progressHeaderValue}>
+            {weeklyFilled}/{weeklyTotal}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row' }}>
+          {Array.from({ length: weeklyTotal }).map((_, i) => (
+            <CapsuleMini key={i} filled={i < weeklyFilled} />
+          ))}
+        </View>
+      </View>
+
+      {/* Weeks completed */}
+      <View style={{ marginTop: 14 }}>
+        <View style={styles.progressHeaderRow}>
+          <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
+          <Text style={styles.progressHeaderValue}>
+            {completedWeeks}/{totalWeeks}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row' }}>
+          {Array.from({ length: totalWeeks }).map((_, i) => (
+            <CapsuleMini key={i} filled={i < completedWeeks} />
+          ))}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// ==================================
+// Achievement Card (Completed goals)
+// ==================================
+const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = ({ sessions, weeks, completedAt }) => (
+  <View style={styles.achStatsRow}>
+    <View style={styles.achStatItem}>
+      <Text style={styles.achStatValue}>{sessions}</Text>
+      <Text style={styles.achStatLabel}>sessions</Text>
+    </View>
+    <View style={styles.achStatDivider} />
+    <View style={styles.achStatItem}>
+      <Text style={styles.achStatValue}>{weeks}</Text>
+      <Text style={styles.achStatLabel}>weeks</Text>
+    </View>
+    {completedAt && (
+      <>
+        <View style={styles.achStatDivider} />
+        <View style={styles.achStatItem}>
+          <Text style={styles.achStatLabel}>{completedAt}</Text>
+        </View>
+      </>
+    )}
+  </View>
+);
+
+const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+  const navigation = useNavigation<UserProfileNavigationProp>();
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [partnerName, setPartnerName] = useState<string>('Partner');
+  const [gift, setGift] = useState<any>(null);
+  const [loadingCard, setLoadingCard] = useState<boolean>(true);
+
+  const isSelfAchievement = goal.isFreeGoal && !goal.pledgedExperience && !goal.experienceGiftId;
+  const hasPledgedExperience = goal.isFreeGoal && !!goal.pledgedExperience;
+
+  useEffect(() => {
+    const loadAchievementData = async () => {
+      try {
+        // Self-achievement or pledged: no remote data needed
+        if (isSelfAchievement || hasPledgedExperience) {
+          setLoadingCard(false);
+          return;
+        }
+
+        // Standard goals
+        if (!goal.experienceGiftId) { setLoadingCard(false); return; }
+        try {
+          const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+          setGift(giftData);
+          const exp = await experienceService.getExperienceById(giftData.experienceId);
+          setExperience(exp || null);
+          setPartnerName(exp?.subtitle || 'Partner')
+        } catch (dataErr) {
+          logger.warn('Error fetching gift/experience data:', dataErr);
+        }
+      } catch (err) {
+        logger.error('Error loading achievement data:', err);
+      } finally {
+        setLoadingCard(false);
+      }
+    };
+    loadAchievementData();
+  }, [goal.experienceGiftId]);
+
+  const weeks = goal.targetCount || 0;
+  const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
+
+  const handlePress = () => {
+    (navigation as any).navigate('Journey', { goal });
+  };
+
+  // Completion date
+  const completedAt = goal.completedAt
+    ? new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
+      ? (goal.completedAt as { toDate: () => Date }).toDate()
+      : goal.completedAt
+    ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  // Self-achievement card
+  if (isSelfAchievement) {
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8}
+        style={styles.achievementCard}>
+        <View style={styles.achSelfBanner}>
+          <Text style={{ fontSize: 28 }}>🏆</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.achSelfLabel}>Self-Achievement</Text>
+            <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
+          </View>
+        </View>
+        <View style={styles.achievementContent}>
+          <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // Pledged experience card
+  if (hasPledgedExperience && goal.pledgedExperience) {
+    const pledged = goal.pledgedExperience;
+    const cover = pledged.coverImageUrl;
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
+        {cover ? (
+          <View>
+            <Image source={{ uri: cover }} style={styles.achievementImage} />
+            <View style={styles.achCompletedBadge}>
+              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+            <Text style={{ fontSize: 36 }}>🎁</Text>
+            <View style={styles.achCompletedBadge}>
+              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+            </View>
+          </View>
+        )}
+        <View style={styles.achievementContent}>
+          <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
+          <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {pledged.title}</Text>
+          <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // Standard/Valentine card
+  const cover = experience?.coverImageUrl ||
+    (experience?.imageUrl && experience.imageUrl.length > 0 ? experience.imageUrl[0] : undefined);
+
+  return (
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
+      {cover ? (
+        <View>
+          <Image source={{ uri: cover }} style={styles.achievementImage} />
+          <View style={styles.achCompletedBadge}>
+            <Text style={styles.achCompletedBadgeText}>Completed</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+          <Text style={{ fontSize: 36 }}>🎁</Text>
+          <View style={styles.achCompletedBadge}>
+            <Text style={styles.achCompletedBadgeText}>Completed</Text>
+          </View>
+        </View>
+      )}
+      <View style={styles.achievementContent}>
+        {loadingCard ? (
+          <View style={styles.achSkeletonContainer}>
+            <View style={[styles.achSkeletonLine, { width: '70%' }]} />
+            <View style={[styles.achSkeletonLine, { width: '50%', height: 10 }]} />
+            <View style={[styles.achSkeletonLine, { width: '90%', height: 10 }]} />
+          </View>
+        ) : (
+          <>
+            <Text style={styles.achievementTitle} numberOfLines={1}>
+              {goal.title}
+            </Text>
+            <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {experience?.title || 'Experience'}</Text>
+            <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
+          </>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// ==================================
+// Experience Card (Wishlist)
+// ==================================
+type ExperienceCardProps = {
+  experience: Experience;
+  onRemoveFromWishlist: (experienceId: string) => void;
+};
+
+const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFromWishlist }) => {
+  const navigation = useNavigation<UserProfileNavigationProp>();
+
+  const handlePress = () => {
+    navigation.navigate('ExperienceDetails', { experience });
+  };
+
+  const experienceImage = Array.isArray(experience.imageUrl)
+    ? experience.imageUrl[0]
+    : experience.imageUrl;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      style={styles.experienceCard}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${experience.title} experience details`}
+    >
+      <View style={styles.experienceImageContainer}>
+        <Image
+          source={{ uri: experienceImage }}
+          style={styles.experienceImage}
+          resizeMode="cover"
+          accessibilityLabel={`${experience.title} experience`}
+        />
+        <TouchableOpacity
+          onPress={() => onRemoveFromWishlist(experience.id)}
+          style={styles.wishlistHeartButton}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${experience.title} from wishlist`}
+        >
+          <Heart fill={Colors.error} color={Colors.error} size={22} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.experienceContent}>
+        <Text style={styles.experienceTitle} numberOfLines={1}>
+          {experience.title}
+        </Text>
+        <Text style={styles.experienceDescription} numberOfLines={2}>
+          {experience.description}
+        </Text>
+        <Text style={styles.experiencePrice}>
+          €{Number(experience.price || 0).toFixed(2)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const UserProfileScreen: React.FC = () => {
   const { state, dispatch } = useApp();
   const navigation = useNavigation<UserProfileNavigationProp>();
+  const { showSuccess, showError, showInfo } = useToast();
   const [activeTab, setActiveTab] = useState<'goals' | 'achievements' | 'wishlist'>('goals');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
   const [activeGoals, setActiveGoals] = useState<Goal[]>([]);
   const [wishlist, setWishlist] = useState<Experience[]>([]);
@@ -94,6 +414,7 @@ const UserProfileScreen: React.FC = () => {
   const loadProfileAndGoals = async () => {
     try {
       setLoading(true);
+      setError(false);
       const fetchedProfile = await userService.getUserProfile(userId);
       setUserProfile(fetchedProfile);
 
@@ -117,6 +438,8 @@ const UserProfileScreen: React.FC = () => {
       setWishlist(userWishlist || []);
     } catch (error) {
       logger.error('Error loading profile data:', error);
+      setError(true);
+      showError('Could not load profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -126,7 +449,7 @@ const UserProfileScreen: React.FC = () => {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission denied', 'We need camera roll permissions to upload photos!');
+      showError('We need camera roll permissions to upload photos!');
       return;
     }
 
@@ -155,7 +478,7 @@ const UserProfileScreen: React.FC = () => {
         }));
       } catch (uploadErr) {
         logger.error('Upload failed:', uploadErr);
-        Alert.alert('Error', 'Could not upload profile image.');
+        showError('Could not upload profile image.');
       }
     }
   };
@@ -171,7 +494,7 @@ const UserProfileScreen: React.FC = () => {
 
   const handleSaveProfile = async () => {
     if (editFormData.description.length > 300) {
-      Alert.alert('Description too long', 'Please keep under 300 characters.');
+      showError('Please keep under 300 characters.');
       return;
     }
 
@@ -198,278 +521,18 @@ const UserProfileScreen: React.FC = () => {
 
       setUserProfile(updatedProfile);
       setIsEditModalVisible(false);
-      Alert.alert('Success', 'Profile updated!');
+      showSuccess('Profile updated!');
     } catch (error) {
       logger.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile.');
+      showError('Failed to update profile.');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // =========================
-  // Goal Card (Active goals)
-  // =========================
-  const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-    const navigation = useNavigation<UserProfileNavigationProp>();
-    const [empoweredName, setEmpoweredName] = useState<string | null>(null);
-
-    useEffect(() => {
-      if (goal.empoweredBy) {
-        userService.getUserName(goal.empoweredBy).then(setEmpoweredName);
-      }
-    }, [goal.empoweredBy]);
-
-    // Sessions this week
-    const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
-    const weeklyTotal = Math.max(1, goal.sessionsPerWeek || 1);
-
-    // Weeks completed
-    const finishedThisWeek = goal.weeklyCount >= goal.sessionsPerWeek;
-    const totalWeeks = goal.targetCount || 1;
-    const base = goal.currentCount || 0;
-    const completedWeeks = goal.isCompleted
-      ? totalWeeks
-      : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
-
-    const CapsuleMini = ({ filled }: { filled: boolean }) => (
-      <View
-        style={{
-          flex: 1,
-          height: 8,
-          borderRadius: 50,
-          backgroundColor: filled ? Colors.primary : '#e5e7eb',
-          marginHorizontal: 2,
-        }}
-      />
-    );
-
-    const handlePress = () => {
-      navigation.navigate('Journey', { goal });
-    };
-
-    return (
-      <TouchableOpacity
-        onPress={handlePress}
-        activeOpacity={0.8}
-        style={styles.goalCard}
-      >
-        <Text style={styles.goalTitle}>{goal.title}</Text>
-
-        {empoweredName && goal.empoweredBy !== goal.userId && !goal.isFreeGoal && (
-          <Text style={styles.goalMeta}>⚡ Empowered by {empoweredName}</Text>
-        )}
-
-        {/* Sessions this week */}
-        <View style={{ marginTop: 12 }}>
-          <View style={styles.progressHeaderRow}>
-            <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
-            <Text style={styles.progressHeaderValue}>
-              {weeklyFilled}/{weeklyTotal}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row' }}>
-            {Array.from({ length: weeklyTotal }).map((_, i) => (
-              <CapsuleMini key={i} filled={i < weeklyFilled} />
-            ))}
-          </View>
-        </View>
-
-        {/* Weeks completed */}
-        <View style={{ marginTop: 14 }}>
-          <View style={styles.progressHeaderRow}>
-            <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
-            <Text style={styles.progressHeaderValue}>
-              {completedWeeks}/{totalWeeks}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row' }}>
-            {Array.from({ length: totalWeeks }).map((_, i) => (
-              <CapsuleMini key={i} filled={i < completedWeeks} />
-            ))}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // ==================================
-  // Achievement Card (Completed goals)
-  // ==================================
-  const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-    const navigation = useNavigation<UserProfileNavigationProp>();
-    const [experience, setExperience] = useState<Experience | null>(null);
-    const [partnerName, setPartnerName] = useState<string>('Partner');
-    const [gift, setGift] = useState<any>(null);
-    const [loadingCard, setLoadingCard] = useState<boolean>(true);
-
-    const isSelfAchievement = goal.isFreeGoal && !goal.pledgedExperience && !goal.experienceGiftId;
-    const hasPledgedExperience = goal.isFreeGoal && !!goal.pledgedExperience;
-
-    useEffect(() => {
-      const loadAchievementData = async () => {
-        try {
-          // Self-achievement or pledged: no remote data needed
-          if (isSelfAchievement || hasPledgedExperience) {
-            setLoadingCard(false);
-            return;
-          }
-
-          // Standard goals
-          if (!goal.experienceGiftId) { setLoadingCard(false); return; }
-          try {
-            const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
-            setGift(giftData);
-            const exp = await experienceService.getExperienceById(giftData.experienceId);
-            setExperience(exp || null);
-            setPartnerName(exp?.subtitle || 'Partner')
-          } catch (dataErr) {
-            logger.warn('Error fetching gift/experience data:', dataErr);
-          }
-        } catch (err) {
-          logger.error('Error loading achievement data:', err);
-        } finally {
-          setLoadingCard(false);
-        }
-      };
-      loadAchievementData();
-    }, [goal.experienceGiftId]);
-
-    const weeks = goal.targetCount || 0;
-    const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
-
-    const handlePress = () => {
-      (navigation as any).navigate('Journey', { goal });
-    };
-
-    // Completion date
-    const completedAt = goal.completedAt
-      ? new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
-        ? (goal.completedAt as { toDate: () => Date }).toDate()
-        : goal.completedAt
-      ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : null;
-
-    // Shared stats row
-    const StatsRow = () => (
-      <View style={styles.achStatsRow}>
-        <View style={styles.achStatItem}>
-          <Text style={styles.achStatValue}>{sessions}</Text>
-          <Text style={styles.achStatLabel}>sessions</Text>
-        </View>
-        <View style={styles.achStatDivider} />
-        <View style={styles.achStatItem}>
-          <Text style={styles.achStatValue}>{weeks}</Text>
-          <Text style={styles.achStatLabel}>weeks</Text>
-        </View>
-        {completedAt && (
-          <>
-            <View style={styles.achStatDivider} />
-            <View style={styles.achStatItem}>
-              <Text style={styles.achStatLabel}>{completedAt}</Text>
-            </View>
-          </>
-        )}
-      </View>
-    );
-
-    // Self-achievement card
-    if (isSelfAchievement) {
-      return (
-        <TouchableOpacity onPress={handlePress} activeOpacity={0.8}
-          style={styles.achievementCard}>
-          <View style={styles.achSelfBanner}>
-            <Text style={{ fontSize: 28 }}>🏆</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.achSelfLabel}>Self-Achievement</Text>
-              <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
-            </View>
-          </View>
-          <View style={styles.achievementContent}>
-            <StatsRow />
-          </View>
-        </TouchableOpacity>
-      );
-    }
-
-    // Pledged experience card
-    if (hasPledgedExperience && goal.pledgedExperience) {
-      const pledged = goal.pledgedExperience;
-      const cover = pledged.coverImageUrl;
-      return (
-        <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
-          {cover ? (
-            <View>
-              <Image source={{ uri: cover }} style={styles.achievementImage} />
-              <View style={styles.achCompletedBadge}>
-                <Text style={styles.achCompletedBadgeText}>Completed</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
-              <Text style={{ fontSize: 36 }}>🎁</Text>
-              <View style={styles.achCompletedBadge}>
-                <Text style={styles.achCompletedBadgeText}>Completed</Text>
-              </View>
-            </View>
-          )}
-          <View style={styles.achievementContent}>
-            <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
-            <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {pledged.title}</Text>
-            <StatsRow />
-          </View>
-        </TouchableOpacity>
-      );
-    }
-
-    // Standard/Valentine card
-    const cover = experience?.coverImageUrl ||
-      (experience?.imageUrl && experience.imageUrl.length > 0 ? experience.imageUrl[0] : undefined);
-
-    return (
-      <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
-        {cover ? (
-          <View>
-            <Image source={{ uri: cover }} style={styles.achievementImage} />
-            <View style={styles.achCompletedBadge}>
-              <Text style={styles.achCompletedBadgeText}>Completed</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
-            <Text style={{ fontSize: 36 }}>🎁</Text>
-            <View style={styles.achCompletedBadge}>
-              <Text style={styles.achCompletedBadgeText}>Completed</Text>
-            </View>
-          </View>
-        )}
-        <View style={styles.achievementContent}>
-          {loadingCard ? (
-            <View style={styles.achSkeletonContainer}>
-              <View style={[styles.achSkeletonLine, { width: '70%' }]} />
-              <View style={[styles.achSkeletonLine, { width: '50%', height: 10 }]} />
-              <View style={[styles.achSkeletonLine, { width: '90%', height: 10 }]} />
-            </View>
-          ) : (
-            <>
-              <Text style={styles.achievementTitle} numberOfLines={1}>
-                {goal.title}
-              </Text>
-              <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {experience?.title || 'Experience'}</Text>
-              <StatsRow />
-            </>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-
   const handleRemoveFromWishlist = async (experienceId: string) => {
     if (!state.user) {
-      Alert.alert('Please log in to manage wishlist.');
+      showInfo('Please log in to manage wishlist.');
       return;
     }
 
@@ -490,52 +553,8 @@ const UserProfileScreen: React.FC = () => {
       }
     } catch (error) {
       logger.error('Error removing from wishlist:', error);
-      Alert.alert('Error', 'Failed to remove item from wishlist. Please try again.');
+      showError('Failed to remove item from wishlist. Please try again.');
     }
-  };
-
-  const ExperienceCard: React.FC<{ experience: Experience }> = ({ experience }) => {
-    const handlePress = () => {
-      navigation.navigate('ExperienceDetails', { experience });
-    };
-
-    const experienceImage = Array.isArray(experience.imageUrl)
-      ? experience.imageUrl[0]
-      : experience.imageUrl;
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={styles.experienceCard}
-        onPress={handlePress}
-      >
-        <View style={styles.experienceImageContainer}>
-          <Image
-            source={{ uri: experienceImage }}
-            style={styles.experienceImage}
-            resizeMode="cover"
-          />
-          <TouchableOpacity
-            onPress={() => handleRemoveFromWishlist(experience.id)}
-            style={styles.wishlistHeartButton}
-            activeOpacity={0.8}
-          >
-            <Heart fill="#ef4444" color="#ef4444" size={22} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.experienceContent}>
-          <Text style={styles.experienceTitle} numberOfLines={1}>
-            {experience.title}
-          </Text>
-          <Text style={styles.experienceDescription} numberOfLines={2}>
-            {experience.description}
-          </Text>
-          <Text style={styles.experiencePrice}>
-            €{Number(experience.price || 0).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   const renderContent = () => {
@@ -548,6 +567,10 @@ const UserProfileScreen: React.FC = () => {
           <SkeletonBox width="80%" height={20} borderRadius={8} />
         </View>
       );
+    }
+
+    if (error) {
+      return <ErrorRetry message="Could not load profile data" onRetry={loadProfileAndGoals} />;
     }
 
     if (activeTab === 'goals') {
@@ -572,7 +595,7 @@ const UserProfileScreen: React.FC = () => {
     }
 
     return wishlist.map((exp) => (
-      <ExperienceCard key={exp.id} experience={exp} />
+      <ExperienceCard key={exp.id} experience={exp} onRemoveFromWishlist={handleRemoveFromWishlist} />
     ));
   };
 
@@ -587,6 +610,7 @@ const UserProfileScreen: React.FC = () => {
                 <Image
                   source={{ uri: userProfile.profileImageUrl }}
                   style={styles.profileImage}
+                  accessibilityLabel="Your profile picture"
                 />
               ) : (
                 <View style={styles.placeholderImage}>
@@ -595,7 +619,12 @@ const UserProfileScreen: React.FC = () => {
                   </Text>
                 </View>
               )}
-              <TouchableOpacity style={styles.editIconButton} onPress={openEditModal}>
+              <TouchableOpacity
+                style={styles.editIconButton}
+                onPress={openEditModal}
+                accessibilityRole="button"
+                accessibilityLabel="Edit profile"
+              >
                 <Edit2 color={Colors.secondary} size={18} />
               </TouchableOpacity>
             </View>
@@ -627,6 +656,8 @@ const UserProfileScreen: React.FC = () => {
             <TouchableOpacity
               style={styles.friendsButton}
               onPress={() => navigation.navigate('FriendsList')}
+              accessibilityRole="button"
+              accessibilityLabel="View friends list"
             >
               <Users color={Colors.secondary} size={20} />
               <Text style={styles.friendsButtonText}>View Friends</Text>
@@ -652,6 +683,8 @@ const UserProfileScreen: React.FC = () => {
                   styles.tabButton,
                   activeTab === tab.key && styles.tabButtonActive,
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${tab.label} tab`}
               >
                 <Text
                   style={[
@@ -799,7 +832,7 @@ const UserProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: Colors.surface },
   heroSection: {
     backgroundColor: '#fff',
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
@@ -818,11 +851,11 @@ const styles = StyleSheet.create({
   },
   progressHeaderLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: Colors.textSecondary,
   },
   progressHeaderValue: {
     fontSize: 13,
-    color: '#111827',
+    color: Colors.textPrimary,
     fontWeight: '600',
   },
 
@@ -832,7 +865,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 4,
-    borderColor: '#f3f4f6',
+    borderColor: Colors.backgroundLight,
   },
   placeholderImage: {
     width: 100,
@@ -854,17 +887,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#f3f4f6',
+    borderColor: Colors.backgroundLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  userName: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  userName: { fontSize: 24, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   userDescription: {
     fontSize: 15,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 16,
@@ -873,7 +906,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 24 },
   statItem: { alignItems: 'center' },
   statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
-  statLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  statLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -891,7 +924,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.error,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -910,7 +943,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabButtonActive: { backgroundColor: Colors.secondary },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  tabText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
   tabTextActive: { color: '#fff' },
 
   // Active goal card
@@ -926,8 +959,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  goalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  goalMeta: { fontSize: 14, color: '#6b7280', marginTop: 4 },
+  goalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  goalMeta: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
 
   // Wishlist card
   experienceCard: {
@@ -945,7 +978,7 @@ const styles = StyleSheet.create({
   experienceImageContainer: {
     position: 'relative',
   },
-  experienceImage: { width: '100%', height: 140, backgroundColor: '#e5e7eb' },
+  experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
   wishlistHeartButton: {
     position: 'absolute',
     top: 8,
@@ -959,8 +992,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   experienceContent: { padding: 16 },
-  experienceTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  experienceDescription: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 8 },
+  experienceTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  experienceDescription: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 8 },
   experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
 
   // ACHIEVEMENT CARD
@@ -979,7 +1012,7 @@ const styles = StyleSheet.create({
   achievementImage: {
     width: '100%',
     height: 150,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   achievementContent: {
     padding: 14,
@@ -987,7 +1020,7 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
 
@@ -998,7 +1031,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: Colors.backgroundLight,
   },
   achStatItem: {
     alignItems: 'center',
@@ -1012,13 +1045,13 @@ const styles = StyleSheet.create({
   achStatLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#9ca3af',
+    color: Colors.textMuted,
     marginTop: 1,
   },
   achStatDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
   },
 
   // Self-achievement banner
@@ -1042,7 +1075,7 @@ const styles = StyleSheet.create({
   achSelfTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginTop: 2,
   },
 
@@ -1074,7 +1107,7 @@ const styles = StyleSheet.create({
   achGoalLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginTop: 2,
   },
 
@@ -1093,13 +1126,13 @@ const styles = StyleSheet.create({
   },
   achSkeletonLine: {
     height: 14,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     borderRadius: 4,
   },
 
 
-  emptyStateText: { textAlign: 'center', marginTop: 40, color: '#9ca3af', fontSize: 16 },
-  modalContainer: { flex: 1, backgroundColor: '#f9fafb' },
+  emptyStateText: { textAlign: 'center', marginTop: 40, color: Colors.textMuted, fontSize: 16 },
+  modalContainer: { flex: 1, backgroundColor: Colors.surface },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1108,15 +1141,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: Colors.border,
   },
   modalCancelButton: { paddingVertical: 8 },
   modalCancelText: { fontSize: 16, color: Colors.secondary },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
   modalSaveButton: { paddingVertical: 8 },
   modalSaveText: { fontSize: 16, color: Colors.secondary, fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
-  disabledText: { color: '#9ca3af' },
+  disabledText: { color: Colors.textMuted },
   modalContent: { flex: 1, padding: 20 },
   imageSection: { alignItems: 'center', marginBottom: 32 },
   imagePickerButton: { position: 'relative', marginBottom: 12 },
@@ -1135,18 +1168,18 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   imageOverlayText: { fontSize: 16 },
-  imagePickerLabel: { fontSize: 14, color: '#6b7280' },
+  imagePickerLabel: { fontSize: 14, color: Colors.textSecondary },
   inputSection: { marginBottom: 24 },
-  inputLabel: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 8 },
+  inputLabel: { fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
   textInput: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   descriptionInput: { height: 120, textAlignVertical: 'top' },
 });

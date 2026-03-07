@@ -90,7 +90,7 @@ const GoalDetailScreen: React.FC = () => {
       <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <View style={styles.loading}>
-          <Text style={{ color: '#6b7280' }}>Loading goal…</Text>
+          <Text style={{ color: Colors.textSecondary }}>Loading goal…</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -102,10 +102,14 @@ const GoalDetailScreen: React.FC = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Goal Details</Text>
+        <Text style={styles.headerTitle} accessibilityRole="header">Goal Details</Text>
       </View>
 
       <ScrollView style={{ flex: 1, padding: 16 }}>
@@ -160,10 +164,10 @@ const styles = StyleSheet.create({
     // paddingTop: 34,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: Colors.border,
   },
   backText: { fontSize: 16, color: Colors.secondary, fontWeight: '500' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginTop: 6 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary, marginTop: 6 },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -176,14 +180,14 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
-  desc: { fontSize: 16, color: '#6b7280', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 8 },
+  desc: { fontSize: 16, color: Colors.textSecondary, marginBottom: 16 },
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   label: { fontSize: 14, color: '#4b5563', fontWeight: '600' },
-  value: { fontSize: 14, color: '#111827', fontWeight: '600' },
+  value: { fontSize: 14, color: Colors.textPrimary, fontWeight: '600' },
 
-  progressBg: { backgroundColor: '#e5e7eb', borderRadius: 8, height: 12 },
+  progressBg: { backgroundColor: Colors.border, borderRadius: 8, height: 12 },
   progressFill: { backgroundColor: Colors.secondary, height: 12, borderRadius: 8 },
   progressFillAlt: { backgroundColor: '#10b981', height: 12, borderRadius: 8 },
 
@@ -196,10 +200,10 @@ const styles = StyleSheet.create({
   },
   completedText: { color: '#fff', fontWeight: '600' },
 
-  dayLetter: { color: '#6b7280', fontWeight: '600' },
+  dayLetter: { color: Colors.textSecondary, fontWeight: '600' },
   dayLetterToday: { color: Colors.primary, textDecorationLine: 'underline' },
   weekWindowText: { marginTop: 6, fontSize: 12, color: '#374151' },
-  weekWindowTextDim: { marginTop: 6, fontSize: 12, color: '#9ca3af' },
+  weekWindowTextDim: { marginTop: 6, fontSize: 12, color: Colors.textMuted },
 });
 
 export default GoalDetailScreen;

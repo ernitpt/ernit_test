@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   Animated,
   Platform,
@@ -26,6 +25,8 @@ import SharedHeader from '../components/SharedHeader';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
+import ErrorRetry from '../components/ErrorRetry';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -37,17 +38,19 @@ interface EnrichedFriend extends Friend {
 const FriendsListScreen: React.FC = () => {
   const navigation = useNavigation<FriendsListNavigationProp>();
   const { state } = useApp();
+  const { showError } = useToast();
 
   const [friends, setFriends] = useState<EnrichedFriend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<EnrichedFriend | null>(null);
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [showRemovePopup, setShowRemovePopup] = useState(false);
 
   const currentUserId = state.user?.id;
   const headerColors = Colors.gradientPrimary;
-  const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   // Animations
   const popupOpacity = useRef(new Animated.Value(0)).current;
@@ -83,6 +86,7 @@ const FriendsListScreen: React.FC = () => {
 
     try {
       setIsLoading(true);
+      setError(false);
       const friendsList = await friendService.getFriends(currentUserId);
 
       const enrichedFriends = await Promise.all(
@@ -105,8 +109,10 @@ const FriendsListScreen: React.FC = () => {
       );
 
       setFriends(enrichedFriends);
-    } catch {
-      logger.error('Error loading friends');
+    } catch (err) {
+      logger.error('Error loading friends', err);
+      setError(true);
+      showError('Could not load friends. Pull to refresh to try again.');
     } finally {
       setIsLoading(false);
     }
@@ -153,12 +159,15 @@ const FriendsListScreen: React.FC = () => {
             onPress={() => handleFriendPress(item.friendId)}
             activeOpacity={0.7}
             disabled={isRemoving}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${displayName}'s profile`}
           >
-            {displayImage && !imageLoadError ? (
+            {displayImage && !imageLoadErrors.has(item.friendId) ? (
               <Image
                 source={{ uri: displayImage }}
                 style={styles.profileImage}
-                onError={() => setImageLoadError(true)}
+                onError={() => setImageLoadErrors(prev => new Set(prev).add(item.friendId))}
+                accessibilityLabel={`${displayName}'s profile picture`}
               />
             ) : (
               <View style={styles.placeholderImage}>
@@ -179,12 +188,10 @@ const FriendsListScreen: React.FC = () => {
             style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
             onPress={() => openRemovePopup(item)}
             disabled={isRemoving}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${displayName} from friends`}
           >
-            {isRemoving ? (
-              <ActivityIndicator size="small" color="#ef4444" />
-            ) : (
-              <Text style={styles.removeButtonText}>Remove</Text>
-            )}
+            <Text style={styles.removeButtonText}>{isRemoving ? 'Removing...' : 'Remove'}</Text>
           </TouchableOpacity>
         </View>
       </MotiView>
@@ -216,6 +223,8 @@ const FriendsListScreen: React.FC = () => {
               onPress={() => navigation.navigate('AddFriend')}
               style={styles.addFriendIconButton}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Add a friend"
             >
               <PersonAddIcon width={30} height={30} />
             </TouchableOpacity>
@@ -237,9 +246,11 @@ const FriendsListScreen: React.FC = () => {
             }
           />
         </>
+      ) : error && friends.length === 0 ? (
+        <ErrorRetry message="Could not load friends" onRetry={loadFriends} />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>??</Text>
+          <Text style={styles.emptyStateIcon}>👥</Text>
           <Text style={styles.emptyStateTitle}>No Friends Yet</Text>
           <Text style={styles.emptyStateText}>
             Start building your network by adding friends!
@@ -247,6 +258,8 @@ const FriendsListScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.emptyStateButton}
             onPress={() => navigation.navigate('AddFriend')}
+            accessibilityRole="button"
+            accessibilityLabel="Add your first friend"
           >
             <Text style={styles.emptyStateButtonText}>Add Your First Friend</Text>
           </TouchableOpacity>
@@ -296,12 +309,12 @@ const styles = StyleSheet.create({
   countContainer: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  countText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
+  countText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
   addFriendIconButton: { padding: 4, justifyContent: 'center', alignItems: 'center' },
 
   skeletonContainer: { padding: 10 },
@@ -320,7 +333,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: Colors.backgroundLight,
   },
   friendTouchable: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   profileImage: {
@@ -328,21 +341,21 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     marginRight: 12,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   friendInfo: { flex: 1 },
-  friendName: { fontSize: 17, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  friendDate: { fontSize: 13, color: '#9ca3af' },
+  friendName: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
+  friendDate: { fontSize: 13, color: Colors.textMuted },
   removeButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: Colors.error,
     marginLeft: 8,
   },
   removeButtonDisabled: { opacity: 0.5 },
-  removeButtonText: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
+  removeButtonText: { fontSize: 13, color: Colors.error, fontWeight: '600' },
 
   emptyState: {
     flex: 1,
@@ -351,10 +364,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyStateIcon: { fontSize: 64, marginBottom: 16 },
-  emptyStateTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 12 },
+  emptyStateTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 12 },
   emptyStateText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 32,
@@ -418,8 +431,8 @@ const styles = StyleSheet.create({
   },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: 10 },
   modalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  cancelButtonPopup: { backgroundColor: '#f3f4f6' },
-  confirmButton: { backgroundColor: '#ef4444' },
+  cancelButtonPopup: { backgroundColor: Colors.backgroundLight },
+  confirmButton: { backgroundColor: Colors.error },
   cancelText: { color: '#374151', fontWeight: '600', fontSize: 15 },
   confirmText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

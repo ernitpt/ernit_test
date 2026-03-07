@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
         letterSpacing: -0.5,
     },
     headerSubtitle: {
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -6,
         right: -6,
-        backgroundColor: '#ef4444',
+        backgroundColor: Colors.error,
         borderRadius: 11,
         minWidth: 22,
         height: 22,

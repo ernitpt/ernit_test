@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -383,13 +383,13 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: Colors.textSecondary,
     marginBottom: 4,
   },
   infoText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   selectorContainer: {
     marginVertical: 20,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   rangeText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: Colors.textMuted,
     textAlign: 'center',
   },
   inputGroup: {
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   adjustButtonTextDisabled: {
-    color: '#9ca3af',
+    color: Colors.textMuted,
   },
   numberInput: {
     flex: 1,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   cancelButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.backgroundLight,
     marginRight: 12,
   },
   acceptButtonText: {

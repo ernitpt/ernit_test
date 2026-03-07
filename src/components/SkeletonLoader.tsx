@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
+import Colors from '../config/colors';
 
 interface SkeletonLoaderProps {
     width?: number | string;
@@ -192,9 +193,77 @@ export const CartItemSkeleton: React.FC = () => {
 };
 
 
+// Experience Detail Skeleton — hero image + info sections
+export const ExperienceDetailSkeleton: React.FC = () => {
+    return (
+        <View style={styles.experienceDetailSkeleton}>
+            <SkeletonBox width="100%" height={250} borderRadius={0} />
+            <View style={{ padding: 20 }}>
+                <SkeletonBox width="70%" height={22} style={{ marginBottom: 10 }} />
+                <SkeletonBox width="50%" height={16} style={{ marginBottom: 20 }} />
+                <SkeletonBox width="100%" height={14} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="90%" height={14} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="75%" height={14} style={{ marginBottom: 24 }} />
+                <SkeletonBox width="100%" height={48} borderRadius={12} />
+            </View>
+        </View>
+    );
+};
+
+// Checkout Summary Skeleton
+export const CheckoutSkeleton: React.FC = () => {
+    return (
+        <View style={styles.checkoutSkeleton}>
+            <SkeletonBox width="100%" height={120} borderRadius={12} style={{ marginBottom: 16 }} />
+            <SkeletonBox width="60%" height={18} style={{ marginBottom: 12 }} />
+            <SkeletonBox width="100%" height={14} style={{ marginBottom: 8 }} />
+            <SkeletonBox width="80%" height={14} style={{ marginBottom: 24 }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                <SkeletonBox width="45%" height={16} />
+                <SkeletonBox width="25%" height={16} />
+            </View>
+            <SkeletonBox width="100%" height={48} borderRadius={12} />
+        </View>
+    );
+};
+
+// Session Card Skeleton — for JourneyScreen session list
+export const SessionCardSkeleton: React.FC = () => {
+    return (
+        <View style={styles.sessionCardSkeleton}>
+            <SkeletonBox width={40} height={40} borderRadius={20} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+                <SkeletonBox width="50%" height={16} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="70%" height={12} />
+            </View>
+            <SkeletonBox width={24} height={24} borderRadius={12} />
+        </View>
+    );
+};
+
+// Profile Skeleton — avatar + name + stats + goal cards
+export const ProfileSkeleton: React.FC = () => {
+    return (
+        <View style={styles.profileSkeleton}>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <SkeletonBox width={80} height={80} borderRadius={40} style={{ marginBottom: 12 }} />
+                <SkeletonBox width={140} height={20} style={{ marginBottom: 8 }} />
+                <SkeletonBox width={200} height={14} />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+                <SkeletonBox width={60} height={50} borderRadius={8} />
+                <SkeletonBox width={60} height={50} borderRadius={8} />
+                <SkeletonBox width={60} height={50} borderRadius={8} />
+            </View>
+            <GoalCardSkeleton />
+            <GoalCardSkeleton />
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
     skeleton: {
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     feedPostSkeleton: {
         backgroundColor: '#fff',
@@ -294,14 +363,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: Colors.backgroundLight,
     },
     giftCardSkeleton: {
         backgroundColor: '#fff',
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         padding: 16,
     },
     giftCardRow: {
@@ -331,6 +400,27 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: 12,
+    },
+    experienceDetailSkeleton: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    checkoutSkeleton: {
+        padding: 20,
+        backgroundColor: '#fff',
+    },
+    sessionCardSkeleton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    profileSkeleton: {
+        padding: 20,
     },
 });
 

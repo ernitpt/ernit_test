@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 13,
         fontWeight: '600',
-        color: '#6b7280',
+        color: Colors.textSecondary,
     },
     daysGrid: {
         flexDirection: 'row',
@@ -282,13 +282,13 @@ const styles = StyleSheet.create({
         marginTop: 16,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
+        borderTopColor: Colors.border,
     },
     footerButton: {
         padding: 8,
     },
     cancelText: {
-        color: '#6b7280',
+        color: Colors.textSecondary,
         fontSize: 15,
         fontWeight: '600',
     },

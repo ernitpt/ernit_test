@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -208,12 +208,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     hintCard: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.surface,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
     },
     hintHeader: {
         flexDirection: 'row',
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
     sessionLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#111827',
+        color: Colors.textPrimary,
         marginBottom: 2,
     },
     dateText: {
         fontSize: 12,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
     },
     typeBadge: {
         paddingHorizontal: 8,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
         height: 180,
         borderRadius: 8,
         marginTop: 12,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
     },
     audioIndicator: {
         flexDirection: 'row',
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
     },
     audioText: {
         marginLeft: 8,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         marginTop: 16,
     },
     emptySubtext: {

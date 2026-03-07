@@ -5,10 +5,10 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
   Animated,
   Easing,
@@ -35,6 +35,7 @@ import SharedHeader from '../../components/SharedHeader';
 import { logger } from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 // Mocking types for the example
 type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
@@ -69,9 +70,19 @@ const ExperienceCard = ({
   onToggleWishlist: () => void;
   isWishlisted: boolean;
 }) => (
-  <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.experienceCard}>
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [styles.experienceCard, pressed && { opacity: 0.9 }]}
+    accessibilityRole="button"
+    accessibilityLabel={`View ${experience.title}`}
+  >
     <View style={styles.cardImageContainer}>
-      <Image source={{ uri: experience.coverImageUrl }} style={styles.cardImage} resizeMode="cover" />
+      <Image
+        source={{ uri: experience.coverImageUrl }}
+        style={styles.cardImage}
+        resizeMode="cover"
+        accessibilityLabel={`${experience.title} experience cover image`}
+      />
 
       <TouchableOpacity
         onPress={(e) => {
@@ -79,6 +90,8 @@ const ExperienceCard = ({
           onToggleWishlist();
         }}
         style={styles.heartButton}
+        accessibilityRole="button"
+        accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
       >
         {isWishlisted ? (
           <Heart fill="#ef4444" color="#ef4444" size={22} />
@@ -101,7 +114,7 @@ const ExperienceCard = ({
 
       <Text style={styles.cardPrice}>{experience.price.toFixed(0)} €</Text>
     </View>
-  </TouchableOpacity>
+  </Pressable>
 );
 
 const CategoryCarousel = ({
@@ -160,6 +173,7 @@ const CategorySelectionScreen = () => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { showError, showInfo } = useToast();
 
   const empowerContext = state.empowerContext;
 
@@ -253,7 +267,7 @@ const CategorySelectionScreen = () => {
         setCategories(categoriesArray as Category[]);
       } catch (error) {
         logger.error('Error fetching experiences:', error);
-        Alert.alert('Error', 'Could not load experiences.');
+        showError('Could not load experiences.');
       } finally {
         setIsLoading(false);
       }
@@ -305,7 +319,7 @@ const CategorySelectionScreen = () => {
 
   const toggleWishlist = async (experienceId: string) => {
     if (!user || !state.user) {
-      Alert.alert('Please log in to use wishlist.');
+      showInfo('Please log in to use wishlist.');
       return;
     }
 
@@ -322,7 +336,7 @@ const CategorySelectionScreen = () => {
       }
     } catch (error) {
       logger.error('Error updating wishlist:', error);
-      Alert.alert('Error', 'Failed to update wishlist. Please try again.');
+      showError('Failed to update wishlist. Please try again.');
     }
   };
 
@@ -362,6 +376,8 @@ const CategorySelectionScreen = () => {
               onPress={toggleSearch}
               style={styles.headerActionButton}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Search experiences"
             >
               <View style={styles.headerActionIcon}>
                 <Search color={Colors.primary} size={20} strokeWidth={2} />
@@ -375,7 +391,13 @@ const CategorySelectionScreen = () => {
             <Text style={styles.empowerBannerText} numberOfLines={1}>
               Gifting for <Text style={styles.empowerBannerName}>{empowerContext.userName || 'a friend'}</Text>'s challenge
             </Text>
-            <TouchableOpacity onPress={dismissEmpower} style={styles.empowerBannerClose} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={dismissEmpower}
+              style={styles.empowerBannerClose}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss empower banner"
+            >
               <X color={Colors.primary} size={16} />
             </TouchableOpacity>
           </View>
@@ -403,10 +425,11 @@ const CategorySelectionScreen = () => {
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search experiences..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={Colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoFocus
+                accessibilityLabel="Search experiences"
               />
             </View>
           </Animated.View>
@@ -588,14 +611,14 @@ const styles = StyleSheet.create({
   },
 
   cardTitle: {
-    color: "#111827",
+    color: Colors.textPrimary,
     fontWeight: "bold",
     fontSize: 15,
     lineHeight: 18,
   },
 
   cardSubtitle: {
-    color: "#6b7280",
+    color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 17,
     marginTop: 2,

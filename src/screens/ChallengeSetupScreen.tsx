@@ -11,7 +11,6 @@ import {
     Dimensions,
     Platform,
     TextInput,
-    Alert,
     Image,
     Animated,
     Modal,
@@ -27,6 +26,7 @@ import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { RootStackParamList, Experience, Goal } from '../types';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { goalService } from '../services/GoalService';
 import { commonStyles } from '../styles/commonStyles';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -42,7 +42,7 @@ const GOAL_TYPES = [
     { icon: '\u{1F3C3}', name: 'Run', color: Colors.accent },
     { icon: '\u{1F4DA}', name: 'Read', color: '#F59E0B' },
     { icon: '\u{1F6B6}', name: 'Walk', color: '#10B981' },
-    { icon: '\u2728', name: 'Other', color: '#6B7280' },
+    { icon: '\u2728', name: 'Other', color: Colors.textSecondary },
 ];
 
 const STEP_TITLES = [
@@ -144,6 +144,7 @@ export default function ChallengeSetupScreen() {
     const route = useRoute();
     const routeParams = route.params as { prefill?: any } | undefined;
     const { state, dispatch } = useApp();
+    const { showError } = useToast();
 
     // Wizard step
     const [currentStep, setCurrentStep] = useState(1);
@@ -253,7 +254,7 @@ export default function ChallengeSetupScreen() {
                     return false;
                 }
                 if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-                    Alert.alert('Error', 'Each session cannot exceed 3 hours.');
+                    showError('Each session cannot exceed 3 hours.');
                     return false;
                 }
                 setValidationErrors(prev => ({ ...prev, time: false }));
@@ -324,7 +325,7 @@ export default function ChallengeSetupScreen() {
                 navigation.navigate('Auth', { mode: 'signup' });
             } catch (error) {
                 logger.error('Error storing challenge config:', error);
-                Alert.alert('Error', 'Something went wrong. Please try again.');
+                showError('Something went wrong. Please try again.');
             }
         }
     };
@@ -428,7 +429,7 @@ export default function ChallengeSetupScreen() {
                 feature: 'CreateFreeGoal',
                 userId: state.user?.id,
             });
-            Alert.alert('Error', 'Failed to create goal. Please try again.');
+            showError('Failed to create goal. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -471,6 +472,8 @@ export default function ChallengeSetupScreen() {
                                 setValidationErrors(prev => ({ ...prev, goal: false }));
                                 if (goal.name !== 'Other') setCustomGoal('');
                             }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Select ${goal.name} goal`}
                         >
                             <Text style={styles.goalIcon}>{goal.icon}</Text>
                             <Text style={[
@@ -498,6 +501,7 @@ export default function ChallengeSetupScreen() {
                                 }
                             }}
                             autoFocus
+                            accessibilityLabel="Custom goal name"
                         />
                     </View>
                 </View>
@@ -555,7 +559,8 @@ export default function ChallengeSetupScreen() {
                                 keyboardType="numeric"
                                 maxLength={1}
                                 placeholder="0"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.textMuted}
+                                accessibilityLabel="Hours per session"
                             />
                             <Text style={styles.timeLabel}>hr</Text>
                         </View>
@@ -572,7 +577,8 @@ export default function ChallengeSetupScreen() {
                                 keyboardType="numeric"
                                 maxLength={2}
                                 placeholder="00"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.textMuted}
+                                accessibilityLabel="Minutes per session"
                             />
                             <Text style={styles.timeLabel}>min</Text>
                         </View>
@@ -625,8 +631,10 @@ export default function ChallengeSetupScreen() {
                             <TouchableOpacity
                                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
                                 style={styles.calNavBtn}
+                                accessibilityRole="button"
+                                accessibilityLabel="Previous month"
                             >
-                                <ChevronLeft color="#6B7280" size={20} />
+                                <ChevronLeft color={Colors.textSecondary} size={20} />
                             </TouchableOpacity>
                             <Text style={styles.calMonthYear}>
                                 {calendarMonthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
@@ -634,8 +642,10 @@ export default function ChallengeSetupScreen() {
                             <TouchableOpacity
                                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
                                 style={styles.calNavBtn}
+                                accessibilityRole="button"
+                                accessibilityLabel="Next month"
                             >
-                                <ChevronRight color="#6B7280" size={20} />
+                                <ChevronRight color={Colors.textSecondary} size={20} />
                             </TouchableOpacity>
                         </View>
 
@@ -667,6 +677,8 @@ export default function ChallengeSetupScreen() {
                                         }}
                                         disabled={disabled}
                                         activeOpacity={0.7}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={date ? `Select ${date.toLocaleDateString()}` : undefined}
                                     >
                                         {date && (
                                             <Text style={[
@@ -723,9 +735,16 @@ export default function ChallengeSetupScreen() {
                     setSelectedExperience(exp);
                     setValidationErrors(prev => ({ ...prev, experience: false }));
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${exp.title} experience, ${exp.price} euros`}
             >
                 <View style={styles.expIconBox}>
-                    <Image source={{ uri: exp.coverImageUrl }} style={styles.expImage} resizeMode="cover" />
+                    <Image
+                        source={{ uri: exp.coverImageUrl }}
+                        style={styles.expImage}
+                        resizeMode="cover"
+                        accessibilityLabel={exp.title}
+                    />
                 </View>
                 <View style={styles.expTextContainer}>
                     <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
@@ -779,6 +798,8 @@ export default function ChallengeSetupScreen() {
                                             styles.filterChip,
                                             isActive && styles.filterChipActive,
                                         ]}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Filter by ${cat.label}`}
                                     >
                                         <Text style={[
                                             styles.filterText,
@@ -791,7 +812,7 @@ export default function ChallengeSetupScreen() {
                         {showFilterScrollHint && (
                             <View style={styles.categoryFadeIndicator} pointerEvents="none">
                                 <View style={styles.categoryGradient} />
-                                <ChevronRight color="#9CA3AF" size={14} />
+                                <ChevronRight color={Colors.textMuted} size={14} />
                             </View>
                         )}
                     </View>
@@ -857,6 +878,8 @@ export default function ChallengeSetupScreen() {
                     setValidationErrors(prev => ({ ...prev, buyNow: false }));
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Buy my reward now"
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
@@ -880,6 +903,8 @@ export default function ChallengeSetupScreen() {
                     setValidationErrors(prev => ({ ...prev, buyNow: false }));
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="No reward for now, friends can empower me"
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
@@ -929,6 +954,8 @@ export default function ChallengeSetupScreen() {
                     style={styles.backButton}
                     onPress={handleBack}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
                 >
                     <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
                 </TouchableOpacity>
@@ -988,7 +1015,12 @@ export default function ChallengeSetupScreen() {
                         <View style={styles.footerHeroCard}>
                             <View style={styles.footerHeroRow}>
                                 <View style={styles.heroIconBox}>
-                                    <Image source={{ uri: selectedExperience.coverImageUrl }} style={styles.heroImage} resizeMode="cover" />
+                                    <Image
+                                        source={{ uri: selectedExperience.coverImageUrl }}
+                                        style={styles.heroImage}
+                                        resizeMode="cover"
+                                        accessibilityLabel={selectedExperience.title}
+                                    />
                                 </View>
                                 <View style={styles.heroInfo}>
                                     <Text style={styles.footerHeroTitle} numberOfLines={1}>
@@ -1021,7 +1053,13 @@ export default function ChallengeSetupScreen() {
 
                 {/* CTA Button */}
                 {currentStep === TOTAL_STEPS ? (
-                    <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.9}>
+                    <TouchableOpacity
+                        style={styles.createButton}
+                        onPress={handleCreate}
+                        activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel={state.user?.id ? 'Create challenge' : 'Sign up and create challenge'}
+                    >
                         <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                             <Text style={styles.createButtonText}>
                                 {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
@@ -1030,7 +1068,13 @@ export default function ChallengeSetupScreen() {
                         </LinearGradient>
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={styles.createButton} onPress={handleNext} activeOpacity={0.9}>
+                    <TouchableOpacity
+                        style={styles.createButton}
+                        onPress={handleNext}
+                        activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel="Continue to next step"
+                    >
                         <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                             <Text style={styles.createButtonText}>Next</Text>
                             <ChevronRight color="#fff" size={20} strokeWidth={3} />
@@ -1105,6 +1149,8 @@ export default function ChallengeSetupScreen() {
                                     style={[styles.modalButton, styles.cancelButton]}
                                     activeOpacity={0.8}
                                     disabled={isSubmitting}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Cancel challenge creation"
                                 >
                                     <Text style={styles.cancelText}>Cancel</Text>
                                 </TouchableOpacity>
@@ -1115,6 +1161,8 @@ export default function ChallengeSetupScreen() {
                                         style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
                                         activeOpacity={0.8}
                                         disabled={isSubmitting}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={isSubmitting ? 'Creating challenge' : buyNow ? 'Buy reward and create challenge' : 'Create challenge'}
                                     >
                                         <Text style={styles.confirmText}>
                                             {isSubmitting ? 'Creating...' : buyNow ? 'Buy & Create' : "Let's Go!"}
@@ -1146,13 +1194,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: Colors.backgroundLight,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1182,7 +1230,7 @@ const styles = StyleSheet.create({
     progressTrack: {
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
         overflow: 'hidden',
     },
     progressFill: {
@@ -1208,7 +1256,7 @@ const styles = StyleSheet.create({
     },
     stepSubtitle: {
         fontSize: 15,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         lineHeight: 22,
         marginBottom: 28,
     },
@@ -1252,7 +1300,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         backgroundColor: '#fff',
         borderWidth: 2,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
     },
     goalChipError: {
         borderColor: '#FECACA',
@@ -1264,7 +1312,7 @@ const styles = StyleSheet.create({
     goalName: {
         fontSize: 15,
         fontWeight: '700',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
     goalNameActive: {
         color: '#fff',
@@ -1275,7 +1323,7 @@ const styles = StyleSheet.create({
     customGoalLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
         marginBottom: 10,
     },
     customGoalInputWrapper: {
@@ -1284,7 +1332,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderRadius: 16,
         borderWidth: 2,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         paddingHorizontal: 16,
         paddingVertical: 4,
     },
@@ -1305,12 +1353,12 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#F3F4F6',
+        borderColor: Colors.backgroundLight,
     },
     sliderTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#6B7280',
+        color: Colors.textSecondary,
         marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -1329,7 +1377,7 @@ const styles = StyleSheet.create({
     sliderUnit: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
     sliderLabels: {
         flexDirection: 'row',
@@ -1339,11 +1387,11 @@ const styles = StyleSheet.create({
     sliderLabelText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: Colors.textMuted,
     },
     sliderTrack: {
         height: 8,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
         borderRadius: 4,
         position: 'relative',
         width: '100%',
@@ -1389,7 +1437,7 @@ const styles = StyleSheet.create({
     timeInput: {
         width: 60,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -1402,14 +1450,14 @@ const styles = StyleSheet.create({
     timeLabel: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
 
     // Experience cards
     expCard: {
         backgroundColor: '#fff',
         borderWidth: 2,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         borderRadius: 16,
         padding: 12,
         marginRight: 12,
@@ -1425,7 +1473,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 100,
         borderRadius: 14,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',
         marginBottom: 8,
     },
@@ -1442,7 +1490,7 @@ const styles = StyleSheet.create({
     expTitle: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#6B7280',
+        color: Colors.textSecondary,
         textAlign: 'center',
     },
     expTitleActive: {
@@ -1461,7 +1509,7 @@ const styles = StyleSheet.create({
     },
     expLocation: {
         fontSize: 11,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         flex: 1,
     },
     viewDetailsBtn: {
@@ -1499,7 +1547,7 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         backgroundColor: '#fff',
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
+        borderTopColor: Colors.backgroundLight,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.05,
@@ -1535,7 +1583,7 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#F3F4F6',
+        borderColor: Colors.backgroundLight,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
@@ -1550,7 +1598,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 14,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',
     },
     heroImage: {
@@ -1571,7 +1619,7 @@ const styles = StyleSheet.create({
     heroContextRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.surface,
         borderRadius: 10,
         padding: 8,
         marginTop: 10,
@@ -1593,12 +1641,12 @@ const styles = StyleSheet.create({
     contextDivider: {
         width: 1,
         height: 16,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
     },
     contextLabel: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
 
     // Modal
@@ -1623,19 +1671,19 @@ const styles = StyleSheet.create({
     },
     modalSubtitle: {
         fontSize: 14,
-        color: '#6b7280',
+        color: Colors.textSecondary,
         marginBottom: 20,
         textAlign: 'center',
     },
     modalDetails: {
         width: '100%',
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.surface,
         borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
     },
     modalRow: {
         fontSize: 15,
@@ -1666,7 +1714,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
     },
     confirmButton: {
         backgroundColor: Colors.primary,
@@ -1703,7 +1751,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
         marginLeft: 4,
     },
     filterChipActive: {
@@ -1712,7 +1760,7 @@ const styles = StyleSheet.create({
     filterText: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
     filterTextActive: {
         color: '#fff',
@@ -1777,7 +1825,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
     },
     calHeader: {
         flexDirection: 'row',
@@ -1788,7 +1836,7 @@ const styles = StyleSheet.create({
     calNavBtn: {
         padding: 8,
         borderRadius: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
     },
     calMonthYear: {
         fontSize: 16,
@@ -1804,7 +1852,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 12,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: Colors.textMuted,
     },
     calDaysGrid: {
         flexDirection: 'row',
@@ -1854,7 +1902,7 @@ const styles = StyleSheet.create({
     },
     endDateLabel: {
         fontSize: 13,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         fontWeight: '500',
         marginBottom: 4,
     },
@@ -1866,7 +1914,7 @@ const styles = StyleSheet.create({
     },
     endDateSublabel: {
         fontSize: 12,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         marginTop: 4,
     },
 
@@ -1895,19 +1943,19 @@ const styles = StyleSheet.create({
     },
     statSource: {
         fontSize: 10,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         fontStyle: 'italic',
         marginTop: 4,
     },
     expPreview: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.surface,
         borderRadius: 14,
         padding: 12,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         gap: 12,
     },
     expPreviewImage: {
@@ -1925,7 +1973,7 @@ const styles = StyleSheet.create({
     },
     expPreviewMeta: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     rewardChoice: {
@@ -1933,7 +1981,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         borderWidth: 2,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         marginBottom: 12,
     },
     rewardChoiceActive: {
@@ -1959,7 +2007,7 @@ const styles = StyleSheet.create({
     },
     rewardChoiceDesc: {
         fontSize: 13,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         lineHeight: 18,
     },
     rewardChoiceCheck: {
@@ -1972,7 +2020,7 @@ const styles = StyleSheet.create({
     },
     rewardChoiceNote: {
         fontSize: 13,
-        color: '#9CA3AF',
+        color: Colors.textMuted,
         textAlign: 'center',
         marginTop: 4,
         fontStyle: 'italic',

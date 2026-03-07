@@ -102,6 +102,8 @@ export default function ChallengeLandingScreen() {
                             style={styles.backButton}
                             onPress={() => navigation.goBack()}
                             activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Go back"
                         >
                             <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
                         </TouchableOpacity>
@@ -114,6 +116,8 @@ export default function ChallengeLandingScreen() {
                             : navigation.navigate('Auth', { mode: 'signin' })
                         }
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={isLoggedIn ? 'Go to app' : 'Log in to your account'}
                     >
                         <Text style={styles.loginButtonText}>
                             {isLoggedIn ? 'Go to App' : 'Log In'}
@@ -218,6 +222,7 @@ export default function ChallengeLandingScreen() {
                                                 source={{ uri: url }}
                                                 style={styles.heroImg}
                                                 resizeMode="cover"
+                                                accessibilityLabel={`Challenge activity example ${i + 1}`}
                                             />
                                         </MotiView>
                                     );
@@ -237,7 +242,7 @@ export default function ChallengeLandingScreen() {
                             >
                                 <Text style={{
                                     fontSize: 16,
-                                    color: '#6B7280',
+                                    color: Colors.textSecondary,
                                     textAlign: 'center',
                                     lineHeight: 24,
                                     fontWeight: '500',
@@ -250,6 +255,8 @@ export default function ChallengeLandingScreen() {
                                 style={styles.primaryCta}
                                 onPress={handleStartChallenge}
                                 activeOpacity={0.9}
+                                accessibilityRole="button"
+                                accessibilityLabel="Start my challenge"
                             >
                                 <LinearGradient
                                     colors={Colors.gradientDark}
@@ -387,6 +394,7 @@ export default function ChallengeLandingScreen() {
                                     <Image
                                         source={{ uri: founder.image }}
                                         style={styles.founderPhoto}
+                                        accessibilityLabel={`${founder.name}, ${founder.role}`}
                                     />
                                     <Text style={styles.founderName}>{founder.name}</Text>
                                     <Text style={styles.founderRole}>{founder.role}</Text>
@@ -405,11 +413,14 @@ export default function ChallengeLandingScreen() {
                             <TouchableOpacity
                                 onPress={() => Linking.openURL('http://unicornfactorylisboa.com')}
                                 activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel="Visit Unicorn Factory Lisboa website"
                             >
                                 <Image
                                     source={{ uri: 'http://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
                                     style={styles.incubatorLogo}
                                     resizeMode="contain"
+                                    accessibilityLabel="Unicorn Factory Lisboa logo"
                                 />
                             </TouchableOpacity>
                         </MotiView>
@@ -432,6 +443,8 @@ export default function ChallengeLandingScreen() {
                         style={styles.primaryCta}
                         onPress={handleStartChallenge}
                         activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel="Create my challenge"
                     >
                         <LinearGradient
                             colors={Colors.gradientDark}
@@ -455,6 +468,8 @@ export default function ChallengeLandingScreen() {
                             style={styles.socialBtn}
                             onPress={() => Linking.openURL('https://www.linkedin.com/company/ernit-app/')}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Visit Ernit on LinkedIn"
                         >
                             <Text style={styles.socialIcon}>in</Text>
                         </TouchableOpacity>
@@ -462,6 +477,8 @@ export default function ChallengeLandingScreen() {
                             style={styles.socialBtn}
                             onPress={() => Linking.openURL('www.instagram.com/ernitapp__/')}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Visit Ernit on Instagram"
                         >
                             <Text style={styles.socialIcon}>ig</Text>
                         </TouchableOpacity>
@@ -469,6 +486,8 @@ export default function ChallengeLandingScreen() {
                             style={styles.socialBtn}
                             onPress={() => Linking.openURL('https://www.tiktok.com/@ernitapp')}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Visit Ernit on TikTok"
                         >
                             <Text style={styles.socialIcon}>tk</Text>
                         </TouchableOpacity>
@@ -547,7 +566,7 @@ const styles = StyleSheet.create({
         fontSize: 44,
         fontWeight: '900',
         fontStyle: 'italic',
-        color: '#111827',
+        color: Colors.textPrimary,
         letterSpacing: -1.5,
     },
     // ── Dial-style rotating word ──────────────────
@@ -592,7 +611,7 @@ const styles = StyleSheet.create({
     // ──────────────────────────────────────────────
     heroSubtitle: {
         fontSize: 17,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         lineHeight: 28,
         marginBottom: 16,
         textAlign: 'center',
@@ -748,7 +767,7 @@ const styles = StyleSheet.create({
     },
     stepDesc: {
         fontSize: 15,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         lineHeight: 22,
     },
     testimonialSection: {
@@ -788,7 +807,7 @@ const styles = StyleSheet.create({
     authorText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
     finalCtaSection: {
         paddingVertical: 64,
@@ -808,7 +827,7 @@ const styles = StyleSheet.create({
     },
     finalCtaSubtitle: {
         fontSize: 17,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         marginBottom: 32,
         textAlign: 'center',
     },
@@ -887,7 +906,7 @@ const styles = StyleSheet.create({
     founderQuote: {
         fontSize: 13,
         fontStyle: 'italic',
-        color: '#6B7280',
+        color: Colors.textSecondary,
         lineHeight: 20,
         textAlign: 'center',
     },
@@ -910,7 +929,7 @@ const styles = StyleSheet.create({
     incubatorText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.textSecondary,
     },
     incubatorLogo: {
         width: 120,
@@ -922,7 +941,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 40,
         paddingHorizontal: 24,
-        backgroundColor: '#111827',
+        backgroundColor: Colors.textPrimary,
     },
     footerBrand: {
         fontSize: 28,

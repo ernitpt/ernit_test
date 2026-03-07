@@ -6,7 +6,6 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Notification } from '../types';
 import { friendService } from '../services/FriendService';
@@ -14,6 +13,7 @@ import { notificationService } from '../services/NotificationService';
 import { Timestamp } from 'firebase/firestore';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { useToast } from '../context/ToastContext';
 
 interface FriendRequestNotificationProps {
   notification: Notification;
@@ -24,6 +24,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
   notification,
   onRequestHandled,
 }) => {
+  const { showSuccess, showError, showInfo } = useToast();
   const [isHandling, setIsHandling] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
 
@@ -39,11 +40,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
         await notificationService.deleteNotification(notification.id, true);
       }
 
-      Alert.alert('Success', `You are now friends with ${notification.data.senderName}!`);
+      showSuccess(`You are now friends with ${notification.data.senderName}!`);
       onRequestHandled();
     } catch (error) {
       logger.error('Error accepting friend request:', error);
-      Alert.alert('Error', 'Failed to accept friend request. Please try again.');
+      showError('Failed to accept friend request. Please try again.');
     } finally {
       setIsHandling(false);
     }
@@ -61,11 +62,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
         await notificationService.deleteNotification(notification.id, true);
       }
 
-      Alert.alert('Request Declined', `Friend request from ${notification.data.senderName} has been declined.`);
+      showInfo(`Friend request from ${notification.data.senderName} has been declined.`);
       onRequestHandled();
     } catch (error) {
       logger.error('Error declining friend request:', error);
-      Alert.alert('Error', 'Failed to decline friend request. Please try again.');
+      showError('Failed to decline friend request. Please try again.');
     } finally {
       setIsHandling(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, TextInput,
-  Alert, StyleSheet,
+  StyleSheet,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,12 +21,14 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import HowItWorksModal from '../../components/HowItWorksModal';
+import { ExperienceDetailSkeleton } from '../../components/SkeletonLoader';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import Colors from '../../config/colors';
+import { useToast } from '../../context/ToastContext';
 
 type ExperienceDetailsNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -42,6 +44,13 @@ export default function ExperienceDetailsScreen() {
   const experience = routeParams?.experience;
 
   const { state, dispatch } = useApp();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { showSuccess, showError } = useToast();
+
+  const [personalizedMessage, setPersonalizedMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   // Redirect if data is missing
   useEffect(() => {
@@ -53,6 +62,15 @@ export default function ExperienceDetailsScreen() {
       });
     }
   }, [experience, navigation]);
+
+  useEffect(() => {
+    const loadPartner = async () => {
+      if (!experience?.partnerId) return;
+      const p = await partnerService.getPartnerById(experience.partnerId);
+      setPartner(p);
+    };
+    loadPartner();
+  }, [experience?.partnerId]);
 
   // Early return if data is invalid
   if (!experience?.id) {
@@ -66,24 +84,10 @@ export default function ExperienceDetailsScreen() {
       </ErrorBoundary>
     );
   }
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-
-  const [personalizedMessage, setPersonalizedMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [partner, setPartner] = useState<PartnerUser | null>(null);
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
-
-  useEffect(() => {
-    const loadPartner = async () => {
-      const p = await partnerService.getPartnerById(experience.partnerId);
-      setPartner(p);
-    };
-    loadPartner();
-  }, [experience.partnerId]);
 
   const handlePurchase = async () => {
     if (!personalizedMessage.trim()) {
-      Alert.alert('Error', 'Please add a personalized message');
+      showError('Please add a personalized message');
       return;
     }
     setIsSubmitting(true);
@@ -126,11 +130,11 @@ export default function ExperienceDetailsScreen() {
         experienceGiftData as ExperienceGift
       );
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
-      Alert.alert('🎉 Payment successful', 'Gift purchased successfully!');
+      showSuccess('Gift purchased successfully!');
       navigation.navigate('Confirmation', { experienceGift });
     } catch (err: any) {
       logger.error('❌ Payment error:', err);
-      Alert.alert('Payment failed', err.message || 'Please try again.');
+      showError(err.message || 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -142,19 +146,30 @@ export default function ExperienceDetailsScreen() {
       <StatusBar style="light" />
       <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
         <ScrollView contentContainerStyle={{ padding: 24 }}>          <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <ChevronLeft color="#fff" size={22} />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
 
-          <Image source={{ uri: experience.coverImageUrl }} style={styles.image} />
+          <Image
+            source={{ uri: experience.coverImageUrl }}
+            style={styles.image}
+            accessibilityLabel={`${experience.title} experience cover image`}
+          />
           <Text style={styles.title}>{experience.title}</Text>
           <Text style={styles.desc}>{experience.description}</Text>
 
           <TouchableOpacity
             onPress={() => setShowHowItWorks(true)}
             style={styles.howItWorksButton}
+            accessibilityRole="button"
+            accessibilityLabel="How it works"
           >
             <HelpCircle color={Colors.primary} size={18} />
             <Text style={styles.howItWorksText}>How it works</Text>
@@ -169,12 +184,15 @@ export default function ExperienceDetailsScreen() {
             value={personalizedMessage}
             onChangeText={setPersonalizedMessage}
             multiline
+            accessibilityLabel="Personal message"
           />
 
           <TouchableOpacity
             onPress={handlePurchase}
             style={[styles.purchaseButton, isSubmitting && { opacity: 0.7 }]}
             disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel={`Purchase gift for ${experience.price} euros`}
           >
             <Text style={styles.purchaseText}>
               {isSubmitting ? 'Processing...' : `Purchase Gift – €${experience.price}`}
@@ -185,6 +203,8 @@ export default function ExperienceDetailsScreen() {
             onPress={() => (navigation as any).navigate('ChallengeSetup', { prefill: { experience } })}
             style={styles.setAsGoalButton}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Set as goal"
           >
             <Target color="#16a34a" size={20} />
             <Text style={styles.setAsGoalText}>Set as Goal</Text>
