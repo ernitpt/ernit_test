@@ -7,6 +7,8 @@ import {
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
+  Modal,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,8 +86,19 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const [contactModalType, setContactModalType] = useState<'feedback' | 'support'>('feedback');
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState('19:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerHour, setPickerHour] = useState(19);
+  const [pickerMinute, setPickerMinute] = useState(0);
 
   const isAuthenticated = !!state.user;
+
+  // Format "HH:MM" to display like "7:00 PM"
+  const formatTime12h = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
+  };
 
   // Load reminder preferences from user profile
   useEffect(() => {
@@ -243,6 +256,19 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     }
   };
 
+  const openTimePicker = () => {
+    const [h, m] = reminderTime.split(':').map(Number);
+    setPickerHour(h);
+    setPickerMinute(m);
+    setShowTimePicker(true);
+  };
+
+  const confirmTimePicker = () => {
+    const time = `${pickerHour.toString().padStart(2, '0')}:${pickerMinute.toString().padStart(2, '0')}`;
+    handleReminderTimeChange(time);
+    setShowTimePicker(false);
+  };
+
   return (
     <>
       {visible && (
@@ -326,20 +352,15 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                     {reminderEnabled && (
                       <View style={styles.reminderRow}>
                         <Text style={styles.reminderLabel}>Remind me at</Text>
-                        <View style={styles.timePickerRow}>
-                          {['07:00', '12:00', '19:00', '21:00'].map((t) => (
-                            <TouchableOpacity
-                              key={t}
-                              onPress={() => handleReminderTimeChange(t)}
-                              style={[styles.timeChip, reminderTime === t && styles.timeChipActive]}
-                              activeOpacity={0.8}
-                            >
-                              <Text style={[styles.timeChipText, reminderTime === t && styles.timeChipTextActive]}>
-                                {t.replace(':00', '')}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
+                        <TouchableOpacity
+                          onPress={openTimePicker}
+                          style={styles.timeChipActive}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.timeChipTextActive}>
+                            {formatTime12h(reminderTime)}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>
@@ -393,6 +414,66 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
           onClose(); // Also close side menu
         }}
       />
+
+      {/* Time Picker Popbox */}
+      <Modal
+        visible={showTimePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.pickerBox}>
+                <Text style={styles.pickerTitle}>Set Reminder Time</Text>
+                <View style={styles.pickerColumns}>
+                  {/* Hour column */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={styles.pickerColumnLabel}>Hour</Text>
+                    <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+                      {Array.from({ length: 24 }, (_, h) => {
+                        const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+                        return (
+                          <TouchableOpacity
+                            key={h}
+                            onPress={() => setPickerHour(h)}
+                            style={[styles.pickerItem, pickerHour === h && styles.pickerItemActive]}
+                          >
+                            <Text style={[styles.pickerItemText, pickerHour === h && styles.pickerItemTextActive]}>
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                  {/* Minute column */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={styles.pickerColumnLabel}>Minute</Text>
+                    <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+                      {[0, 15, 30, 45].map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setPickerMinute(m)}
+                          style={[styles.pickerItem, pickerMinute === m && styles.pickerItemActive]}
+                        >
+                          <Text style={[styles.pickerItemText, pickerMinute === m && styles.pickerItemTextActive]}>
+                            :{m.toString().padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={confirmTimePicker} style={styles.pickerConfirm} activeOpacity={0.8}>
+                  <Text style={styles.pickerConfirmText}>Set Time</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </>
   );
 };
@@ -525,28 +606,95 @@ const styles = StyleSheet.create({
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
-  timePickerRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  timeChip: {
-    paddingHorizontal: 10,
+  timeChipActive: {
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-  },
-  timeChipActive: {
     backgroundColor: Colors.primarySurface,
     borderWidth: 1,
     borderColor: Colors.primary,
   },
-  timeChipText: {
+  timeChipTextActive: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  timeChipTextActive: {
     color: Colors.primary,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: 280,
+    maxHeight: 400,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  pickerColumns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pickerColumn: {
+    flex: 1,
+  },
+  pickerColumnLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pickerScroll: {
+    maxHeight: 220,
+  },
+  pickerItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  pickerItemActive: {
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  pickerItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  pickerItemTextActive: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  pickerConfirm: {
+    marginTop: 16,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pickerConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 

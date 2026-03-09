@@ -9,7 +9,7 @@ import {
 import { ShoppingBag, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { commonStyles } from '../styles/commonStyles';
@@ -23,6 +23,7 @@ interface EmpowerChoiceModalProps {
     goalId: string;
     goalUserId: string;
     onClose: () => void;
+    preferredRewardCategory?: ExperienceCategory;
 }
 
 const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
@@ -34,6 +35,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     goalId,
     goalUserId,
     onClose,
+    preferredRewardCategory,
 }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { dispatch } = useApp();
@@ -57,7 +59,9 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     const handleBrowse = () => {
         setEmpowerContext();
         onClose();
-        navigation.navigate('CategorySelection');
+        navigation.navigate('CategorySelection',
+            preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
+        );
     };
 
     return (
@@ -107,7 +111,11 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                             activeOpacity={0.8}
                         >
                             <Gift size={18} color={Colors.primary} />
-                            <Text style={styles.optionSecondaryText}>Choose Another Experience</Text>
+                            <Text style={styles.optionSecondaryText}>
+                                {preferredRewardCategory && !experienceTitle
+                                    ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
+                                    : 'Choose Another Experience'}
+                            </Text>
                         </TouchableOpacity>
 
                         {/* Cancel */}

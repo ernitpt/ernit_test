@@ -99,6 +99,46 @@ class StorageService {
         }
     }
     /**
+     * Upload a motivation audio file to Firebase Storage
+     * Path: motivations/{userId}/audio/audio_{timestamp}.m4a
+     */
+    async uploadMotivationAudio(uri: string, userId: string): Promise<string> {
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            this.validateFile(blob, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
+            const filename = `audio_${Date.now()}.m4a`;
+            const path = `motivations/${userId}/audio/${filename}`;
+            const storageRef = ref(this.storage, path);
+            await uploadBytes(storageRef, blob);
+            return await getDownloadURL(storageRef);
+        } catch (error) {
+            logger.error('Error uploading motivation audio:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Upload a motivation image file to Firebase Storage
+     * Path: motivations/{userId}/images/image_{timestamp}.jpg
+     */
+    async uploadMotivationImage(uri: string, userId: string): Promise<string> {
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
+            const filename = `image_${Date.now()}.jpg`;
+            const path = `motivations/${userId}/images/${filename}`;
+            const storageRef = ref(this.storage, path);
+            await uploadBytes(storageRef, blob);
+            return await getDownloadURL(storageRef);
+        } catch (error) {
+            logger.error('Error uploading motivation image:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Upload a session media file (photo or video) to Firebase Storage
      * Path: sessions/{userId}/{goalId}/{type}_{timestamp}.{ext}
      */

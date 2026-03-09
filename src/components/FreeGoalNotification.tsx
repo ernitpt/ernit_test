@@ -129,6 +129,22 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     </View>
                 )}
 
+                {/* Category Badge (for category-only goals) */}
+                {!data.experienceTitle && data.preferredRewardCategory && (
+                    <View style={styles.experienceRow}>
+                        <View style={[styles.experienceImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' }]}>
+                            <Text style={{ fontSize: 22 }}>
+                                {data.preferredRewardCategory === 'adventure' ? '🏔️' : data.preferredRewardCategory === 'wellness' ? '🧘' : '🎨'}
+                            </Text>
+                        </View>
+                        <View style={styles.experienceInfo}>
+                            <Text style={styles.experienceTitle} numberOfLines={1}>
+                                Loves {data.preferredRewardCategory.charAt(0).toUpperCase() + data.preferredRewardCategory.slice(1)} experiences
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Milestone Badge */}
                 {milestone > 0 && (
                     <View style={[
@@ -185,6 +201,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 pledgedExperienceId={data.experienceId}
                 goalId={data.goalId || ''}
                 goalUserId={data.goalUserId || ''}
+                preferredRewardCategory={data.preferredRewardCategory}
                 onClose={() => setShowEmpowerModal(false)}
             />
 

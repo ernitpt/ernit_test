@@ -154,6 +154,16 @@ const SessionCard = ({
                       </Text>
                     </View>
                     <Text style={sessStyles.motivationMessage}>{m.message}</Text>
+                    {m.imageUrl && (
+                      <Image
+                        source={{ uri: m.imageUrl }}
+                        style={sessStyles.motivationImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                    {m.audioUrl && (
+                      <AudioPlayer uri={m.audioUrl} duration={m.audioDuration} variant="popup" />
+                    )}
                   </View>
                 </View>
               ))}
@@ -311,6 +321,13 @@ const sessStyles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  motivationImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: Colors.backgroundLight,
   },
 });
 

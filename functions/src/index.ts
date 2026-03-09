@@ -66,3 +66,5 @@ export {
 
 // Admin functions
 export { createExperience } from "./createExperience";
+export { updateExperience } from "./updateExperience";
+export { deleteExperience } from "./deleteExperience";

@@ -110,6 +110,8 @@ export interface Experience {
   partnerId: string;
   isRecommendedForValentines?: boolean; // Flag for Valentine's recommended experiences
   recommendedOrder?: number; // Optional: Order for recommended experiences (1, 2, 3, etc.)
+  order?: number; // Position within category (set via admin panel)
+  status?: 'published' | 'draft'; // Visibility toggle (draft = hidden from users)
 }
 
 // Gift/Experience Gift
@@ -210,6 +212,7 @@ export interface Goal {
     partnerId: string;
     location?: string;
   };
+  preferredRewardCategory?: ExperienceCategory; // Set when user skips experience selection
   pledgedAt?: Date;
   giftAttachedAt?: Date;
   giftAttachDeadline?: Date;       // 30 days post-completion window
@@ -242,6 +245,10 @@ export interface Motivation {
   authorName: string;
   authorProfileImage?: string;
   message: string;
+  type?: 'text' | 'audio' | 'image' | 'mixed';
+  imageUrl?: string;
+  audioUrl?: string;
+  audioDuration?: number;
   targetSession?: number;
   createdAt: Date;
   seen: boolean;
@@ -336,6 +343,7 @@ export interface FeedPost {
   isFreeGoal?: boolean;
   pledgedExperienceId?: string;
   pledgedExperiencePrice?: number;
+  preferredRewardCategory?: ExperienceCategory;
   isMystery?: boolean;
 
   // Session media
@@ -424,6 +432,10 @@ export interface Notification {
     milestone?: number;
     // Mystery flow
     isMystery?: boolean;
+    // Category-only & weekly recap fields
+    preferredRewardCategory?: ExperienceCategory;
+    totalCompleted?: number;
+    totalRequired?: number;
   };
 }
 
@@ -475,7 +487,7 @@ export interface PartnerCoupon {
 export type RootStackParamList = {
   Landing: undefined;
   Auth: { mode?: 'signin' | 'signup'; fromModal?: boolean };
-  CategorySelection: undefined;
+  CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
   // Main: undefined;
   Profile: undefined;
   Journey: { goal: Goal };
@@ -505,7 +517,7 @@ export type RootStackParamList = {
 };
 
 export type GiverStackParamList = {
-  CategorySelection: undefined;
+  CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
   ExperienceDetails: { experience: Experience };
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string };
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };

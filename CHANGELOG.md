@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feed posts show 'earned' for free goals without reward, now says 'completed their challenge'; hide misleading experience card for ungifted free goals; add free goal fields to session progress posts
 - feedpost button consistency — removed unreadable white text on empower button, unified button styling across all post types, eliminated duplicate gift buttons when experience preview is visible
 - skip 60-second session cooldown in debug mode for faster testing
+- replace broken time picker with custom popbox — two-column hour+minute selector
+- restore create partner and invite management to partners page
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -107,3 +109,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tiered animated streak banner with pulsing flame, glow, floating sparks, and gradient intensity scaling
 - added debug toggle button in header (test mode only) to control all debug features
 - add AchievementDetailScreen - completion-style retrospective view for past achievements with experience reveal, coupon display, partner contact, share functionality
+- add image and audio support to motivation display in SessionCard
+- upgrade MotivationModal to support image and voice memo - modeled after PersonalizedHintModal with text/photo and voice memo modes, media uploads, and rich display in session cards
+- auto-advance to next step when selecting a goal type in challenge setup
+- streak resets on missed weekly target for single-goal users, multi-goal users keep 7-day inactivity rule
+- replace fixed reminder time chips with native time picker for any hour selection
+- Partner App admin panel Phase 1 — shadcn/ui, sidebar navigation, dashboard layout, placeholder pages for experiences/categories/partners/coupons/analytics
+- redesign challenge step 4 - category cards as primary path, experience browsing as secondary, dynamic step count
+- added deleteExperience Cloud Function for admin experience deletion
+- added updateExperience Cloud Function for admin experience editing
+- Phase 2 admin panel - experience CRUD with edit page, image manager, search/filters, updateExperience and deleteExperience cloud functions
+- implemented comprehensive analytics dashboard with experience, partner, and coupon metrics
+- Phase 3-6 admin panel - category CRUD with drag-and-drop, partner directory, coupon dashboard with cross-partner aggregation, analytics dashboard with stats
+- add category-aware messaging to weekly recap notifications
+- surface preferredRewardCategory across app — category-only free goals, feed posts, notifications, weekly recap, journey recommendations
+- add coupon owner name column to admin coupons dashboard
+- add drag-and-drop experience reordering within categories
+- main app respects experience order and draft status from admin panel

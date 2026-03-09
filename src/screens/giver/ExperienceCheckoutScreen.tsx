@@ -434,6 +434,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { state } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { showError } = useToast();
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string } | undefined;

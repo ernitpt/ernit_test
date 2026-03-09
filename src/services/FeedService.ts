@@ -87,6 +87,9 @@ class FeedService {
             if (post.pledgedExperiencePrice !== undefined) {
                 feedPost.pledgedExperiencePrice = post.pledgedExperiencePrice;
             }
+            if (post.preferredRewardCategory !== undefined) {
+                feedPost.preferredRewardCategory = post.preferredRewardCategory;
+            }
             // Session media fields
             if (post.mediaUrl !== undefined) {
                 feedPost.mediaUrl = post.mediaUrl;

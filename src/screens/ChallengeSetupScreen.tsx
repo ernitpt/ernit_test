@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { RootStackParamList, Experience, Goal } from '../types';
+import { RootStackParamList, Experience, Goal, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { goalService } from '../services/GoalService';
@@ -34,7 +34,6 @@ import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 5;
 
 const GOAL_TYPES = [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
@@ -49,7 +48,7 @@ const STEP_TITLES = [
     'What is your goal?',
     'Set your challenge intensity',
     'When do you start?',
-    'Pick your dream reward',
+    'What kind of reward excites you?',
     'Secure your reward',
 ];
 
@@ -57,7 +56,7 @@ const STEP_SUBTITLES = [
     'Pick the habit you want to build. We\'ll help you stay on track.',
     'It takes 21 days to build a habit. Start small, you can always do another challenge later!',
     'We\'ll send you reminders so you never miss a session.',
-    'Your friends can see your goal and gift this to you. You\'ll get it when you finish!',
+    'Pick a category. We\'ll recommend the perfect reward as you progress!',
     'Studies show that buying a reward you can only claim at the end can increase your chances of success by ~30%.',
 ];
 
@@ -165,6 +164,13 @@ export default function ChallengeSetupScreen() {
     // Step 5: Buy now or pledge
     const [buyNow, setBuyNow] = useState<boolean | null>(null);
 
+    // Step 4: Preferred reward category
+    const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
+    const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+
+    // Dynamic step count: skip step 5 when no specific experience selected
+    const totalSteps = selectedExperience ? 5 : 4;
+
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -196,6 +202,7 @@ export default function ChallengeSetupScreen() {
                 setPlannedStartDate(restored < new Date() ? new Date() : restored);
             }
             if (p.buyNow !== undefined && p.buyNow !== null) setBuyNow(p.buyNow);
+            if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory);
         }
     }, []);
 
@@ -264,7 +271,7 @@ export default function ChallengeSetupScreen() {
                 // Date always has default — always valid
                 return true;
             case 4: {
-                if (!selectedExperience) {
+                if (!selectedExperience && !preferredRewardCategory) {
                     setValidationErrors(prev => ({ ...prev, experience: true }));
                     return false;
                 }
@@ -286,7 +293,7 @@ export default function ChallengeSetupScreen() {
 
     const handleNext = () => {
         if (!validateCurrentStep()) return;
-        if (currentStep < TOTAL_STEPS) {
+        if (currentStep < totalSteps) {
             setCurrentStep(prev => prev + 1);
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }
@@ -318,6 +325,7 @@ export default function ChallengeSetupScreen() {
                 experience: selectedExperience || null,
                 plannedStartDate: plannedStartDate.toISOString(),
                 buyNow: buyNow,
+                preferredRewardCategory: preferredRewardCategory || null,
             };
 
             try {
@@ -390,6 +398,7 @@ export default function ChallengeSetupScreen() {
                     },
                     pledgedAt: now,
                 } : {}),
+                ...(preferredRewardCategory && !selectedExperience ? { preferredRewardCategory } : {}),
             };
 
             const goal = await goalService.createFreeGoal(goalData as Goal);
@@ -470,7 +479,14 @@ export default function ChallengeSetupScreen() {
                             onPress={() => {
                                 setSelectedGoal(goal.name);
                                 setValidationErrors(prev => ({ ...prev, goal: false }));
-                                if (goal.name !== 'Other') setCustomGoal('');
+                                if (goal.name !== 'Other') {
+                                    setCustomGoal('');
+                                    // Auto-advance after brief delay so selection animation plays
+                                    setTimeout(() => {
+                                        setCurrentStep(prev => prev + 1);
+                                        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                                    }, 250);
+                                }
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={`Select ${goal.name} goal`}
@@ -733,6 +749,7 @@ export default function ChallengeSetupScreen() {
                 style={[styles.expCard, isSelected && styles.expCardActive]}
                 onPress={() => {
                     setSelectedExperience(exp);
+                    setPreferredRewardCategory(null);
                     setValidationErrors(prev => ({ ...prev, experience: false }));
                 }}
                 accessibilityRole="button"
@@ -761,103 +778,219 @@ export default function ChallengeSetupScreen() {
     };
 
     const renderStep4 = () => {
-        const visibleCategories = selectedCategory === 'All'
-            ? EXPERIENCE_CATEGORIES
-            : EXPERIENCE_CATEGORIES.filter(cat => cat.key === selectedCategory);
+        // Browse mode: show the experience catalog
+        if (showExperiencePicker) {
+            const visibleCategories = selectedCategory === 'All'
+                ? EXPERIENCE_CATEGORIES
+                : EXPERIENCE_CATEGORIES.filter(cat => cat.key === selectedCategory);
+
+            return (
+                <View style={styles.stepContent}>
+                    {/* Back to category cards */}
+                    <TouchableOpacity
+                        style={styles.browseBackButton}
+                        onPress={() => {
+                            setShowExperiencePicker(false);
+                            setSelectedExperience(null);
+                            setValidationErrors(prev => ({ ...prev, experience: false }));
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <ChevronLeft color={Colors.primary} size={18} strokeWidth={2.5} />
+                        <Text style={styles.browseBackText}>Back to categories</Text>
+                    </TouchableOpacity>
+
+                    {/* Category filter chips */}
+                    <View style={styles.sectionHeaderRow}>
+                        <View style={styles.filterScrollContainer}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.filterScroll}
+                                contentContainerStyle={styles.filterScrollContent}
+                                onScroll={(e) => {
+                                    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                                    const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
+                                    if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
+                                }}
+                                scrollEventThrottle={100}
+                            >
+                                {[{ key: 'All', label: 'All', emoji: '' }, ...EXPERIENCE_CATEGORIES].map((cat) => {
+                                    const isActive = selectedCategory === cat.key;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat.key}
+                                            onPress={() => setSelectedCategory(cat.key)}
+                                            style={[
+                                                styles.filterChip,
+                                                isActive && styles.filterChipActive,
+                                            ]}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={`Filter by ${cat.label}`}
+                                        >
+                                            <Text style={[
+                                                styles.filterText,
+                                                isActive && styles.filterTextActive,
+                                            ]}>{cat.emoji ? `${cat.emoji} ` : ''}{cat.label}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                            {showFilterScrollHint && (
+                                <View style={styles.categoryFadeIndicator} pointerEvents="none">
+                                    <View style={styles.categoryGradient} />
+                                    <ChevronRight color={Colors.textMuted} size={14} />
+                                </View>
+                            )}
+                        </View>
+                    </View>
+
+                    {loadingExperiences ? (
+                        <View style={{ marginVertical: 20, gap: 12 }}>
+                            <SkeletonBox width="100%" height={60} borderRadius={12} />
+                            <SkeletonBox width="100%" height={60} borderRadius={12} />
+                            <SkeletonBox width="100%" height={60} borderRadius={12} />
+                        </View>
+                    ) : (
+                        <View style={styles.stackedCategories}>
+                            {visibleCategories.map((cat) => {
+                                const catExperiences = getExperiencesForCategory(cat.key, cat.match);
+                                if (catExperiences.length === 0) return null;
+
+                                return (
+                                    <MotiView
+                                        key={cat.key}
+                                        from={{ opacity: 0, translateY: 12 }}
+                                        animate={{ opacity: 1, translateY: 0 }}
+                                        transition={{ type: 'timing', duration: 300 }}
+                                        style={styles.categorySection}
+                                    >
+                                        <View style={styles.categorySectionHeader}>
+                                            <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
+                                            <Text style={styles.categorySectionTitle}>{cat.label}</Text>
+                                            <View style={[styles.categorySectionBadge, { backgroundColor: cat.color + '20' }]}>
+                                                <Text style={[styles.categorySectionCount, { color: cat.color }]}>{catExperiences.length}</Text>
+                                            </View>
+                                        </View>
+                                        <ScrollView
+                                            horizontal
+                                            showsHorizontalScrollIndicator={false}
+                                            style={styles.cardScroll}
+                                            contentContainerStyle={{ paddingRight: 16 }}
+                                        >
+                                            {catExperiences.map((exp) => {
+                                                const isSelected = selectedExperience?.id === exp.id;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={exp.id}
+                                                        style={[styles.expCard, isSelected && styles.expCardActive]}
+                                                        onPress={() => {
+                                                            setSelectedExperience(exp);
+                                                            setPreferredRewardCategory(null);
+                                                            setValidationErrors(prev => ({ ...prev, experience: false }));
+                                                        }}
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={`Select ${exp.title} experience, ${exp.price} euros`}
+                                                    >
+                                                        <View style={styles.expIconBox}>
+                                                            <Image
+                                                                source={{ uri: exp.coverImageUrl }}
+                                                                style={styles.expImage}
+                                                                resizeMode="cover"
+                                                                accessibilityLabel={exp.title}
+                                                            />
+                                                        </View>
+                                                        <View style={styles.expTextContainer}>
+                                                            <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
+                                                            <View style={styles.expMeta}>
+                                                                {exp.price > 0 && <Text style={styles.expPrice}>{'\u20AC'}{exp.price}</Text>}
+                                                                {exp.location && <Text style={styles.expLocation} numberOfLines={1}>{exp.location}</Text>}
+                                                            </View>
+                                                        </View>
+                                                        {isSelected && (
+                                                            <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </ScrollView>
+                                    </MotiView>
+                                );
+                            })}
+                        </View>
+                    )}
+                </View>
+            );
+        }
+
+        // Default view: category preference cards
+        const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] = [
+            { key: 'adventure', emoji: '\u{1F3D4}\u{FE0F}', label: 'Adventure', tagline: 'Explore something new', color: '#F59E0B' },
+            { key: 'wellness', emoji: '\u{1F9D8}', label: 'Wellness', tagline: 'Treat yourself', color: '#EC4899' },
+            { key: 'creative', emoji: '\u{1F3A8}', label: 'Creative', tagline: 'Make something amazing', color: '#8B5CF6' },
+        ];
 
         return (
             <View style={styles.stepContent}>
                 {validationErrors.experience && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Please select a dream reward</Text>
+                        <Text style={styles.errorText}>Please pick a reward category</Text>
                     </View>
                 )}
 
-                {/* Category filter chips */}
-                <View style={styles.sectionHeaderRow}>
-                    <View style={styles.filterScrollContainer}>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.filterScroll}
-                            contentContainerStyle={styles.filterScrollContent}
-                            onScroll={(e) => {
-                                const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-                                const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 10;
-                                if (showFilterScrollHint === atEnd) setShowFilterScrollHint(!atEnd);
-                            }}
-                            scrollEventThrottle={100}
+                {CATEGORY_CARDS.map((cat, index) => {
+                    const isActive = preferredRewardCategory === cat.key;
+                    return (
+                        <MotiView
+                            key={cat.key}
+                            from={{ opacity: 0, translateY: 16 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 300, delay: index * 80 }}
                         >
-                            {[{ key: 'All', label: 'All', emoji: '' }, ...EXPERIENCE_CATEGORIES].map((cat) => {
-                                const isActive = selectedCategory === cat.key;
-                                return (
-                                    <TouchableOpacity
-                                        key={cat.key}
-                                        onPress={() => setSelectedCategory(cat.key)}
-                                        style={[
-                                            styles.filterChip,
-                                            isActive && styles.filterChipActive,
-                                        ]}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={`Filter by ${cat.label}`}
-                                    >
-                                        <Text style={[
-                                            styles.filterText,
-                                            isActive && styles.filterTextActive,
-                                        ]}>{cat.emoji ? `${cat.emoji} ` : ''}{cat.label}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </ScrollView>
-                        {showFilterScrollHint && (
-                            <View style={styles.categoryFadeIndicator} pointerEvents="none">
-                                <View style={styles.categoryGradient} />
-                                <ChevronRight color={Colors.textMuted} size={14} />
-                            </View>
-                        )}
-                    </View>
-                </View>
-
-                {loadingExperiences ? (
-                    <View style={{ marginVertical: 20, gap: 12 }}>
-                        <SkeletonBox width="100%" height={60} borderRadius={12} />
-                        <SkeletonBox width="100%" height={60} borderRadius={12} />
-                        <SkeletonBox width="100%" height={60} borderRadius={12} />
-                    </View>
-                ) : (
-                    <View style={styles.stackedCategories}>
-                        {visibleCategories.map((cat) => {
-                            const catExperiences = getExperiencesForCategory(cat.key, cat.match);
-                            if (catExperiences.length === 0) return null;
-
-                            return (
-                                <MotiView
-                                    key={cat.key}
-                                    from={{ opacity: 0, translateY: 12 }}
-                                    animate={{ opacity: 1, translateY: 0 }}
-                                    transition={{ type: 'timing', duration: 300 }}
-                                    style={styles.categorySection}
-                                >
-                                    <View style={styles.categorySectionHeader}>
-                                        <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
-                                        <Text style={styles.categorySectionTitle}>{cat.label}</Text>
-                                        <View style={[styles.categorySectionBadge, { backgroundColor: cat.color + '20' }]}>
-                                            <Text style={[styles.categorySectionCount, { color: cat.color }]}>{catExperiences.length}</Text>
-                                        </View>
+                            <TouchableOpacity
+                                style={[
+                                    styles.rewardCategoryCard,
+                                    isActive && { borderColor: cat.color, borderWidth: 2, backgroundColor: cat.color + '08' },
+                                ]}
+                                onPress={() => {
+                                    setPreferredRewardCategory(cat.key);
+                                    setSelectedExperience(null);
+                                    setValidationErrors(prev => ({ ...prev, experience: false }));
+                                }}
+                                activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Select ${cat.label} reward category`}
+                            >
+                                <Text style={styles.rewardCategoryEmoji}>{cat.emoji}</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[
+                                        styles.rewardCategoryLabel,
+                                        isActive && { color: cat.color },
+                                    ]}>{cat.label}</Text>
+                                    <Text style={styles.rewardCategoryTagline}>{cat.tagline}</Text>
+                                </View>
+                                {isActive && (
+                                    <View style={[styles.rewardCategoryCheck, { backgroundColor: cat.color }]}>
+                                        <Check color="#fff" size={14} strokeWidth={3} />
                                     </View>
-                                    <ScrollView
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        style={styles.cardScroll}
-                                        contentContainerStyle={{ paddingRight: 16 }}
-                                    >
-                                        {catExperiences.map(renderExperienceCard)}
-                                    </ScrollView>
-                                </MotiView>
-                            );
-                        })}
+                                )}
+                            </TouchableOpacity>
+                        </MotiView>
+                    );
+                })}
+
+                {/* Browse experiences link */}
+                <TouchableOpacity
+                    style={styles.browseLink}
+                    onPress={() => setShowExperiencePicker(true)}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.browseLinkText}>Already know what you want?</Text>
+                    <View style={styles.browseLinkAction}>
+                        <Text style={styles.browseLinkActionText}>Browse & pick a reward</Text>
+                        <ChevronRight color={Colors.primary} size={16} strokeWidth={2.5} />
                     </View>
-                )}
+                </TouchableOpacity>
             </View>
         );
     };
@@ -961,12 +1094,12 @@ export default function ChallengeSetupScreen() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Create Your Challenge</Text>
                 <View style={styles.stepIndicator}>
-                    <Text style={styles.stepIndicatorText}>{currentStep}/{TOTAL_STEPS}</Text>
+                    <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
                 </View>
             </View>
 
             {/* Progress Bar */}
-            <ProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+            <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
 
             {/* Step Content */}
             <ScrollView
@@ -1052,7 +1185,7 @@ export default function ChallengeSetupScreen() {
                 )}
 
                 {/* CTA Button */}
-                {currentStep === TOTAL_STEPS ? (
+                {currentStep === totalSteps ? (
                     <TouchableOpacity
                         style={styles.createButton}
                         onPress={handleCreate}
@@ -1125,21 +1258,31 @@ export default function ChallengeSetupScreen() {
                                     {hours || '0'}h {minutes || '0'}m
                                 </Text>
                                 {selectedExperience && (
+                                    <>
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Dream reward: </Text>
+                                            {selectedExperience.title}
+                                        </Text>
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Reward plan: </Text>
+                                            {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'No reward for now'}
+                                        </Text>
+                                    </>
+                                )}
+                                {!selectedExperience && preferredRewardCategory && (
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Dream reward: </Text>
-                                        {selectedExperience.title}
+                                        <Text style={styles.modalLabel}>Reward preference: </Text>
+                                        {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                                     </Text>
                                 )}
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Reward plan: </Text>
-                                    {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'No reward for now'}
-                                </Text>
                             </View>
 
                             <Text style={styles.pledgeNote}>
                                 {buyNow
                                     ? 'Your experience will be unlocked when you complete your challenge!'
-                                    : 'Friends can track your progress and empower you by gifting experiences!'
+                                    : selectedExperience
+                                        ? 'Friends can track your progress and empower you by gifting experiences!'
+                                        : 'We\'ll recommend the perfect reward as you make progress!'
                                 }
                             </Text>
 
@@ -2024,5 +2167,75 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 4,
         fontStyle: 'italic',
+    },
+
+    // Step 4: Category preference cards
+    rewardCategoryCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 12,
+        borderWidth: 1.5,
+        borderColor: Colors.backgroundLight,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    rewardCategoryEmoji: {
+        fontSize: 32,
+        marginRight: 16,
+    },
+    rewardCategoryLabel: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginBottom: 2,
+    },
+    rewardCategoryTagline: {
+        fontSize: 14,
+        color: Colors.textSecondary,
+    },
+    rewardCategoryCheck: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 12,
+    },
+    browseLink: {
+        alignItems: 'center',
+        marginTop: 24,
+        paddingVertical: 12,
+    },
+    browseLinkText: {
+        fontSize: 13,
+        color: Colors.textMuted,
+        marginBottom: 4,
+    },
+    browseLinkAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    browseLinkActionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.primary,
+    },
+    browseBackButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 4,
+    },
+    browseBackText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.primary,
     },
 });

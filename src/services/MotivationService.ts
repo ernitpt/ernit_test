@@ -31,6 +31,12 @@ class MotivationService {
     message: string,
     authorProfileImage?: string,
     targetSession?: number,
+    media?: {
+      type?: 'text' | 'audio' | 'image' | 'mixed';
+      imageUrl?: string;
+      audioUrl?: string;
+      audioDuration?: number;
+    },
   ): Promise<string> {
     // Fetch the goal to validate and get owner info
     const goalRef = doc(db, 'goals', goalId);
@@ -74,15 +80,19 @@ class MotivationService {
 
     // Save the motivation
     try {
-      const motivationData = {
+      const motivationData: Record<string, any> = {
         authorId,
         authorName,
         authorProfileImage: authorProfileImage || null,
         message: message.substring(0, 500),
+        type: media?.type || 'text',
         targetSession: effectiveTargetSession,
         createdAt: serverTimestamp(),
         seen: false,
       };
+      if (media?.imageUrl) motivationData.imageUrl = media.imageUrl;
+      if (media?.audioUrl) motivationData.audioUrl = media.audioUrl;
+      if (media?.audioDuration) motivationData.audioDuration = media.audioDuration;
 
       const docRef = await addDoc(motivationsRef, motivationData);
       logger.log('Motivation left for goal:', goalId);

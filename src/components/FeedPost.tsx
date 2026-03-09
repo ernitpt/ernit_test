@@ -204,10 +204,16 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     };
 
     const handleEmpower = () => {
-        if (!post.pledgedExperienceId) {
-            // No pledged experience — go straight to browse
+        if (!post.pledgedExperienceId && !post.preferredRewardCategory) {
+            // No pledged experience and no category — go straight to browse
             setEmpowerContext();
             navigation.navigate('CategorySelection');
+            return;
+        }
+        if (!post.pledgedExperienceId && post.preferredRewardCategory) {
+            // Has category preference but no specific experience — browse pre-filtered
+            setEmpowerContext();
+            navigation.navigate('CategorySelection', { prefilterCategory: post.preferredRewardCategory });
             return;
         }
         // Has pledged experience — show choice modal
@@ -533,10 +539,32 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     </TouchableOpacity>
                 )}
 
+            {/* Free Goal: Category Hint Card (no pledged experience, but has category preference) */}
+            {post.isFreeGoal && !post.pledgedExperienceId && post.preferredRewardCategory &&
+                post.userId !== state.user?.id &&
+                (post.type === 'session_progress' || post.type === 'goal_completed') && (
+                <TouchableOpacity style={styles.categoryHintCard} onPress={handleEmpower} activeOpacity={0.85}>
+                    <Text style={styles.categoryHintEmoji}>
+                        {post.preferredRewardCategory === 'adventure' ? '🏔️' : post.preferredRewardCategory === 'wellness' ? '🧘' : '🎨'}
+                    </Text>
+                    <View style={styles.categoryHintInfo}>
+                        <Text style={styles.categoryHintText}>
+                            Loves {post.preferredRewardCategory.charAt(0).toUpperCase() + post.preferredRewardCategory.slice(1)} experiences
+                        </Text>
+                    </View>
+                    <View style={styles.experiencePreviewCta}>
+                        <Text style={styles.experiencePreviewCtaText}>Gift</Text>
+                    </View>
+                </TouchableOpacity>
+            )}
+
             {/* Free Goal: Empower Button */}
-            {post.isFreeGoal && post.userId !== state.user?.id && post.pledgedExperienceId && !(
+            {post.isFreeGoal && post.userId !== state.user?.id && (post.pledgedExperienceId || post.preferredRewardCategory) && !(
                 (post.type === 'session_progress' || post.type === 'goal_completed') &&
                 post.experienceTitle && !post.isMystery
+            ) && !(
+                (post.type === 'session_progress' || post.type === 'goal_completed') &&
+                post.preferredRewardCategory && !post.pledgedExperienceId
             ) && (
                 <View style={styles.freeGoalActions}>
                     <TouchableOpacity
@@ -600,6 +628,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 pledgedExperienceId={post.pledgedExperienceId}
                 goalId={post.goalId}
                 goalUserId={post.userId}
+                preferredRewardCategory={post.preferredRewardCategory}
                 onClose={() => setShowEmpowerModal(false)}
             />
 
@@ -963,6 +992,30 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 12,
         fontWeight: '700',
+    },
+    categoryHintCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        padding: 12,
+        marginHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    categoryHintEmoji: {
+        fontSize: 24,
+        marginRight: 10,
+    },
+    categoryHintInfo: {
+        flex: 1,
+    },
+    categoryHintText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#374151',
     },
     // Session media (top of card)
     sessionMediaContainer: {

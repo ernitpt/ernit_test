@@ -17,7 +17,7 @@ import {
   LayoutAnimation,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
@@ -165,6 +165,8 @@ const CategorySelectionScreen = () => {
   logger.log('[CategorySelectionScreen] Rendering...');
   const navigation = useNavigation<GiverNavigationProp>();
   const rootNavigation = useNavigation<RootNavigationProp>();
+  const route = useRoute();
+  const routeParams = route.params as { prefilterCategory?: string } | undefined;
   const { state, dispatch } = useApp();
   logger.log('[CategorySelectionScreen] State loaded:', { hasUser: !!state?.user, hasState: !!state });
   const [searchQuery, setSearchQuery] = useState('');
@@ -240,14 +242,22 @@ const CategorySelectionScreen = () => {
 
         const validCategories = ['adventure', 'creative', 'wellness'];
 
-        const grouped = allExperiences.reduce((acc, exp) => {
-          const cat = exp.category.toLowerCase();
-          if (validCategories.includes(cat)) {
-            if (!acc[cat]) acc[cat] = [];
-            acc[cat].push(exp);
-          }
-          return acc;
-        }, {} as Record<string, Experience[]>);
+        // Filter out draft experiences and group by category
+        const grouped = allExperiences
+          .filter((exp) => exp.status !== 'draft')
+          .reduce((acc, exp) => {
+            const cat = exp.category.toLowerCase();
+            if (validCategories.includes(cat)) {
+              if (!acc[cat]) acc[cat] = [];
+              acc[cat].push(exp);
+            }
+            return acc;
+          }, {} as Record<string, Experience[]>);
+
+        // Sort experiences within each category by admin-defined order
+        for (const cat of Object.keys(grouped)) {
+          grouped[cat].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        }
 
         const categoryOrder = ['adventure', 'wellness', 'creative'];
 
@@ -341,8 +351,12 @@ const CategorySelectionScreen = () => {
   };
 
   const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) return categoriesWithExperiences;
-    return categoriesWithExperiences
+    let categories = categoriesWithExperiences;
+    if (routeParams?.prefilterCategory) {
+        categories = categories.filter(cat => cat.id === routeParams.prefilterCategory);
+    }
+    if (!searchQuery.trim()) return categories;
+    return categories
       .map((category) => ({
         ...category,
         experiences: category.experiences.filter(
@@ -352,7 +366,7 @@ const CategorySelectionScreen = () => {
         ),
       }))
       .filter((category) => category.experiences.length > 0);
-  }, [searchQuery, categoriesWithExperiences]);
+  }, [searchQuery, categoriesWithExperiences, routeParams?.prefilterCategory]);
 
   const handleExperiencePress = (experienceId: string) => {
     const experience = categoriesWithExperiences

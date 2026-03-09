@@ -20,7 +20,8 @@
       "Bash(find:*)",
       "Bash(python:*)",
       "WebFetch(domain:claude.ai)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(git log:*)"
     ]
   }
 }

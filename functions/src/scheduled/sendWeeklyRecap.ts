@@ -92,12 +92,20 @@ export const sendWeeklyRecap = functions.onSchedule(
                     const totalSessions = targetCount * sessionsPerWeek;
                     const weeksRemaining = targetCount - currentCount;
 
+                    // Extract category preference
+                    const rewardCategory = primaryGoal.preferredRewardCategory as string | undefined;
+                    const hasPledgedExperience = !!primaryGoal.pledgedExperience;
+
                     // Build personalized message
                     let message: string;
 
                     if (totalSessionsDone >= totalSessionsRequired && totalSessionsRequired > 0) {
                         // Hit all weekly targets
                         message = `Amazing week! You completed all ${totalSessionsDone} sessions across ${totalGoals} goal(s). Keep crushing it!`;
+                        if (rewardCategory && !hasPledgedExperience) {
+                            const categoryLabel = rewardCategory.charAt(0).toUpperCase() + rewardCategory.slice(1);
+                            message += ` Check out ${categoryLabel} experiences as your dream reward!`;
+                        }
                     } else if (totalSessionsDone > 0) {
                         // Hit some targets
                         message = `This week: ${totalSessionsDone}/${totalSessionsRequired} sessions. ${goalsOnTrack}/${totalGoals} goals on track. ${weeksRemaining} weeks to go on ${primaryGoal.title}!`;
@@ -120,6 +128,7 @@ export const sendWeeklyRecap = functions.onSchedule(
                             goalsOnTrack,
                             totalGoals,
                             primaryGoalId: primaryGoal.id,
+                            preferredRewardCategory: rewardCategory || null,
                         },
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });

@@ -7,9 +7,9 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, Motivation } from '../../types';
+import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, Motivation, Experience } from '../../types';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
@@ -251,6 +251,16 @@ const SessionCard = ({
                       </Text>
                     </View>
                     <Text style={sessStyles.motivationMessage}>{m.message}</Text>
+                    {m.imageUrl && (
+                      <Image
+                        source={{ uri: m.imageUrl }}
+                        style={sessStyles.motivationImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                    {m.audioUrl && (
+                      <AudioPlayer uri={m.audioUrl} duration={m.audioDuration} variant="popup" />
+                    )}
                   </View>
                 </View>
               ))}
@@ -408,6 +418,13 @@ const sessStyles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
+  motivationImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: Colors.backgroundLight,
+  },
 });
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -424,6 +441,7 @@ const JourneyScreen = () => {
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [motivations, setMotivations] = useState<Motivation[]>([]);
+  const [recommendedExperiences, setRecommendedExperiences] = useState<Experience[]>([]);
 
   // Completed goal state
   const [couponCode, setCouponCode] = useState<string | null>(null);
@@ -539,6 +557,27 @@ const JourneyScreen = () => {
     }
     return map;
   }, [motivations]);
+
+  // Fetch recommended experiences based on preferred category
+  useEffect(() => {
+    if (!currentGoal?.isFreeGoal || currentGoal?.pledgedExperience || !currentGoal?.preferredRewardCategory) {
+      setRecommendedExperiences([]);
+      return;
+    }
+    const fetchRecommended = async () => {
+      try {
+        const snapshot = await getDocs(query(collection(db, 'experiences'), limit(20)));
+        const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Experience));
+        const filtered = all.filter(exp =>
+          exp.category?.toLowerCase() === currentGoal.preferredRewardCategory?.toLowerCase()
+        );
+        setRecommendedExperiences(filtered.slice(0, 3));
+      } catch (error) {
+        logger.error('Error fetching recommended experiences:', error);
+      }
+    };
+    fetchRecommended();
+  }, [currentGoal?.preferredRewardCategory, currentGoal?.pledgedExperience]);
 
   // ─── Completed goal: fetch experience, partner, coupon ────────────────────
   useEffect(() => {
@@ -1228,6 +1267,60 @@ const JourneyScreen = () => {
               </>
             )}
 
+            {/* ─── Recommended Experiences (category-only free goals) ──── */}
+            {currentGoal.isFreeGoal && !currentGoal.pledgedExperience && recommendedExperiences.length > 0 && (
+              <>
+                <View style={styles.sectionDivider} />
+                <View style={styles.recommendedSection}>
+                  <View style={styles.recommendedHeader}>
+                    <Sparkles color={Colors.primary} size={16} />
+                    <Text style={styles.recommendedTitle}>Recommended for you</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 4 }}
+                  >
+                    {recommendedExperiences.map((exp) => (
+                      <TouchableOpacity
+                        key={exp.id}
+                        style={styles.recommendedCard}
+                        activeOpacity={0.85}
+                        onPress={() => (navigation as any).navigate('ExperienceDetails', { experience: exp })}
+                      >
+                        {exp.coverImageUrl ? (
+                          <Image
+                            source={{ uri: exp.coverImageUrl }}
+                            style={styles.recommendedImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={[styles.recommendedImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Gift size={20} color={Colors.textMuted} />
+                          </View>
+                        )}
+                        <Text style={styles.recommendedName} numberOfLines={2}>{exp.title}</Text>
+                        {exp.price > 0 && (
+                          <Text style={styles.recommendedPrice}>{'\u20AC'}{exp.price}</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <TouchableOpacity
+                    style={styles.browseAllLink}
+                    activeOpacity={0.7}
+                    onPress={() => (navigation as any).navigate('CategorySelection', {
+                      prefilterCategory: currentGoal.preferredRewardCategory,
+                    })}
+                  >
+                    <Text style={styles.browseAllText}>
+                      Browse all {currentGoal.preferredRewardCategory ? currentGoal.preferredRewardCategory.charAt(0).toUpperCase() + currentGoal.preferredRewardCategory.slice(1) : ''} experiences
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
             {/* ─── Segmented Tabs Section ──────────────────────────────────── */}
             <View style={styles.sectionDivider} />
             <View style={styles.tabSectionInline}>
@@ -1454,6 +1547,62 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
     color: '#f59e0b',
+  },
+  // Recommended experiences
+  recommendedSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  recommendedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  recommendedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  recommendedCard: {
+    width: 140,
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    overflow: 'hidden',
+  },
+  recommendedImage: {
+    width: '100%',
+    height: 90,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  recommendedName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  recommendedPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  browseAllLink: {
+    alignItems: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  browseAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });
 
