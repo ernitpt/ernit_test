@@ -16,28 +16,30 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Star, Zap } from 'lucide-react-native';
+import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Star, Zap, Flame, Share as ShareIcon } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   RecipientStackParamList,
   Goal,
   ExperienceGift,
-  PartnerCoupon,
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
-import { collection, doc, setDoc, serverTimestamp, getDoc, runTransaction } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { goalService } from '../../services/GoalService';
 import { experienceService } from '../../services/ExperienceService';
 import { partnerService } from '../../services/PartnerService';
 import { userService } from '../../services/userService';
+import { generateCouponForGoal } from '../../services/CouponService';
 import { logger } from '../../utils/logger';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import Colors from '../../config/colors';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import { useToast } from '../../context/ToastContext';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 type CompletionNavigationProp = NativeStackNavigationProp<
   RecipientStackParamList,
@@ -72,13 +74,13 @@ const CompletionScreen = () => {
   const rawGoal = routeParams?.goal;
   const rawGift = routeParams?.experienceGift;
 
-  // Check if we have valid data (not just object existence, but required properties)
+  // Check if we have valid data (goal is required, reward is optional)
   const hasValidData = Boolean(
     rawGoal?.id &&
     rawGoal?.sessionsPerWeek !== undefined &&
-    rawGoal?.targetCount !== undefined &&
-    rawGift?.experienceId
+    rawGoal?.targetCount !== undefined
   );
+  const hasReward = Boolean(rawGift?.experienceId);
 
   // Redirect if data is missing or invalid (e.g., after page refresh)
   useEffect(() => {
@@ -92,6 +94,15 @@ const CompletionScreen = () => {
   const [experience, setExperience] = useState<any>(null);
   const [partner, setPartner] = useState<any>(null);
   const [userName, setUserName] = useState<string>('User');
+
+  // Streak & goals state
+  const [otherActiveGoals, setOtherActiveGoals] = useState<number>(0);
+  const [sessionStreak, setSessionStreak] = useState<number>(0);
+
+  // Share state
+  const shareCardRef = useRef<View>(null);
+  const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
+  const [isSharing, setIsSharing] = useState(false);
 
   // Date selection for booking
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
@@ -117,7 +128,7 @@ const CompletionScreen = () => {
     }
     : null;
 
-  const experienceGift: ExperienceGift | null = hasValidData
+  const experienceGift: ExperienceGift | null = hasReward
     ? {
       ...rawGift,
       createdAt: toDate(rawGift.createdAt)!,
@@ -126,6 +137,28 @@ const CompletionScreen = () => {
       completedAt: toDate(rawGift.completedAt),
     }
     : null;
+
+  // Fetch streak and active goals count
+  useEffect(() => {
+    if (!goal?.userId) return;
+    const fetchStreakAndGoals = async () => {
+      try {
+        const userDocSnap = await getDoc(doc(db, 'users', goal.userId));
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setSessionStreak(userData.sessionStreak || 0);
+        }
+        const allGoals = await goalService.getUserGoals(goal.userId);
+        const activeOthers = allGoals.filter(
+          (g: any) => g.id !== goal.id && !g.isCompleted
+        );
+        setOtherActiveGoals(activeOthers.length);
+      } catch (error) {
+        logger.error('Error fetching streak/goals:', error);
+      }
+    };
+    fetchStreakAndGoals();
+  }, [goal?.userId, goal?.id]);
 
   useEffect(() => {
     if (!goal || !experienceGift) return;
@@ -266,107 +299,17 @@ const CompletionScreen = () => {
     }
   };
 
-  /**
-   * ? SECURITY: Atomic coupon generation using Firestore transaction
-   * Prevents race conditions and duplicate coupons
-   */
   const generateCouponWithTransaction = async () => {
     if (!goal || !experienceGift) return;
 
-    logger.log('?? Starting coupon generation...');
-    logger.log('experienceGift.partnerId:', experienceGift?.partnerId);
-    logger.log('experience.partnerId:', experience?.partnerId);
-
     const partnerId = experience?.partnerId || experienceGift?.partnerId;
-
     if (!partnerId) {
-      logger.error('? Missing partner ID for coupon generation');
-      logger.error('experienceGift:', experienceGift);
-      logger.error('experience:', experience);
+      logger.error('Missing partner ID for coupon generation');
       throw new Error('Missing partner ID');
     }
 
-    logger.log('? Using partnerId:', partnerId);
-    const goalRef = doc(db, 'goals', goal.id);
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        // Read goal document within transaction
-        const goalDoc = await transaction.get(goalRef);
-
-        if (!goalDoc.exists()) {
-          throw new Error('Goal not found');
-        }
-
-        const goalData = goalDoc.data();
-
-        // ? Check if coupon already exists (atomic check)
-        if (goalData.couponCode) {
-          logger.log('? Found existing coupon:', goalData.couponCode);
-          setCouponCode(goalData.couponCode);
-          return; // Exit transaction early
-        }
-
-        // Generate new coupon code
-        const newCouponCode = generateUniqueCode();
-        const userId = goal.userId;
-        const validUntil = new Date();
-        validUntil.setFullYear(validUntil.getFullYear() + 1);
-
-        const coupon: PartnerCoupon = {
-          code: newCouponCode,
-          status: 'active',
-          userId,
-          validUntil,
-          partnerId,
-          goalId: goal.id,
-        };
-
-        const partnerCouponRef = doc(
-          collection(db, `partnerUsers/${partnerId}/coupons`),
-          newCouponCode
-        );
-
-        // Check for code collision (extremely rare with 12 chars)
-        const existingCouponDoc = await transaction.get(partnerCouponRef);
-        if (existingCouponDoc.exists()) {
-          logger.error('?? Coupon code collision detected');
-          throw new Error('CODE_COLLISION'); // Will trigger retry
-        }
-
-        // ? Atomically create both documents
-        transaction.set(partnerCouponRef, {
-          ...coupon,
-          createdAt: serverTimestamp(),
-        });
-
-        transaction.update(goalRef, {
-          couponCode: newCouponCode,
-          couponGeneratedAt: serverTimestamp(),
-        });
-
-        // Update local state
-        setCouponCode(newCouponCode);
-        logger.log('? Coupon atomically generated:', newCouponCode);
-      });
-    } catch (error: any) {
-      // Retry on code collision
-      if (error.message === 'CODE_COLLISION') {
-        logger.log('?? Retrying coupon generation due to collision...');
-        return await generateCouponWithTransaction();
-      }
-
-      throw error;
-    }
-  };
-
-  const generateUniqueCode = () => {
-    // SECURITY: Increased from 8 to 12 characters for better security
-    // 36^12 = 4.7 x 10^18 combinations (vs 36^8 = 2.8 x 10^12)
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length: 12 }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join('');
+    const code = await generateCouponForGoal(goal.id, goal.userId, partnerId);
+    setCouponCode(code);
   };
 
   const handleCopy = async () => {
@@ -500,7 +443,33 @@ const CompletionScreen = () => {
     }
   };
 
-  if (!hasValidData || !goal || !experienceGift) {
+  const handleShare = async () => {
+    if (!shareCardRef.current) return;
+    setIsSharing(true);
+    try {
+      const uri = await captureRef(shareCardRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share your achievement',
+        });
+      } else {
+        showInfo('Sharing is not available on this device');
+      }
+    } catch (error) {
+      logger.error('Error sharing achievement:', error);
+      showError('Could not share. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  if (!hasValidData || !goal) {
     return (
       <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
@@ -536,6 +505,78 @@ const CompletionScreen = () => {
         fallSpeed={3000}
         colors={['#fbbf24', '#f59e0b', '#10b981', Colors.secondary, '#ec4899']}
       />
+
+      {/* Off-screen Share Card for capture */}
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <View
+          ref={shareCardRef}
+          style={{
+            width: 1080,
+            height: shareFormat === 'story' ? 1920 : 1080,
+            backgroundColor: '#0891b2',
+          }}
+          collapsable={false}
+        >
+          <LinearGradient
+            colors={['#10b981', '#0891b2', Colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
+          >
+            {hasReward && experienceImage ? (
+              <Image
+                source={{ uri: experienceImage }}
+                style={{
+                  width: 600,
+                  height: shareFormat === 'story' ? 400 : 300,
+                  borderRadius: 40,
+                  marginBottom: 60,
+                }}
+                resizeMode="cover"
+              />
+            ) : null}
+
+            <Trophy color="#fef3c7" size={120} strokeWidth={2.5} fill="#fbbf24" />
+
+            <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff', textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+              Goal Completed!
+            </Text>
+
+            <Text style={{ fontSize: 42, fontWeight: '700', color: '#d1fae5', textAlign: 'center', marginBottom: 60 }}>
+              {goal?.title || goal?.description || ''}
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{totalSessions}</Text>
+                <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SESSIONS</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{goal?.targetCount || 0}</Text>
+                <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>WEEKS</Text>
+              </View>
+            </View>
+
+            {sessionStreak >= 3 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 30, gap: 12, marginBottom: 40 }}>
+                <Text style={{ fontSize: 36 }}>🔥</Text>
+                <Text style={{ fontSize: 36, fontWeight: '800', color: '#fef3c7' }}>{sessionStreak}-session streak</Text>
+              </View>
+            )}
+
+            <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/favicon.png')}
+                style={{ width: 60, height: 60, marginBottom: 12 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
+                Earned with Ernit
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+      </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section - EPIC CELEBRATION */}
@@ -646,7 +687,7 @@ const CompletionScreen = () => {
               {celebrationMessage}
             </Animated.Text>
             <Text style={styles.heroSubtitle}>
-              You did it! Your reward is now unlocked 🎉
+              {hasReward ? 'You did it! Your reward is now unlocked 🎉' : 'You did it! 🎉'}
             </Text>
 
             {/* Enhanced completion stats */}
@@ -681,39 +722,58 @@ const CompletionScreen = () => {
           </View>
         </View>
 
-        {/* Experience Reveal */}
-        <View style={styles.experienceCard}>
-          <View style={styles.experienceHeader}>
-            <Gift color={Colors.secondary} size={24} />
-            <Text style={styles.experienceHeaderText}>Your Reward</Text>
+        {/* No-reward CTA */}
+        {!hasReward && (
+          <View style={styles.noRewardCta}>
+            <Text style={styles.noRewardCtaTitle}>What's next?</Text>
+            <Text style={styles.noRewardCtaMessage}>
+              Browse experiences to earn as your next reward
+            </Text>
+            <TouchableOpacity
+              style={styles.noRewardCtaButton}
+              onPress={() => navigation.navigate('Browse' as any)}
+            >
+              <Gift color="#fff" size={20} />
+              <Text style={styles.noRewardCtaButtonText}>Browse Experiences</Text>
+            </TouchableOpacity>
           </View>
+        )}
 
-          <Image
-            source={{ uri: experienceImage }}
-            style={styles.experienceImage}
-            resizeMode="cover"
-            accessibilityLabel={`${experience?.title || 'Experience'} image`}
-          />
-          <View style={styles.experienceContent}>
-            {experience ? (
-              <>
-                <Text style={styles.experienceTitle}>{experience.title}</Text>
-                {experience.subtitle && (
-                  <Text style={styles.experienceSubtitle}>{experience.subtitle}</Text>
-                )}
-                <Text style={styles.experienceDescription}>{experience.description}</Text>
-              </>
-            ) : (
-              <View style={{ padding: 20, gap: 12 }}>
-                <ExperienceCardSkeleton />
-                <SkeletonBox width="100%" height={48} borderRadius={12} />
-              </View>
-            )}
+        {/* Experience Reveal */}
+        {hasReward && experienceGift && (
+          <View style={styles.experienceCard}>
+            <View style={styles.experienceHeader}>
+              <Gift color={Colors.secondary} size={24} />
+              <Text style={styles.experienceHeaderText}>Your Reward</Text>
+            </View>
+
+            <Image
+              source={{ uri: experienceImage }}
+              style={styles.experienceImage}
+              resizeMode="cover"
+              accessibilityLabel={`${experience?.title || 'Experience'} image`}
+            />
+            <View style={styles.experienceContent}>
+              {experience ? (
+                <>
+                  <Text style={styles.experienceTitle}>{experience.title}</Text>
+                  {experience.subtitle && (
+                    <Text style={styles.experienceSubtitle}>{experience.subtitle}</Text>
+                  )}
+                  <Text style={styles.experienceDescription}>{experience.description}</Text>
+                </>
+              ) : (
+                <View style={{ padding: 20, gap: 12 }}>
+                  <ExperienceCardSkeleton />
+                  <SkeletonBox width="100%" height={48} borderRadius={12} />
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Coupon Section - PREMIUM TICKET DESIGN */}
-        <View style={styles.couponSection}>
+        {hasReward && experienceGift && <View style={styles.couponSection}>
           <View style={styles.couponHeader}>
             <Ticket color={Colors.secondary} size={28} />
             <Text style={styles.couponHeaderText}>Your Exclusive Code</Text>
@@ -862,16 +922,110 @@ const CompletionScreen = () => {
               )}
             </View>
           ) : null}
-        </View>
+        </View>}
 
         {/* Date Selection Calendar for Booking */}
-        <BookingCalendar
-          visible={showCalendar}
-          selectedDate={preferredDate || new Date()}
-          onConfirm={handleConfirmBooking}
-          onCancel={handleCancelBooking}
-          minimumDate={new Date()}
-        />
+        {hasReward && (
+          <BookingCalendar
+            visible={showCalendar}
+            selectedDate={preferredDate || new Date()}
+            onConfirm={handleConfirmBooking}
+            onCancel={handleCancelBooking}
+            minimumDate={new Date()}
+          />
+        )}
+
+        {/* Share Achievement */}
+        <View style={styles.shareSection}>
+          <Text style={styles.shareSectionTitle}>Share Your Achievement</Text>
+
+          <View style={styles.shareFormatToggle}>
+            <TouchableOpacity
+              style={[styles.shareFormatOption, shareFormat === 'story' && styles.shareFormatActive]}
+              onPress={() => setShareFormat('story')}
+            >
+              <Text style={[styles.shareFormatText, shareFormat === 'story' && styles.shareFormatTextActive]}>
+                Story (9:16)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.shareFormatOption, shareFormat === 'square' && styles.shareFormatActive]}
+              onPress={() => setShareFormat('square')}
+            >
+              <Text style={[styles.shareFormatText, shareFormat === 'square' && styles.shareFormatTextActive]}>
+                Square (1:1)
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={handleShare}
+            disabled={isSharing}
+          >
+            <ShareIcon color="#fff" size={20} />
+            <Text style={styles.shareButtonText}>
+              {isSharing ? 'Preparing...' : 'Share'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Streak & Next Steps CTA */}
+        <View style={styles.streakCtaSection}>
+          {sessionStreak >= 3 && (
+            <View style={styles.streakBadge}>
+              <Flame color="#f59e0b" size={28} fill="#f59e0b" />
+              <Text style={styles.streakCount}>{sessionStreak}</Text>
+              <Text style={styles.streakLabel}>session streak</Text>
+            </View>
+          )}
+
+          {otherActiveGoals === 0 ? (
+            <>
+              <Text style={styles.streakCtaTitle}>
+                {sessionStreak >= 3
+                  ? `Keep your ${sessionStreak}-session streak alive!`
+                  : 'Ready for your next challenge?'}
+              </Text>
+              {sessionStreak >= 3 && (
+                <Text style={styles.streakCtaMessage}>
+                  Start a new goal to keep it going — your streak resets after 7 days of inactivity
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.streakCtaPrimary}
+                onPress={() => navigation.navigate('Browse' as any)}
+              >
+                <Text style={styles.streakCtaPrimaryText}>Browse Experiences</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.streakCtaSecondary}
+                onPress={() => navigation.navigate('Goals' as any)}
+              >
+                <Text style={styles.streakCtaSecondaryText}>Back to Goals</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.streakCtaTitle}>
+                {sessionStreak >= 3
+                  ? `Your ${sessionStreak}-session streak continues!`
+                  : 'You still have active goals — keep going!'}
+              </Text>
+              {sessionStreak >= 3 && (
+                <Text style={styles.streakCtaMessage}>
+                  Keep going with your other goals to build it even higher
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.streakCtaPrimary}
+                onPress={() => navigation.navigate('Goals' as any)}
+              >
+                <Text style={styles.streakCtaPrimaryText}>Back to Goals</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -1260,6 +1414,190 @@ const styles = StyleSheet.create({
     height: 50,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 1,
+  },
+  // No-reward CTA
+  noRewardCta: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  noRewardCtaTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  noRewardCtaMessage: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  noRewardCtaButton: {
+    backgroundColor: Colors.secondary,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+  },
+  noRewardCtaButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  // Share section
+  shareSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  shareSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.textPrimary,
+    marginBottom: 16,
+  },
+  shareFormatToggle: {
+    flexDirection: 'row' as const,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    width: '100%' as any,
+  },
+  shareFormatOption: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center' as const,
+    borderRadius: 10,
+  },
+  shareFormatActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shareFormatText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  shareFormatTextActive: {
+    color: Colors.textPrimary,
+  },
+  shareButton: {
+    backgroundColor: Colors.secondary,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    width: '100%' as any,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  // Streak CTA section
+  streakCtaSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  streakBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  streakCount: {
+    fontSize: 28,
+    fontWeight: '800' as const,
+    color: '#f59e0b',
+  },
+  streakLabel: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#92400e',
+  },
+  streakCtaTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.textPrimary,
+    textAlign: 'center' as const,
+    marginBottom: 8,
+  },
+  streakCtaMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  streakCtaPrimary: {
+    backgroundColor: Colors.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    marginTop: 8,
+    width: '100%' as any,
+    alignItems: 'center' as const,
+  },
+  streakCtaPrimaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  streakCtaSecondary: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    marginTop: 8,
+    width: '100%' as any,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  streakCtaSecondaryText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
 });
 

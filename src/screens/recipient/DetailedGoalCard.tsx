@@ -33,7 +33,6 @@ import { logErrorToFirestore } from '../../utils/errorLogger';
 import { serializeNav } from '../../utils/serializeNav';
 import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { config } from '../../config/environment';
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
 
@@ -45,7 +44,7 @@ import {
 } from './goalCardUtils';
 import { useGoalProgress } from './hooks/useGoalProgress';
 import WeeklyCalendar from './components/WeeklyCalendar';
-import ProgressBars, { StreakBadge } from './components/ProgressBars';
+import ProgressBars from './components/ProgressBars';
 import TimerDisplay from './components/TimerDisplay';
 import SessionActionArea from './components/SessionActionArea';
 import {
@@ -58,8 +57,7 @@ import { storageService } from '../../services/StorageService';
 import { feedService } from '../../services/FeedService';
 import { ctaService, CTADecision } from '../../services/CTAService';
 import { InlineExperienceCTA } from '../../components/ExperiencePurchaseCTA';
-
-const DEBUG_ALLOW_MULTIPLE_PER_DAY = config.debugEnabled;
+import { useApp } from '../../context/AppContext';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -124,6 +122,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const isSelfGift = isSelfGifted(currentGoal);
   const navigation = useNavigation<GoalsNavigationProp>();
+  const { state: appState } = useApp();
+  const debugMode = appState.debugMode;
 
   // Timer context
   const { getTimerState, startTimer, stopTimer } = useTimerContext();
@@ -166,8 +166,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // ─── Derived state ────────────────────────────────────────────────
 
   const canFinish = useMemo(() => {
-    return timeElapsed >= 2;
-  }, [timeElapsed]);
+    if (debugMode) return timeElapsed >= 2;
+    // Production: require full target duration (minimum 60s if no target set)
+    const required = progress.totalGoalSeconds > 0 ? progress.totalGoalSeconds : 60;
+    return timeElapsed >= required;
+  }, [timeElapsed, progress.totalGoalSeconds, debugMode]);
 
   // ─── Effects ──────────────────────────────────────────────────────
 
@@ -358,18 +361,19 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         experience = await experienceService.getExperienceById(gift.experienceId);
       }
 
-      // Session timing validation
-      const MIN_SESSION_INTERVAL_MS = 60000;
-      const nowCheck = Date.now();
-      if (currentGoal.weeklyLogDates && currentGoal.weeklyLogDates.length > 0) {
-        const lastSessionDate = currentGoal.weeklyLogDates[currentGoal.weeklyLogDates.length - 1];
-        const lastSessionTime = new Date(lastSessionDate).getTime();
-        const timeSinceLastSession = nowCheck - lastSessionTime;
-        if (timeSinceLastSession > 0 && timeSinceLastSession < MIN_SESSION_INTERVAL_MS) {
-          const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSinceLastSession) / 1000);
-          showInfo(`Please wait ${secondsRemaining} seconds between sessions to ensure quality completion.`);
-          setLoading(false);
-          return;
+      // Session timing validation (use stored timestamp, not ISO date strings)
+      // Skipped in debug mode to allow rapid testing
+      if (!debugMode) {
+        const MIN_SESSION_INTERVAL_MS = 60000;
+        const lastSessionTs = await AsyncStorage.getItem(`lastSession_${goalId}`);
+        if (lastSessionTs) {
+          const timeSince = Date.now() - parseInt(lastSessionTs, 10);
+          if (timeSince > 0 && timeSince < MIN_SESSION_INTERVAL_MS) {
+            const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSince) / 1000);
+            showInfo(`Please wait ${secondsRemaining} seconds between sessions.`);
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -391,7 +395,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         !hasPersonalizedHintForNextSession &&
         (!!experience || !!currentGoal.isMystery); // Mystery gifts don't need client-side experience
 
-      if (canGenerateHints) {
+      if (canGenerateHints && !hintGeneratingRef.current) {
+        hintGeneratingRef.current = true;
         const hintPromise = currentGoal.isMystery
           ? aiHintService.generateMysteryHint({
               goalId,
@@ -414,6 +419,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           logger.log(`Background hint generated for session ${nextSessionNumber}${category ? ` (category: ${category})` : ''}`);
         }).catch((err) => {
           logger.warn('Background hint generation failed:', err);
+        }).finally(() => {
+          hintGeneratingRef.current = false;
         });
       }
 
@@ -431,12 +438,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer]);
 
   const finishLock = useRef(false);
+  const hintGeneratingRef = useRef(false);
 
   const handleFinish = useCallback(async () => {
     if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
     finishLock.current = true;
     const goalId = currentGoal.id;
-    if (!goalId) return;
+    if (!goalId) { finishLock.current = false; return; }
 
     // Approval checks
     if (isGoalLocked(currentGoal)) {
@@ -446,6 +454,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
           : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
         showError(message);
+        finishLock.current = false;
         return;
       }
       if (sessionsDoneBeforeFinish >= 1) {
@@ -453,6 +462,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
           : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
         showError(message);
+        finishLock.current = false;
         return;
       }
     }
@@ -461,6 +471,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     try {
       const updated = await goalService.tickWeeklySession(goalId);
+      // Store session timestamp for interval validation
+      await AsyncStorage.setItem(`lastSession_${goalId}`, String(Date.now()));
 
       setCurrentGoal(updated);
 
@@ -490,7 +502,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           weekNumber: updated.currentCount,
         }).catch(err => logger.warn('Failed to save final session record:', err));
 
-        if (gift) {
+        // Free goals without attached gift: navigate to FreeGoalCompletion
+        if (updated.isFreeGoal && !gift) {
+          navigation.navigate('FreeGoalCompletion', {
+            goal: serializeNav(updated),
+          });
+        } else if (gift) {
           if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
             await notificationService.createNotification(
               updated.empoweredBy,
@@ -874,13 +891,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         style={{ borderRadius: 16 }}
       >
         <View style={styles.card}>
-          {/* Streak badge — top-right corner */}
-          {progress.totalSessionsDone > 0 && (
-            <View style={styles.streakCorner}>
-              <StreakBadge streak={progress.totalSessionsDone} />
-            </View>
-          )}
-
           {/* Title & badges */}
           <Text style={styles.title}>
             {currentGoal.title}
@@ -942,7 +952,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       </Pressable>
 
       {/* Debug Controls */}
-      {DEBUG_ALLOW_MULTIPLE_PER_DAY && (
+      {debugMode && (
         <View style={styles.debugContainer}>
           <Text style={styles.debugTitle}>Debug Tools</Text>
           <View style={styles.debugButtonsRow}>
@@ -1068,12 +1078,6 @@ const styles = StyleSheet.create({
       WebkitBackdropFilter: 'blur(12px)',
     } as Record<string, string> : {}),
   },
-  streakCorner: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 10,
-  },
   title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
   empoweredText: { fontSize: 14, color: Colors.textSecondary, marginBottom: 14, textAlign: 'center' },
   mysteryBadge: {
@@ -1084,6 +1088,14 @@ const styles = StyleSheet.create({
   mysteryBadgeText: { fontSize: 13, fontWeight: '700', color: '#92400e' },
   selfChallengeText: { fontSize: 14, color: Colors.primary, marginBottom: 14, fontWeight: '600', textAlign: 'center' },
   startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
+  projectedFinish: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 2,
+  },
 
   // Debug
   debugContainer: {

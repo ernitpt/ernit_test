@@ -198,7 +198,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
   const handlePress = () => {
-    (navigation as any).navigate('Journey', { goal });
+    (navigation as any).navigate('AchievementDetail', { goal });
   };
 
   // Completion date

@@ -23,6 +23,7 @@ interface MotivationModalProps {
     goalId: string;
     onClose: () => void;
     onSent?: () => void;
+    targetSession?: number;
 }
 
 const MotivationModal: React.FC<MotivationModalProps> = ({
@@ -31,11 +32,13 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
     goalId,
     onClose,
     onSent,
+    targetSession,
 }) => {
     const { state } = useApp();
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const successAnim = useRef(new Animated.Value(0)).current;
 
     // Reset state when modal opens
@@ -43,6 +46,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
         if (visible) {
             setText('');
             setShowSuccess(false);
+            setError(null);
             successAnim.setValue(0);
         }
     }, [visible]);
@@ -57,6 +61,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                 state.user.displayName || state.user.profile?.name || 'A friend',
                 text.trim(),
                 state.user.profile?.profileImageUrl,
+                targetSession,
             );
 
             // Show inline success feedback
@@ -76,13 +81,22 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                 onSent?.();
             }, 1500);
         } catch (error) {
-            logger.error('Error sending motivation:', error);
-            await logErrorToFirestore(error, {
-                screenName: 'MotivationModal',
-                feature: 'SendMotivation',
-                userId: state.user?.id || 'unknown',
-                additionalData: { goalId },
-            });
+            const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+            if (errorMessage.includes('already sent')) {
+                setError('You have already sent motivation for this session.');
+            } else if (errorMessage.includes('next upcoming session') || errorMessage.includes('already been completed')) {
+                // Button shouldn't have been visible — silently close
+                onClose();
+            } else {
+                setError('Failed to send motivation. Please try again.');
+                logger.error('Error sending motivation:', error);
+                await logErrorToFirestore(error, {
+                    screenName: 'MotivationModal',
+                    feature: 'SendMotivation',
+                    userId: state.user?.id || 'unknown',
+                    additionalData: { goalId },
+                });
+            }
         } finally {
             setSending(false);
         }
@@ -129,6 +143,11 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                 <Text style={styles.subtitle}>
                                     Leave an encouraging message for {recipientName}
                                 </Text>
+                                {error && (
+                                    <View style={styles.errorBanner}>
+                                        <Text style={styles.errorText}>{error}</Text>
+                                    </View>
+                                )}
                                 <TextInput
                                     style={styles.input}
                                     placeholder="You've got this! Keep going..."
@@ -245,6 +264,19 @@ const styles = StyleSheet.create({
     successSubtext: {
         ...Typography.small,
         color: Colors.textSecondary,
+        textAlign: 'center',
+    },
+    errorBanner: {
+        backgroundColor: '#fef2f2',
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        marginBottom: Spacing.cardPadding,
+        borderWidth: 1,
+        borderColor: '#fecaca',
+    },
+    errorText: {
+        ...Typography.small,
+        color: '#dc2626',
         textAlign: 'center',
     },
 });

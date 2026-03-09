@@ -22,7 +22,7 @@ export const Colors = {
     //  • primarySurface: very light bg — used as card/button background tint
     //  • primaryTint: light tint — used as selected-state bg, badges
     //  • primaryBorder: medium tint — used as visible borders/dividers
-    primarySurface: '#ECFDF5', // emerald-50  — near-white tinted surface (was #F5F3FF / #EDE9FE / #FAF5FF / #F3E8FF)
+    primarySurface: '#F8FAFC', // slate-50 — neutral surface (was #ECFDF5 emerald-50)
     primaryTint: '#A7F3D0',    // emerald-200 — clearly tinted, good for selected bg (was #E9D5FF / #DDD6FE)
     primaryBorder: '#6EE7B7',  // emerald-300 — visible border on white bg (prevents invisible borders)
 

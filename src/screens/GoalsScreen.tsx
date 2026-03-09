@@ -21,9 +21,12 @@ import { Goal, RootStackParamList } from '../types';
 import { goalService } from '../services/GoalService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
+import StreakBanner from './recipient/components/StreakBanner';
 import CompletedGoalCard from './recipient/CompletedGoalCard';
 import MainScreen from './MainScreen';
 import SharedHeader from '../components/SharedHeader';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -47,6 +50,7 @@ const GoalsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [sessionStreak, setSessionStreak] = useState<number>(0);
 
   const loadGoals = () => {
     // Trigger re-render by forcing a re-mount of the listener
@@ -105,6 +109,22 @@ const GoalsScreen: React.FC = () => {
     });
 
     return () => unsubscribe();
+  }, [userId]);
+
+  // Fetch user-level session streak
+  useEffect(() => {
+    if (!userId || userId === 'current_user') return;
+    const fetchStreak = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', userId));
+        if (userSnap.exists()) {
+          setSessionStreak(userSnap.data().sessionStreak || 0);
+        }
+      } catch (error) {
+        logger.error('Error fetching session streak:', error);
+      }
+    };
+    fetchStreak();
   }, [userId]);
 
   const fabAnim = useRef(new Animated.Value(50)).current;
@@ -242,6 +262,9 @@ const GoalsScreen: React.FC = () => {
             renderItem={renderGoal}
             keyExtractor={(item) => item.id!}
             contentContainerStyle={styles.listContainer}
+            ListHeaderComponent={sessionStreak >= 3 ? (
+              <StreakBanner streak={sessionStreak} />
+            ) : null}
             ListEmptyComponent={
               <View style={styles.noActiveContainer}>
                 <Text style={styles.noActiveText}>No active goals right now</Text>

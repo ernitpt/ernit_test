@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replaced Alert.alert with toast in ExperienceCheckoutScreen, ExperienceDetailsScreen (native/web), CompletionScreen
 - replace ActivityIndicator spinners with skeleton loaders in 6 screen files
 - migrated hardcoded hex colors to design tokens in 12 component files
+- extract coupon generation logic into shared CouponService
+- fully redesigned MysteryChoiceScreen — wizard-style UI with animated progressive hint demo, radio-select cards, experience reveal animation, and GoalSettingScreen-matching CTA
+- generalize streak indicator on GoalsScreen — user-level banner replaces per-goal badges
+- unified active goal layout into single card with dividers
+- unified JourneyScreen active goal into one card, removed orange StreakBanner from GoalsScreen
+- rewrite AchievementDetailScreen - unified vertical layout with inline sessions/hints, no celebratory hero, matches JourneyScreen completed-goal design
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -55,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve Colors is not defined runtime error - add missing imports and fix 252 quoted Colors string literals across 18 files
 - wrap App with SafeAreaProvider so ToastOverlay can use useSafeAreaInsets
 - replace nested TouchableOpacity with Pressable in ExperienceCard to avoid nested button HTML on web
+- goal flow audit - fix finishLock stuck on early return, free goal completion nav, canFinish prod enforcement, session interval validation, hint off-by-one, UTC date, week penalty reset, projected finish date, coupon dedup, hint rate limiting
+- feed posts show 'earned' for free goals without reward, now says 'completed their challenge'; hide misleading experience card for ungifted free goals; add free goal fields to session progress posts
+- feedpost button consistency — removed unreadable white text on empower button, unified button styling across all post types, eliminated duplicate gift buttons when experience preview is visible
+- skip 60-second session cooldown in debug mode for faster testing
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -88,3 +98,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add error states with retry UI to 5 screens (Feed, FriendsList, UserProfile, Goals, AddFriend)
 - redesigned GoalSettingScreen as 4-step wizard with ModernSlider, inline calendar, AnimatePresence transitions, and LinearGradient CTA
 - comprehensive accessibility pass across all screens and components
+- motivation system - all goals, 1 per session, latest only, with notification
+- session reminders, inactivity nudges, weekly recap notifications
+- urgency-aware session reminders (last day/days left warnings)
+- added production versions of scheduled functions (checkUnstartedGoals, sendInactivityNudges, sendSessionReminders, sendWeeklyRecap)
+- cross-goal session streak tracking with personalized streak-loss warnings
+- CompletionScreen overhaul — no-reward flow, streak CTA with A/B/C/D variants, social sharing card
+- tiered animated streak banner with pulsing flame, glow, floating sparks, and gradient intensity scaling
+- added debug toggle button in header (test mode only) to control all debug features
+- add AchievementDetailScreen - completion-style retrospective view for past achievements with experience reveal, coupon display, partner contact, share functionality

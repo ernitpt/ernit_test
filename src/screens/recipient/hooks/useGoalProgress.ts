@@ -94,7 +94,7 @@ export function useGoalProgress({
 
   const hasPersonalizedHintWaiting = useMemo(() => {
     if (!goal.personalizedNextHint) return false;
-    return goal.personalizedNextHint.forSessionNumber === (totalSessionsDone + 2);
+    return goal.personalizedNextHint.forSessionNumber === (totalSessionsDone + 1);
   }, [goal.personalizedNextHint, totalSessionsDone]);
 
   // Start date text
@@ -116,6 +116,18 @@ export function useGoalProgress({
     return `Starts ${planned.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }, [goal.plannedStartDate]);
 
+  // Projected finish date (dynamic based on current pace)
+  const projectedFinishText = useMemo(() => {
+    if (goal.isCompleted) return null;
+    if (!goal.weekStartAt) return null; // Goal hasn't started yet
+    const remaining = (displayedTargetCount || 1) - completedWeeks;
+    if (remaining <= 0) return null;
+    const projectedDate = new Date();
+    projectedDate.setDate(projectedDate.getDate() + remaining * 7);
+    const dateStr = projectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    return `If you keep it up, you'll finish by ${dateStr}!`;
+  }, [goal.isCompleted, goal.weekStartAt, displayedTargetCount, completedWeeks]);
+
   return {
     weekDates,
     loggedSet,
@@ -127,6 +139,7 @@ export function useGoalProgress({
     completedWeeks,
     hasPersonalizedHintWaiting,
     startDateText,
+    projectedFinishText,
     // Displayed values for rendering
     weeklyFilled: displayedWeeklyCount,
     weeklyTotal: displayedSessionsPerWeek,

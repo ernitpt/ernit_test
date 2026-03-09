@@ -18,6 +18,10 @@ export interface User {
   profile?: UserProfile;
   wishlist: Experience[];
   cart?: CartItem[];
+  // Streak tracking (user-level, cross-goal)
+  sessionStreak?: number;
+  longestSessionStreak?: number;
+  lastSessionDate?: string; // ISO date "YYYY-MM-DD"
 }
 
 // User Profile types
@@ -34,6 +38,10 @@ export interface UserProfile {
   createdAt: Date;
   updatedAt: Date;
   badges?: ('founder' | 'pioneer')[];
+  // Session reminder preferences
+  reminderEnabled?: boolean;     // default true
+  reminderTime?: string;         // "HH:MM" format, default "19:00"
+  timezone?: string;             // IANA timezone, e.g. "Europe/Lisbon"
 }
 
 // Friend Request types
@@ -206,6 +214,9 @@ export interface Goal {
   giftAttachedAt?: Date;
   giftAttachDeadline?: Date;       // 30 days post-completion window
   completedAt?: Date;              // When the goal was completed
+  // Inactivity nudge tracking (used by cloud functions)
+  lastNudgeSentAt?: Date | null;
+  lastNudgeLevel?: number;         // 0=none, 1=day2, 2=day4, 3=day7+
 }
 
 export interface PersonalizedHint {
@@ -372,7 +383,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion' | 'motivation_received' | 'session_reminder' | 'weekly_recap';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -487,6 +498,7 @@ export type RootStackParamList = {
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
   FreeGoalCompletion: { goal: Goal };
+  AchievementDetail: { goal: Goal };
   ChallengeLanding: undefined;
   MysteryChoice: { experience: Experience };
   ChallengeSetup: { prefill?: any } | undefined;

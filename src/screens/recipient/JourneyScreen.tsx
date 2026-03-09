@@ -7,9 +7,10 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, onSnapshot, getDoc, runTransaction, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, PartnerCoupon, Motivation } from '../../types';
+import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, Motivation } from '../../types';
+import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
 import DetailedGoalCard from './DetailedGoalCard';
@@ -588,50 +589,8 @@ const JourneyScreen = () => {
     const partnerId = experience?.partnerId;
     if (!partnerId) return;
 
-    const generateUniqueCode = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    };
-
-    const goalRef = doc(db, 'goals', currentGoal.id);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const goalDoc = await transaction.get(goalRef);
-        if (!goalDoc.exists()) throw new Error('Goal not found');
-        const goalData = goalDoc.data();
-
-        if (goalData.couponCode) {
-          setCouponCode(goalData.couponCode);
-          return;
-        }
-
-        const newCode = generateUniqueCode();
-        const validUntil = new Date();
-        validUntil.setFullYear(validUntil.getFullYear() + 1);
-
-        const coupon: PartnerCoupon = {
-          code: newCode,
-          status: 'active',
-          userId: currentGoal.userId,
-          validUntil,
-          partnerId,
-          goalId: currentGoal.id,
-        };
-
-        const partnerCouponRef = doc(collection(db, `partnerUsers/${partnerId}/coupons`), newCode);
-        const existingCouponDoc = await transaction.get(partnerCouponRef);
-        if (existingCouponDoc.exists()) throw new Error('CODE_COLLISION');
-
-        transaction.set(partnerCouponRef, { ...coupon, createdAt: serverTimestamp() });
-        transaction.update(goalRef, { couponCode: newCode, couponGeneratedAt: serverTimestamp() });
-        setCouponCode(newCode);
-      });
-    } catch (error: any) {
-      if (error.message === 'CODE_COLLISION') {
-        return await generateCouponWithTransaction();
-      }
-      throw error;
-    }
+    const code = await generateCouponForGoal(currentGoal.id, currentGoal.userId, partnerId);
+    setCouponCode(code);
   }, [currentGoal, experience]);
 
   const handleGenerateCoupon = useCallback(async () => {
@@ -1153,137 +1112,136 @@ const JourneyScreen = () => {
             {renderCompletedLayout()}
           </View>
         ) : (
-          /* ─── ACTIVE GOAL (unchanged) ───────────────────── */
-          <>
-            <View
-              pointerEvents="box-none"
-              style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}
-            >
-              {/* Personalized Message Card */}
-              {experienceGift?.personalizedMessage?.trim() && (
-                <View style={styles.messageCard}>
-                  <Text style={styles.messageText}>
-                    "{experienceGift.personalizedMessage.trim()}"
-                  </Text>
-                  <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
-                </View>
-              )}
-
-              {/* DetailedGoalCard */}
-              <View pointerEvents="box-none">
-                <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
+          /* ─── ACTIVE GOAL — single unified card ───────── */
+          <View
+            pointerEvents="box-none"
+            style={styles.unifiedCard}
+          >
+            {/* Personalized Message */}
+            {experienceGift?.personalizedMessage?.trim() && (
+              <View style={styles.messageSection}>
+                <Text style={styles.messageText}>
+                  "{experienceGift.personalizedMessage.trim()}"
+                </Text>
+                <Text style={styles.messageFrom}>— {experienceGift.giverName}</Text>
               </View>
+            )}
+
+            {/* DetailedGoalCard */}
+            <View pointerEvents="box-none">
+              <DetailedGoalCard goal={currentGoal} onFinish={(g) => setCurrentGoal(g)} />
             </View>
 
             {/* ─── Pledged Experience Showcase (free goals) ──────────────── */}
             {currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
-              <View style={styles.experienceShowcase}>
-                {currentGoal.isMystery ? (
-                  /* Mystery placeholder — hide actual experience details */
-                  <>
-                    <View style={styles.mysteryShowcaseBanner}>
-                      <Sparkles color="#f59e0b" size={20} />
-                      <Text style={styles.mysteryShowcaseText}>?</Text>
-                    </View>
-                    <View style={styles.experienceInfo}>
-                      <View style={styles.experienceHeader}>
-                        <Text style={[styles.experienceLabel, { color: '#92400e' }]}>Mystery Reward</Text>
+              <>
+                <View style={styles.sectionDivider} />
+                <View style={styles.experienceInline}>
+                  {currentGoal.isMystery ? (
+                    <>
+                      <View style={styles.mysteryShowcaseBanner}>
+                        <Sparkles color="#f59e0b" size={20} />
+                        <Text style={styles.mysteryShowcaseText}>?</Text>
                       </View>
-                      <Text style={styles.experienceTitle} numberOfLines={2}>
-                        Complete your challenge to reveal it!
-                      </Text>
-                      {(() => {
-                        const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
-                        const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
-                        const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
-                        return (
-                          <View style={styles.experienceProgressArea}>
-                            <View style={styles.experienceProgressTrack}>
-                              <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: '#f59e0b' }]} />
+                      <View style={styles.experienceInlineBody}>
+                        <View style={styles.experienceHeader}>
+                          <Text style={[styles.experienceLabel, { color: '#92400e' }]}>Mystery Reward</Text>
+                        </View>
+                        <Text style={styles.experienceTitle} numberOfLines={2}>
+                          Complete your challenge to reveal it!
+                        </Text>
+                        {(() => {
+                          const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+                          const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+                          const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
+                          return (
+                            <View style={styles.experienceProgressArea}>
+                              <View style={styles.experienceProgressTrack}>
+                                <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: '#f59e0b' }]} />
+                              </View>
+                              <Text style={styles.experienceProgressLabel}>
+                                {done}/{total} sessions to reveal
+                              </Text>
                             </View>
-                            <Text style={styles.experienceProgressLabel}>
-                              {done}/{total} sessions to reveal
+                          );
+                        })()}
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      {currentGoal.pledgedExperience.coverImageUrl ? (
+                        <Image
+                          source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                          style={styles.experienceCoverInline}
+                          accessibilityLabel={`${currentGoal.pledgedExperience.title} cover image`}
+                        />
+                      ) : null}
+                      <View style={styles.experienceInlineBody}>
+                        <View style={styles.experienceHeader}>
+                          <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? 'Your Reward' : 'Your Dream Reward'}</Text>
+                          {currentGoal.pledgedExperience.price > 0 && (
+                            <Text style={styles.experiencePrice}>
+                              ${currentGoal.pledgedExperience.price}
                             </Text>
-                          </View>
-                        );
-                      })()}
-                    </View>
-                  </>
-                ) : (
-                  /* Open gift — show actual experience details */
-                  <>
-                    {currentGoal.pledgedExperience.coverImageUrl ? (
-                      <Image
-                        source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                        style={[styles.experienceCover, { height: 180 }]}
-                        accessibilityLabel={`${currentGoal.pledgedExperience.title} cover image`}
-                      />
-                    ) : null}
-                    <View style={styles.experienceInfo}>
-                      <View style={styles.experienceHeader}>
-                        <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? 'Your Reward' : 'Your Dream Reward'}</Text>
-                        {currentGoal.pledgedExperience.price > 0 && (
-                          <Text style={styles.experiencePrice}>
-                            ${currentGoal.pledgedExperience.price}
-                          </Text>
+                          )}
+                        </View>
+                        <Text style={styles.experienceTitle} numberOfLines={2}>
+                          {currentGoal.pledgedExperience.title}
+                        </Text>
+                        {(() => {
+                          const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
+                          const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+                          const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
+                          return (
+                            <View style={styles.experienceProgressArea}>
+                              <View style={styles.experienceProgressTrack}>
+                                <View style={[styles.experienceProgressFill, { width: `${pct}%` }]} />
+                              </View>
+                              <Text style={styles.experienceProgressLabel}>
+                                {done}/{total} sessions to earn this
+                              </Text>
+                            </View>
+                          );
+                        })()}
+
+                        {!currentGoal.giftAttachedAt && (
+                          <TouchableOpacity
+                            style={styles.buyButton}
+                            activeOpacity={0.8}
+                            onPress={() => (navigation as any).navigate('ExperienceCheckout', {
+                              cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+                              goalId: currentGoal.id,
+                            })}
+                          >
+                            <ShoppingBag size={15} color="#fff" />
+                            <Text style={styles.buyButtonText}>
+                              {currentGoal.pledgedExperience!.price > 0
+                                ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
+                                : 'Get This Experience'}
+                            </Text>
+                          </TouchableOpacity>
                         )}
                       </View>
-                      <Text style={styles.experienceTitle} numberOfLines={2}>
-                        {currentGoal.pledgedExperience.title}
-                      </Text>
-                      {(() => {
-                        const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
-                        const done = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
-                        const pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
-                        return (
-                          <View style={styles.experienceProgressArea}>
-                            <View style={styles.experienceProgressTrack}>
-                              <View style={[styles.experienceProgressFill, { width: `${pct}%` }]} />
-                            </View>
-                            <Text style={styles.experienceProgressLabel}>
-                              {done}/{total} sessions to earn this
-                            </Text>
-                          </View>
-                        );
-                      })()}
-
-                      {/* Buy button */}
-                      {!currentGoal.giftAttachedAt && (
-                        <TouchableOpacity
-                          style={styles.buyButton}
-                          activeOpacity={0.8}
-                          onPress={() => (navigation as any).navigate('ExperienceCheckout', {
-                            cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
-                            goalId: currentGoal.id,
-                          })}
-                        >
-                          <ShoppingBag size={15} color="#fff" />
-                          <Text style={styles.buyButtonText}>
-                            {currentGoal.pledgedExperience!.price > 0
-                              ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
-                              : 'Get This Experience'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </>
-                )}
-              </View>
+                    </>
+                  )}
+                </View>
+              </>
             )}
 
             {/* ─── Segmented Tabs Section ──────────────────────────────────── */}
-            <View style={styles.tabSection}>
+            <View style={styles.sectionDivider} />
+            <View style={styles.tabSectionInline}>
               {currentGoal && !isSelfGifted(currentGoal) && (
                 <SegmentedControl activeTab={activeTab} onTabChange={setActiveTab} />
               )}
 
-              <View style={styles.tabContent}>
+              <View>
                 {currentGoal && isSelfGifted(currentGoal)
                   ? renderSessionsTab()
                   : activeTab === TAB_SESSIONS ? renderSessionsTab() : renderHintsTab()}
               </View>
             </View>
-          </>
+          </View>
         )}
       </ScrollView>
 
@@ -1310,11 +1268,11 @@ const JourneyScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  messageCard: {
-    backgroundColor: Colors.primarySurface,
-    padding: 20,
-    borderRadius: 18,
-    marginBottom: 20,
+  messageSection: {
+    paddingBottom: 16,
+    marginBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   messageText: {
     fontSize: 17,
@@ -1328,11 +1286,45 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: '600',
   },
-  tabSection: {
+  unifiedCard: {
     width: '100%',
     maxWidth: 380,
     paddingHorizontal: 16,
-    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 16,
+  },
+  experienceInline: {
+    overflow: 'hidden',
+  },
+  experienceInlineBody: {
+    paddingTop: 12,
+  },
+  experienceCoverInline: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: Colors.backgroundLight,
+  },
+  experienceCover: {
+    width: '100%',
+    height: 140,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: Colors.backgroundLight,
+  },
+  tabSectionInline: {
+    // no card styling needed — inside unified card
   },
   tabContent: {
     backgroundColor: '#fff',
@@ -1368,29 +1360,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     backgroundColor: Colors.backgroundLight,
-  },
-  // ── Experience Showcase ──
-  experienceShowcase: {
-    width: '100%',
-    maxWidth: 380,
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  experienceCover: {
-    width: '100%',
-    height: 140,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: Colors.backgroundLight,
-  },
-  experienceInfo: {
-    backgroundColor: '#fff',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: Colors.border,
   },
   experienceHeader: {
     flexDirection: 'row',

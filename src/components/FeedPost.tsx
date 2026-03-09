@@ -8,7 +8,7 @@ import {
     Animated,
     Modal,
 } from 'react-native';
-import { MessageCircle, Heart, Send, X, Trophy, Gift } from 'lucide-react-native';
+import { MessageCircle, Send, X, Trophy, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -24,6 +24,7 @@ import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from '../services/AnalyticsService';
+import { goalService } from '../services/GoalService';
 import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
 
@@ -44,6 +45,36 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [showMotivationModal, setShowMotivationModal] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(false);
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
+    const [canMotivate, setCanMotivate] = useState(false);
+
+    // Check if motivate button should be visible (goal not completed + latest session)
+    useEffect(() => {
+        if (post.userId === state.user?.id || post.type === 'goal_completed') {
+            setCanMotivate(false);
+            return;
+        }
+        const checkGoal = async () => {
+            try {
+                const goal = await goalService.getGoalById(post.goalId);
+                if (!goal || goal.isCompleted) {
+                    setCanMotivate(false);
+                    return;
+                }
+                const currentSessionsDone =
+                    (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0);
+                if (post.sessionNumber) {
+                    // Only show on the latest session post
+                    setCanMotivate(post.sessionNumber === currentSessionsDone);
+                } else {
+                    // goal_started/goal_approved: show only if no sessions done yet
+                    setCanMotivate(currentSessionsDone === 0);
+                }
+            } catch {
+                setCanMotivate(false);
+            }
+        };
+        checkGoal();
+    }, [post.goalId, post.userId, post.type, post.sessionNumber, state.user?.id]);
 
     // Animated value for highlight effect
     const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -209,6 +240,13 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     color: Colors.secondary,
                 };
             case 'goal_completed':
+                if (post.isFreeGoal && !post.experienceGiftId) {
+                    // Free goal without attached gift — they completed a challenge, not earned a reward
+                    return {
+                        text: 'completed their challenge!',
+                        color: '#22c55e',
+                    };
+                }
                 if (post.experienceTitle) {
                     return {
                         text: (<>completed their goal and earned:</>),
@@ -378,7 +416,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                         </View>
                     </>
                 )}
-                {post.type === 'goal_completed' && post.experienceTitle ? (
+                {post.type === 'goal_completed' && post.experienceTitle && !(post.isFreeGoal && !post.experienceGiftId) ? (
                     <View style={styles.experienceSection}>
                         {post.isMystery ? (
                             <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: '#fef3c7' }]}>
@@ -425,7 +463,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                                 )}
                             </View>
                         </View>
-                        {post.userId !== state.user?.id && (
+                        {post.userId !== state.user?.id && !post.isFreeGoal && (
                             <TouchableOpacity
                                 style={styles.congratsGiftButton}
                                 onPress={() => {
@@ -471,6 +509,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             </View>
 
             {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
+            {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
             {post.isFreeGoal && post.pledgedExperienceId && post.userId !== state.user?.id &&
                 (post.type === 'session_progress' || post.type === 'goal_completed') &&
                 post.experienceTitle && !post.isMystery && (
@@ -494,33 +533,31 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     </TouchableOpacity>
                 )}
 
-            {/* Free Goal Action Buttons */}
-            {post.isFreeGoal && post.userId !== state.user?.id && (
+            {/* Free Goal: Empower Button */}
+            {post.isFreeGoal && post.userId !== state.user?.id && post.pledgedExperienceId && !(
+                (post.type === 'session_progress' || post.type === 'goal_completed') &&
+                post.experienceTitle && !post.isMystery
+            ) && (
                 <View style={styles.freeGoalActions}>
-                    {post.pledgedExperienceId && (
-                        <TouchableOpacity
-                            style={[
-                                styles.empowerButton,
-                                (post.type === 'session_progress' || post.type === 'goal_completed') && styles.prominentEmpowerButton,
-                            ]}
-                            onPress={handleEmpower}
-                            activeOpacity={0.8}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Empower ${post.userName} with this experience`}
-                        >
-                            <Heart
-                                color={(post.type === 'session_progress' || post.type === 'goal_completed') ? '#fff' : '#ec4899'}
-                                size={16}
-                                fill={(post.type === 'session_progress' || post.type === 'goal_completed') ? '#fff' : '#ec4899'}
-                            />
-                            <Text style={[
-                                styles.empowerButtonText,
-                                (post.type === 'session_progress' || post.type === 'goal_completed') && styles.prominentEmpowerButtonText,
-                            ]}>
-                                {post.type === 'goal_completed' ? 'Gift This Experience' : post.type === 'session_progress' ? 'Empower Now' : 'Empower'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                        style={styles.empowerButton}
+                        onPress={handleEmpower}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Empower ${post.userName} with this experience`}
+                    >
+                        <Image
+                            source={require('../assets/favicon.png')}
+                            style={styles.empowerButtonLogo}
+                        />
+                        <Text style={styles.empowerButtonText}>Empower</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Motivate Button — all goals (only latest session, not completed) */}
+            {canMotivate && (
+                <View style={styles.motivateActions}>
                     <TouchableOpacity
                         style={styles.motivateButton}
                         onPress={() => setShowMotivationModal(true)}
@@ -550,6 +587,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 visible={showMotivationModal}
                 recipientName={post.userName}
                 goalId={post.goalId}
+                targetSession={post.sessionNumber ? post.sessionNumber + 1 : 1}
                 onClose={() => setShowMotivationModal(false)}
             />
 
@@ -838,6 +876,16 @@ const styles = StyleSheet.create({
         marginTop: 4,
         marginBottom: 10,
     },
+    motivateActions: {
+        paddingHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 10,
+    },
+    empowerButtonLogo: {
+        width: 18,
+        height: 18,
+        borderRadius: 4,
+    },
     empowerButton: {
         flex: 1,
         flexDirection: 'row',
@@ -846,14 +894,14 @@ const styles = StyleSheet.create({
         gap: 6,
         paddingVertical: 10,
         borderRadius: 12,
-        backgroundColor: '#fdf2f8',
+        backgroundColor: Colors.primarySurface,
         borderWidth: 1,
-        borderColor: '#fbcfe8',
+        borderColor: Colors.primaryTint,
     },
     empowerButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#ec4899',
+        color: Colors.primary,
     },
     motivateButton: {
         flex: 1,
@@ -915,20 +963,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 12,
         fontWeight: '700',
-    },
-    prominentEmpowerButton: {
-        backgroundColor: Colors.primarySurface,
-        borderColor: Colors.primaryTint,
-        paddingVertical: 12,
-        shadowColor: '#ec4899',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    prominentEmpowerButtonText: {
-        color: '#fff',
-        fontSize: 15,
     },
     // Session media (top of card)
     sessionMediaContainer: {

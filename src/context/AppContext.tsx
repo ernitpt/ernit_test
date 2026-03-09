@@ -20,6 +20,7 @@ interface AppState {
   goals: Goal[];
   goalTimers: Record<string, GoalTimerState>;
   empowerContext: { goalId: string; userId: string; userName?: string; isMystery?: boolean } | null;
+  debugMode: boolean;
 }
 
 // Action types
@@ -50,6 +51,7 @@ type AppAction =
   | { type: 'UPDATE_CART_ITEM'; payload: { experienceId: string; quantity: number } }
   | { type: 'CLEAR_CART' }
   | { type: 'SET_EMPOWER_CONTEXT'; payload: { goalId: string; userId: string; userName?: string; isMystery?: boolean } | null }
+  | { type: 'TOGGLE_DEBUG_MODE' }
   | { type: 'RESET_STATE' };
 
 // Initial state
@@ -64,6 +66,7 @@ const initialState: AppState = {
   goals: [],
   goalTimers: {},
   empowerContext: null,
+  debugMode: false,
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -307,6 +310,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     
     case 'SET_EMPOWER_CONTEXT':
       return { ...state, empowerContext: action.payload };
+
+    case 'TOGGLE_DEBUG_MODE':
+      return { ...state, debugMode: !state.debugMode };
 
     case 'RESET_STATE':
       return initialState;

@@ -40,6 +40,7 @@ import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScr
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
+import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 
@@ -65,6 +66,7 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'FriendsList',
   'PurchasedGifts',
   'FreeGoalCompletion',
+  'AchievementDetail',
 ];
 
 // Helper function to detect incognito mode
@@ -197,6 +199,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         ChallengeLanding: '',
         ChallengeSetup: 'challenge/create',
         MysteryChoice: 'mystery-choice',
+        AchievementDetail: 'achievement',
       },
     },
   };
@@ -382,6 +385,14 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           {(props) => (
             <ProtectedRoute>
               <FreeGoalCompletionScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="AchievementDetail">
+          {(props) => (
+            <ProtectedRoute>
+              <AchievementDetailScreen {...props} />
             </ProtectedRoute>
           )}
         </RootStack.Screen>

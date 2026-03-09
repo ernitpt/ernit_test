@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -15,6 +16,7 @@ import { db } from './firebase';
 import type { Motivation } from '../types';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { notificationService } from './NotificationService';
 
 class MotivationService {
   private getMotivationsCollection(goalId: string) {
@@ -30,21 +32,91 @@ class MotivationService {
     authorProfileImage?: string,
     targetSession?: number,
   ): Promise<string> {
+    // Fetch the goal to validate and get owner info
+    const goalRef = doc(db, 'goals', goalId);
+    const goalSnap = await getDoc(goalRef);
+    if (!goalSnap.exists()) throw new Error('Goal not found');
+    const goalData = goalSnap.data();
+
+    // Cannot motivate your own goal
+    if (goalData.userId === authorId) {
+      throw new Error('Cannot motivate your own goal');
+    }
+
+    // Cannot motivate a completed goal
+    if (goalData.isCompleted) {
+      throw new Error('This goal has already been completed');
+    }
+
+    // Calculate effective target session
+    const currentSessionsDone =
+      (goalData.currentCount || 0) * (goalData.sessionsPerWeek || 1) +
+      (goalData.weeklyCount || 0);
+    const nextSession = currentSessionsDone + 1;
+    const effectiveTargetSession = targetSession || nextSession;
+
+    // Only allow motivation for the next upcoming session
+    if (effectiveTargetSession !== nextSession) {
+      throw new Error('Can only send motivation for the next upcoming session');
+    }
+
+    // Duplicate check: 1 motivation per sender per target session
+    const motivationsRef = this.getMotivationsCollection(goalId);
+    const duplicateQuery = query(
+      motivationsRef,
+      where('authorId', '==', authorId),
+      where('targetSession', '==', effectiveTargetSession),
+    );
+    const duplicateSnap = await getDocs(duplicateQuery);
+    if (!duplicateSnap.empty) {
+      throw new Error('You have already sent a motivation for this session');
+    }
+
+    // Save the motivation
     try {
       const motivationData = {
         authorId,
         authorName,
         authorProfileImage: authorProfileImage || null,
-        message: message.substring(0, 500), // Max 500 chars
-        targetSession: targetSession || null,
+        message: message.substring(0, 500),
+        targetSession: effectiveTargetSession,
         createdAt: serverTimestamp(),
         seen: false,
       };
 
-      const docRef = await addDoc(this.getMotivationsCollection(goalId), motivationData);
-      logger.log('✅ Motivation left for goal:', goalId);
+      const docRef = await addDoc(motivationsRef, motivationData);
+      logger.log('Motivation left for goal:', goalId);
+
+      // Notify the goal owner
+      try {
+        await notificationService.createNotification(
+          goalData.userId,
+          'motivation_received',
+          `${authorName} sent you motivation!`,
+          `You have a special message waiting! Complete your next session to see it.`,
+          {
+            goalId,
+            senderId: authorId,
+            senderName: authorName,
+            senderProfileImageUrl: authorProfileImage || null,
+          },
+          true,
+        );
+      } catch (notifError) {
+        logger.error('Error creating motivation notification:', notifError);
+      }
+
       return docRef.id;
     } catch (error) {
+      // Re-throw validation errors as-is
+      if (error instanceof Error && (
+        error.message.includes('already sent') ||
+        error.message.includes('next upcoming session') ||
+        error.message.includes('already been completed') ||
+        error.message.includes('Cannot motivate')
+      )) {
+        throw error;
+      }
       await logErrorToFirestore(error, {
         feature: 'LeaveMotivation',
         additionalData: { goalId, authorId },

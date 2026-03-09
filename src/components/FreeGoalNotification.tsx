@@ -28,6 +28,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
     const [showMotivationModal, setShowMotivationModal] = useState(false);
     const [alreadyEmpowered, setAlreadyEmpowered] = useState(false);
+    const [targetSession, setTargetSession] = useState<number>(1);
 
     const data = notification.data || {};
     const isCompleted = notification.type === 'free_goal_completed' || data.milestone === 100;
@@ -40,6 +41,10 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
             try {
                 const goal = await goalService.getGoalById(data.goalId);
                 if (goal?.giftAttachedAt) setAlreadyEmpowered(true);
+                if (goal) {
+                    const currentDone = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0);
+                    setTargetSession(currentDone + 1);
+                }
             } catch (error) {
                 logger.error('Error checking goal empowerment:', error);
             }
@@ -188,6 +193,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 visible={showMotivationModal}
                 recipientName={data.goalUserName || 'Friend'}
                 goalId={data.goalId || ''}
+                targetSession={targetSession}
                 onClose={() => setShowMotivationModal(false)}
                 onSent={handleMotivationSent}
             />

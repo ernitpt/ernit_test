@@ -21,7 +21,7 @@ import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle } from 'lucide-react-native';
+import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell } from 'lucide-react-native';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
@@ -29,6 +29,7 @@ import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
+import { userService } from '../services/userService';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
 const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
@@ -81,8 +82,18 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const [contactModalType, setContactModalType] = useState<'feedback' | 'support'>('feedback');
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [reminderTime, setReminderTime] = useState('19:00');
 
   const isAuthenticated = !!state.user;
+
+  // Load reminder preferences from user profile
+  useEffect(() => {
+    if (state.user?.profile) {
+      setReminderEnabled(state.user.profile.reminderEnabled ?? true);
+      setReminderTime(state.user.profile.reminderTime ?? '19:00');
+    }
+  }, [state.user?.profile]);
 
   // Check if app is installed as PWA
   useEffect(() => {
@@ -204,6 +215,34 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     // Keep side menu open when canceling
   };
 
+  const handleReminderToggle = async () => {
+    if (!state.user?.id) return;
+    const newValue = !reminderEnabled;
+    setReminderEnabled(newValue);
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await userService.updateUserProfile(state.user.id, {
+        profile: { ...state.user.profile!, reminderEnabled: newValue, timezone },
+      });
+    } catch (error) {
+      logger.error('Error saving reminder preference:', error);
+      setReminderEnabled(!newValue);
+    }
+  };
+
+  const handleReminderTimeChange = async (time: string) => {
+    if (!state.user?.id) return;
+    setReminderTime(time);
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await userService.updateUserProfile(state.user.id, {
+        profile: { ...state.user.profile!, reminderTime: time, timezone },
+      });
+    } catch (error) {
+      logger.error('Error saving reminder time:', error);
+    }
+  };
+
   return (
     <>
       {visible && (
@@ -265,6 +304,46 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   title="Get Support"
                   onPress={() => handleMenuPress('Get Support')}
                 />
+                {/* Session Reminders Section */}
+                {isAuthenticated && (
+                  <View style={styles.reminderSection}>
+                    <View style={styles.reminderHeader}>
+                      <View style={styles.iconWrapper}>
+                        <Bell size={26} color={Colors.primary} />
+                      </View>
+                      <Text style={styles.menuTitle}>Reminders</Text>
+                    </View>
+                    <View style={styles.reminderRow}>
+                      <Text style={styles.reminderLabel}>Session reminders</Text>
+                      <TouchableOpacity
+                        onPress={handleReminderToggle}
+                        style={[styles.toggle, reminderEnabled && styles.toggleActive]}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.toggleThumb, reminderEnabled && styles.toggleThumbActive]} />
+                      </TouchableOpacity>
+                    </View>
+                    {reminderEnabled && (
+                      <View style={styles.reminderRow}>
+                        <Text style={styles.reminderLabel}>Remind me at</Text>
+                        <View style={styles.timePickerRow}>
+                          {['07:00', '12:00', '19:00', '21:00'].map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              onPress={() => handleReminderTimeChange(t)}
+                              style={[styles.timeChip, reminderTime === t && styles.timeChipActive]}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={[styles.timeChipText, reminderTime === t && styles.timeChipTextActive]}>
+                                {t.replace(':00', '')}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <MenuItem
                   Icon={isAuthenticated ? LogoutIcon : LoginIcon}
                   title={isAuthenticated ? "Logout" : "Login"}
@@ -402,6 +481,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
+  },
+  // Reminder settings
+  reminderSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  reminderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  reminderLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  toggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#D1D5DB',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  timePickerRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  timeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  timeChipActive: {
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  timeChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  timeChipTextActive: {
+    color: Colors.primary,
   },
 });
 

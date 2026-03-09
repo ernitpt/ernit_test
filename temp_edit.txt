@@ -1,0 +1,97 @@
+                // Check if user needs a reminder
+                let needsReminder = false;
+                let mostBehindGoal: any = null;
+                let lowestRatio = 1;
+                let mostBehindDaysLeft = 7;
+
+                for (const goalDoc of goalsSnap.docs) {
+                    const goal = goalDoc.data();
+                    const weeklyLogDates = goal.weeklyLogDates || [];
+                    const weeklyCount = goal.weeklyCount || 0;
+                    const sessionsPerWeek = goal.sessionsPerWeek || 3;
+
+                    // Check if session logged today
+                    const sessionLoggedToday = weeklyLogDates.includes(todayISO);
+
+                    // Check if weekly target not met
+                    const weeklyTargetNotMet = weeklyCount < sessionsPerWeek;
+
+                    // Calculate days left in this goal's anchored week
+                    let daysLeft = 7;
+                    if (goal.weekStartAt) {
+                        const weekStart = goal.weekStartAt.toDate ? goal.weekStartAt.toDate() : new Date(goal.weekStartAt);
+                        const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+                        daysLeft = Math.max(0, Math.ceil((weekEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                    }
+
+                    // If either condition is true, user needs reminder
+                    if (!sessionLoggedToday || weeklyTargetNotMet) {
+                        needsReminder = true;
+
+                        // Calculate how "behind" this goal is
+                        const ratio = weeklyCount / sessionsPerWeek;
+                        if (ratio < lowestRatio) {
+                            lowestRatio = ratio;
+                            mostBehindGoal = {
+                                id: goalDoc.id,
+                                title: goal.title,
+                                goalDescription: goal.goalDescription,
+                                weeklyCount,
+                                sessionsPerWeek,
+                            };
+                            mostBehindDaysLeft = daysLeft;
+                        }
+                    }
+                }
+
+                if (!needsReminder) {
+                    console.log(
+                        `⏭️ [TEST] User ${userDoc.id}: All sessions done today and weekly targets met`
+                    );
+                    continue;
+                }
+
+                if (!mostBehindGoal) {
+                    console.log(
+                        `⚠️ [TEST] User ${userDoc.id}: Needs reminder but no goal found`
+                    );
+                    continue;
+                }
+
+                // Build urgency-aware title and message
+                const sessionsRemaining = mostBehindGoal.sessionsPerWeek - mostBehindGoal.weeklyCount;
+                let title: string;
+                let message: string;
+
+                if (mostBehindDaysLeft <= 1 && sessionsRemaining > 0) {
+                    // Critical: last day, still behind
+                    title = "Last day!";
+                    message = `${sessionsRemaining} session${sessionsRemaining > 1 ? 's' : ''} left to complete your week for ${mostBehindGoal.goalDescription}`;
+                } else if (mostBehindDaysLeft <= 3 && sessionsRemaining > 0) {
+                    // Urgent: 2-3 days left, still behind
+                    title = `${mostBehindDaysLeft} day${mostBehindDaysLeft > 1 ? 's' : ''} left!`;
+                    message = `You still need ${sessionsRemaining} more session${sessionsRemaining > 1 ? 's' : ''} for ${mostBehindGoal.goalDescription} — you can do it!`;
+                } else {
+                    // Normal: plenty of time or on track
+                    title = "Time for your session!";
+                    message = `Your ${mostBehindGoal.goalDescription} goal is waiting — you're ${mostBehindGoal.weeklyCount}/${mostBehindGoal.sessionsPerWeek} sessions this week`;
+                }
+
+                // Create notification
+                try {
+                    await db.collection("notifications").add({
+                        userId: userDoc.id,
+                        type: "session_reminder",
+                        title,
+                        message,
+                        read: false,
+                        clearable: true,
+                        data: {
+                            goalId: mostBehindGoal.id,
+                            weeklyCount: mostBehindGoal.weeklyCount,
+                            sessionsPerWeek: mostBehindGoal.sessionsPerWeek,
+                            daysLeft: mostBehindDaysLeft,
+                            sessionsRemaining,
+                        },
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });

@@ -1,6 +1,7 @@
 import { Goal, PersonalizedHint } from '../../types';
 import { db } from '../../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import Colors from '../../config/colors';
 
 // ─── Date utilities ─────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ export interface HintObject {
 export const TIMER_STORAGE_KEY = 'goal_timer_state_';
 
 export const CARD_COLORS = {
-  grayLight: '#E5E7EB',
-  text: '#111827',
-  sub: '#6B7280',
+  grayLight: Colors.border,
+  text: Colors.textPrimary,
+  sub: Colors.textSecondary,
 };

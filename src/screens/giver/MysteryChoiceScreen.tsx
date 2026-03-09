@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Eye, Sparkles, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Eye, Sparkles, MessageSquare, Lock, Unlock } from 'lucide-react-native';
+import { MotiView, AnimatePresence } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList, Experience } from '../../types';
 import { useApp } from '../../context/AppContext';
-import SharedHeader from '../../components/SharedHeader';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { analyticsService } from '../../services/AnalyticsService';
@@ -21,6 +22,48 @@ import Colors from '../../config/colors';
 
 type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryChoice'>;
 
+// ─── Hint Demo Data ──────────────────────────────────────────────────
+// Faithful to how AI hints actually work: 4 difficulty bands
+const HINT_BANDS = [
+    {
+        band: 'Vague',
+        progress: '0–20%',
+        session: 'Session 2',
+        hint: '"Get ready to feel like a kid again — this one\'s going to be a thrill."',
+        revealLevel: 0.08,
+        color: '#6366F1',
+        bgColor: '#EEF2FF',
+    },
+    {
+        band: 'Thematic',
+        progress: '21–60%',
+        session: 'Session 5',
+        hint: '"You might want to bring comfortable shoes — and work on that grip strength."',
+        revealLevel: 0.25,
+        color: '#F59E0B',
+        bgColor: '#FFFBEB',
+    },
+    {
+        band: 'Strong',
+        progress: '61–90%',
+        session: 'Session 8',
+        hint: '"Ever wondered what it feels like to scale new heights? You\'re about to find out."',
+        revealLevel: 0.55,
+        color: '#10B981',
+        bgColor: '#ECFDF5',
+    },
+    {
+        band: 'Finale',
+        progress: '91–100%',
+        session: 'Session 10',
+        hint: '"Get your climbing shoes ready — you\'re heading to the wall!"',
+        revealLevel: 0.85,
+        color: Colors.primary,
+        bgColor: Colors.primarySurface,
+    },
+];
+
+// ─── Main Component ──────────────────────────────────────────────────
 const MysteryChoiceScreen = () => {
     const navigation = useNavigation<MysteryChoiceNav>();
     const route = useRoute();
@@ -30,7 +73,20 @@ const MysteryChoiceScreen = () => {
     const empowerContext = state.empowerContext;
     const userName = empowerContext?.userName || 'your friend';
 
-    const [showHowItWorks, setShowHowItWorks] = useState(false);
+    const [selected, setSelected] = useState<'open' | 'mystery' | null>(null);
+    const [activeHintStep, setActiveHintStep] = useState(0);
+
+    // Auto-cycle through hint steps when mystery is selected
+    useEffect(() => {
+        if (selected !== 'mystery') {
+            setActiveHintStep(0);
+            return;
+        }
+        const interval = setInterval(() => {
+            setActiveHintStep(prev => (prev + 1) % HINT_BANDS.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [selected]);
 
     // Redirect if experience is missing
     useEffect(() => {
@@ -39,231 +95,512 @@ const MysteryChoiceScreen = () => {
         }
     }, [experience, navigation]);
 
+    const handleContinue = useCallback(() => {
+        if (!selected || !experience) return;
+
+        const isMystery = selected === 'mystery';
+        analyticsService.trackEvent('mystery_choice_selected', 'social', {
+            choice: selected,
+            experienceId: experience.id,
+        }, 'MysteryChoiceScreen');
+
+        if (empowerContext) {
+            dispatch({
+                type: 'SET_EMPOWER_CONTEXT',
+                payload: { ...empowerContext, isMystery },
+            });
+        }
+
+        navigation.navigate('ExperienceCheckout', {
+            cartItems: [{ experienceId: experience.id, quantity: 1 }],
+        });
+    }, [selected, experience, empowerContext, dispatch, navigation]);
+
     if (!experience) {
         return (
             <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
-            <MainScreen activeRoute="Home">
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
-                </View>
-            </MainScreen>
+                <MainScreen activeRoute="Home">
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+                    </View>
+                </MainScreen>
             </ErrorBoundary>
         );
     }
 
-    const handleOpenGift = () => {
-        analyticsService.trackEvent('mystery_choice_selected', 'social', { choice: 'open', experienceId: experience.id }, 'MysteryChoiceScreen');
-        if (empowerContext) {
-            dispatch({
-                type: 'SET_EMPOWER_CONTEXT',
-                payload: { ...empowerContext, isMystery: false },
-            });
-        }
-        navigation.navigate('ExperienceCheckout', {
-            cartItems: [{ experienceId: experience.id, quantity: 1 }],
-        });
-    };
-
-    const handleMysteryGift = () => {
-        analyticsService.trackEvent('mystery_choice_selected', 'social', { choice: 'mystery', experienceId: experience.id }, 'MysteryChoiceScreen');
-        if (empowerContext) {
-            dispatch({
-                type: 'SET_EMPOWER_CONTEXT',
-                payload: { ...empowerContext, isMystery: true },
-            });
-        }
-        navigation.navigate('ExperienceCheckout', {
-            cartItems: [{ experienceId: experience.id, quantity: 1 }],
-        });
-    };
-
     return (
         <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
-            <SharedHeader title="Gift Style" showBack />
-
-            <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-                <Text style={styles.heading}>
-                    How should {userName} receive this?
-                </Text>
-
-                {/* Option 1: Gift Openly */}
-                <TouchableOpacity
-                    style={styles.optionCard}
-                    onPress={handleOpenGift}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel="Gift openly"
-                >
-                    <View style={styles.optionHeader}>
-                        <View style={styles.optionIconContainer}>
-                            <Eye color={Colors.secondary} size={24} />
-                        </View>
-                        <Text style={styles.optionTitle}>Gift Openly</Text>
+            <MainScreen activeRoute="Home">
+                <View style={styles.container}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => navigation.goBack()}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Go back"
+                        >
+                            <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Gift Style</Text>
+                        <View style={{ width: 40 }} />
                     </View>
 
-                    <View style={styles.experiencePreview}>
-                        <Image
-                            source={{ uri: experience.coverImageUrl }}
-                            style={styles.previewImage}
-                            accessibilityLabel={`${experience.title} preview image`}
-                        />
-                        <View style={styles.previewInfo}>
-                            <Text style={styles.previewTitle} numberOfLines={2}>
-                                {experience.title}
+                    <ScrollView
+                        style={styles.scroll}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* Title */}
+                        <MotiView
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 300 }}
+                        >
+                            <Text style={styles.stepTitle} accessibilityRole="header">
+                                How should {userName} receive this?
                             </Text>
-                            <Text style={styles.previewPrice}>
-                                {'\u20AC'}{experience.price}
+                            <Text style={styles.stepSubtitle}>
+                                Choose how the experience gift is revealed
                             </Text>
-                        </View>
-                    </View>
+                        </MotiView>
 
-                    <Text style={styles.optionDescription}>
-                        {userName} will see the experience details right away
-                    </Text>
-                </TouchableOpacity>
-
-                {/* Option 2: Make it a Mystery */}
-                <TouchableOpacity
-                    style={[styles.optionCard, styles.optionCardMystery]}
-                    onPress={handleMysteryGift}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel="Make it a mystery"
-                >
-                    <View style={styles.optionHeader}>
-                        <View style={[styles.optionIconContainer, styles.mysteryIconContainer]}>
-                            <Sparkles color="#f59e0b" size={24} />
-                        </View>
-                        <Text style={styles.optionTitle}>Make it a Mystery</Text>
-                    </View>
-
-                    <View style={styles.experiencePreview}>
-                        <View style={styles.mysteryImageContainer}>
+                        {/* Experience Preview */}
+                        <View style={styles.experienceCard}>
                             <Image
                                 source={{ uri: experience.coverImageUrl }}
-                                style={[styles.previewImage, styles.mysteryImageBlur]}
-                                accessibilityLabel="Mystery experience hidden image"
+                                style={styles.experienceImage}
+                                accessibilityLabel={`${experience.title} preview`}
                             />
-                            <View style={styles.mysteryOverlay}>
-                                <Text style={styles.mysteryOverlayText}>?</Text>
+                            <View style={styles.experienceInfo}>
+                                <Text style={styles.experienceTitle} numberOfLines={2}>
+                                    {experience.title}
+                                </Text>
+                                <Text style={styles.experiencePrice}>
+                                    {'\u20AC'}{experience.price}
+                                </Text>
                             </View>
                         </View>
-                        <View style={styles.previewInfo}>
-                            <Text style={styles.previewTitle} numberOfLines={2}>
-                                Mystery Experience
-                            </Text>
-                            <Text style={styles.mysterySubtext}>Hidden until completion</Text>
+
+                        {/* Option Cards */}
+                        <View style={styles.optionsContainer}>
+                            {/* Gift Openly */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.optionCard,
+                                    selected === 'open' && styles.optionCardSelected,
+                                ]}
+                                onPress={() => setSelected('open')}
+                                activeOpacity={0.85}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: selected === 'open' }}
+                                accessibilityLabel="Gift openly"
+                            >
+                                <View style={styles.optionRow}>
+                                    <View style={[
+                                        styles.optionIcon,
+                                        selected === 'open' && styles.optionIconSelected,
+                                    ]}>
+                                        <Eye
+                                            color={selected === 'open' ? Colors.white : Colors.secondary}
+                                            size={22}
+                                        />
+                                    </View>
+                                    <View style={styles.optionTextBlock}>
+                                        <Text style={[
+                                            styles.optionTitle,
+                                            selected === 'open' && styles.optionTitleSelected,
+                                        ]}>Gift Openly</Text>
+                                        <Text style={styles.optionDesc}>
+                                            {userName} will see the experience right away
+                                        </Text>
+                                    </View>
+                                    <View style={[
+                                        styles.radio,
+                                        selected === 'open' && styles.radioSelected,
+                                    ]}>
+                                        {selected === 'open' && <View style={styles.radioInner} />}
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+
+                            {/* Mystery */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.optionCard,
+                                    selected === 'mystery' && styles.optionCardMystery,
+                                ]}
+                                onPress={() => setSelected('mystery')}
+                                activeOpacity={0.85}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: selected === 'mystery' }}
+                                accessibilityLabel="Make it a mystery"
+                            >
+                                <View style={styles.optionRow}>
+                                    <View style={[
+                                        styles.optionIcon,
+                                        { backgroundColor: '#FEF3C7' },
+                                        selected === 'mystery' && styles.optionIconMystery,
+                                    ]}>
+                                        <Sparkles
+                                            color={selected === 'mystery' ? Colors.white : '#F59E0B'}
+                                            size={22}
+                                        />
+                                    </View>
+                                    <View style={styles.optionTextBlock}>
+                                        <Text style={[
+                                            styles.optionTitle,
+                                            selected === 'mystery' && styles.optionTitleMystery,
+                                        ]}>Make it a Mystery</Text>
+                                        <Text style={styles.optionDesc}>
+                                            AI hints reveal the gift gradually each session
+                                        </Text>
+                                    </View>
+                                    <View style={[
+                                        styles.radio,
+                                        selected === 'mystery' && styles.radioMystery,
+                                    ]}>
+                                        {selected === 'mystery' && <View style={styles.radioInnerMystery} />}
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
                         </View>
+
+                        {/* Mystery Explanation — animated panel */}
+                        <AnimatePresence>
+                            {selected === 'mystery' && (
+                                <MotiView
+                                    key="mystery-explainer"
+                                    from={{ opacity: 0, translateY: -20, scale: 0.95 }}
+                                    animate={{ opacity: 1, translateY: 0, scale: 1 }}
+                                    exit={{ opacity: 0, translateY: -20, scale: 0.95 }}
+                                    transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+                                    style={styles.explainerContainer}
+                                >
+                                    {/* Section title */}
+                                    <View style={styles.explainerHeader}>
+                                        <Sparkles color="#F59E0B" size={16} />
+                                        <Text style={styles.explainerTitle}>How Mystery Hints Work</Text>
+                                    </View>
+
+                                    <Text style={styles.explainerIntro}>
+                                        Before each session, {userName} receives an AI-generated hint
+                                        that gets progressively more revealing as they get closer to finishing.
+                                    </Text>
+
+                                    {/* Animated experience reveal */}
+                                    <View style={styles.revealDemo}>
+                                        <View style={styles.revealImageContainer}>
+                                            <Image
+                                                source={{ uri: experience.coverImageUrl }}
+                                                style={[
+                                                    styles.revealImage,
+                                                    { opacity: HINT_BANDS[activeHintStep].revealLevel },
+                                                ]}
+                                            />
+                                            <View style={[
+                                                styles.revealOverlay,
+                                                { opacity: 1 - HINT_BANDS[activeHintStep].revealLevel },
+                                            ]}>
+                                                <Text style={styles.revealQuestionMark}>?</Text>
+                                            </View>
+
+                                            {/* Reveal progress indicator */}
+                                            <View style={styles.revealProgressBar}>
+                                                <MotiView
+                                                    animate={{
+                                                        width: `${(activeHintStep + 1) * 25}%` as any,
+                                                    }}
+                                                    transition={{ type: 'spring', damping: 15, stiffness: 120 }}
+                                                    style={[
+                                                        styles.revealProgressFill,
+                                                        { backgroundColor: HINT_BANDS[activeHintStep].color },
+                                                    ]}
+                                                />
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.revealLabelRow}>
+                                            <Lock color={Colors.textMuted} size={12} />
+                                            <Text style={styles.revealLabel}>Hidden</Text>
+                                            <View style={{ flex: 1 }} />
+                                            <Text style={styles.revealLabel}>Revealed</Text>
+                                            <Unlock color={Colors.primary} size={12} />
+                                        </View>
+                                    </View>
+
+                                    {/* Example tag */}
+                                    <View style={styles.exampleTag}>
+                                        <Text style={styles.exampleTagText}>
+                                            Example: Gifting "Rock Climbing Adventure"
+                                        </Text>
+                                    </View>
+
+                                    {/* Timeline of hint stages */}
+                                    <View style={styles.timeline}>
+                                        {HINT_BANDS.map((band, i) => (
+                                            <MotiView
+                                                key={band.band}
+                                                from={{ opacity: 0, translateX: 20 }}
+                                                animate={{
+                                                    opacity: 1,
+                                                    translateX: 0,
+                                                    scale: activeHintStep === i ? 1.02 : 1,
+                                                }}
+                                                transition={{
+                                                    type: 'spring',
+                                                    damping: 18,
+                                                    stiffness: 180,
+                                                    delay: i * 100,
+                                                }}
+                                            >
+                                                <View style={[
+                                                    styles.timelineItem,
+                                                    activeHintStep === i && {
+                                                        backgroundColor: band.bgColor,
+                                                        borderColor: band.color,
+                                                        borderWidth: 1.5,
+                                                    },
+                                                ]}>
+                                                    {/* Timeline connector */}
+                                                    {i < HINT_BANDS.length - 1 && (
+                                                        <View style={[
+                                                            styles.timelineConnector,
+                                                            { backgroundColor: HINT_BANDS[i + 1].color + '30' },
+                                                        ]} />
+                                                    )}
+
+                                                    {/* Band indicator */}
+                                                    <View style={styles.timelineTop}>
+                                                        <View style={[
+                                                            styles.bandBadge,
+                                                            { backgroundColor: band.color + '18' },
+                                                        ]}>
+                                                            <View style={[
+                                                                styles.bandDot,
+                                                                { backgroundColor: band.color },
+                                                            ]} />
+                                                            <Text style={[
+                                                                styles.bandLabel,
+                                                                { color: band.color },
+                                                            ]}>
+                                                                {band.band}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={styles.sessionLabel}>
+                                                            {band.session}
+                                                        </Text>
+                                                    </View>
+
+                                                    {/* Hint bubble */}
+                                                    <View style={styles.hintBubble}>
+                                                        <MessageSquare
+                                                            color={band.color}
+                                                            size={14}
+                                                            style={{ marginTop: 2 }}
+                                                        />
+                                                        <Text style={styles.hintText}>
+                                                            {band.hint}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </MotiView>
+                                        ))}
+                                    </View>
+
+                                    {/* Footer note */}
+                                    <View style={styles.explainerFooter}>
+                                        <Sparkles color="#F59E0B" size={14} />
+                                        <Text style={styles.explainerFooterText}>
+                                            The mystery is revealed when {userName} completes the goal!
+                                        </Text>
+                                    </View>
+                                </MotiView>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Open gift explanation */}
+                        <AnimatePresence>
+                            {selected === 'open' && (
+                                <MotiView
+                                    key="open-explainer"
+                                    from={{ opacity: 0, translateY: -20, scale: 0.95 }}
+                                    animate={{ opacity: 1, translateY: 0, scale: 1 }}
+                                    exit={{ opacity: 0, translateY: -20, scale: 0.95 }}
+                                    transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+                                    style={styles.openExplainer}
+                                >
+                                    <Image
+                                        source={{ uri: experience.coverImageUrl }}
+                                        style={styles.openPreviewImage}
+                                    />
+                                    <View style={styles.openPreviewInfo}>
+                                        <Text style={styles.openPreviewTitle}>
+                                            {userName} will see:
+                                        </Text>
+                                        <Text style={styles.openPreviewName} numberOfLines={2}>
+                                            {experience.title}
+                                        </Text>
+                                        <Text style={styles.openPreviewSub}>
+                                            Full details visible from the start
+                                        </Text>
+                                    </View>
+                                </MotiView>
+                            )}
+                        </AnimatePresence>
+
+                        <View style={{ height: 120 }} />
+                    </ScrollView>
+
+                    {/* Footer CTA */}
+                    <View style={styles.footer}>
+                        <TouchableOpacity
+                            style={[styles.ctaButton, !selected && { opacity: 0.5 }]}
+                            onPress={handleContinue}
+                            activeOpacity={0.9}
+                            disabled={!selected}
+                            accessibilityRole="button"
+                            accessibilityLabel="Continue to checkout"
+                        >
+                            <LinearGradient
+                                colors={selected === 'mystery'
+                                    ? ['#F59E0B', '#D97706'] as [string, string]
+                                    : Colors.gradientDark
+                                }
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.ctaGradient}
+                            >
+                                <Text style={styles.ctaText}>
+                                    {selected === 'mystery' ? 'Continue with Mystery' : 'Continue'}
+                                </Text>
+                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                            </LinearGradient>
+                        </TouchableOpacity>
                     </View>
-
-                    <Text style={styles.optionDescription}>
-                        The experience stays hidden — AI hints guide them each session
-                    </Text>
-                </TouchableOpacity>
-
-                {/* How Hints Work */}
-                <TouchableOpacity
-                    style={styles.howItWorksToggle}
-                    onPress={() => setShowHowItWorks(!showHowItWorks)}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={showHowItWorks ? "Hide how mystery hints work" : "Show how mystery hints work"}
-                >
-                    <Sparkles color="#f59e0b" size={18} />
-                    <Text style={styles.howItWorksTitle}>How Mystery Hints Work</Text>
-                    {showHowItWorks ? (
-                        <ChevronUp color={Colors.textSecondary} size={18} />
-                    ) : (
-                        <ChevronDown color={Colors.textSecondary} size={18} />
-                    )}
-                </TouchableOpacity>
-
-                {showHowItWorks && (
-                    <View style={styles.howItWorksContent}>
-                        <Text style={styles.howItWorksText}>
-                            When you make a gift a mystery, {userName} won't know what it is.
-                            Instead, they'll receive a clever AI-generated hint before each session
-                            that gets more revealing as they progress:
-                        </Text>
-
-                        <View style={styles.exampleContainer}>
-                            <Text style={styles.exampleTitle}>
-                                Example: If you gift "Rock Climbing at Climb Dublin"
-                            </Text>
-
-                            <View style={styles.exampleHint}>
-                                <Text style={styles.exampleSession}>Session 2</Text>
-                                <Text style={styles.exampleText}>
-                                    "Think comfort and flexibility — you might be reaching for new heights..."
-                                </Text>
-                            </View>
-
-                            <View style={styles.exampleHint}>
-                                <Text style={styles.exampleSession}>Session 5</Text>
-                                <Text style={styles.exampleText}>
-                                    "Your reward involves a harness and some serious grip strength"
-                                </Text>
-                            </View>
-
-                            <View style={styles.exampleHint}>
-                                <Text style={styles.exampleSession}>Session 10</Text>
-                                <Text style={styles.exampleText}>
-                                    "You'll be scaling walls at a spot in Dublin city centre!"
-                                </Text>
-                            </View>
-                        </View>
-
-                        <Text style={styles.howItWorksFooter}>
-                            The mystery is revealed when they complete the challenge!
-                        </Text>
-                    </View>
-                )}
-            </ScrollView>
-        </MainScreen>
+                </View>
+            </MainScreen>
         </ErrorBoundary>
     );
 };
 
+// ─── Styles ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: Colors.surface,
     },
-    content: {
-        padding: 20,
-        paddingBottom: 40,
+
+    // Header (matches GoalSettingScreen)
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        backgroundColor: Colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.backgroundLight,
     },
-    heading: {
-        fontSize: 22,
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 18,
         fontWeight: '700',
         color: Colors.textPrimary,
+    },
+
+    // Scroll
+    scroll: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 24,
+        paddingBottom: 20,
+    },
+
+    // Step title (matches GoalSettingScreen)
+    stepTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: Colors.textPrimary,
+        marginBottom: 8,
+    },
+    stepSubtitle: {
+        fontSize: 15,
+        color: Colors.textSecondary,
+        lineHeight: 22,
         marginBottom: 20,
-        textAlign: 'center',
+    },
+
+    // Experience card
+    experienceCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.white,
+        borderRadius: 16,
+        padding: 12,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: Colors.backgroundLight,
+    },
+    experienceImage: {
+        width: 56,
+        height: 56,
+        borderRadius: 12,
+        backgroundColor: Colors.border,
+    },
+    experienceInfo: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    experienceTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.textPrimary,
+        lineHeight: 20,
+    },
+    experiencePrice: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: Colors.primary,
+        marginTop: 2,
+    },
+
+    // Option cards
+    optionsContainer: {
+        gap: 12,
+        marginBottom: 20,
     },
     optionCard: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         padding: 16,
-        marginBottom: 14,
         borderWidth: 2,
         borderColor: Colors.border,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+    },
+    optionCardSelected: {
+        borderColor: Colors.secondary,
+        backgroundColor: Colors.primarySurface,
     },
     optionCardMystery: {
-        borderColor: '#fde68a',
-        backgroundColor: '#fffbeb',
+        borderColor: '#F59E0B',
+        backgroundColor: '#FFFBEB',
     },
-    optionHeader: {
+    optionRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        marginBottom: 14,
     },
-    optionIconContainer: {
+    optionIcon: {
         width: 44,
         height: 44,
         borderRadius: 14,
@@ -271,149 +608,310 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    mysteryIconContainer: {
-        backgroundColor: '#fef3c7',
+    optionIconSelected: {
+        backgroundColor: Colors.secondary,
     },
-    optionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.textPrimary,
+    optionIconMystery: {
+        backgroundColor: '#F59E0B',
     },
-    experiencePreview: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        backgroundColor: Colors.surface,
-        padding: 10,
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    previewImage: {
-        width: 56,
-        height: 56,
-        borderRadius: 10,
-        backgroundColor: Colors.border,
-    },
-    previewInfo: {
+    optionTextBlock: {
         flex: 1,
     },
-    previewTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-    },
-    previewPrice: {
-        fontSize: 14,
+    optionTitle: {
+        fontSize: 16,
         fontWeight: '700',
-        color: Colors.primary,
-        marginTop: 2,
+        color: Colors.textPrimary,
+        marginBottom: 2,
     },
-    mysteryImageContainer: {
-        position: 'relative',
-        width: 56,
-        height: 56,
-        borderRadius: 10,
-        overflow: 'hidden',
+    optionTitleSelected: {
+        color: Colors.primaryDark,
     },
-    mysteryImageBlur: {
-        opacity: 0.3,
+    optionTitleMystery: {
+        color: '#92400E',
     },
-    mysteryOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    optionDesc: {
+        fontSize: 13,
+        color: Colors.textSecondary,
+        lineHeight: 18,
+    },
+
+    // Radio
+    radio: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: Colors.border,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(245,158,11,0.15)',
     },
-    mysteryOverlayText: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#f59e0b',
+    radioSelected: {
+        borderColor: Colors.secondary,
     },
-    mysterySubtext: {
-        fontSize: 12,
-        color: '#92400e',
-        marginTop: 2,
-        fontStyle: 'italic',
+    radioInner: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: Colors.secondary,
     },
-    optionDescription: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        lineHeight: 20,
+    radioMystery: {
+        borderColor: '#F59E0B',
     },
-    howItWorksToggle: {
+    radioInnerMystery: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#F59E0B',
+    },
+
+    // Mystery explainer
+    explainerContainer: {
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: Colors.backgroundLight,
+        marginBottom: 16,
+    },
+    explainerHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        backgroundColor: '#fffbeb',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#fde68a',
-        marginTop: 6,
-    },
-    howItWorksTitle: {
-        flex: 1,
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#92400e',
-    },
-    howItWorksContent: {
-        backgroundColor: '#fffbeb',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#fde68a',
-        borderTopWidth: 0,
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-        padding: 16,
-        marginTop: -1,
-    },
-    howItWorksText: {
-        fontSize: 14,
-        color: '#78350f',
-        lineHeight: 21,
-        marginBottom: 16,
-    },
-    exampleContainer: {
-        backgroundColor: 'rgba(255,255,255,0.6)',
-        borderRadius: 10,
-        padding: 14,
-        marginBottom: 14,
-    },
-    exampleTitle: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#92400e',
         marginBottom: 12,
     },
-    exampleHint: {
-        marginBottom: 10,
-        paddingLeft: 12,
-        borderLeftWidth: 2,
-        borderLeftColor: '#fbbf24',
+    explainerTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.textPrimary,
     },
-    exampleSession: {
+    explainerIntro: {
+        fontSize: 14,
+        color: Colors.textSecondary,
+        lineHeight: 21,
+        marginBottom: 20,
+    },
+
+    // Reveal demo
+    revealDemo: {
+        marginBottom: 20,
+    },
+    revealImageContainer: {
+        borderRadius: 14,
+        overflow: 'hidden',
+        height: 120,
+        backgroundColor: '#1F2937',
+        position: 'relative',
+    },
+    revealImage: {
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+    },
+    revealOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    revealQuestionMark: {
+        fontSize: 40,
+        fontWeight: '800',
+        color: 'rgba(255,255,255,0.3)',
+    },
+    revealProgressBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+    },
+    revealProgressFill: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    revealLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 8,
+        paddingHorizontal: 4,
+    },
+    revealLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.textMuted,
+    },
+
+    // Example tag
+    exampleTag: {
+        backgroundColor: '#FEF3C7',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 16,
+        alignSelf: 'flex-start',
+    },
+    exampleTagText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#b45309',
-        marginBottom: 2,
+        color: '#92400E',
     },
-    exampleText: {
+
+    // Timeline
+    timeline: {
+        gap: 10,
+        marginBottom: 16,
+    },
+    timelineItem: {
+        backgroundColor: Colors.surface,
+        borderRadius: 14,
+        padding: 14,
+        position: 'relative',
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    timelineConnector: {
+        position: 'absolute',
+        bottom: -10,
+        left: 24,
+        width: 2,
+        height: 10,
+        borderRadius: 1,
+    },
+    timelineTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    bandBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    bandDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+    },
+    bandLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    sessionLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.textMuted,
+    },
+    hintBubble: {
+        flexDirection: 'row',
+        gap: 8,
+        alignItems: 'flex-start',
+    },
+    hintText: {
+        flex: 1,
         fontSize: 13,
-        color: '#78350f',
+        color: Colors.textPrimary,
         lineHeight: 19,
         fontStyle: 'italic',
     },
-    howItWorksFooter: {
+
+    // Explainer footer
+    explainerFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#FFFBEB',
+        borderRadius: 12,
+        padding: 14,
+    },
+    explainerFooterText: {
+        flex: 1,
         fontSize: 14,
         fontWeight: '600',
-        color: '#92400e',
-        textAlign: 'center',
+        color: '#92400E',
+        lineHeight: 20,
+    },
+
+    // Open gift explainer
+    openExplainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primarySurface,
+        borderRadius: 16,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: Colors.primaryBorder,
+        marginBottom: 16,
+        gap: 14,
+    },
+    openPreviewImage: {
+        width: 64,
+        height: 64,
+        borderRadius: 12,
+        backgroundColor: Colors.border,
+    },
+    openPreviewInfo: {
+        flex: 1,
+    },
+    openPreviewTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.textSecondary,
+        marginBottom: 2,
+    },
+    openPreviewName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.primaryDeep,
+        lineHeight: 20,
+    },
+    openPreviewSub: {
+        fontSize: 12,
+        color: Colors.textMuted,
+        marginTop: 2,
+    },
+
+    // Footer CTA (matches GoalSettingScreen)
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 20,
+        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+        paddingTop: 16,
+        backgroundColor: Colors.white,
+        borderTopWidth: 1,
+        borderTopColor: Colors.backgroundLight,
+        shadowColor: Colors.black,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    ctaButton: {
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    ctaGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 16,
+        borderRadius: 16,
+    },
+    ctaText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.white,
     },
 });
 

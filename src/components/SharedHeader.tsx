@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Bell, ShoppingCart } from 'lucide-react-native';
+import { ChevronLeft, Bell, ShoppingCart, Bug } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { notificationService } from '../services/NotificationService';
+import { isTest } from '../config/environment';
+import { DateHelper } from '../utils/DateHelper';
 import type { RootStackParamList } from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -40,8 +42,9 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
 }) => {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute();
-    const { state } = useApp();
+    const { state, dispatch } = useApp();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [, setTick] = useState(0);
 
     // Auto-detect context from route name
     const routeName = route.name;
@@ -73,6 +76,23 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         );
         return unsubscribe;
     }, [state.user?.id, shouldShowNotifications]);
+
+    // Refresh time offset display every 1s when debug mode is active
+    useEffect(() => {
+        if (!isTest || !state.debugMode) return;
+        const interval = setInterval(() => setTick(t => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, [state.debugMode]);
+
+    const handleDebugToggle = () => {
+        dispatch({ type: 'TOGGLE_DEBUG_MODE' });
+    };
+
+    const timeOffset = DateHelper.getOffset();
+    const hasTimeOffset = timeOffset !== 0;
+    const simulatedTimeLabel = hasTimeOffset
+        ? DateHelper.now().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : null;
 
     const handleBackPress = () => {
         if (onBackPress) {
@@ -152,6 +172,28 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                         </View>
 
                         <View style={styles.headerButtons}>
+                            {isTest && (
+                                <View style={styles.debugToggleWrapper}>
+                                    <TouchableOpacity
+                                        onPress={handleDebugToggle}
+                                        style={[
+                                            styles.iconBackground,
+                                            state.debugMode && styles.debugActiveBackground,
+                                        ]}
+                                    >
+                                        <Bug
+                                            color={state.debugMode ? '#FFFFFF' : '#9CA3AF'}
+                                            size={20}
+                                            strokeWidth={2}
+                                        />
+                                    </TouchableOpacity>
+                                    {state.debugMode && hasTimeOffset && simulatedTimeLabel && (
+                                        <View style={styles.timeOffsetBadge}>
+                                            <Text style={styles.timeOffsetText}>{simulatedTimeLabel}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
                             {rightActions}
                             {shouldShowCart && (
                                 <ActionButton
@@ -276,6 +318,27 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 11,
         fontWeight: '800',
+    },
+    debugToggleWrapper: {
+        alignItems: 'center',
+    },
+    debugActiveBackground: {
+        backgroundColor: '#EF4444',
+    },
+    timeOffsetBadge: {
+        position: 'absolute',
+        top: 40,
+        backgroundColor: '#EF4444',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    timeOffsetText: {
+        color: '#FFFFFF',
+        fontSize: 9,
+        fontWeight: '700',
     },
 });
 

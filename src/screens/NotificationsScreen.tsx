@@ -29,6 +29,7 @@ import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
+import { Bell, Calendar, TrendingUp, Heart } from 'lucide-react-native';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -185,6 +186,28 @@ const NotificationsScreen = () => {
 
     if (n.type === 'post_reaction' && n.data?.postId) {
       navigation.navigate('Feed', { highlightPostId: n.data.postId });
+    }
+
+    if ((n.type === 'session_reminder' || n.type === 'weekly_recap') && n.data?.goalId) {
+      try {
+        const goal = await goalService.getGoalById(n.data.goalId);
+        if (goal) {
+          navigation.navigate('Journey', { goal });
+        }
+      } catch (error) {
+        logger.error('Error navigating from reminder notification:', error);
+      }
+    }
+
+    if (n.type === 'motivation_received' && n.data?.goalId) {
+      try {
+        const goal = await goalService.getGoalById(n.data.goalId);
+        if (goal) {
+          navigation.navigate('Journey', { goal });
+        }
+      } catch (error) {
+        logger.error('Error navigating from motivation notification:', error);
+      }
     }
 
     if (n.type === 'experience_empowered' && n.data?.goalId && n.data?.giftId) {
@@ -381,6 +404,118 @@ const NotificationsScreen = () => {
             }}
             accessibilityRole="button"
             accessibilityLabel="Clear this notification"
+          >
+            <Text style={styles.reactionClearText}>×</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle motivation received notifications
+    if (item.type === 'motivation_received') {
+      return (
+        <TouchableOpacity
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
+        >
+          <View style={styles.reminderCardContent}>
+            <View style={[styles.reminderIconContainer, { backgroundColor: '#fdf2f8' }]}>
+              {item.data?.senderProfileImageUrl ? (
+                <Image
+                  source={{ uri: item.data.senderProfileImageUrl }}
+                  style={styles.reminderIconImage}
+                />
+              ) : (
+                <Heart size={24} color="#ec4899" />
+              )}
+            </View>
+            <View style={styles.reminderTextContent}>
+              <View style={styles.reactionHeader}>
+                <Text style={styles.reminderTitle}>{item.title}</Text>
+                {!item.read && <View style={styles.reactionUnreadDot} />}
+              </View>
+              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.reactionClearButton}
+            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+          >
+            <Text style={styles.reactionClearText}>×</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle session reminder notifications
+    if (item.type === 'session_reminder') {
+      return (
+        <TouchableOpacity
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
+        >
+          <View style={styles.reminderCardContent}>
+            <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
+              <Bell size={24} color={Colors.primary} />
+            </View>
+            <View style={styles.reminderTextContent}>
+              <View style={styles.reactionHeader}>
+                <Text style={styles.reminderTitle}>{item.title}</Text>
+                {!item.read && <View style={styles.reactionUnreadDot} />}
+              </View>
+              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.reactionClearButton}
+            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+          >
+            <Text style={styles.reactionClearText}>×</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle weekly recap notifications
+    if (item.type === 'weekly_recap') {
+      const completed = item.data?.totalCompleted || 0;
+      const required = item.data?.totalRequired || 0;
+      const progressPercent = required > 0 ? Math.min(100, Math.round((completed / required) * 100)) : 0;
+
+      return (
+        <TouchableOpacity
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
+        >
+          <View style={styles.reminderCardContent}>
+            <View style={[styles.reminderIconContainer, { backgroundColor: '#f0fdf4' }]}>
+              <TrendingUp size={24} color={Colors.secondary} />
+            </View>
+            <View style={styles.reminderTextContent}>
+              <View style={styles.reactionHeader}>
+                <Text style={styles.reminderTitle}>{item.title || 'Weekly Recap'}</Text>
+                {!item.read && <View style={styles.reactionUnreadDot} />}
+              </View>
+              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+              {required > 0 && (
+                <View style={styles.recapProgressContainer}>
+                  <View style={styles.recapProgressBar}>
+                    <View style={[styles.recapProgressFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                  <Text style={styles.recapProgressText}>{completed}/{required} sessions</Text>
+                </View>
+              )}
+              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.reactionClearButton}
+            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
           >
             <Text style={styles.reactionClearText}>×</Text>
           </TouchableOpacity>
@@ -694,6 +829,80 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Reminder / Recap notification styles
+  reminderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  reminderCardUnread: {
+    shadowColor: Colors.secondary,
+    shadowOpacity: 0.15,
+    elevation: 4,
+  },
+  reminderCardContent: {
+    flexDirection: 'row' as const,
+    padding: 16,
+    gap: 14,
+    alignItems: 'flex-start' as const,
+  },
+  reminderIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    overflow: 'hidden' as const,
+  },
+  reminderIconImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  reminderTextContent: {
+    flex: 1,
+    gap: 4,
+  },
+  reminderTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  reminderMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  recapProgressContainer: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginTop: 4,
+  },
+  recapProgressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: 3,
+    overflow: 'hidden' as const,
+  },
+  recapProgressFill: {
+    height: '100%' as const,
+    backgroundColor: Colors.secondary,
+    borderRadius: 3,
+  },
+  recapProgressText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
   },
 });
 

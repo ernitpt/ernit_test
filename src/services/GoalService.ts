@@ -30,7 +30,12 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
 
 // ===== Helpers =====
-const isoDateOnly = (d: Date) => d.toISOString().slice(0, 10);
+const isoDateOnly = (d: Date) => {
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const dd = `${d.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
 const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
 
 function toJSDate(value: any): Date | null {
@@ -512,9 +517,8 @@ export class GoalService {
       // Advance to next week window
       anchor = addDaysSafe(anchor, 7);
 
-      // PENALTY: If week wasn't completed, deduct 1 session (min 0)
-      // If week was completed, reset to 0 for fresh start
-      g.weeklyCount = weekWasCompleted ? 0 : Math.max(0, g.weeklyCount - 1);
+      // Reset sessions for new week
+      g.weeklyCount = 0;
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
     }
@@ -577,7 +581,7 @@ export class GoalService {
             }
           }
           anchor = addDaysSafe(anchor, 7);
-          g.weeklyCount = weekWasCompleted ? 0 : Math.max(0, g.weeklyCount - 1);
+          g.weeklyCount = 0;
           g.weeklyLogDates = [];
           g.isWeekCompleted = false;
         }
@@ -593,7 +597,11 @@ export class GoalService {
 
       // Prevent extra sessions if week already completed
       if (g.weeklyCount >= g.sessionsPerWeek) {
-        throw new Error("Week already completed. Wait until next week to continue!");
+        // Calculate next week start for friendlier message
+        const nextWeekStart = new Date(g.weekStartAt!);
+        nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+        const nextWeekStr = nextWeekStart.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        throw new Error(`All sessions done this week! Your next week starts on ${nextWeekStr}.`);
       }
 
       // Add new session
@@ -639,6 +647,39 @@ export class GoalService {
 
     // If no increment happened (already logged today), return early
     if (!didIncrement) return { ...g };
+
+    // === Streak tracking (user-level, outside transaction) ===
+    try {
+      const userRef = doc(db, 'users', g.userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const todayIsoStreak = new Date().toISOString().split('T')[0];
+        const currentStreak = userData.sessionStreak || 0;
+        const longestStreak = userData.longestSessionStreak || 0;
+        const lastSessionDate = userData.lastSessionDate;
+
+        let newStreak: number;
+        if (lastSessionDate) {
+          const lastDate = new Date(lastSessionDate);
+          const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          // Reset streak if >7 days since last session (missed a full week)
+          newStreak = daysSince > 7 ? 1 : currentStreak + 1;
+        } else {
+          newStreak = 1; // First session ever
+        }
+
+        const newLongest = Math.max(longestStreak, newStreak);
+        await updateDoc(userRef, {
+          sessionStreak: newStreak,
+          longestSessionStreak: newLongest,
+          lastSessionDate: todayIsoStreak,
+        });
+        logger.log(`🔥 Streak updated for user ${g.userId}: ${newStreak} (longest: ${newLongest})`);
+      }
+    } catch (streakError) {
+      logger.error('Error updating session streak:', streakError);
+    }
 
     // Analytics (non-critical, outside transaction)
     analyticsService.trackEvent('session_logged', 'engagement', { goalId, weeklyCount: g.weeklyCount, sessionsPerWeek: g.sessionsPerWeek, currentCount: g.currentCount, targetCount: g.targetCount });
@@ -757,6 +798,11 @@ export class GoalService {
           weeklyCount: g.weeklyCount,
           sessionsPerWeek: g.sessionsPerWeek,
           isMystery: g.isMystery || false,
+          isFreeGoal: g.isFreeGoal || false,
+          pledgedExperienceId: g.pledgedExperience?.experienceId,
+          pledgedExperiencePrice: g.pledgedExperience?.price,
+          experienceTitle: g.pledgedExperience?.title,
+          experienceImageUrl: g.pledgedExperience?.coverImageUrl,
           createdAt: new Date(),
         });
       } catch (error) {
