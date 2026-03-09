@@ -375,6 +375,7 @@ const UserProfileScreen: React.FC = () => {
     description: '',
     profileImageUrl: '',
   });
+  const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
 
   const userId = state.user?.id || 'current_user';
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -486,12 +487,38 @@ const UserProfileScreen: React.FC = () => {
       description: userProfile?.description || state.user?.profile?.description || '',
       profileImageUrl: userProfile?.profileImageUrl || '',
     });
+    setFormErrors({});
     setIsEditModalVisible(true);
   };
 
+  const validateField = (field: 'name' | 'description', value: string) => {
+    if (field === 'name') {
+      if (!value.trim()) {
+        setFormErrors(prev => ({ ...prev, name: 'Name is required' }));
+      } else if (value.trim().length < 2) {
+        setFormErrors(prev => ({ ...prev, name: 'Name must be at least 2 characters' }));
+      } else {
+        setFormErrors(prev => ({ ...prev, name: undefined }));
+      }
+    }
+    if (field === 'description') {
+      if (value.length > 280) {
+        setFormErrors(prev => ({ ...prev, description: `${300 - value.length} characters remaining` }));
+      } else {
+        setFormErrors(prev => ({ ...prev, description: undefined }));
+      }
+    }
+  };
+
   const handleSaveProfile = async () => {
+    // Inline validation check
+    const nameVal = editFormData.name.trim();
+    if (!nameVal || nameVal.length < 2) {
+      setFormErrors(prev => ({ ...prev, name: nameVal ? 'Name must be at least 2 characters' : 'Name is required' }));
+      return;
+    }
     if (editFormData.description.length > 300) {
-      showError('Please keep under 300 characters.');
+      setFormErrors(prev => ({ ...prev, description: 'Please keep under 300 characters' }));
       return;
     }
 
@@ -790,14 +817,18 @@ const UserProfileScreen: React.FC = () => {
                     <View style={styles.inputSection}>
                       <Text style={styles.inputLabel}>Name</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[styles.textInput, formErrors.name ? { borderColor: '#ef4444', borderWidth: 1.5 } : {}]}
                         value={editFormData.name}
-                        onChangeText={(text) =>
-                          setEditFormData((prev) => ({ ...prev, name: text }))
-                        }
+                        onChangeText={(text) => {
+                          setEditFormData((prev) => ({ ...prev, name: text }));
+                          validateField('name', text);
+                        }}
                         placeholder="Enter your name"
                         maxLength={50}
                       />
+                      {formErrors.name && (
+                        <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>{formErrors.name}</Text>
+                      )}
                     </View>
 
                     <View style={styles.inputSection}>
@@ -805,17 +836,21 @@ const UserProfileScreen: React.FC = () => {
                         About You ({editFormData.description.length}/300)
                       </Text>
                       <TextInput
-                        style={[styles.textInput, styles.descriptionInput]}
+                        style={[styles.textInput, styles.descriptionInput, formErrors.description ? { borderColor: '#ef4444', borderWidth: 1.5 } : {}]}
                         value={editFormData.description}
-                        onChangeText={(text) =>
-                          setEditFormData((prev) => ({ ...prev, description: text }))
-                        }
+                        onChangeText={(text) => {
+                          setEditFormData((prev) => ({ ...prev, description: text }));
+                          validateField('description', text);
+                        }}
                         placeholder="Tell us about yourself..."
                         multiline
                         numberOfLines={6}
                         textAlignVertical="top"
                         maxLength={300}
                       />
+                      {formErrors.description && (
+                        <Text style={{ color: editFormData.description.length > 300 ? '#ef4444' : '#f59e0b', fontSize: 12, marginTop: 4 }}>{formErrors.description}</Text>
+                      )}
                     </View>
                   </ScrollView>
                 </KeyboardAvoidingView>

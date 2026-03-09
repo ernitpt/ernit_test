@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Goal } from '../types';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
@@ -90,7 +91,7 @@ const GoalDetailScreen: React.FC = () => {
       <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <View style={styles.loading}>
-          <Text style={{ color: Colors.textSecondary }}>Loading goal…</Text>
+          <GoalCardSkeleton />
         </View>
       </MainScreen>
       </ErrorBoundary>

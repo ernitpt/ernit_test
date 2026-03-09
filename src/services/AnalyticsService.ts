@@ -17,6 +17,7 @@ import type { AnalyticsEvent, AnalyticsEventCategory, AnalyticsEventName } from 
 
 const BUFFER_SIZE = 10;
 const FLUSH_INTERVAL_MS = 30_000;
+const MAX_EVENTS_PER_MINUTE = 60; // Client-side rate limit
 
 class AnalyticsService {
   private buffer: AnalyticsEvent[] = [];
@@ -24,6 +25,7 @@ class AnalyticsService {
   private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
   private userId: string | null = null;
   private sessionId: string;
+  private eventTimestamps: number[] = [];
 
   constructor() {
     this.sessionId = this.generateSessionId();
@@ -93,6 +95,14 @@ class AnalyticsService {
 
   // --- Private ---
 
+  private isEventRateLimited(): boolean {
+    const now = Date.now();
+    this.eventTimestamps = this.eventTimestamps.filter(t => now - t < 60_000);
+    if (this.eventTimestamps.length >= MAX_EVENTS_PER_MINUTE) return true;
+    this.eventTimestamps.push(now);
+    return false;
+  }
+
   private enqueue(partial: {
     eventName: AnalyticsEventName;
     category: AnalyticsEventCategory;
@@ -100,6 +110,7 @@ class AnalyticsService {
     screenName?: string;
   }) {
     try {
+      if (this.isEventRateLimited()) return;
       const event: AnalyticsEvent = {
         eventName: partial.eventName,
         category: partial.category,

@@ -4,6 +4,7 @@ import { db } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
+import { logger } from '../utils/logger';
 
 interface Props {
     children: ReactNode;
@@ -38,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
         };
 
         // Also log to console for development
-        console.error('🔴 ErrorBoundary caught:', error.message, errorInfo);
+        logger.error('🔴 ErrorBoundary caught:', error.message, errorInfo);
 
         // Track in analytics
         analyticsService.trackEvent('error_boundary_triggered', 'error', {
@@ -52,9 +53,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 ...errorData,
                 timestamp: new Date(),
             });
-            console.log('✅ Error logged to Firestore');
+            logger.log('✅ Error logged to Firestore');
         } catch (firestoreError) {
-            console.error('⚠️ Failed to log to Firestore (likely security rules):', firestoreError);
+            logger.error('⚠️ Failed to log to Firestore (likely security rules):', firestoreError);
 
             // Fallback: Save to localStorage so it can be retrieved later
             try {
@@ -63,12 +64,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 // Keep only last 10 errors
                 const trimmed = existingErrors.slice(-10);
                 localStorage.setItem('ernit_error_log', JSON.stringify(trimmed));
-                console.log('✅ Error saved to localStorage instead');
-                console.log('📋 Error details:', JSON.stringify(errorData, null, 2));
+                logger.log('✅ Error saved to localStorage instead');
+                logger.log('📋 Error details:', JSON.stringify(errorData, null, 2));
             } catch (localError) {
                 // Last resort: just log to console
-                console.error('❌ Could not save error anywhere:', localError);
-                console.error('📋 Error details:', JSON.stringify(errorData, null, 2));
+                logger.error('❌ Could not save error anywhere:', localError);
+                logger.error('📋 Error details:', JSON.stringify(errorData, null, 2));
             }
         }
     }

@@ -1,6 +1,7 @@
 // Google Analytics 4 - Web Only
 import { Platform } from 'react-native';
 import ReactGA from 'react-ga4';
+import { logger } from './logger';
 
 const GA_MEASUREMENT_ID = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID || '';
 
@@ -16,9 +17,9 @@ export const initializeAnalytics = () => {
                     anonymizeIp: true, // Privacy-friendly
                 },
             });
-            console.log('✅ Google Analytics initialized');
+            logger.log('✅ Google Analytics initialized');
         } catch (error) {
-            console.error('Failed to initialize Google Analytics:', error);
+            logger.error('Failed to initialize Google Analytics:', error);
         }
     }
 };

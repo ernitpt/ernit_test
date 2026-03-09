@@ -72,7 +72,13 @@ export class UserService {
       wishlist: Array.isArray(data.wishlist) ? data.wishlist : [],
 
       // 🔥 ensure cart is always an array of CartItem
-      cart: Array.isArray(data.cart) ? (data.cart as CartItem[]) : [],
+      cart: Array.isArray(data.cart)
+        ? data.cart.filter((item: unknown): item is CartItem =>
+            item != null &&
+            typeof item === 'object' &&
+            typeof (item as CartItem).experienceId === 'string' &&
+            typeof (item as CartItem).quantity === 'number')
+        : [],
 
       profile: data.profile
         ? {

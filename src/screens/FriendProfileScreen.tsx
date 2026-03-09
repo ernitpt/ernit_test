@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  ActivityIndicator,
   Animated,
   Platform,
   Modal,
@@ -500,7 +499,7 @@ const FriendProfileScreen: React.FC = () => {
   const renderData = () => {
     if (isLoading)
       return (
-        <ActivityIndicator size="large" color={Colors.secondary} style={{ marginTop: 20 }} />
+        <ProfileSkeleton />
       );
 
     const data =

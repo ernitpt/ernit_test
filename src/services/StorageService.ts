@@ -2,6 +2,7 @@
 import { app } from './firebase';
 
 import { logger } from '../utils/logger';
+import { compressImageBlob } from '../utils/imageCompression';
 
 // ✅ SECURITY: File validation constants
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -81,7 +82,10 @@ class StorageService {
     async uploadImage(uri: string, userId: string): Promise<string> {
         try {
             const response = await fetch(uri);
-            const blob = await response.blob();
+            let blob = await response.blob();
+
+            // Compress before validation (may reduce size below limit)
+            blob = await compressImageBlob(blob);
 
             // ✅ SECURITY: Validate image file
             this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
@@ -125,7 +129,8 @@ class StorageService {
     async uploadMotivationImage(uri: string, userId: string): Promise<string> {
         try {
             const response = await fetch(uri);
-            const blob = await response.blob();
+            let blob = await response.blob();
+            blob = await compressImageBlob(blob);
             this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
             const filename = `image_${Date.now()}.jpg`;
             const path = `motivations/${userId}/images/${filename}`;
@@ -150,11 +155,12 @@ class StorageService {
     ): Promise<string> {
         try {
             const response = await fetch(uri);
-            const blob = await response.blob();
+            let blob = await response.blob();
 
             if (mediaType === 'video') {
                 this.validateFile(blob, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video' as 'image');
             } else {
+                blob = await compressImageBlob(blob);
                 this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
             }
 

@@ -6,6 +6,7 @@ import {
   HINT_CATEGORIES,
   HintCategory
 } from './hintCategories';
+import { allowedOrigins } from "./cors";
 
 type HintStyle = "neutral" | "personalized" | "motivational";
 
@@ -368,14 +369,7 @@ Output: Plain text only. No quotes, tags, or formatting.`,
 export const aiGenerateHint = onCall(
   {
     region: "europe-west1",
-    cors: [
-      "http://localhost:8081",
-      "http://localhost:3000",
-      "https://ernit-nine.vercel.app",
-      "https://ernit981723498127658912765187923546.vercel.app",
-      "https://ernit.app",
-      "https://ernit.xyz",
-    ],
+    cors: allowedOrigins,
     secrets: [
       OPENROUTER_KEY,
       OPENROUTER_MODEL,

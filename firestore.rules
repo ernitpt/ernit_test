@@ -436,13 +436,20 @@ service cloud.firestore {
         // Status must start as pending
         && request.resource.data.status == 'pending';
 
-      // Allow update: sender or recipient can update the request
+      // Allow update: restrict fields per role
+      // Sender can only cancel; recipient can only accept/reject
       allow update: if request.auth != null &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['senderId', 'recipientId', 'createdAt']) &&
         (
-          request.auth.uid == resource.data.senderId ||
-          request.auth.uid == resource.data.recipientId ||
-          request.auth.uid == request.resource.data.senderId ||
-          request.auth.uid == request.resource.data.recipientId
+          // Sender: can only cancel
+          (request.auth.uid == resource.data.senderId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+           request.resource.data.status in ['cancelled'])
+          ||
+          // Recipient: can accept or reject
+          (request.auth.uid == resource.data.recipientId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+           request.resource.data.status in ['accepted', 'rejected'])
         );
 
       // Allow delete: sender or recipient can delete the request
@@ -566,11 +573,15 @@ service cloud.firestore {
          ))
         ||
         // Goal-related notifications: must have relationship to goal
+        // SECURITY: Verify sender is either the goal owner or the goal's giver (empoweredBy)
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request',
                                          'goal_change_suggested', 'goal_approval_response',
                                          'personalized_hint_left'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
-         'goalId' in request.resource.data.data)
+         'goalId' in request.resource.data.data &&
+         exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
+         (get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.empoweredBy == request.auth.uid))
         ||
         // Post reactions: allow if post exists (posts are public to authenticated users)
         (request.resource.data.type == 'post_reaction' &&
@@ -643,11 +654,13 @@ service cloud.firestore {
             || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
       }
 
-      // Read: Allow all authenticated users to read posts
-      // (Required because feed queries fetch globally and filter client-side)
+      // SECURITY DECISION (2026-03-09): Posts are readable by any authenticated user.
+      // This is intentional — Firestore rules evaluate per-document, so areFriends()
+      // checks on list queries would cause N×2 exists() calls (prohibitively expensive).
+      // Privacy is enforced client-side via friend-list filtering.
+      // Posts contain only goal progress data (no sensitive PII beyond display name).
+      // If stricter privacy is needed, migrate to per-user feed subcollections (fan-out).
       allow read: if request.auth != null;
-
-      // List: Allow all authenticated users to list posts
       allow list: if request.auth != null;
 
       // Create: users can create their own posts OR givers can create goal_approved posts for recipients

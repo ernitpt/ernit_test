@@ -2,6 +2,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
+import { allowedOrigins } from "./cors";
 
 const ALLOWED_MIME_TYPES = ['jpeg', 'jpg', 'png', 'webp'];
 
@@ -16,15 +17,7 @@ function sanitizePath(str: string): string {
 export const updateExperience = onCall(
     {
         region: "europe-west1",
-        cors: [
-            "http://localhost:8081",
-            "http://localhost:3000",
-            "https://ernit-nine.vercel.app",
-            "https://ernit981723498127658912765187923546.vercel.app",
-            "https://ernit.app",
-            "https://ernit.xyz", // Partner app production domain
-            "https://ernitpartner.vercel.app", // Partner app domain
-        ],
+        cors: allowedOrigins,
     },
     async (request) => {
         console.log("🚀 updateExperience called");

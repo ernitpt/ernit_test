@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -8,7 +8,7 @@ import {
     Animated,
     Modal,
 } from 'react-native';
-import { MessageCircle, Send, X, Trophy, Gift } from 'lucide-react-native';
+import { MessageCircle, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -18,6 +18,9 @@ import CommentModal from './CommentModal';
 import ReactionViewerModal from './ReactionViewerModal';
 import MotivationModal from './MotivationModal';
 import EmpowerChoiceModal from './EmpowerChoiceModal';
+import FeedPostHeader from './feed/FeedPostHeader';
+import FeedPostContent from './feed/FeedPostContent';
+import FeedPostEmpowerActions from './feed/FeedPostEmpowerActions';
 import { reactionService } from '../services/ReactionService';
 import { commentService } from '../services/CommentService';
 import { useApp } from '../context/AppContext';
@@ -131,7 +134,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
     };
 
-    const loadComments = async () => {
+    const loadComments = useCallback(async () => {
         try {
             const loadedComments = await commentService.getComments(post.id, 3);
             setComments(loadedComments);
@@ -144,14 +147,14 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 additionalData: { postId: post.id },
             });
         }
-    };
+    }, [post.id, state.user?.id]);
 
-    const handleCommentsChange = async (newCount?: number) => {
+    const handleCommentsChange = useCallback(async (newCount?: number) => {
         await loadComments();
         if (newCount !== undefined) {
             setCommentCount(newCount);
         }
-    };
+    }, [loadComments]);
 
     const handleReact = async (type: ReactionType) => {
         if (!state.user?.id) return;
@@ -203,7 +206,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         });
     };
 
-    const handleEmpower = () => {
+    const handleEmpower = useCallback(() => {
         if (!post.pledgedExperienceId && !post.preferredRewardCategory) {
             // No pledged experience and no category — go straight to browse
             setEmpowerContext();
@@ -218,7 +221,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
         // Has pledged experience — show choice modal
         setShowEmpowerModal(true);
-    };
+    }, [post.pledgedExperienceId, post.preferredRewardCategory, navigation, setEmpowerContext]);
 
     // get third word from goal description
     const getActivityType = (text: string) => {
@@ -227,7 +230,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         return words[2] || words[words.length - 1]; // fallback if fewer than 3 words
     };
 
-    const getPostTypeInfo = () => {
+    const getPostTypeInfo = useCallback(() => {
         switch (post.type) {
             case 'goal_started':
                 return {
@@ -270,7 +273,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     color: Colors.textSecondary,
                 };
         }
-    };
+    }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle]);
 
     const handleUserPress = () => {
         if (post.userId === state.user?.id) {
@@ -344,153 +347,20 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 </TouchableOpacity>
             )}
 
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={handleUserPress}
-                    style={styles.clickableHeader}
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${post.userName}'s profile`}
-                >
-                    {post.userProfileImageUrl ? (
-                        <Image
-                            source={{ uri: post.userProfileImageUrl }}
-                            style={styles.avatar}
-                            accessibilityLabel={`${post.userName}'s profile picture`}
-                        />
-                    ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Text style={styles.avatarText}>
-                                {post.userName?.[0]?.toUpperCase() || 'U'}
-                            </Text>
-                        </View>
-                    )}
+            <FeedPostHeader
+                userName={post.userName}
+                userProfileImageUrl={post.userProfileImageUrl}
+                typeInfoText={typeInfo.text}
+                timeAgo={timeAgo}
+                onUserPress={handleUserPress}
+            />
 
-                    <View style={styles.headerInfo}>
-                        <Text style={styles.userName}>
-                            <Text style={{ fontWeight: '500' }}>{post.userName}</Text> {typeInfo.text}
-                        </Text>
-                        <Text style={styles.timeAgo}>{timeAgo}</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.content}>
-                {post.type === 'session_progress' && post.sessionNumber && post.totalSessions && (
-                    <>
-                        <View style={styles.progressBlock}>
-                            <View style={styles.progressHeader}>
-                                <Text style={styles.progressLabel}>Sessions this week</Text>
-                                <Text style={styles.progressText}>
-                                    {post.weeklyCount || 0}/{post.sessionsPerWeek || 1}
-                                </Text>
-                            </View>
-                            <View style={styles.capsuleRow}>
-                                {Array.from({ length: post.sessionsPerWeek || 1 }, (_, i) => (
-                                    <View
-                                        key={i}
-                                        style={[
-                                            styles.capsule,
-                                            i < (post.weeklyCount || 0)
-                                                ? { backgroundColor: Colors.primary }
-                                                : { backgroundColor: Colors.border },
-                                        ]}
-                                    />
-                                ))}
-                            </View>
-                        </View>
-
-                        <View style={styles.progressBlock}>
-                            <View style={styles.progressHeader}>
-                                <Text style={styles.progressLabel}>Weeks completed</Text>
-                                <Text style={styles.progressText}>
-                                    {Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))}/{Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1))}
-                                </Text>
-                            </View>
-                            <View style={styles.capsuleRow}>
-                                {Array.from({ length: Math.min(Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1)), 20) }, (_, i) => (
-                                    <View
-                                        key={i}
-                                        style={[
-                                            styles.capsule,
-                                            i < Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))
-                                                ? { backgroundColor: Colors.secondary }
-                                                : { backgroundColor: Colors.border },
-                                        ]}
-                                    />
-                                ))}
-                            </View>
-                        </View>
-                    </>
-                )}
-                {post.type === 'goal_completed' && post.experienceTitle && !(post.isFreeGoal && !post.experienceGiftId) ? (
-                    <View style={styles.experienceSection}>
-                        {post.isMystery ? (
-                            <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: '#fef3c7' }]}>
-                                <Text style={styles.experienceImagePlaceholderText}>?</Text>
-                            </View>
-                        ) : post.experienceImageUrl ? (
-                            <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} />
-                        ) : (
-                            <View style={[styles.experienceImage, styles.experienceImagePlaceholder]}>
-                                <Text style={styles.experienceImagePlaceholderText}>🎁</Text>
-                            </View>
-                        )}
-                        <View style={styles.experienceContent}>
-                            <Text style={styles.experienceTitle} numberOfLines={1}>
-                                {post.isMystery ? 'Mystery Experience' : post.experienceTitle}
-                            </Text>
-                            {!post.isMystery && post.partnerName && (
-                                <Text style={styles.partnerName} numberOfLines={1}>
-                                    {post.partnerName}
-                                </Text>
-                            )}
-                            <Text style={styles.goalDescriptionText} numberOfLines={2}>
-                                Goal: {post.goalDescription}
-                            </Text>
-                            {post.totalSessions && post.sessionsPerWeek && (
-                                <Text style={styles.experienceMeta}>
-                                    {post.totalSessions} sessions • {Math.floor(post.totalSessions / post.sessionsPerWeek)} weeks
-                                </Text>
-                            )}
-                        </View>
-                    </View>
-                ) : post.type === 'goal_completed' && !post.experienceTitle ? (
-                    <View style={styles.achievementCard}>
-                        <View style={styles.achievementIconRow}>
-                            <View style={styles.achievementIcon}>
-                                <Trophy size={18} color={Colors.primary} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.achievementGoal} numberOfLines={2}>{post.goalDescription}</Text>
-                                {post.totalSessions && post.sessionsPerWeek && (
-                                    <Text style={styles.achievementStats}>
-                                        {post.totalSessions} sessions • {Math.floor(post.totalSessions / post.sessionsPerWeek)} weeks
-                                    </Text>
-                                )}
-                            </View>
-                        </View>
-                        {post.userId !== state.user?.id && !post.isFreeGoal && (
-                            <TouchableOpacity
-                                style={styles.congratsGiftButton}
-                                onPress={() => {
-                                    setEmpowerContext();
-                                    navigation.navigate('CategorySelection');
-                                }}
-                                activeOpacity={0.8}
-                            >
-                                <Gift size={15} color="#fff" />
-                                <Text style={styles.congratsGiftText}>Gift an Experience</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                ) : post.type !== 'session_progress' ? (
-                    <View>
-                        <Text style={styles.activityText}>
-                            <Text style={styles.progressLabel}>{post.goalDescription}</Text>
-                        </Text>
-                    </View>
-                ) : null}
-            </View>
+            <FeedPostContent
+                post={post}
+                currentUserId={state.user?.id}
+                onEmpowerContext={setEmpowerContext}
+                onNavigate={(screen, params) => navigation.navigate(screen as any, params)}
+            />
 
             <View style={styles.interactionRow}>
                 <CompactReactionBar
@@ -514,90 +384,13 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 </TouchableOpacity>
             </View>
 
-            {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
-            {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
-            {post.isFreeGoal && post.pledgedExperienceId && post.userId !== state.user?.id &&
-                (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.experienceTitle && !post.isMystery && (
-                    <TouchableOpacity style={styles.experiencePreviewCard} onPress={handleEmpower} activeOpacity={0.85}>
-                        {post.experienceImageUrl && (
-                            <Image
-                                source={{ uri: post.experienceImageUrl }}
-                                style={styles.experiencePreviewImage}
-                                accessibilityLabel={`${post.experienceTitle} experience`}
-                            />
-                        )}
-                        <View style={styles.experiencePreviewInfo}>
-                            <Text style={styles.experiencePreviewTitle} numberOfLines={1}>{post.experienceTitle}</Text>
-                            {post.pledgedExperiencePrice && (
-                                <Text style={styles.experiencePreviewPrice}>{'\u20AC'}{post.pledgedExperiencePrice}</Text>
-                            )}
-                        </View>
-                        <View style={styles.experiencePreviewCta}>
-                            <Text style={styles.experiencePreviewCtaText}>Gift</Text>
-                        </View>
-                    </TouchableOpacity>
-                )}
-
-            {/* Free Goal: Category Hint Card (no pledged experience, but has category preference) */}
-            {post.isFreeGoal && !post.pledgedExperienceId && post.preferredRewardCategory &&
-                post.userId !== state.user?.id &&
-                (post.type === 'session_progress' || post.type === 'goal_completed') && (
-                <TouchableOpacity style={styles.categoryHintCard} onPress={handleEmpower} activeOpacity={0.85}>
-                    <Text style={styles.categoryHintEmoji}>
-                        {post.preferredRewardCategory === 'adventure' ? '🏔️' : post.preferredRewardCategory === 'wellness' ? '🧘' : '🎨'}
-                    </Text>
-                    <View style={styles.categoryHintInfo}>
-                        <Text style={styles.categoryHintText}>
-                            Loves {post.preferredRewardCategory.charAt(0).toUpperCase() + post.preferredRewardCategory.slice(1)} experiences
-                        </Text>
-                    </View>
-                    <View style={styles.experiencePreviewCta}>
-                        <Text style={styles.experiencePreviewCtaText}>Gift</Text>
-                    </View>
-                </TouchableOpacity>
-            )}
-
-            {/* Free Goal: Empower Button */}
-            {post.isFreeGoal && post.userId !== state.user?.id && (post.pledgedExperienceId || post.preferredRewardCategory) && !(
-                (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.experienceTitle && !post.isMystery
-            ) && !(
-                (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.preferredRewardCategory && !post.pledgedExperienceId
-            ) && (
-                <View style={styles.freeGoalActions}>
-                    <TouchableOpacity
-                        style={styles.empowerButton}
-                        onPress={handleEmpower}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Empower ${post.userName} with this experience`}
-                    >
-                        <Image
-                            source={require('../assets/favicon.png')}
-                            style={styles.empowerButtonLogo}
-                        />
-                        <Text style={styles.empowerButtonText}>Empower</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {/* Motivate Button — all goals (only latest session, not completed) */}
-            {canMotivate && (
-                <View style={styles.motivateActions}>
-                    <TouchableOpacity
-                        style={styles.motivateButton}
-                        onPress={() => setShowMotivationModal(true)}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Send motivation message to ${post.userName}`}
-                    >
-                        <Send color={Colors.secondary} size={16} />
-                        <Text style={styles.motivateButtonText}>Motivate</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            <FeedPostEmpowerActions
+                post={post}
+                currentUserId={state.user?.id}
+                canMotivate={canMotivate}
+                onEmpower={handleEmpower}
+                onMotivate={() => setShowMotivationModal(true)}
+            />
 
             {comments.length > 0 && (
                 <>
@@ -690,89 +483,6 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primarySurface,
         shadowOpacity: 0.15,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 14,
-        paddingBottom: 10,
-    },
-    avatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-    },
-    avatarPlaceholder: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Colors.primarySurface,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: Colors.primary,
-    },
-    headerInfo: {
-        marginLeft: 10,
-        flex: 1,
-    },
-    userName: {
-        fontSize: 14,
-        color: Colors.textPrimary,
-        marginBottom: 1,
-    },
-    timeAgo: {
-        fontSize: 12,
-        color: Colors.textMuted,
-    },
-    content: {
-        paddingHorizontal: 16,
-        marginBottom: 10,
-    },
-    activityText: {
-        fontSize: 15,
-        lineHeight: 22,
-        color: '#374151',
-    },
-    separator: {
-        color: '#d1d5db',
-        fontWeight: '400',
-    },
-    goalTitle: {
-        fontWeight: '500',
-        color: '#354668ff',
-    },
-    progressBlock: {
-        marginBottom: 12,
-    },
-    progressHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    progressLabel: {
-        fontSize: 13,
-        color: Colors.textSecondary,
-        fontWeight: '500',
-    },
-    progressText: {
-        fontSize: 13,
-        color: Colors.textPrimary,
-        fontWeight: '600',
-    },
-    capsuleRow: {
-        flexDirection: 'row',
-        gap: 6,
-    },
-    capsule: {
-        flex: 1,
-        height: 8,
-        borderRadius: 50,
-    },
     interactionRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -800,222 +510,6 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.border,
         marginVertical: 8,
         marginHorizontal: 16,
-    },
-    clickableHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    experienceSection: {
-        borderRadius: 12,
-        overflow: 'hidden',
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: Colors.border,
-        marginTop: 8,
-    },
-    experienceImage: {
-        width: '100%',
-        height: 140,
-        backgroundColor: Colors.border,
-    },
-    experienceImagePlaceholder: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    experienceImagePlaceholderText: {
-        fontSize: 40,
-        opacity: 0.5,
-    },
-    experienceContent: {
-        padding: 12,
-    },
-    experienceTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: 4,
-    },
-    partnerName: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        marginBottom: 4,
-    },
-    goalDescriptionText: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        marginBottom: 6,
-    },
-    experienceMeta: {
-        fontSize: 13,
-        color: Colors.textMuted,
-    },
-    // Completed goal without experience
-    achievementCard: {
-        backgroundColor: Colors.primarySurface,
-        borderRadius: 12,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: Colors.primaryBorder,
-    },
-    achievementIconRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    achievementIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Colors.primaryTint,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    achievementGoal: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-        lineHeight: 20,
-    },
-    achievementStats: {
-        fontSize: 12,
-        color: Colors.textMuted,
-        marginTop: 2,
-    },
-    congratsGiftButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        backgroundColor: Colors.secondary,
-        paddingVertical: 10,
-        borderRadius: 10,
-        marginTop: 12,
-    },
-    congratsGiftText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    // Free Goal Action Buttons
-    freeGoalActions: {
-        flexDirection: 'row',
-        gap: 8,
-        paddingHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 10,
-    },
-    motivateActions: {
-        paddingHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 10,
-    },
-    empowerButtonLogo: {
-        width: 18,
-        height: 18,
-        borderRadius: 4,
-    },
-    empowerButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        paddingVertical: 10,
-        borderRadius: 12,
-        backgroundColor: Colors.primarySurface,
-        borderWidth: 1,
-        borderColor: Colors.primaryTint,
-    },
-    empowerButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.primary,
-    },
-    motivateButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        paddingVertical: 10,
-        borderRadius: 12,
-        backgroundColor: Colors.primarySurface,
-        borderWidth: 1,
-        borderColor: Colors.primaryTint,
-    },
-    motivateButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.secondary,
-    },
-    experiencePreviewCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.primarySurface,
-        borderRadius: 12,
-        padding: 10,
-        marginHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: Colors.primaryTint,
-    },
-    experiencePreviewImage: {
-        width: 44,
-        height: 44,
-        borderRadius: 8,
-        backgroundColor: Colors.border,
-    },
-    experiencePreviewInfo: {
-        flex: 1,
-        marginLeft: 10,
-    },
-    experiencePreviewTitle: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#1F2937',
-    },
-    experiencePreviewPrice: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: Colors.primary,
-        marginTop: 2,
-    },
-    experiencePreviewCta: {
-        backgroundColor: Colors.primary,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-    },
-    experiencePreviewCtaText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    categoryHintCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        padding: 12,
-        marginHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    categoryHintEmoji: {
-        fontSize: 24,
-        marginRight: 10,
-    },
-    categoryHintInfo: {
-        flex: 1,
-    },
-    categoryHintText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#374151',
     },
     // Session media (top of card)
     sessionMediaContainer: {
@@ -1064,4 +558,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default FeedPost;
+export default React.memo(FeedPost);

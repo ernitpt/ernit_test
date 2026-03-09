@@ -1,16 +1,10 @@
 import { onCall } from "firebase-functions/v2/https";
+import { allowedOrigins } from "./cors";
 
 export const searchUsers = onCall(
   {
     region: "europe-west1",
-    cors: [
-      "http://localhost:8081",
-      "http://localhost:3000",
-      "https://ernit-nine.vercel.app",
-      "https://ernit981723498127658912765187923546.vercel.app",
-      "https://ernit.app",
-      "https://ernit.xyz",
-    ],
+    cors: allowedOrigins,
   },
   async (requestData) => {
     console.log("🔍 searchUsers called");

@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
+import { allowedOrigins } from "./cors";
 
 // Define secrets for email credentials
 const EMAIL_USER = defineSecret('EMAIL_USER');
@@ -26,13 +27,7 @@ interface ContactSubmission {
 export const sendContactEmail = onCall(
     {
         region: 'europe-west1',
-        cors: [
-            'http://localhost:8081',
-            'http://localhost:3000',
-            'https://ernit-nine.vercel.app',
-            'https://ernit.app',
-            'https://ernit.xyz',
-        ],
+        cors: allowedOrigins,
         secrets: [EMAIL_USER, EMAIL_PASS],
     },
     async (request) => {

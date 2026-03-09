@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform, Image } from
 import { Share, X } from 'lucide-react-native';
 import Colors from '../config/colors';
 import { useApp } from '../context/AppContext';
+import { logger } from '../utils/logger';
 
 const ErnitLogo = require('../assets/favicon.png');
 
@@ -42,7 +43,7 @@ export const PWAInstaller: React.FC = () => {
             // App was uninstalled! Clear the dismissal flag so prompt can reappear
             localStorage.removeItem('pwa-install-dismissed-until');
             localStorage.removeItem('pwa-was-installed');
-            console.log('PWA uninstalled detected - clearing dismissal flag');
+            logger.log('PWA uninstalled detected - clearing dismissal flag');
         }
 
         // Update current installation state
@@ -99,7 +100,7 @@ export const PWAInstaller: React.FC = () => {
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
-            console.log('User accepted the install prompt');
+            logger.log('User accepted the install prompt');
             // Track that app is now installed
             localStorage.setItem('pwa-was-installed', 'true');
         }

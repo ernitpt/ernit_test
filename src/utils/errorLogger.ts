@@ -3,6 +3,21 @@ import { db, auth } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { logger } from './logger';
 
+// Client-side rate limiting: max 10 error logs per minute
+const ERROR_RATE_LIMIT = 10;
+const ERROR_RATE_WINDOW_MS = 60_000;
+let errorTimestamps: number[] = [];
+
+function isRateLimited(): boolean {
+  const now = Date.now();
+  errorTimestamps = errorTimestamps.filter(t => now - t < ERROR_RATE_WINDOW_MS);
+  if (errorTimestamps.length >= ERROR_RATE_LIMIT) {
+    return true;
+  }
+  errorTimestamps.push(now);
+  return false;
+}
+
 export interface ErrorLogData {
     message: string;
     stack?: string;
@@ -43,6 +58,12 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
 
     // Log to console for development
     logger.error(`🔴 [${errorData.context}] Error:`, errorMessage);
+
+    // Client-side rate limit to prevent Firestore spam
+    if (isRateLimited()) {
+        logger.warn('⚠️ Error logging rate limited — skipping Firestore write');
+        return;
+    }
 
     // Try Firestore first
     try {

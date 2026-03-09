@@ -11,6 +11,7 @@ import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFunctions } from 'firebase/functions';
 import { config } from '../config/environment';
+import { logger } from '../utils/logger';
 
 
 // ✅ Prevent re-init on hot reload
@@ -38,8 +39,8 @@ const db = config.isProduction
   : getFirestore(app, 'ernitclone2');  // test database
 
 // Debug logging to verify database connection
-console.log(`🔥 Firebase Database: ${config.isProduction ? 'DEFAULT (Production)' : 'ernitclone2 (Test)'}`);
-console.log(`🔥 Environment Config: isProduction=${config.isProduction}, name=${config.name}`);
+logger.log(`🔥 Firebase Database: ${config.isProduction ? 'DEFAULT (Production)' : 'ernitclone2 (Test)'}`);
+logger.log(`🔥 Environment Config: isProduction=${config.isProduction}, name=${config.name}`);
 
 const storage = getStorage(app);
 

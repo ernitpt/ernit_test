@@ -136,29 +136,15 @@ export interface ExperienceGift {
   updatedAt?: Date;
 }
 
-export interface Goal {
+/** Core goal identity and description */
+export interface GoalCore {
   id: string;
   userId: string;
   experienceGiftId: string;
   title: string;
   description: string;
-  isWeekCompleted?: boolean;
-  /** Overall (weeks) */
-  targetCount: number;          // total weeks to complete
-  currentCount: number;         // weeks completed so far
-
-  /** Per-week sessions */
-  sessionsPerWeek: number;      // required sessions per anchored week
-  weeklyCount: number;          // sessions logged in the current anchored week
-  weeklyLogDates: string[];     // ISO "YYYY-MM-DD" strings for the current week's sessions
-
-  /** Weekly cadence */
-  frequency: 'daily' | 'weekly' | 'monthly'; // keep as-is; we use 'weekly'
-  weekStartAt?: Date | null;   // anchor day for the recurring weekly window (set on first session)
-  plannedStartDate?: Date | null;  // when user intends to start (for accountability/reminders)
-
-  /** Misc / existing fields */
-  duration: number;            // in days
+  frequency: 'daily' | 'weekly' | 'monthly';
+  duration: number;
   startDate: Date;
   endDate: Date;
   isActive: boolean;
@@ -167,38 +153,55 @@ export interface Goal {
   location?: string;
   targetHours: number;
   targetMinutes: number;
-  suggestedTargetCount?: number; // Giver's suggested weeks
-  suggestedSessionsPerWeek?: number; // Giver's suggested sessions per week
+  empoweredBy?: string;
+  isMystery?: boolean;
+  couponCode?: string;
+  couponGeneratedAt?: Date;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+/** Weekly session tracking fields */
+export interface GoalWeeklyTracking {
+  targetCount: number;
+  currentCount: number;
+  sessionsPerWeek: number;
+  weeklyCount: number;
+  weeklyLogDates: string[];
+  isWeekCompleted?: boolean;
+  weekStartAt?: Date | null;
+  plannedStartDate?: Date | null;
+}
+
+/** Giver approval workflow fields */
+export interface GoalApproval {
   approvalStatus?: 'pending' | 'approved' | 'rejected' | 'suggested_change';
-  initialTargetCount?: number;      // Original target count before any changes
-  initialSessionsPerWeek?: number;  // Original sessions per week before any changes
+  suggestedTargetCount?: number;
+  suggestedSessionsPerWeek?: number;
+  initialTargetCount?: number;
+  initialSessionsPerWeek?: number;
   approvalRequestedAt?: Date | null;
   approvalDeadline?: Date | null;
   giverMessage?: string | null;
   receiverMessage?: string | null;
-  giverActionTaken?: boolean; // Ensure giver can only act once
-  couponCode?: string;              // Generated coupon code for completed goals
-  couponGeneratedAt?: Date;         // When the coupon was generated
-  empoweredBy?: string; // ID of the giver who empowered this goal
-  isMystery?: boolean;                // Gift is a mystery — details hidden, AI hints generated
-  personalizedNextHint?: PersonalizedHint | null;
-  hints?: (PersonalizedHint | { id?: string; session: number; hint?: string; date: number; text?: string; audioUrl?: string; imageUrl?: string; giverName?: string; createdAt?: Date; type?: PersonalizedHint['type']; duration?: number })[];
-  createdAt: Date;                  // When the goal was created
+  giverActionTaken?: boolean;
+}
 
-  // Valentine-specific fields (optional for backward compatibility)
+/** Valentine challenge fields */
+export interface GoalValentine {
   valentineChallengeId?: string;
   partnerGoalId?: string;
   isLeader?: boolean;
   canProgress?: boolean;
+  isFinished?: boolean;
+  finishedAt?: Date;
+  isUnlocked?: boolean;
+  unlockedAt?: Date;
+  unlockShown?: boolean;
+}
 
-  // Valentine's completion synchronization
-  isFinished?: boolean;           // User completed all sessions (locked state)
-  finishedAt?: Date;              // When user finished their goal
-  isUnlocked?: boolean;           // Both partners finished, can access reward
-  unlockedAt?: Date;              // When both partners finished
-  unlockShown?: boolean;          // Unlock celebration modal has been shown
-
-  // Free Goal ("The Pledge") fields
+/** Free Goal ("The Pledge") fields */
+export interface GoalFreeGoal {
   isFreeGoal?: boolean;
   pledgedExperience?: {
     experienceId: string;
@@ -212,14 +215,10 @@ export interface Goal {
     partnerId: string;
     location?: string;
   };
-  preferredRewardCategory?: ExperienceCategory; // Set when user skips experience selection
+  preferredRewardCategory?: ExperienceCategory;
   pledgedAt?: Date;
   giftAttachedAt?: Date;
-  giftAttachDeadline?: Date;       // 30 days post-completion window
-  completedAt?: Date;              // When the goal was completed
-  // Inactivity nudge tracking (used by cloud functions)
-  lastNudgeSentAt?: Date | null;
-  lastNudgeLevel?: number;         // 0=none, 1=day2, 2=day4, 3=day7+
+  giftAttachDeadline?: Date;
 }
 
 export interface PersonalizedHint {
@@ -232,6 +231,17 @@ export interface PersonalizedHint {
   createdAt: Date;
   forSessionNumber: number;
 }
+
+/** Hint and nudge tracking */
+export interface GoalHints {
+  personalizedNextHint?: PersonalizedHint | null;
+  hints?: (PersonalizedHint | { id?: string; session: number; hint?: string; date: number; text?: string; audioUrl?: string; imageUrl?: string; giverName?: string; createdAt?: Date; type?: PersonalizedHint['type']; duration?: number })[];
+  lastNudgeSentAt?: Date | null;
+  lastNudgeLevel?: number;
+}
+
+/** Full Goal type — intersection of all sub-types (backward-compatible) */
+export type Goal = GoalCore & GoalWeeklyTracking & GoalApproval & GoalValentine & GoalFreeGoal & GoalHints;
 
 // Helper function to detect if a goal is self-gifted
 export function isSelfGifted(goal: Goal): boolean {

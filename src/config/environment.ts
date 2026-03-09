@@ -1,13 +1,15 @@
 /**
  * Environment Configuration
- * 
+ *
  * Switch between test/production by changing EXPO_PUBLIC_APP_ENV
- * 
+ *
  * What changes:
  * - Function names: stripeCreatePaymentIntent_Test → stripeCreatePaymentIntent
  * - Debug: true → false
  * - Firestore: uses default database in production
  */
+
+import { logger } from '../utils/logger';
 
 type Environment = 'test' | 'production';
 
@@ -69,5 +71,5 @@ export const isTest = !config.isProduction;
 
 // Log environment on startup (test only)
 if (!config.isProduction) {
-    console.log(`🔧 Environment: ${config.name.toUpperCase()}`);
+    logger.log(`🔧 Environment: ${config.name.toUpperCase()}`);
 }

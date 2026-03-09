@@ -33,4 +33,4 @@ export const isDevelopment = typeof __DEV__ !== 'undefined'
 export const isProduction = !isDevelopment;
 
 // Debug log to help troubleshoot Vercel deployment
-console.log(`🔧 firebaseConfig: __DEV__=${typeof __DEV__ !== 'undefined' ? __DEV__ : 'undefined'}, EXPO_PUBLIC_APP_ENV=${process.env.EXPO_PUBLIC_APP_ENV}, isDevelopment=${isDevelopment}`);
+logger.log(`🔧 firebaseConfig: __DEV__=${typeof __DEV__ !== 'undefined' ? __DEV__ : 'undefined'}, EXPO_PUBLIC_APP_ENV=${process.env.EXPO_PUBLIC_APP_ENV}, isDevelopment=${isDevelopment}`);

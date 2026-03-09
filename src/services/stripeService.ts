@@ -4,6 +4,7 @@ import { auth } from './firebase';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { withRetry } from '../utils/retry';
 
 // Use environment-based URL and function names
 const STRIPE_FUNCTIONS_URL = config.functionsUrl;
@@ -34,28 +35,30 @@ export const stripeService = {
 
       const idToken = await currentUser.getIdToken();
 
-      const response = await fetch(`${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.createPaymentIntent}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          amount,
-          giverId,
-          giverName: giverName || "",
-          partnerId: partnerId || "",
-          cart: cartItems,
-          personalizedMessage: personalizedMessage || "",
-        }),
+      const data = await withRetry(async () => {
+        const response = await fetch(`${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.createPaymentIntent}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            amount,
+            giverId,
+            giverName: giverName || "",
+            partnerId: partnerId || "",
+            cart: cartItems,
+            personalizedMessage: personalizedMessage || "",
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        return await response.json();
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
 
       // Extract payment intent ID from client secret
       // Format: pi_xxxxx_secret_yyyyy
@@ -139,24 +142,28 @@ export const stripeService = {
 
       const idToken = await currentUser.getIdToken();
 
-      const response = await fetch(
-        `${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.getGiftsByPaymentIntent}?paymentIntentId=${paymentIntentId}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${idToken}`,
-          },
+      const gift = await withRetry(async () => {
+        const response = await fetch(
+          `${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.getGiftsByPaymentIntent}?paymentIntentId=${paymentIntentId}`,
+          {
+            headers: {
+              "Authorization": `Bearer ${idToken}`,
+            },
+          }
+        );
+
+        if (response.status === 404) {
+          return null;
         }
-      );
 
-      if (response.status === 404) {
-        return null;
-      }
+        if (!response.ok) {
+          throw new Error("Failed to fetch gift");
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch gift");
-      }
+        return await response.json();
+      });
 
-      const gift = await response.json();
+      if (!gift) return null;
 
       // Convert date strings to Date objects
       return {
