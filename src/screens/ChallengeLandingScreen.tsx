@@ -66,6 +66,13 @@ export default function ChallengeLandingScreen() {
     const isLoggedIn = !!state.user?.id;
     const [wordIndex, setWordIndex] = useState(0);
 
+    // Redirect authenticated users to Goals
+    useEffect(() => {
+        if (isLoggedIn) {
+            navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+        }
+    }, [isLoggedIn, navigation]);
+
     // Cycle the rotating word every 3 seconds
     useEffect(() => {
         const interval = setInterval(() => {

@@ -93,6 +93,13 @@ export const deleteExperience = onCall(
                     }
 
                     const storagePath = decodeURIComponent(matches[1]);
+
+                    // Path traversal check
+                    if (storagePath.includes('..') || !storagePath.startsWith('experiences/')) {
+                        console.warn(`Skipping suspicious path: ${storagePath}`);
+                        continue;
+                    }
+
                     console.log(`🗑️ Deleting image ${i + 1}/${imageUrls.length}: ${storagePath}`);
 
                     // Delete file from Storage

@@ -3,6 +3,12 @@ import { onCall } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 
+const ALLOWED_MIME_TYPES = ['jpeg', 'jpg', 'png', 'webp'];
+
+function sanitizePath(str: string): string {
+  return str.replace(/[^a-zA-Z0-9\-_ ]/g, '_').substring(0, 50);
+}
+
 /**
  * Admin-only Cloud Function to update experiences
  * Validates admin status, handles image uploads/deletes, and updates Firestore document
@@ -65,6 +71,17 @@ export const updateExperience = onCall(
             throw new Error("experienceId is required");
         }
 
+        // ✅ VALIDATION: Array length limits
+        if (newImages && newImages.length > 10) {
+            throw new Error("Maximum 10 new images allowed");
+        }
+        if (deleteImageUrls && deleteImageUrls.length > 50) {
+            throw new Error("Maximum 50 images can be deleted at once");
+        }
+        if (imageOrder && imageOrder.length > 50) {
+            throw new Error("Maximum 50 images in order array");
+        }
+
         // ✅ VALIDATION: Verify experience exists
         const experienceRef = db.collection("experiences").doc(experienceId);
         const experienceSnap = await experienceRef.get();
@@ -77,9 +94,24 @@ export const updateExperience = onCall(
         const currentExperience = experienceSnap.data();
         console.log(`📦 Updating experience: ${currentExperience?.title}`);
 
+        const uploadedUrls: string[] = [];
+
         try {
             // ✅ VALIDATE FIELDS (if provided)
             if (fields) {
+                if ('title' in fields && (typeof fields.title !== 'string' || fields.title.length > 200)) {
+                    throw new Error("Title must be a string under 200 characters");
+                }
+                if ('subtitle' in fields && (typeof fields.subtitle !== 'string' || fields.subtitle.length > 300)) {
+                    throw new Error("Subtitle must be a string under 300 characters");
+                }
+                if ('description' in fields && (typeof fields.description !== 'string' || fields.description.length > 5000)) {
+                    throw new Error("Description must be a string under 5000 characters");
+                }
+                if ('status' in fields && !['published', 'draft'].includes(fields.status)) {
+                    throw new Error("Status must be 'published' or 'draft'");
+                }
+
                 // Validate category if being updated
                 if (fields.category) {
                     const validCategories = ["adventure", "creative", "wellness"];
@@ -124,6 +156,13 @@ export const updateExperience = onCall(
                         }
 
                         const filePath = imageUrl.substring(prefix.length);
+
+                        // Path traversal check
+                        if (filePath.includes('..') || !filePath.startsWith('experiences/')) {
+                            console.warn(`Skipping suspicious path: ${filePath}`);
+                            continue;
+                        }
+
                         const file = bucket.file(filePath);
 
                         // Check if file exists before deleting
@@ -164,7 +203,11 @@ export const updateExperience = onCall(
                         throw new Error(`Invalid base64 image at index ${i}`);
                     }
 
-                    const mimeType = matches[1];
+                    const mimeType = matches[1].toLowerCase();
+                    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+                        throw new Error(`Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+                    }
+
                     const base64Data = matches[2];
                     const buffer = Buffer.from(base64Data, "base64");
 
@@ -177,8 +220,9 @@ export const updateExperience = onCall(
                     // Generate unique filename
                     const timestamp = Date.now();
                     const randomId = Math.random().toString(36).substring(7);
-                    const titleSlug = titleForPath.replace(/\s+/g, "_").toLowerCase();
-                    const filename = `experiences/${categoryForPath}/${titleSlug}/${timestamp}_${i}_${randomId}.${mimeType}`;
+                    const titleSlug = sanitizePath(titleForPath);
+                    const categorySlug = sanitizePath(categoryForPath);
+                    const filename = `experiences/${categorySlug}/${titleSlug}/${timestamp}_${i}_${randomId}.${mimeType}`;
 
                     // Upload to Storage
                     const file = bucket.file(filename);
@@ -199,6 +243,7 @@ export const updateExperience = onCall(
                     // Get public URL
                     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
                     newImageUrls.push(publicUrl);
+                    uploadedUrls.push(publicUrl);
 
                     console.log(`✅ Uploaded image ${i + 1}/${newImages.length}: ${publicUrl}`);
                 }
@@ -242,6 +287,26 @@ export const updateExperience = onCall(
             };
         } catch (error: any) {
             console.error("❌ Error updating experience:", error);
+
+            // Cleanup uploaded images on failure
+            if (uploadedUrls.length > 0) {
+                console.log(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
+                const bucket = getStorage().bucket();
+                for (const url of uploadedUrls) {
+                    try {
+                        const bucketName = bucket.name;
+                        const prefix = `https://storage.googleapis.com/${bucketName}/`;
+                        if (url.startsWith(prefix)) {
+                            const filePath = url.substring(prefix.length);
+                            await bucket.file(filePath).delete();
+                            console.log(`✅ Cleaned up: ${filePath}`);
+                        }
+                    } catch (cleanupError: any) {
+                        console.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                    }
+                }
+            }
+
             throw new Error(`Failed to update experience: ${error.message}`);
         }
     }

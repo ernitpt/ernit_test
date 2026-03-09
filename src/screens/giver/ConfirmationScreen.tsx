@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { Copy, CheckCircle, Gift, ArrowRight } from 'lucide-react-native';
-import { GiverStackParamList, ExperienceGift } from '../../types';
+import { ExperienceGift } from '../../types';
+import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
@@ -30,13 +30,9 @@ import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLo
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
 
-type ConfirmationNavigationProp = NativeStackNavigationProp<
-  GiverStackParamList,
-  'Confirmation'
->;
-
 const ConfirmationScreen = () => {
-  const navigation = useNavigation<ConfirmationNavigationProp>();
+  const navigation = useGiverNavigation();
+  const rootNavigation = useRootNavigation();
   const route = useRoute();
   const { state, dispatch } = useApp();
   const { showSuccess, showError } = useToast();
@@ -474,9 +470,9 @@ Earn it. Unlock it. Enjoy it 🚀
           style={styles.homeButton}
           onPress={() => {
             if (isEmpower) {
-              navigation.reset({ index: 0, routes: [{ name: 'Feed' as any }] });
+              rootNavigation.reset({ index: 0, routes: [{ name: 'Feed' }] });
             } else if (goalId) {
-              navigation.reset({ index: 0, routes: [{ name: 'Goals' as any }] });
+              rootNavigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
             } else {
               handleBackToHome();
             }

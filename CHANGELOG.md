@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - unified active goal layout into single card with dividers
 - unified JourneyScreen active goal into one card, removed orange StreakBanner from GoalsScreen
 - rewrite AchievementDetailScreen - unified vertical layout with inline sessions/hints, no celebratory hero, matches JourneyScreen completed-goal design
+- fix N+1 queries in Partner App dashboard pages
+- harden cloud functions - path traversal, MIME whitelist, field validation, array limits, cleanup on failure
+- fix N+1 query in partners page, parallelize coupon fetches in coupons and analytics
+- harden app for production — delete debug tools, validate Firestore error writes, add security headers, strengthen Cloud Functions input validation
+- replace dangerous any types with proper TypeScript types — ChallengeSetupPrefill, Goal hints, GoalService casts
+- store AnalyticsService AppState listener subscription for proper cleanup
+- update firebase 12.10, stripe-js 8.9, react-stripe 5.6; fix npm audit vulnerabilities
+- eliminated 32 navigation as-any casts with CompositeNavigationProp typed hooks
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -67,6 +75,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - skip 60-second session cooldown in debug mode for faster testing
 - replace broken time picker with custom popbox — two-column hour+minute selector
 - restore create partner and invite management to partners page
+- redirect authenticated users away from landing pages
+- replace mock types with real imports in CategorySelectionScreen
+- add draft filter and order sort to ChallengeSetupScreen, JourneyDemo, JourneyScreen
+- prevent duplicate category seeding with deterministic doc IDs
+- AdminInviteManager copy link URL format mismatch
+- replace alert() with toast in CreatePartner, add drag optimization to ImageManager
+- added comprehensive input validation to 4 Cloud Functions (sendContactEmail, aiGenerateHint, updatePaymentIntentMetadata, getGiftsByPaymentIntent)
+- removed all high-priority 'any' type issues - added ChallengeSetupPrefill interface, fixed route params, removed unnecessary type casts
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -126,3 +142,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add coupon owner name column to admin coupons dashboard
 - add drag-and-drop experience reordering within categories
 - main app respects experience order and draft status from admin panel
+- added offline detection with toast notifications via @react-native-community/netinfo

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,12 +6,21 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types'; // Ensure this path is correct
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useApp } from '../context/AppContext';
 import Colors from '../config/colors';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const LandingScreen = () => {
   const navigation = useNavigation<LandingScreenNavigationProp>();
+  const { state } = useApp();
+
+  // Redirect authenticated users to Goals
+  useEffect(() => {
+    if (state.user?.id) {
+      navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+    }
+  }, [state.user?.id, navigation]);
 
   const handleSignIn = () => {
     navigation.navigate('Auth', { mode: 'signin' });

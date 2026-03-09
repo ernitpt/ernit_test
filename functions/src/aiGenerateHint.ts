@@ -485,6 +485,29 @@ export const aiGenerateHint = onCall(
       throw new Error("Missing required fields.");
     }
 
+    // Input length and range validation
+    if (typeof experienceType !== 'string' || experienceType.length > 200) {
+        throw new Error('experienceType must be a string under 200 characters');
+    }
+    if (experienceDescription && (typeof experienceDescription !== 'string' || experienceDescription.length > 2000)) {
+        throw new Error('experienceDescription must be under 2000 characters');
+    }
+    if (userName && (typeof userName !== 'string' || userName.length > 100)) {
+        throw new Error('userName must be under 100 characters');
+    }
+    if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 1000) {
+        throw new Error('sessionNumber must be between 1 and 1000');
+    }
+    if (!Number.isInteger(totalSessions) || totalSessions < 1 || totalSessions > 1000) {
+        throw new Error('totalSessions must be between 1 and 1000');
+    }
+    if (previousHints && (!Array.isArray(previousHints) || previousHints.length > 100)) {
+        throw new Error('previousHints must be an array with max 100 items');
+    }
+    if (previousCategories && (!Array.isArray(previousCategories) || previousCategories.length > 100)) {
+        throw new Error('previousCategories must be an array with max 100 items');
+    }
+
     // NEW: Select category for this hint
     const assignedCategory = selectHintCategory(sessionNumber, previousCategories);
     const categoryDef = HINT_CATEGORIES[assignedCategory];

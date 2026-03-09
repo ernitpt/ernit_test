@@ -11,13 +11,12 @@ import {
 } from 'react-native';
 import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MotiView } from 'moti';
 import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Goal, RootStackParamList } from '../types';
+import { Goal } from '../types';
+import { useRootNavigation } from '../types/navigation';
 import { goalService } from '../services/GoalService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
@@ -36,11 +35,9 @@ import ErrorRetry from '../components/ErrorRetry';
 
 
 
-type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Goals'>;
-
 const GoalsScreen: React.FC = () => {
   const { state, dispatch } = useApp();
-  const navigation = useNavigation<GoalsScreenNavigationProp>();
+  const navigation = useRootNavigation();
   const { showError } = useToast();
   const userId = state.user?.id || 'current_user';
 
@@ -248,7 +245,7 @@ const GoalsScreen: React.FC = () => {
             <TouchableOpacity
               style={styles.emptyCTA}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('ChallengeSetup' as any)}
+              onPress={() => navigation.navigate('ChallengeSetup')}
               accessibilityRole="button"
               accessibilityLabel="Create your first goal"
             >
@@ -271,7 +268,7 @@ const GoalsScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.noActiveCTA}
                   activeOpacity={0.85}
-                  onPress={() => navigation.navigate('ChallengeSetup' as any)}
+                  onPress={() => navigation.navigate('ChallengeSetup')}
                 >
                   <Text style={styles.noActiveCTAText}>Start a New Challenge</Text>
                 </TouchableOpacity>
@@ -338,7 +335,7 @@ const GoalsScreen: React.FC = () => {
               activeOpacity={0.85}
               onPress={() => {
                 toggleFabMenu();
-                navigation.navigate('ChallengeSetup' as any);
+                navigation.navigate('ChallengeSetup');
               }}
               accessibilityRole="button"
               accessibilityLabel="Create new goal"

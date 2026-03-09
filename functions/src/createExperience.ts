@@ -3,7 +3,13 @@ import { onCall } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 
-/** 
+const ALLOWED_MIME_TYPES = ['jpeg', 'jpg', 'png', 'webp'];
+
+function sanitizePath(str: string): string {
+  return str.replace(/[^a-zA-Z0-9\-_ ]/g, '_').substring(0, 50);
+}
+
+/**
  * Admin-only Cloud Function to create experiences
  * Validates admin status, uploads images to Storage, and creates Firestore document
  */
@@ -96,6 +102,8 @@ export const createExperience = onCall(
 
         console.log(`📦 Creating experience: ${title} (${category})`);
 
+        const uploadedUrls: string[] = [];
+
         try {
             // ✅ UPLOAD IMAGES to Firebase Storage
             const bucket = getStorage().bucket();
@@ -115,7 +123,11 @@ export const createExperience = onCall(
                     throw new Error(`Invalid base64 image at index ${i}`);
                 }
 
-                const mimeType = matches[1];
+                const mimeType = matches[1].toLowerCase();
+                if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+                    throw new Error(`Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+                }
+
                 const base64Data = matches[2];
                 const buffer = Buffer.from(base64Data, "base64");
 
@@ -128,7 +140,9 @@ export const createExperience = onCall(
                 // Generate unique filename
                 const timestamp = Date.now();
                 const randomId = Math.random().toString(36).substring(7);
-                const filename = `experiences/${category}/${title.replace(/\s+/g, "_").toLowerCase()}/${timestamp}_${i}_${randomId}.${mimeType}`;
+                const titleSlug = sanitizePath(title);
+                const categorySlug = sanitizePath(category);
+                const filename = `experiences/${categorySlug}/${titleSlug}/${timestamp}_${i}_${randomId}.${mimeType}`;
 
                 // Upload to Storage
                 const file = bucket.file(filename);
@@ -148,6 +162,7 @@ export const createExperience = onCall(
                 // Get public URL
                 const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
                 imageUrls.push(publicUrl);
+                uploadedUrls.push(publicUrl);
 
                 console.log(`✅ Uploaded image ${i + 1}/${images.length}: ${publicUrl}`);
             }
@@ -179,6 +194,26 @@ export const createExperience = onCall(
             };
         } catch (error: any) {
             console.error("❌ Error creating experience:", error);
+
+            // Cleanup uploaded images on failure
+            if (uploadedUrls.length > 0) {
+                console.log(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
+                const bucket = getStorage().bucket();
+                for (const url of uploadedUrls) {
+                    try {
+                        const bucketName = bucket.name;
+                        const prefix = `https://storage.googleapis.com/${bucketName}/`;
+                        if (url.startsWith(prefix)) {
+                            const filePath = url.substring(prefix.length);
+                            await bucket.file(filePath).delete();
+                            console.log(`✅ Cleaned up: ${filePath}`);
+                        }
+                    } catch (cleanupError: any) {
+                        console.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                    }
+                }
+            }
+
             throw new Error(`Failed to create experience: ${error.message}`);
         }
     }

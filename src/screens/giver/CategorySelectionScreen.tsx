@@ -17,8 +17,7 @@ import {
   LayoutAnimation,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
@@ -30,34 +29,15 @@ import { MotiView } from 'moti';
 import { ExperienceCardSkeleton } from '../../components/SkeletonLoader';
 import { useApp } from '../../context/AppContext';
 import { cartService } from '../../services/CartService';
-import { RootStackParamList } from '../../types';
+import { Experience, ExperienceCategory } from '../../types';
+import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import SharedHeader from '../../components/SharedHeader';
 import { logger } from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
 
-// Mocking types for the example
-type ExperienceCategory = 'adventure' | 'wellness' | 'food-culture' | 'entertainment';
-type Experience = {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  coverImageUrl: string;
-  category: ExperienceCategory;
-  price: number;
-};
-type GiverStackParamList = {
-  CategorySelection: undefined;
-  ExperienceDetails: { experience: Experience };
-  ExperienceCheckout: { experience?: Experience; cartItems?: any[] };
-};
-// End of mock types
-
 type Category = { id: ExperienceCategory; title: string; experiences: Experience[] };
-type GiverNavigationProp = NativeStackNavigationProp<GiverStackParamList, 'CategorySelection'>;
-type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ExperienceCard = ({
   experience,
@@ -163,8 +143,8 @@ const CategoryCarousel = ({
 
 const CategorySelectionScreen = () => {
   logger.log('[CategorySelectionScreen] Rendering...');
-  const navigation = useNavigation<GiverNavigationProp>();
-  const rootNavigation = useNavigation<RootNavigationProp>();
+  const navigation = useGiverNavigation();
+  const rootNavigation = useRootNavigation();
   const route = useRoute();
   const routeParams = route.params as { prefilterCategory?: string } | undefined;
   const { state, dispatch } = useApp();
@@ -226,11 +206,11 @@ const CategorySelectionScreen = () => {
   }, []);
 
   const handleCartPress = () => {
-    navigation.navigate('Cart' as any);
+    navigation.navigate('Cart');
   };
 
   const handleSignInPress = () => {
-    rootNavigation.navigate('Auth' as any);
+    rootNavigation.navigate('Auth', { mode: 'signin' });
   };
 
   // Load experiences from Firestore

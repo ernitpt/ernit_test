@@ -5,6 +5,7 @@ import FooterNavigation from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
 import LoginPrompt from '../components/LoginPrompt';
 import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 type MainScreenProps = {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ type MainScreenProps = {
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  useNetworkStatus();
 
   const handleMenuPress = () => setSideMenuVisible(true);
   const handleCloseSideMenu = () => setSideMenuVisible(false);

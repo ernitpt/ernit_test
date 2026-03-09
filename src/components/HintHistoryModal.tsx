@@ -54,7 +54,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
         });
     };
 
-    const renderHint = (hint: PersonalizedHint | { session: number; hint: string; date: number }, index: number) => {
+    const renderHint = (hint: NonNullable<Goal['hints']>[number], index: number) => {
         //Handle both hint types
         const isPersonalizedHint = 'type' in hint;
 

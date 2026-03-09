@@ -755,7 +755,30 @@ service cloud.firestore {
      * ===================== **/
     match /errors/{errorId} {
       // Anyone can create (ErrorBoundary may fire before auth)
-      allow create: if true;
+      // SECURITY: Validate structure and enforce size limits to prevent DoS
+      allow create: if
+        request.resource.data.keys().hasAll(['message', 'timestamp']) &&
+        request.resource.data.keys().hasOnly([
+          'message', 'stack', 'context', 'screenName',
+          'userId', 'timestamp', 'userAgent', 'additionalData'
+        ]) &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() <= 1000 &&
+        (!('stack' in request.resource.data) || (
+          request.resource.data.stack is string &&
+          request.resource.data.stack.size() <= 2000)) &&
+        (!('context' in request.resource.data) || (
+          request.resource.data.context is string &&
+          request.resource.data.context.size() <= 200)) &&
+        (!('screenName' in request.resource.data) || (
+          request.resource.data.screenName is string &&
+          request.resource.data.screenName.size() <= 100)) &&
+        (!('userId' in request.resource.data) || (
+          request.resource.data.userId is string &&
+          request.resource.data.userId.size() <= 128)) &&
+        (!('userAgent' in request.resource.data) || (
+          request.resource.data.userAgent is string &&
+          request.resource.data.userAgent.size() <= 500));
       allow read, update, delete: if false;
     }
 

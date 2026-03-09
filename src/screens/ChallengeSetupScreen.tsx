@@ -16,15 +16,15 @@ import {
     Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { RootStackParamList, Experience, Goal, ExperienceCategory } from '../types';
+import { Experience, Goal, ExperienceCategory, ChallengeSetupPrefill } from '../types';
+import { useRootNavigation } from '../types/navigation';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { goalService } from '../services/GoalService';
@@ -136,12 +136,10 @@ const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSt
     );
 };
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChallengeSetup'>;
-
 export default function ChallengeSetupScreen() {
-    const navigation = useNavigation<NavigationProp>();
+    const navigation = useRootNavigation();
     const route = useRoute();
-    const routeParams = route.params as { prefill?: any } | undefined;
+    const routeParams = route.params as { prefill?: ChallengeSetupPrefill } | undefined;
     const { state, dispatch } = useApp();
     const { showError } = useToast();
 
@@ -212,7 +210,10 @@ export default function ChallengeSetupScreen() {
             try {
                 const q = query(collection(db, 'experiences'), limit(50));
                 const snapshot = await getDocs(q);
-                const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Experience));
+                const fetched = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
+                    .filter(exp => exp.status !== 'draft')
+                    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
                 setExperiences(fetched);
             } catch (error) {
                 logger.error('Error fetching experiences:', error);
@@ -412,9 +413,9 @@ export default function ChallengeSetupScreen() {
                 navigation.reset({
                     index: 1,
                     routes: [
-                        { name: 'Goals' as any },
+                        { name: 'Goals' },
                         {
-                            name: 'ExperienceCheckout' as any, params: {
+                            name: 'ExperienceCheckout', params: {
                                 cartItems: [{ experienceId: selectedExperience.id, quantity: 1 }],
                                 goalId: goal.id,
                             }
@@ -426,8 +427,8 @@ export default function ChallengeSetupScreen() {
                 navigation.reset({
                     index: 1,
                     routes: [
-                        { name: 'CategorySelection' as any },
-                        { name: 'Journey' as any, params: { goal } },
+                        { name: 'CategorySelection' },
+                        { name: 'Journey', params: { goal } },
                     ],
                 });
             }

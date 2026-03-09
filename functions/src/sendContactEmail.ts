@@ -69,14 +69,19 @@ export const sendContactEmail = onCall(
             );
         }
 
-        console.log('Getting secrets...');
+        // Add string type and length validation
+        if (typeof subject !== 'string' || subject.length > 200) {
+            throw new HttpsError('invalid-argument', 'Subject must be a string under 200 characters');
+        }
+        if (typeof message !== 'string' || message.length > 5000) {
+            throw new HttpsError('invalid-argument', 'Message must be under 5000 characters');
+        }
+
         const emailUser = EMAIL_USER.value();
         const emailPass = EMAIL_PASS.value();
 
-        console.log(`Secrets retrieved: user=${emailUser ? 'YES' : 'NO'}, pass=${emailPass ? 'YES' : 'NO'}`);
-
         if (!emailUser || !emailPass) {
-            console.error('ERROR: Email credentials missing');
+            console.error('Email credentials not configured');
             throw new HttpsError(
                 'failed-precondition',
                 'Email service not configured'

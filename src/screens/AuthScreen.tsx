@@ -309,7 +309,7 @@ const AuthScreen = () => {
                 logger.log('?? Navigating to challenge setup after auth');
                 await removeStorageItem('pending_free_challenge');
                 const config = JSON.parse(challengeData);
-                navigation.navigate('ChallengeSetup', { prefill: config } as any);
+                navigation.navigate('ChallengeSetup', { prefill: config });
                 return;
               }
             } catch (error) {
@@ -375,7 +375,7 @@ const AuthScreen = () => {
                         logger.log('?? Navigating to challenge setup after auth');
                         await removeStorageItem('pending_free_challenge');
                         const config = JSON.parse(challengeData);
-                        navigation.navigate('ChallengeSetup', { prefill: config } as any);
+                        navigation.navigate('ChallengeSetup', { prefill: config });
                         return;
                       }
                     } catch (error) {
@@ -616,7 +616,7 @@ const AuthScreen = () => {
             logger.log('?? Navigating to challenge setup after auth');
             await removeStorageItem('pending_free_challenge');
             const config = JSON.parse(challengeData);
-            navigation.navigate('ChallengeSetup', { prefill: config } as any);
+            navigation.navigate('ChallengeSetup', { prefill: config });
             return;
           }
         } catch (error) {

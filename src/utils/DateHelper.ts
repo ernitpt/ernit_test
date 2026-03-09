@@ -22,7 +22,6 @@ export class DateHelper {
      */
     static addOffset(ms: number) {
         this.offsetMs += ms;
-        console.log(`🕒 [DateHelper] Time advanced by ${ms / 1000 / 60 / 60} hours. Current simulated time: ${this.now().toISOString()}`);
     }
 
     /**
@@ -30,7 +29,6 @@ export class DateHelper {
      */
     static reset() {
         this.offsetMs = 0;
-        console.log('🕒 [DateHelper] Time reset to real time.');
     }
 
     /**

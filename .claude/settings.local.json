@@ -21,7 +21,8 @@
       "Bash(python:*)",
       "WebFetch(domain:claude.ai)",
       "Bash(npm run lint:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm update:*)"
     ]
   }
 }

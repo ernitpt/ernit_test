@@ -20,9 +20,7 @@ import { userService } from '../../services/userService';
 import { notificationService } from '../../services/NotificationService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { experienceService } from '../../services/ExperienceService';
-import { RootStackParamList } from '../../types';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRootNavigation } from '../../types/navigation';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
 import { pushNotificationService } from '../../services/PushNotificationService';
@@ -73,8 +71,6 @@ interface DetailedGoalCardProps {
 
 // ─── Main Component ─────────────────────────────────────────────────
 
-type GoalsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Goals'>;
-
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
@@ -121,7 +117,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [ctaDecision, setCTADecision] = useState<CTADecision | null>(null);
 
   const isSelfGift = isSelfGifted(currentGoal);
-  const navigation = useNavigation<GoalsNavigationProp>();
+  const navigation = useRootNavigation();
   const { state: appState } = useApp();
   const debugMode = appState.debugMode;
 
@@ -815,8 +811,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
 
       setLastHint(hintObj);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (updated as any).hints = [...(updated.hints || []), hintObj];
+      updated.hints = [...(updated.hints || []), hintObj];
     } else {
       const aiHintSessionNumber = totalSessionsDone + 1;
 
@@ -838,8 +833,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             ...prev,
             hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
           }));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (updated as any).hints = [...(updated.hints || []), hintObj];
+          updated.hints = [...(updated.hints || []), hintObj];
         }
       } catch (err) {
         logger.warn('Failed to retrieve/save AI hint:', err);
@@ -1042,7 +1036,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           statSource={ctaDecision.message.source}
           onGift={() => {
             setShowCTA(false);
-            (navigation as any).navigate('ExperienceCheckout', {
+            navigation.navigate('ExperienceCheckout', {
               cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
               goalId: currentGoal.id,
             });

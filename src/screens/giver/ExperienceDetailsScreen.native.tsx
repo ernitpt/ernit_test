@@ -5,18 +5,17 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { ChevronLeft, HelpCircle, Target } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
 import {
-  GiverStackParamList,
   Experience,
   ExperienceGift,
 } from '../../types';
+import { useGiverNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -30,13 +29,8 @@ import { config } from '../../config/environment';
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
 
-type ExperienceDetailsNavigationProp = NativeStackNavigationProp<
-  GiverStackParamList,
-  'ExperienceDetails'
->;
-
 export default function ExperienceDetailsScreen() {
-  const navigation = useNavigation<ExperienceDetailsNavigationProp>();
+  const navigation = useGiverNavigation();
   const route = useRoute();
 
   // Handle case where route params might be undefined
@@ -200,7 +194,7 @@ export default function ExperienceDetailsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => (navigation as any).navigate('ChallengeSetup', { prefill: { experience } })}
+            onPress={() => navigation.navigate('ChallengeSetup', { prefill: { experience } })}
             style={styles.setAsGoalButton}
             activeOpacity={0.8}
             accessibilityRole="button"

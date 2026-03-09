@@ -6,11 +6,11 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { RootStackParamList, Goal, SessionRecord, Motivation } from '../../types';
+import { Goal, SessionRecord, Motivation } from '../../types';
+import { useRootNavigation } from '../../types/navigation';
 import { isSelfGifted } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
@@ -32,8 +32,6 @@ import { logger } from '../../utils/logger';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle } from 'lucide-react-native';
-
-type AchievementDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AchievementDetail'>;
 
 const toDate = (value: any): Date | undefined => {
   if (!value) return undefined;
@@ -335,7 +333,7 @@ const sessStyles = StyleSheet.create({
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────
 const AchievementDetailScreen = () => {
-  const navigation = useNavigation<AchievementDetailNavigationProp>();
+  const navigation = useRootNavigation();
   const route = useRoute();
   const { state } = useApp();
   const { showError, showInfo } = useToast();
@@ -416,7 +414,7 @@ const AchievementDetailScreen = () => {
   // useEffect 1 - Experience, partner, coupon, userName
   useEffect(() => {
     if (!goal) {
-      navigation.navigate('Profile' as any);
+      navigation.navigate('Profile');
       return;
     }
     const fetchData = async () => {

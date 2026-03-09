@@ -21,6 +21,7 @@ const FLUSH_INTERVAL_MS = 30_000;
 class AnalyticsService {
   private buffer: AnalyticsEvent[] = [];
   private flushTimer: ReturnType<typeof setInterval> | null = null;
+  private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
   private userId: string | null = null;
   private sessionId: string;
 
@@ -130,7 +131,7 @@ class AnalyticsService {
 
   /** Flush buffered events when the app goes to background */
   private listenAppState() {
-    AppState.addEventListener('change', (nextState: AppStateStatus) => {
+    this.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
         this.flush();
       }

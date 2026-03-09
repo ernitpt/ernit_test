@@ -1,6 +1,6 @@
 ﻿import React, { createContext, useContext, useState, useCallback, useRef, ReactNode, useEffect } from 'react';
 import { useApp } from './AppContext';
-import { NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 import { Platform } from 'react-native';
 import { pushNotificationService } from '../services/PushNotificationService';
@@ -194,11 +194,9 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Navigate to the originally intended route using ref
         try {
           if (navigationRef) {
-            if (params) {
-              navigationRef.navigate(routeName as any, params);
-            } else {
-              navigationRef.navigate(routeName as any);
-            }
+            navigationRef.dispatch(
+              CommonActions.navigate({ name: routeName, params })
+            );
           } else {
             logger.error('Navigation ref not available');
           }

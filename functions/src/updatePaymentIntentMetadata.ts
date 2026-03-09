@@ -66,6 +66,16 @@ export const updatePaymentIntentMetadata = onRequest(
                 return;
             }
 
+            if (typeof paymentIntentId !== 'string' || paymentIntentId.length > 100) {
+                res.status(400).json({ error: 'Invalid paymentIntentId' });
+                return;
+            }
+            if (personalizedMessage !== undefined && personalizedMessage !== null &&
+                (typeof personalizedMessage !== 'string' || personalizedMessage.length > 1000)) {
+                res.status(400).json({ error: 'personalizedMessage must be under 1000 characters' });
+                return;
+            }
+
             // Initialize Stripe with live key
             const stripe = new Stripe(STRIPE_SECRET.value(), {
                 apiVersion: "2024-06-20" as any,

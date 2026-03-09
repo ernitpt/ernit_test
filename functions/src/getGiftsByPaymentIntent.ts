@@ -65,6 +65,11 @@ export const getGiftsByPaymentIntent = onRequest(
                 return;
             }
 
+            if (typeof paymentIntentId !== 'string' || paymentIntentId.length > 100) {
+                res.status(400).json({ error: 'Invalid paymentIntentId format' });
+                return;
+            }
+
             // ✅ Fetch gifts from production Firestore
             const db = getDbProd();
             const snap = await db

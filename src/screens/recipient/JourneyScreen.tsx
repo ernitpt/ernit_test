@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { doc, onSnapshot, getDoc, collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import type { RecipientStackParamList, Goal, ExperienceGift, SessionRecord, Motivation, Experience } from '../../types';
+import type { Goal, ExperienceGift, SessionRecord, Motivation, Experience } from '../../types';
+import { useRecipientNavigation } from '../../types/navigation';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
@@ -31,8 +31,6 @@ import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
-
-type Nav = NativeStackNavigationProp<RecipientStackParamList, 'Journey'>;
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -429,7 +427,7 @@ const sessStyles = StyleSheet.create({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 const JourneyScreen = () => {
-  const navigation = useNavigation<Nav>();
+  const navigation = useRecipientNavigation();
   const route = useRoute();
   const routeParams = route.params as { goal?: Goal } | undefined;
   const passedGoal = routeParams?.goal;
@@ -462,7 +460,7 @@ const JourneyScreen = () => {
   useEffect(() => {
     if (!passedGoal) {
       logger.warn('No goal passed to JourneyScreen, redirecting to Goals');
-      navigation.navigate('Goals' as any);
+      navigation.navigate('Goals');
     }
   }, [passedGoal, navigation]);
 
@@ -567,10 +565,12 @@ const JourneyScreen = () => {
     const fetchRecommended = async () => {
       try {
         const snapshot = await getDocs(query(collection(db, 'experiences'), limit(20)));
-        const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Experience));
-        const filtered = all.filter(exp =>
-          exp.category?.toLowerCase() === currentGoal.preferredRewardCategory?.toLowerCase()
-        );
+        const all = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() } as Experience))
+          .filter(exp => exp.status !== 'draft');
+        const filtered = all
+          .filter(exp => exp.category?.toLowerCase() === currentGoal.preferredRewardCategory?.toLowerCase())
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         setRecommendedExperiences(filtered.slice(0, 3));
       } catch (error) {
         logger.error('Error fetching recommended experiences:', error);
@@ -1081,7 +1081,7 @@ const JourneyScreen = () => {
                 <TouchableOpacity
                   style={styles.buyButton}
                   activeOpacity={0.8}
-                  onPress={() => (navigation as any).navigate('ExperienceCheckout', {
+                  onPress={() => navigation.navigate('ExperienceCheckout', {
                     cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
                     goalId: currentGoal.id,
                   })}
@@ -1247,7 +1247,7 @@ const JourneyScreen = () => {
                           <TouchableOpacity
                             style={styles.buyButton}
                             activeOpacity={0.8}
-                            onPress={() => (navigation as any).navigate('ExperienceCheckout', {
+                            onPress={() => navigation.navigate('ExperienceCheckout', {
                               cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
                               goalId: currentGoal.id,
                             })}
@@ -1286,7 +1286,7 @@ const JourneyScreen = () => {
                         key={exp.id}
                         style={styles.recommendedCard}
                         activeOpacity={0.85}
-                        onPress={() => (navigation as any).navigate('ExperienceDetails', { experience: exp })}
+                        onPress={() => navigation.navigate('ExperienceDetails', { experience: exp })}
                       >
                         {exp.coverImageUrl ? (
                           <Image
@@ -1309,7 +1309,7 @@ const JourneyScreen = () => {
                   <TouchableOpacity
                     style={styles.browseAllLink}
                     activeOpacity={0.7}
-                    onPress={() => (navigation as any).navigate('CategorySelection', {
+                    onPress={() => navigation.navigate('CategorySelection', {
                       prefilterCategory: currentGoal.preferredRewardCategory,
                     })}
                   >

@@ -182,7 +182,7 @@ export interface Goal {
   empoweredBy?: string; // ID of the giver who empowered this goal
   isMystery?: boolean;                // Gift is a mystery — details hidden, AI hints generated
   personalizedNextHint?: PersonalizedHint | null;
-  hints?: (PersonalizedHint | { session: number; hint: string; date: number })[];
+  hints?: (PersonalizedHint | { id?: string; session: number; hint?: string; date: number; text?: string; audioUrl?: string; imageUrl?: string; giverName?: string; createdAt?: Date; type?: PersonalizedHint['type']; duration?: number })[];
   createdAt: Date;                  // When the goal was created
 
   // Valentine-specific fields (optional for backward compatibility)
@@ -483,6 +483,20 @@ export interface PartnerCoupon {
   redeemedAt?: Date;
 }
 
+// Challenge setup prefill data (from auth redirect)
+export interface ChallengeSetupPrefill {
+  goalType?: string;
+  customGoal?: string;
+  weeks?: number;
+  sessionsPerWeek?: number;
+  hours?: string;
+  minutes?: string;
+  experience?: Experience;
+  plannedStartDate?: string;
+  buyNow?: boolean;
+  preferredRewardCategory?: ExperienceCategory;
+}
+
 // Navigation types
 export type RootStackParamList = {
   Landing: undefined;
@@ -513,7 +527,7 @@ export type RootStackParamList = {
   AchievementDetail: { goal: Goal };
   ChallengeLanding: undefined;
   MysteryChoice: { experience: Experience };
-  ChallengeSetup: { prefill?: any } | undefined;
+  ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
 };
 
 export type GiverStackParamList = {
@@ -529,6 +543,7 @@ export type RecipientStackParamList = {
   CouponEntry: { code?: string } | undefined;
   GoalSetting: { experienceGift: ExperienceGift };
   Journey: { goal: Goal };
+  Profile: undefined;
   Completion: { goal: Goal; experienceGift?: ExperienceGift };
 };
 

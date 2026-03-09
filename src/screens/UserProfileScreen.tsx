@@ -14,13 +14,12 @@ import {
 } from 'react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Goal, UserProfile, Experience, User, RootStackParamList } from '../types';
+import { Goal, UserProfile, Experience, User } from '../types';
+import { useRootNavigation } from '../types/navigation';
 import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
@@ -40,8 +39,6 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import ErrorRetry from '../components/ErrorRetry';
 
-type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
-
 // =========================
 // Goal Card (Active goals)
 // =========================
@@ -58,7 +55,7 @@ const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => (
 );
 
 const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-  const navigation = useNavigation<UserProfileNavigationProp>();
+  const navigation = useRootNavigation();
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -156,7 +153,7 @@ const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string 
 );
 
 const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-  const navigation = useNavigation<UserProfileNavigationProp>();
+  const navigation = useRootNavigation();
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>('Partner');
   const [gift, setGift] = useState<any>(null);
@@ -198,7 +195,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
   const handlePress = () => {
-    (navigation as any).navigate('AchievementDetail', { goal });
+    navigation.navigate('AchievementDetail', { goal });
   };
 
   // Completion date
@@ -309,7 +306,7 @@ type ExperienceCardProps = {
 };
 
 const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFromWishlist }) => {
-  const navigation = useNavigation<UserProfileNavigationProp>();
+  const navigation = useRootNavigation();
 
   const handlePress = () => {
     navigation.navigate('ExperienceDetails', { experience });
@@ -361,7 +358,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
 
 const UserProfileScreen: React.FC = () => {
   const { state, dispatch } = useApp();
-  const navigation = useNavigation<UserProfileNavigationProp>();
+  const navigation = useRootNavigation();
   const { showSuccess, showError, showInfo } = useToast();
   const [activeTab, setActiveTab] = useState<'goals' | 'achievements' | 'wishlist'>('goals');
   const [loading, setLoading] = useState(true);
@@ -671,14 +668,14 @@ const UserProfileScreen: React.FC = () => {
 
           {/* Tabs */}
           <View style={styles.tabsContainer}>
-            {[
-              { key: 'goals', label: 'Goals', icon: Gift },
-              { key: 'achievements', label: 'Achievements', icon: Award },
-              { key: 'wishlist', label: 'Wishlist', icon: Gift },
-            ].map((tab) => (
+            {([
+              { key: 'goals' as const, label: 'Goals', icon: Gift },
+              { key: 'achievements' as const, label: 'Achievements', icon: Award },
+              { key: 'wishlist' as const, label: 'Wishlist', icon: Gift },
+            ] as const).map((tab) => (
               <TouchableOpacity
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key as any)}
+                onPress={() => setActiveTab(tab.key)}
                 style={[
                   styles.tabButton,
                   activeTab === tab.key && styles.tabButtonActive,

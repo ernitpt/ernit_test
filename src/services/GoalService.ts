@@ -960,7 +960,7 @@ export class GoalService {
       }
     } // end else if (previousWeeklyCount < g.weeklyCount)
 
-    return { ...(g as any) } as Goal;
+    return { ...g };
   }
 
   /** Approve a goal */
@@ -1179,13 +1179,12 @@ export class GoalService {
   }
 
   async debugAdvanceDay(goalId: string): Promise<void> {
-    console.log('🔧 debugAdvanceDay called, config.debugEnabled:', config.debugEnabled);
     if (!config.debugEnabled) {
-      console.warn('⚠️ Debug tools not available in production');
+      logger.warn('⚠️ Debug tools not available in production');
       return;
     }
     DateHelper.addOffset(24 * 60 * 60 * 1000);
-    console.log('🕒 Advanced time by 1 day, new DateHelper.now():', DateHelper.now().toISOString());
+    logger.log('🕒 Advanced time by 1 day');
   }
 
   async debugRewindWeek(goalId: string): Promise<void> {
@@ -1221,4 +1220,3 @@ export class GoalService {
 //   ].filter(Boolean)
 
 export const goalService = new GoalService();
-(goalService as any).appendHint = goalService.appendHint.bind(goalService);

@@ -8,16 +8,13 @@ import {
     Animated,
     Platform,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, Bell, ShoppingCart, Bug } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { notificationService } from '../services/NotificationService';
 import { isTest } from '../config/environment';
 import { DateHelper } from '../utils/DateHelper';
-import type { RootStackParamList } from '../types';
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { useRootNavigation } from '../types/navigation';
 
 interface SharedHeaderProps {
     title: string;
@@ -40,7 +37,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     rightActions,
     onBackPress,
 }) => {
-    const navigation = useNavigation<NavigationProp>();
+    const navigation = useRootNavigation();
     const route = useRoute();
     const { state, dispatch } = useApp();
     const [unreadCount, setUnreadCount] = useState(0);
@@ -100,7 +97,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         } else if (navigation.canGoBack()) {
             navigation.goBack();
         } else {
-            navigation.navigate('Goals' as any);
+            navigation.navigate('Goals');
         }
     };
 
@@ -109,7 +106,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     };
 
     const handleCartPress = () => {
-        navigation.navigate('Cart' as any);
+        navigation.navigate('Cart');
     };
 
     const ActionButton: React.FC<{

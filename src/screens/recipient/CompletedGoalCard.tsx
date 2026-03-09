@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import type { Goal } from '../../types';
 import Colors from '../../config/colors';
+import { useRecipientNavigation } from '../../types/navigation';
 
 interface CompletedGoalCardProps {
     goal: Goal;
@@ -12,7 +12,7 @@ interface CompletedGoalCardProps {
 }
 
 const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }) => {
-    const navigation = useNavigation();
+    const navigation = useRecipientNavigation();
 
     const totalSessions = goal.targetCount * goal.sessionsPerWeek;
     const hasPledgedExperience = !!goal.pledgedExperience;
@@ -20,7 +20,7 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
     const isSelfAchievement = goal.isFreeGoal && !hasPledgedExperience;
 
     const handlePress = () => {
-        (navigation as any).navigate('Journey', { goal });
+        navigation.navigate('Journey', { goal });
     };
 
     return (

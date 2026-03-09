@@ -56,7 +56,10 @@ const JourneyDemo: React.FC = React.memo(() => {
         const q = query(collection(db, 'experiences'), limit(8));
         const snapshot = await getDocs(q);
         setExperiences(
-          snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Experience))
+          snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
+            .filter(exp => exp.status !== 'draft')
+            .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
         );
       } catch {
         // Silently fail

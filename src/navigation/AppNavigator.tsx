@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
 import { ActivityIndicator, View, Platform } from 'react-native';
@@ -44,9 +44,9 @@ import AchievementDetailScreen from '../screens/recipient/AchievementDetailScree
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 
-const RootStack = createNativeStackNavigator<RootStackParamList>() as any;
-const GiverStack = createNativeStackNavigator<GiverStackParamList>() as any;
-const RecipientStack = createNativeStackNavigator<RecipientStackParamList>() as any;
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const GiverStack = createNativeStackNavigator<GiverStackParamList>();
+const RecipientStack = createNativeStackNavigator<RecipientStackParamList>();
 
 const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'GiverFlow',
@@ -85,7 +85,7 @@ const isIncognitoMode = () => {
 
 // Giver
 const GiverNavigator = () => (
-  <GiverStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'none' }}>
     <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
     <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
     <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
@@ -96,7 +96,7 @@ const GiverNavigator = () => (
 
 // Recipient
 const RecipientNavigator = () => (
-  <RecipientStack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'none' }}>
     <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
     <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
     <RecipientStack.Screen name="Journey" component={JourneyScreen} />
@@ -155,7 +155,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
   // -----------------------------
   // RENDER
   // -----------------------------
-  const linking = {
+  const linking: LinkingOptions<RootStackParamList> = {
     prefixes: [
       'ernit://',
       'https://ernit.app',
@@ -206,8 +206,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
 
   return (
     <NavigationContainer
-      linking={linking as any}
-      ref={navigationRef as any}
+      linking={linking}
+      ref={navigationRef}
       onReady={() => {
         logger.log('🧭 Navigation ready');
         setIsNavigationReady(true);
@@ -230,6 +230,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       }}
     >
       <RootStack.Navigator
+        id={undefined}
         initialRouteName={initialRoute}
         screenOptions={{ headerShown: false, animation: 'none' }}
       >
@@ -246,153 +247,153 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <GiverNavigator {...props} />
+              <GiverNavigator />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="RecipientFlow">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <RecipientNavigator {...props} />
+              <RecipientNavigator />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Profile">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <UserProfileScreen {...props} />
+              <UserProfileScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Goals">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <GoalsScreen {...props} />
+              <GoalsScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="GoalDetail">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <GoalDetailScreen {...props} />
+              <GoalDetailScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Journey">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <JourneyScreen {...props} />
+              <JourneyScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="ExperienceCheckout">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <ExperienceCheckoutScreen {...props} />
+              <ExperienceCheckoutScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Confirmation">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <ConfirmationScreen {...props} />
+              <ConfirmationScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="ConfirmationMultiple">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <ConfirmationMultipleScreen {...props} />
+              <ConfirmationMultipleScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Completion">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <CompletionScreen {...props} />
+              <CompletionScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Notification">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <NotificationsScreen {...props} />
+              <NotificationsScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="Feed">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <FeedScreen {...props} />
+              <FeedScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="AddFriend">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <AddFriendScreen {...props} />
+              <AddFriendScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="FriendProfile">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <FriendProfileScreen {...props} />
+              <FriendProfileScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="FriendsList">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <FriendsListScreen {...props} />
+              <FriendsListScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="PurchasedGifts">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <PurchasedGiftsScreen {...props} />
+              <PurchasedGiftsScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="GoalSetting">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <GoalSettingScreen {...props} />
+              <GoalSettingScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="FreeGoalCompletion">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <FreeGoalCompletionScreen {...props} />
+              <FreeGoalCompletionScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
         <RootStack.Screen name="AchievementDetail">
-          {(props) => (
+          {() => (
             <ProtectedRoute>
-              <AchievementDetailScreen {...props} />
+              <AchievementDetailScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>

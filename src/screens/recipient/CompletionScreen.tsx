@@ -14,16 +14,15 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Star, Zap, Flame, Share as ShareIcon } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  RecipientStackParamList,
   Goal,
   ExperienceGift,
 } from '../../types';
+import { useRecipientNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
@@ -41,13 +40,8 @@ import { useToast } from '../../context/ToastContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
-type CompletionNavigationProp = NativeStackNavigationProp<
-  RecipientStackParamList,
-  'Completion'
->;
-
 const CompletionScreen = () => {
-  const navigation = useNavigation<CompletionNavigationProp>();
+  const navigation = useRecipientNavigation();
   const route = useRoute();
   const { state, dispatch } = useApp();
   const { showError, showInfo } = useToast();
@@ -86,7 +80,7 @@ const CompletionScreen = () => {
   useEffect(() => {
     if (!hasValidData) {
       logger.warn('Missing/invalid goal or experienceGift data on CompletionScreen, redirecting to Profile');
-      navigation.navigate('Profile' as any);
+      navigation.navigate('Profile');
     }
   }, [hasValidData, navigation]);
 
@@ -731,7 +725,7 @@ const CompletionScreen = () => {
             </Text>
             <TouchableOpacity
               style={styles.noRewardCtaButton}
-              onPress={() => navigation.navigate('Browse' as any)}
+              onPress={() => navigation.navigate('CategorySelection')}
             >
               <Gift color="#fff" size={20} />
               <Text style={styles.noRewardCtaButtonText}>Browse Experiences</Text>
@@ -994,13 +988,13 @@ const CompletionScreen = () => {
               )}
               <TouchableOpacity
                 style={styles.streakCtaPrimary}
-                onPress={() => navigation.navigate('Browse' as any)}
+                onPress={() => navigation.navigate('CategorySelection')}
               >
                 <Text style={styles.streakCtaPrimaryText}>Browse Experiences</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.streakCtaSecondary}
-                onPress={() => navigation.navigate('Goals' as any)}
+                onPress={() => navigation.navigate('Goals')}
               >
                 <Text style={styles.streakCtaSecondaryText}>Back to Goals</Text>
               </TouchableOpacity>
@@ -1019,7 +1013,7 @@ const CompletionScreen = () => {
               )}
               <TouchableOpacity
                 style={styles.streakCtaPrimary}
-                onPress={() => navigation.navigate('Goals' as any)}
+                onPress={() => navigation.navigate('Goals')}
               >
                 <Text style={styles.streakCtaPrimaryText}>Back to Goals</Text>
               </TouchableOpacity>

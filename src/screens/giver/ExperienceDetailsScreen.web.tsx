@@ -13,8 +13,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRoute } from "@react-navigation/native";
 import { ChevronLeft, MapPin, Clock, ShoppingCart, Info, Target } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
@@ -30,10 +29,10 @@ import HowItWorksModal from "../../components/HowItWorksModal";
 import { ExperienceDetailSkeleton } from "../../components/SkeletonLoader";
 
 import {
-  GiverStackParamList,
   Experience,
   PartnerUser,
 } from "../../types";
+import { useGiverNavigation } from "../../types/navigation";
 import { useApp } from "../../context/AppContext";
 import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
@@ -42,11 +41,6 @@ import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
 
 const { width, height } = Dimensions.get("window");
-
-type ExperienceDetailsNavigationProp = NativeStackNavigationProp<
-  GiverStackParamList,
-  "ExperienceDetails"
->;
 
 // Zoomable Image Component (Simple version for web compatibility)
 const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) => {
@@ -72,7 +66,7 @@ const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) =
 };
 
 function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }) {
-  const navigation = useNavigation<ExperienceDetailsNavigationProp>();
+  const navigation = useGiverNavigation();
   const route = useRoute();
 
   // Handle case where route params might be undefined on browser refresh
@@ -218,7 +212,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   const handleBuyNow = async () => {
     // If empowerContext is set, route through MysteryChoiceScreen first
     if (state.empowerContext) {
-      (navigation as any).navigate("MysteryChoice", { experience });
+      navigation.navigate("MysteryChoice", { experience });
       return;
     }
 
@@ -271,7 +265,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     if (!requireAuth("Please log in to set this as a goal.")) {
       return;
     }
-    (navigation as any).navigate("ChallengeSetup", { prefill: { experience } });
+    navigation.navigate("ChallengeSetup", { prefill: { experience } });
   };
 
   return (

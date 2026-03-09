@@ -8,12 +8,11 @@ import {
   Platform,
 } from 'react-native';
 
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../types';
 import Colors from '../config/colors';
+import { useRootNavigation } from '../types/navigation';
 
 import HomeIcon from '../assets/icons/home.svg';
 import HomeIconActive from '../assets/icons/HomeActive';
@@ -27,8 +26,6 @@ import MenuIcon from '../assets/icons/sidemenu.svg';
 
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../hooks/useAuthGuard';
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type FooterNavigationProps = {
   activeRoute: 'Home' | 'Goals' | 'Profile' | 'Feed' | 'Settings';
@@ -141,7 +138,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   activeRoute,
   onMenuPress,
 }) => {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useRootNavigation();
   const insets = useSafeAreaInsets();
   const { requireAuth } = useAuthGuard();
 
@@ -162,7 +159,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 
       // User is authenticated - navigate normally
       if (route === 'Goals') navigation.navigate('Goals');
-      if (route === 'Feed') navigation.navigate('Feed' as any);
+      if (route === 'Feed') navigation.navigate('Feed');
       if (route === 'Profile') navigation.navigate('Profile');
     }
   };
