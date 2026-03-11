@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     calendarContainer: {
-        backgroundColor: '#ffffff',
+        backgroundColor: Colors.white,
         borderRadius: 20,
         padding: 20,
         width: Math.min(Dimensions.get('window').width * 0.9, 400),
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     monthYear: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#374151',
+        color: Colors.gray700,
     },
     weekDaysRow: {
         flexDirection: 'row',
@@ -287,14 +287,14 @@ const styles = StyleSheet.create({
     },
     dayText: {
         fontSize: 15,
-        color: '#374151',
+        color: Colors.gray700,
         fontWeight: '500',
     },
     disabledDayText: {
-        color: '#d1d5db',
+        color: Colors.gray300,
     },
     selectedDayText: {
-        color: '#ffffff',
+        color: Colors.white,
         fontWeight: '700',
     },
     todayDayText: {
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     confirmText: {
-        color: '#ffffff',
+        color: Colors.white,
         fontSize: 15,
         fontWeight: '700',
     },

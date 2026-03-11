@@ -168,7 +168,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   const safeAreaSpacer = Platform.OS === 'ios' ? insets.bottom : 0;
 
   return (
-    <View style={{ backgroundColor: '#fff' }}>
+    <View style={{ backgroundColor: Colors.white }}>
       <View
         style={[
           styles.container,
@@ -220,7 +220,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
       </View>
 
       {safeAreaSpacer > 0 && (
-        <View style={{ height: safeAreaSpacer, backgroundColor: '#fff' }} />
+        <View style={{ height: safeAreaSpacer, backgroundColor: Colors.white }} />
       )}
     </View>
   );
@@ -228,12 +228,12 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.backgroundLight,
     paddingTop: 8,
     paddingHorizontal: 4,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: 10,
     fontWeight: '700',
   },

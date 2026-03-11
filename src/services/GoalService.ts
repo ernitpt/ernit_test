@@ -233,39 +233,47 @@ export class GoalService {
   /** Attach a purchased gift to a free goal */
   async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string, isMystery: boolean = false): Promise<void> {
     const goalRef = doc(db, 'goals', goalId);
-    const goalSnap = await getDoc(goalRef);
+    const giftRef = doc(db, 'experienceGifts', experienceGiftId);
 
-    if (!goalSnap.exists()) throw new Error('Goal not found');
-    const goalData = goalSnap.data();
+    // Use transaction to prevent race conditions (two givers attaching simultaneously)
+    await runTransaction(db, async (transaction) => {
+      const goalSnap = await transaction.get(goalRef);
+      const giftSnap = await transaction.get(giftRef);
 
-    if (!goalData.isFreeGoal) throw new Error('Can only attach gifts to free goals');
+      if (!goalSnap.exists()) throw new Error('Goal not found');
+      const goalData = goalSnap.data();
 
-    // Check 30-day deadline for completed goals
-    if (goalData.isCompleted && goalData.giftAttachDeadline) {
-      const deadline = toJSDate(goalData.giftAttachDeadline);
-      if (deadline && new Date() > deadline) {
-        throw new Error('Gift attachment window has expired (30 days post-completion)');
+      if (!goalData.isFreeGoal) throw new Error('Can only attach gifts to free goals');
+
+      // Prevent double-attachment
+      if (goalData.experienceGiftId) throw new Error('Goal already has a gift attached');
+
+      // Check 30-day deadline for completed goals
+      if (goalData.isCompleted && goalData.giftAttachDeadline) {
+        const deadline = toJSDate(goalData.giftAttachDeadline);
+        if (deadline && new Date() > deadline) {
+          throw new Error('Gift attachment window has expired (30 days post-completion)');
+        }
       }
-    }
 
-    // Validate gift exists
-    const giftSnap = await getDoc(doc(db, 'experienceGifts', experienceGiftId));
-    if (!giftSnap.exists()) throw new Error('Experience gift not found');
+      // Validate gift exists and hasn't been used
+      if (!giftSnap.exists()) throw new Error('Experience gift not found');
+      const giftData = giftSnap.data();
+      if (giftData.isRedeemed) throw new Error('Gift has already been redeemed');
 
-    const updateFields: any = {
-      experienceGiftId,
-      giftAttachedAt: serverTimestamp(),
-      empoweredBy: giverId,
-      updatedAt: serverTimestamp(),
-    };
+      const updateFields: Record<string, any> = {
+        experienceGiftId,
+        giftAttachedAt: serverTimestamp(),
+        empoweredBy: giverId,
+        updatedAt: serverTimestamp(),
+      };
 
-    if (isMystery) {
-      updateFields.isMystery = true;
-      // Note: experienceId is resolved server-side via Cloud Function for hint generation
-      // Never store it on the goal document to prevent the recipient from spoiling the mystery
-    }
+      if (isMystery) {
+        updateFields.isMystery = true;
+      }
 
-    await updateDoc(goalRef, updateFields);
+      transaction.update(goalRef, updateFields);
+    });
 
     analyticsService.trackEvent('gift_attached_to_goal', 'conversion', { goalId, experienceGiftId, giverId, isMystery });
     logger.log(`✅ Gift attached to free goal: ${goalId}${isMystery ? ' (mystery)' : ''}`);

@@ -5,12 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Modal,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
-import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
+import { BaseModal } from './BaseModal';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
@@ -36,9 +33,6 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestError, setSuggestError] = useState<string | null>(null);
-
-  const approveAnim = useModalAnimation(showApproveModal);
-  const suggestAnim = useModalAnimation(showSuggestModal);
 
   const initialWeeks = notification.data?.initialTargetCount || 0;
   const initialSessions = notification.data?.initialSessionsPerWeek || 0;
@@ -208,155 +202,153 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       </View>
 
       {/* Approve Modal */}
-      <Modal
+      <BaseModal
         visible={showApproveModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowApproveModal(false)}
+        onClose={() => {
+          setShowApproveModal(false);
+          setApproveMessage('');
+          setError(null);
+        }}
+        title="Approve Goal"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Approve Goal</Text>
-            <Text style={styles.modalSubtitle}>Add an optional message (optional)</Text>
-            {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Your message..."
-              value={approveMessage}
-              onChangeText={(text) => {
-                setApproveMessage(text);
-                setError(null);
-              }}
-              multiline
-              numberOfLines={4}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setShowApproveModal(false);
-                  setApproveMessage('');
-                  setError(null);
-                }}
-                disabled={loading}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={handleApprove}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.confirmButtonText}>Approve</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+        <Text style={styles.modalSubtitle}>Add an optional message (optional)</Text>
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
+        )}
+        <TextInput
+          style={styles.messageInput}
+          placeholder="Your message..."
+          value={approveMessage}
+          onChangeText={(text) => {
+            setApproveMessage(text);
+            setError(null);
+          }}
+          multiline
+          numberOfLines={4}
+        />
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.cancelButton]}
+            onPress={() => {
+              setShowApproveModal(false);
+              setApproveMessage('');
+              setError(null);
+            }}
+            disabled={loading}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.confirmButton]}
+            onPress={handleApprove}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.confirmButtonText}>Approve</Text>
+            )}
+          </TouchableOpacity>
         </View>
-      </Modal>
+      </BaseModal>
 
       {/* Suggest Change Modal */}
-      <Modal
+      <BaseModal
         visible={showSuggestModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSuggestModal(false)}
+        onClose={() => {
+          setShowSuggestModal(false);
+          setSuggestWeeks('');
+          setSuggestSessions('');
+          setSuggestMessage('');
+          setSuggestError(null);
+        }}
+        title="Suggest Goal Change"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Suggest Goal Change</Text>
-            <Text style={styles.modalSubtitle}>
-              Current: {initialWeeks} weeks, {initialSessions} sessions/week
-            </Text>
-            {suggestError && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{suggestError}</Text>
-              </View>
-            )}
-            <View style={styles.inputRow}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Weeks</Text>
-                <TextInput
-                  style={styles.numberInput}
-                  placeholder={initialWeeks.toString()}
-                  value={suggestWeeks}
-                  onChangeText={(text) => {
-                    setSuggestWeeks(text.replace(/[^0-9]/g, ''));
-                    setSuggestError(null);
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Sessions/Week</Text>
-                <TextInput
-                  style={styles.numberInput}
-                  placeholder={initialSessions.toString()}
-                  value={suggestSessions}
-                  onChangeText={(text) => {
-                    setSuggestSessions(text.replace(/[^0-9]/g, ''));
-                    setSuggestError(null);
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
+        <Text style={styles.modalSubtitle}>
+          Current: {initialWeeks} weeks, {initialSessions} sessions/week
+        </Text>
+        {suggestError && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{suggestError}</Text>
+          </View>
+        )}
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Weeks</Text>
             <TextInput
-              style={styles.messageInput}
-              placeholder="Your message (optional)..."
-              value={suggestMessage}
+              style={styles.numberInput}
+              placeholder={initialWeeks.toString()}
+              value={suggestWeeks}
               onChangeText={(text) => {
-                setSuggestMessage(text);
+                setSuggestWeeks(text.replace(/[^0-9]/g, ''));
                 setSuggestError(null);
               }}
-              multiline
-              numberOfLines={3}
+              keyboardType="numeric"
             />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setShowSuggestModal(false);
-                  setSuggestWeeks('');
-                  setSuggestSessions('');
-                  setSuggestMessage('');
-                  setSuggestError(null);
-                }}
-                disabled={loading}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={handleSuggestChange}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.confirmButtonText}>Suggest</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Sessions/Week</Text>
+            <TextInput
+              style={styles.numberInput}
+              placeholder={initialSessions.toString()}
+              value={suggestSessions}
+              onChangeText={(text) => {
+                setSuggestSessions(text.replace(/[^0-9]/g, ''));
+                setSuggestError(null);
+              }}
+              keyboardType="numeric"
+            />
           </View>
         </View>
-      </Modal>
+
+        <TextInput
+          style={styles.messageInput}
+          placeholder="Your message (optional)..."
+          value={suggestMessage}
+          onChangeText={(text) => {
+            setSuggestMessage(text);
+            setSuggestError(null);
+          }}
+          multiline
+          numberOfLines={3}
+        />
+
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.cancelButton]}
+            onPress={() => {
+              setShowSuggestModal(false);
+              setSuggestWeeks('');
+              setSuggestSessions('');
+              setSuggestMessage('');
+              setSuggestError(null);
+            }}
+            disabled={loading}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.confirmButton]}
+            onPress={handleSuggestChange}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.confirmButtonText}>Suggest</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </BaseModal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -400,29 +392,9 @@ const styles = StyleSheet.create({
     marginRight: 18,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: '600',
     fontSize: 14,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 8,
   },
   modalSubtitle: {
     fontSize: 14,
@@ -439,13 +411,13 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 13,
-    color: '#374151',
+    color: Colors.gray700,
     marginBottom: 6,
     fontWeight: '500',
   },
   numberInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: Colors.gray300,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -453,7 +425,7 @@ const styles = StyleSheet.create({
   },
   messageInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: Colors.gray300,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -479,17 +451,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   cancelButtonText: {
-    color: '#374151',
+    color: Colors.gray700,
     fontWeight: '600',
     fontSize: 15,
   },
   confirmButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: '600',
     fontSize: 15,
   },
   errorBox: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: Colors.errorLight,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
@@ -497,7 +469,7 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.error,
   },
   errorText: {
-    color: '#991b1b',
+    color: Colors.errorDark,
     fontSize: 14,
     fontWeight: '500',
   },

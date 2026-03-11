@@ -80,9 +80,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     });
     animRef.current.start(({ finished }) => {
       if (finished) {
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onFinish();
         setPressing(false);
       }

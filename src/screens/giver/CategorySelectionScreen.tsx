@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import ErrorRetry from '../../components/ErrorRetry';
+import { EmptyState } from '../../components/EmptyState';
 import {
   View,
   Text,
@@ -53,7 +55,6 @@ const ExperienceCard = ({
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [styles.experienceCard, pressed && { opacity: 0.9 }]}
-    accessibilityRole="button"
     accessibilityLabel={`View ${experience.title}`}
   >
     <View style={styles.cardImageContainer}>
@@ -72,6 +73,7 @@ const ExperienceCard = ({
         style={styles.heartButton}
         accessibilityRole="button"
         accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         {isWishlisted ? (
           <Heart fill="#ef4444" color="#ef4444" size={22} />
@@ -155,6 +157,7 @@ const CategorySelectionScreen = () => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
   const { showError, showInfo } = useToast();
 
   const empowerContext = state.empowerContext;
@@ -196,9 +199,13 @@ const CategorySelectionScreen = () => {
   useEffect(() => {
     const loadGuestCart = async () => {
       if (!state.user) {
-        const guestCart = await cartService.getGuestCart();
-        if (guestCart.length > 0) {
-          dispatch({ type: 'SET_CART', payload: guestCart });
+        try {
+          const guestCart = await cartService.getGuestCart();
+          if (guestCart.length > 0) {
+            dispatch({ type: 'SET_CART', payload: guestCart });
+          }
+        } catch (error) {
+          logger.error('Error loading guest cart:', error);
         }
       }
     };
@@ -216,6 +223,7 @@ const CategorySelectionScreen = () => {
   // Load experiences from Firestore
   useEffect(() => {
     const fetchExperiences = async () => {
+      setError(false);
       try {
         const snapshot = await getDocs(collection(db, 'experiences'));
         const allExperiences = snapshot.docs.map((doc) => doc.data() as Experience);
@@ -255,9 +263,11 @@ const CategorySelectionScreen = () => {
           }));
 
         setCategories(categoriesArray as Category[]);
+        setError(false);
       } catch (error) {
         logger.error('Error fetching experiences:', error);
-        showError('Could not load experiences.');
+        setError(true);
+        setIsLoading(false);
       } finally {
         setIsLoading(false);
       }
@@ -274,13 +284,17 @@ const CategorySelectionScreen = () => {
           setWishlist([]);
           return;
         }
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          setWishlist(data.wishlist || []);
-        } else {
-          setWishlist([]);
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            setWishlist(data.wishlist || []);
+          } else {
+            setWishlist([]);
+          }
+        } catch (error) {
+          logger.error('Error fetching wishlist:', error);
         }
       };
 
@@ -371,7 +385,8 @@ const CategorySelectionScreen = () => {
               style={styles.headerActionButton}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Search experiences"
+              returnKeyType="search"
+                accessibilityLabel="Search experiences"
             >
               <View style={styles.headerActionIcon}>
                 <Search color={Colors.primary} size={20} strokeWidth={2} />
@@ -391,6 +406,7 @@ const CategorySelectionScreen = () => {
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Dismiss empower banner"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <X color={Colors.primary} size={16} />
             </TouchableOpacity>
@@ -423,6 +439,7 @@ const CategorySelectionScreen = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoFocus
+                returnKeyType="search"
                 accessibilityLabel="Search experiences"
               />
             </View>
@@ -454,6 +471,14 @@ const CategorySelectionScreen = () => {
             </View>
           ))}
         </View>
+      ) : error ? (
+        <ErrorRetry
+          message="Could not load experiences"
+          onRetry={() => {
+            setError(false);
+            setIsLoading(true);
+          }}
+        />
       ) : (
         <FlatList
           style={styles.listContainer}
@@ -466,6 +491,13 @@ const CategorySelectionScreen = () => {
               onExperiencePress={handleExperiencePress}
               onToggleWishlist={toggleWishlist}
               wishlist={wishlist}
+            />
+          )}
+          ListEmptyComponent={() => (
+            <EmptyState
+              icon="🎁"
+              title="No Experiences Available"
+              message="Check back soon for amazing experiences!"
             />
           )}
           keyExtractor={(item) => item.id}

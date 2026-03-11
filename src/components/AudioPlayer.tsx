@@ -66,9 +66,9 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
         <View style={[styles.audioPlayer, isPopup && styles.audioPlayerPopup]}>
             <TouchableOpacity onPress={togglePlayback} style={[styles.playButton, isPopup && styles.playButtonPopup]}>
                 {isPlaying ? (
-                    <Pause size={isPopup ? 24 : 16} color="#fff" />
+                    <Pause size={isPopup ? 24 : 16} color={Colors.white} />
                 ) : (
-                    <Play size={isPopup ? 24 : 16} color="#fff" />
+                    <Play size={isPopup ? 24 : 16} color={Colors.white} />
                 )}
             </TouchableOpacity>
             <View style={styles.audioInfo}>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     audioPlayer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#374151',
+        backgroundColor: Colors.gray700,
         borderRadius: 20,
         padding: 8,
         paddingRight: 16,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     audioProgress: {
         width: '100%',
         height: 4,
-        backgroundColor: '#4b5563',
+        backgroundColor: Colors.gray600,
         borderRadius: 2,
         marginBottom: 6,
         overflow: 'hidden',
@@ -146,15 +146,15 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: '100%',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
     },
     audioDuration: {
-        color: '#d1d5db',
+        color: Colors.gray300,
         fontSize: 12,
         fontVariant: ['tabular-nums'],
     },
     audioDurationPopup: {
-        color: '#fff',
+        color: Colors.white,
         fontSize: 13,
         fontWeight: '600',
     },

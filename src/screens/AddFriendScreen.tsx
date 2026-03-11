@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
-  Image,
   StyleSheet,
   StatusBar,
   Platform,
 } from 'react-native';
+import { TextInput } from '../components/TextInput';
+import { Avatar } from '../components/Avatar';
+import { Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, UserSearchResult } from '../types';
@@ -25,6 +26,8 @@ import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
 import ErrorRetry from '../components/ErrorRetry';
+import { EmptyState } from '../components/EmptyState';
+import * as Haptics from 'expo-haptics';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
@@ -35,7 +38,6 @@ const AddFriendScreen: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
 
   const currentUserId = state.user?.id;
@@ -76,8 +78,21 @@ const AddFriendScreen: React.FC = () => {
   const handleSendFriendRequest = async (user: UserSearchResult) => {
     if (!currentUserId) return;
 
+    // 1. Save current state for rollback
+    const previousResults = [...searchResults];
+
+    // 2. Update UI immediately - mark user as "request sent"
+    setSearchResults(results => results.map(u =>
+      u.id === user.id ? { ...u, hasPendingRequest: true } : u
+    ));
+
+    // 3. Show success feedback immediately
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showSuccess(`Friend request sent to ${user.name}!`);
+    analyticsService.trackEvent('friend_request_sent', 'social', { recipientId: user.id }, 'AddFriendScreen');
+
+    // 4. Call API in background
     try {
-      setIsLoading(true);
       await friendService.sendFriendRequest(
         currentUserId,
         currentUserName,
@@ -86,18 +101,11 @@ const AddFriendScreen: React.FC = () => {
         state.user?.profile?.country,
         currentUserProfileImageUrl
       );
-
-      analyticsService.trackEvent('friend_request_sent', 'social', { recipientId: user.id }, 'AddFriendScreen');
-      showSuccess(`Friend request sent to ${user.name}!`);
-
-      // Refresh search results to update the button state
-      const updatedResults = await friendService.searchUsers(searchTerm, currentUserId);
-      setSearchResults(updatedResults);
     } catch (error) {
+      // 5. Rollback on failure
       logger.error('Error sending friend request:', error);
+      setSearchResults(previousResults);
       showError('Failed to send friend request. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -114,20 +122,7 @@ const AddFriendScreen: React.FC = () => {
         accessibilityRole="button"
         accessibilityLabel={`View ${item.name}'s profile`}
       >
-        {item.profileImageUrl && !imageLoadErrors.has(item.id) ? (
-          <Image
-            source={{ uri: item.profileImageUrl }}
-            style={styles.profileImage}
-            onError={() => setImageLoadErrors(prev => new Set(prev).add(item.id))}
-            accessibilityLabel={`${item.name}'s profile picture`}
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>
-              {item.name?.[0]?.toUpperCase() || 'U'}
-            </Text>
-          </View>
-        )}
+        <Avatar uri={item.profileImageUrl} name={item.name} size="md" style={styles.avatarMargin} />
         <View style={styles.userDetails}>
           <Text style={styles.userName}>{item.name}</Text>
           {item.country && (
@@ -149,7 +144,6 @@ const AddFriendScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => handleSendFriendRequest(item)}
-            disabled={isLoading}
             accessibilityRole="button"
             accessibilityLabel={`Send friend request to ${item.name}`}
           >
@@ -170,17 +164,17 @@ const AddFriendScreen: React.FC = () => {
       {/* Search Section */}
       <View style={styles.searchSection}>
         <Text style={styles.searchLabel}>Search for friends</Text>
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Enter name or email..."
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            autoCapitalize="none"
-            autoCorrect={false}
-            accessibilityLabel="Search for friends by name or email"
-          />
-        </View>
+        <TextInput
+          placeholder="Enter name or email..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search for friends by name or email"
+          leftIcon={<Search size={18} color={Colors.textMuted} />}
+          containerStyle={{ marginBottom: 0 }}
+        />
         {isSearching && (
           <View style={{ marginTop: 12, gap: 8 }}>
             <ListItemSkeleton />
@@ -201,7 +195,11 @@ const AddFriendScreen: React.FC = () => {
         )}
 
         {!searchError && searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
-          <Text style={styles.noResultsText}>No users found</Text>
+          <EmptyState
+            icon="🔍"
+            title="No users found"
+            message="Try searching with a different name or email"
+          />
         )}
 
         {searchResults.length > 0 && (
@@ -215,6 +213,10 @@ const AddFriendScreen: React.FC = () => {
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.resultsList}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={Platform.OS !== 'web'}
+              maxToRenderPerBatch={10}
+              windowSize={5}
             />
           </>
         )}
@@ -226,7 +228,7 @@ const AddFriendScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   searchSection: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     padding: 24,
     marginBottom: 16,
   },
@@ -236,36 +238,12 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
-  searchContainer: {
-    position: 'relative',
-  },
-  searchInput: {
-    backgroundColor: Colors.backgroundLight,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  searchLoader: {
-    position: 'absolute',
-    right: 16,
-    top: 12,
-  },
   resultsSection: {
     flex: 1,
     paddingHorizontal: 24,
   },
   hintText: {
     fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 32,
-  },
-  noResultsText: {
-    fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 32,
@@ -280,13 +258,13 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   userItem: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.textPrimary,
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
@@ -296,10 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  avatarMargin: {
     marginRight: 12,
   },
   userDetails: {
@@ -330,29 +305,29 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   addButtonText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
   friendButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   friendButtonText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
   pendingButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: Colors.warning,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   pendingButtonText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -365,17 +340,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  placeholderImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 28,
-    marginRight: 12,
-    backgroundColor: '#e0e7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
-
 });
 
 export default AddFriendScreen;

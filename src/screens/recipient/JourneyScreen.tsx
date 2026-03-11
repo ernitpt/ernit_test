@@ -628,19 +628,11 @@ const JourneyScreen = () => {
     }
   }, [currentGoal?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (activeTab === TAB_SESSIONS || currentGoal?.isCompleted) {
-        loadSessions();
-      }
-    }, [activeTab, loadSessions, currentGoal?.isCompleted])
-  );
-
   useEffect(() => {
     if (activeTab === TAB_SESSIONS || currentGoal?.isCompleted) {
       loadSessions();
     }
-  }, [activeTab, currentGoal?.isCompleted]);
+  }, [activeTab, loadSessions, currentGoal?.isCompleted, currentGoal?.id]);
 
   // Fetch all motivations for inline display on session cards
   useEffect(() => {

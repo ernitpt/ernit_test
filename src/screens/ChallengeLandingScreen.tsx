@@ -20,6 +20,8 @@ import { RootStackParamList } from '../types';
 import { useApp } from '../context/AppContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
 import JourneyDemo from '../components/JourneyDemo';
 
 // Height of the rotating word slot (must match font metrics)
@@ -248,11 +250,9 @@ export default function ChallengeLandingScreen() {
                                 }}
                             >
                                 <Text style={{
-                                    fontSize: 16,
+                                    ...Typography.subheading,
                                     color: Colors.textSecondary,
                                     textAlign: 'center',
-                                    lineHeight: 24,
-                                    fontWeight: '500',
                                 }}>
                                     You are <Text style={{ color: Colors.secondary, fontWeight: '700' }}>600%</Text> more likely to achieve your goals with friends backing you.
                                 </Text>
@@ -401,6 +401,7 @@ export default function ChallengeLandingScreen() {
                                     <Image
                                         source={{ uri: founder.image }}
                                         style={styles.founderPhoto}
+                                        resizeMode="cover"
                                         accessibilityLabel={`${founder.name}, ${founder.role}`}
                                     />
                                     <Text style={styles.founderName}>{founder.name}</Text>
@@ -512,16 +513,16 @@ export default function ChallengeLandingScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: Colors.surface,
     },
     scrollContent: {
         flexGrow: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
     },
     hero: {
         paddingTop: Platform.OS === 'ios' ? 70 : 50,
         paddingHorizontal: 24,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         position: 'relative',
         overflow: 'hidden',
         alignItems: 'center',
@@ -541,15 +542,11 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 2,
+        ...Shadows.sm,
     },
     loginButton: {
         position: 'absolute',
@@ -561,8 +558,7 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     loginButtonText: {
-        fontSize: 15,
-        fontWeight: '700',
+        ...Typography.bodyBold,
         color: Colors.primary,
     },
     brandSection: {
@@ -582,9 +578,9 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     heroTitle: {
-        fontSize: 36,
+        ...Typography.display,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         lineHeight: 46,
         letterSpacing: -1,
         textAlign: 'center',
@@ -608,7 +604,7 @@ const styles = StyleSheet.create({
         height: WORD_SLOT_HEIGHT,
     },
     dialWord: {
-        fontSize: 36,
+        ...Typography.display,
         fontWeight: '800',
         fontStyle: 'italic',
         lineHeight: WORD_SLOT_HEIGHT,
@@ -617,7 +613,7 @@ const styles = StyleSheet.create({
     },
     // ──────────────────────────────────────────────
     heroSubtitle: {
-        fontSize: 17,
+        ...Typography.subheading,
         color: Colors.textSecondary,
         lineHeight: 28,
         marginBottom: 16,
@@ -641,11 +637,7 @@ const styles = StyleSheet.create({
         height: HERO_IMG_H,
         borderRadius: 20,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 6,
+        ...Shadows.lg,
     },
     heroImg: {
         width: '100%',
@@ -668,18 +660,15 @@ const styles = StyleSheet.create({
         marginBottom: 36,
     },
     badgeText: {
-        fontSize: 13,
+        ...Typography.small,
         fontWeight: '700',
         letterSpacing: 0.3,
     },
     primaryCta: {
         alignSelf: 'center',
         borderRadius: 16,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        ...Shadows.colored(Colors.primary),
         shadowRadius: 16,
-        elevation: 8,
     },
     ctaGradient: {
         flexDirection: 'row',
@@ -690,14 +679,13 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     ctaText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
+        color: Colors.white,
+        ...Typography.heading3,
     },
     howSection: {
         paddingVertical: 64,
         paddingHorizontal: 24,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         alignItems: 'center',
     },
     howWrapper: {
@@ -705,7 +693,7 @@ const styles = StyleSheet.create({
         maxWidth: 600,
     },
     sectionLabel: {
-        fontSize: 13,
+        ...Typography.small,
         fontWeight: '700',
         color: Colors.primary,
         textTransform: 'uppercase',
@@ -714,9 +702,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     sectionTitle: {
-        fontSize: 32,
+        ...Typography.display,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 48,
         textAlign: 'center',
     },
@@ -730,7 +718,7 @@ const styles = StyleSheet.create({
     stepDivider: {
         width: 2,
         height: 32,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.backgroundLight,
         marginLeft: 27,
         marginVertical: 16,
     },
@@ -751,15 +739,15 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#1F2937',
+        backgroundColor: Colors.gray800,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: '#fff',
+        borderColor: Colors.white,
     },
     stepNumberText: {
-        color: '#fff',
-        fontSize: 12,
+        color: Colors.white,
+        ...Typography.captionBold,
         fontWeight: '800',
     },
     stepContent: {
@@ -767,26 +755,24 @@ const styles = StyleSheet.create({
         paddingTop: 4,
     },
     stepTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#1F2937',
+        ...Typography.large,
+        color: Colors.gray800,
         marginBottom: 8,
     },
     stepDesc: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
-        lineHeight: 22,
     },
     testimonialSection: {
         paddingVertical: 14,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         width: '100%',
         maxWidth: 800,
         alignSelf: 'center',
         paddingHorizontal: 24,
     },
     testimonialCard: {
-        backgroundColor: '#FAFAFA',
+        backgroundColor: Colors.surface,
         padding: 32,
         borderRadius: 24,
         borderLeftWidth: 4,
@@ -794,9 +780,9 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     quoteText: {
-        fontSize: 18,
+        ...Typography.heading3,
         fontStyle: 'italic',
-        color: '#374151',
+        color: Colors.gray700,
         lineHeight: 28,
         marginBottom: 20,
     },
@@ -812,13 +798,12 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
     },
     authorText: {
-        fontSize: 14,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: Colors.textSecondary,
     },
     finalCtaSection: {
         paddingVertical: 64,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: Colors.surface,
         width: '100%',
         maxWidth: 1200,
         alignSelf: 'center',
@@ -826,14 +811,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     finalCtaTitle: {
-        fontSize: 36,
+        ...Typography.display,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 12,
         textAlign: 'center',
     },
     finalCtaSubtitle: {
-        fontSize: 17,
+        ...Typography.subheading,
         color: Colors.textSecondary,
         marginBottom: 32,
         textAlign: 'center',
@@ -852,9 +837,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     foundersTitle: {
-        fontSize: 32,
+        ...Typography.display,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 40,
         textAlign: 'center',
     },
@@ -875,22 +860,19 @@ const styles = StyleSheet.create({
         borderRadius: 48,
         marginBottom: 16,
         borderWidth: 3,
-        borderColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        borderColor: Colors.white,
+        ...Shadows.md,
         shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 4,
     },
     founderName: {
-        fontSize: 18,
+        ...Typography.heading3,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 4,
         textAlign: 'center',
     },
     founderRole: {
-        fontSize: 13,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.primary,
         marginBottom: 10,
@@ -905,16 +887,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     linkedinIcon: {
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '900',
-        color: '#FFFFFF',
+        color: Colors.white,
         fontStyle: 'italic',
     },
     founderQuote: {
-        fontSize: 13,
+        ...Typography.small,
         fontStyle: 'italic',
         color: Colors.textSecondary,
-        lineHeight: 20,
         textAlign: 'center',
     },
     incubatorBadge: {
@@ -923,18 +904,15 @@ const styles = StyleSheet.create({
         gap: 8,
         paddingHorizontal: 20,
         paddingVertical: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         borderRadius: 24,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        ...Shadows.sm,
         shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
     },
     incubatorText: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '500',
         color: Colors.textSecondary,
     },
@@ -954,7 +932,7 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '900',
         fontStyle: 'italic',
-        color: '#FFFFFF',
+        color: Colors.white,
         letterSpacing: -1,
         marginBottom: 20,
     },
@@ -972,12 +950,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     socialIcon: {
-        fontSize: 15,
+        ...Typography.bodyBold,
         fontWeight: '800',
-        color: '#FFFFFF',
+        color: Colors.white,
     },
     footerCopy: {
-        fontSize: 12,
+        ...Typography.caption,
         color: 'rgba(255,255,255,0.4)',
     },
 });

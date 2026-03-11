@@ -114,30 +114,24 @@ export class NotificationService {
         // Update existing notification
         const existingDoc = snapshot.docs[0];
         const existingData = existingDoc.data();
-        const reactorNames = existingData.data?.reactorNames || [];
+        const existingReactorNames: string[] = existingData.data?.reactorNames || [];
 
-        // Add reactor if not already in the list
-        if (!reactorNames.includes(reactorName)) {
-          reactorNames.unshift(reactorName); // Add to beginning
-        } else {
-          // Move to front if already exists
-          const index = reactorNames.indexOf(reactorName);
-          reactorNames.splice(index, 1);
-          reactorNames.unshift(reactorName);
-        }
+        // Build updated reactor list (move reactor to front)
+        const filteredNames = existingReactorNames.filter((n: string) => n !== reactorName);
+        const updatedNames = [reactorName, ...filteredNames];
+        const totalReactionCount = updatedNames.length;
 
-        const totalReactionCount = reactorNames.length;
         const message = totalReactionCount === 1
-          ? `${reactorNames[0]} reacted to your post`
+          ? `${updatedNames[0]} reacted to your post`
           : totalReactionCount === 2
-            ? `${reactorNames[0]} and ${reactorNames[1]} reacted to your post`
-            : `${reactorNames[0]} and ${totalReactionCount - 1} others reacted to your post`;
+            ? `${updatedNames[0]} and ${updatedNames[1]} reacted to your post`
+            : `${updatedNames[0]} and ${totalReactionCount - 1} others reacted to your post`;
 
         await updateDoc(doc(db, 'notifications', existingDoc.id), {
           message,
-          read: false, // Mark as unread
-          createdAt: serverTimestamp(), // Update timestamp
-          'data.reactorNames': reactorNames,
+          read: false,
+          createdAt: serverTimestamp(),
+          'data.reactorNames': updatedNames,
           'data.totalReactionCount': totalReactionCount,
           'data.mostRecentReaction': reactionType,
           'data.reactorProfileImageUrl': reactorProfileImageUrl || existingData.data?.reactorProfileImageUrl,

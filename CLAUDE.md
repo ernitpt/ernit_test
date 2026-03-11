@@ -25,6 +25,18 @@
 4.  Implement "Glassmorphism" or "Neumorphism" where appropriate.
 5.  Ensure all forms have inline validation.
 
+## 🎨 Design Token Enforcement
+- **ALWAYS** use tokens from `src/config/` (Colors, Typography, Spacing, BorderRadius, Shadows).
+- **NEVER** hardcode hex colors, font sizes, or spacing values in screen/component files.
+- If a token doesn't exist for the value you need, **add it to the config file first**, then use it.
+- **ALWAYS** use `<Button>` from `src/components/Button.tsx` for interactive button elements.
+- **ALWAYS** use `<Card>` from `src/components/Card.tsx` for content container cards.
+- **ALWAYS** use `<TextInput>` from `src/components/TextInput.tsx` for text inputs (has label, error, disabled states built-in).
+- **ALWAYS** use `<Avatar>` from `src/components/Avatar.tsx` for user profile images (sizes: sm/md/lg, auto-fallback to initials).
+- **ALWAYS** use `<EmptyState>` from `src/components/EmptyState.tsx` for empty list/content states.
+- **ALWAYS** use `<BaseModal>` from `src/components/BaseModal.tsx` for modal dialogs (variants: center/bottom).
+- Import pattern: `import Colors from '../config/colors';` (or `../../config/colors` from screens).
+
 ## 🛠️ Code Standards
 - **Functional React**: Use Hooks (`useEffect`, `useCallback`) properly. Avoid Class components.
 - **Types**: Strict TypeScript. No `any` unless absolutely necessary (and commented why).

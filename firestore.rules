@@ -266,6 +266,7 @@ service cloud.firestore {
         ||
 
         // (5) Attaching a gift to a free goal (goal owner only)
+        // SECURITY: Enforce 30-day gift attach deadline
         (request.auth.uid == resource.data.userId
          && 'isFreeGoal' in resource.data
          && resource.data.isFreeGoal == true
@@ -273,7 +274,8 @@ service cloud.firestore {
              .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'updatedAt'])
          && request.resource.data.experienceGiftId is string
          && request.resource.data.experienceGiftId != ''
-         && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId)))
+         && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId))
+         && (!('giftAttachDeadline' in resource.data) || request.time < resource.data.giftAttachDeadline))
       );
 
       /* ===============================

@@ -10,10 +10,11 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
-    Image,
     Animated,
+    Alert,
 } from 'react-native';
 import { X, Send, MoreHorizontal, Edit2, Trash2 } from 'lucide-react-native';
+import { Avatar } from './Avatar';
 import { commentService } from '../services/CommentService';
 import type { Comment } from '../types';
 import { useApp } from '../context/AppContext';
@@ -25,6 +26,8 @@ import { analyticsService } from '../services/AnalyticsService';
 import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
+import { EmptyState } from './EmptyState';
+import * as Haptics from 'expo-haptics';
 
 interface CommentModalProps {
     visible: boolean;
@@ -86,6 +89,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 });
             }
 
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Only clear text on success
             setCommentText('');
             await loadComments();
             onChange?.();
@@ -110,16 +115,29 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
         setOriginalCommentText('');
     };
 
-    const handleDeleteComment = async (commentId: string) => {
-        try {
-            await commentService.deleteComment(postId, commentId);
-            await loadComments();
-            onChange?.();
-            setMenuVisibleId(null);
-        } catch (error) {
-            logger.error('Error deleting comment:', error);
-            showError('Could not delete comment. Please try again.');
-        }
+    const handleDeleteComment = (commentId: string) => {
+        Alert.alert(
+            'Delete Comment',
+            'Are you sure you want to delete this comment?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await commentService.deleteComment(postId, commentId);
+                            await loadComments();
+                            onChange?.();
+                            setMenuVisibleId(null);
+                        } catch (error) {
+                            logger.error('Error deleting comment:', error);
+                            showError('Could not delete comment. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const renderComment = ({ item }: { item: Comment }) => {
@@ -127,15 +145,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
 
         return (
             <View style={styles.commentItem}>
-                {item.userProfileImageUrl ? (
-                    <Image source={{ uri: item.userProfileImageUrl }} style={styles.avatar} />
-                ) : (
-                    <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>
-                            {item.userName?.[0]?.toUpperCase() || 'U'}
-                        </Text>
-                    </View>
-                )}
+                <Avatar uri={item.userProfileImageUrl} name={item.userName} size="sm" />
 
                 <View style={styles.commentContent}>
                     <View style={styles.commentHeader}>
@@ -156,7 +166,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             style={styles.menuItem}
                                             onPress={() => startEditing(item)}
                                         >
-                                            <Edit2 size={14} color="#4b5563" />
+                                            <Edit2 size={14} color={Colors.gray600} />
                                             <Text style={styles.menuText}>Edit</Text>
                                         </TouchableOpacity>
                                         <View style={styles.menuDivider} />
@@ -219,10 +229,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 ))}
                             </View>
                         ) : comments.length === 0 ? (
-                            <View style={styles.emptyContainer}>
-                                <Text style={styles.emptyText}>No comments yet</Text>
-                                <Text style={styles.emptySubtext}>Be the first to comment!</Text>
-                            </View>
+                            <EmptyState
+                                icon="💬"
+                                title="No comments yet"
+                                message="Be the first to comment!"
+                            />
                         ) : (
                             <FlatList
                                 data={comments}
@@ -230,25 +241,35 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 renderItem={renderComment}
                                 contentContainerStyle={styles.commentsList}
                                 showsVerticalScrollIndicator={false}
+                                keyboardShouldPersistTaps="handled"
+                                removeClippedSubviews={Platform.OS !== 'web'}
+                                maxToRenderPerBatch={10}
+                                windowSize={5}
                             />
                         )}
 
                         <View style={styles.inputContainer}>
                             {editingCommentId && (
-                                <TouchableOpacity onPress={cancelEditing} style={styles.cancelEditButton}>
+                                <TouchableOpacity onPress={cancelEditing} style={styles.cancelEditButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                     <X size={20} color={Colors.textSecondary} />
                                 </TouchableOpacity>
                             )}
-                            <TextInput
-                                style={styles.input}
-                                placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
-                                placeholderTextColor={Colors.textMuted}
-                                value={commentText}
-                                onChangeText={setCommentText}
-                                multiline
-                                maxLength={300}
-                                autoFocus={!!editingCommentId}
-                            />
+                            <View style={{ flex: 1 }}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
+                                    placeholderTextColor={Colors.textMuted}
+                                    value={commentText}
+                                    onChangeText={setCommentText}
+                                    multiline
+                                    maxLength={300}
+                                    autoFocus={!!editingCommentId}
+                                    returnKeyType="send"
+                                />
+                                <Text style={{ fontSize: 12, color: commentText.length > 280 ? '#ef4444' : Colors.textMuted, textAlign: 'right', marginTop: 4, paddingHorizontal: 16 }}>
+                                    {commentText.length}/300
+                                </Text>
+                            </View>
                             <TouchableOpacity
                                 style={[
                                     styles.sendButton,
@@ -258,11 +279,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 disabled={!commentText.trim() || isSending}
                             >
                                 {isSending ? (
-                                    <ActivityIndicator size="small" color="#fff" />
+                                    <ActivityIndicator size="small" color={Colors.white} />
                                 ) : editingCommentId ? (
-                                    <Edit2 color="#fff" size={18} />
+                                    <Edit2 color={Colors.white} size={18} />
                                 ) : (
-                                    <Send color="#fff" size={20} />
+                                    <Send color={Colors.white} size={20} />
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -280,10 +301,10 @@ const styles = StyleSheet.create({
     modalContainer: {
         height: '70%',
         width: '100%',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
@@ -314,22 +335,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 40,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: Colors.textSecondary,
-        marginBottom: 8,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: Colors.textMuted,
-    },
     commentsList: {
         padding: 20,
         paddingHorizontal: 16,
@@ -340,24 +345,6 @@ const styles = StyleSheet.create({
         gap: 12,
         paddingRight: 8,
         alignItems: 'flex-start',
-    },
-    avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-    },
-    avatarPlaceholder: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#e0e7ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors.accentDark,
     },
     commentContent: {
         flex: 1,
@@ -382,7 +369,7 @@ const styles = StyleSheet.create({
     },
     commentText: {
         fontSize: 15,
-        color: '#374151',
+        color: Colors.gray700,
         lineHeight: 20,
         marginBottom: 4,
     },
@@ -417,7 +404,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sendButtonDisabled: {
-        backgroundColor: '#d1d5db',
+        backgroundColor: Colors.gray300,
     },
     moreButton: {
         padding: 8,
@@ -426,7 +413,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 30,
         right: 0,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -446,7 +433,7 @@ const styles = StyleSheet.create({
     },
     menuText: {
         fontSize: 14,
-        color: '#374151',
+        color: Colors.gray700,
         fontWeight: '500',
     },
     menuDivider: {

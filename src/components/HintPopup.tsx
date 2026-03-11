@@ -38,6 +38,9 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   const revealProgress = useRef(new Animated.Value(0)).current;
   const swipeX = useRef(new Animated.Value(0)).current;
 
+  // Timer management for memory leak prevention
+  const timers = useRef<NodeJS.Timeout[]>([]);
+
   // Determine content type
   const isObj = typeof hint === 'object' && hint !== null;
   const text = isObj ? (hint.text || hint.hint) : hint;
@@ -51,6 +54,10 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
 
   useEffect(() => {
     if (visible) {
+      // Clear any pending timers
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+
       // Reset revealed state based on hint type
       if (requiresScratch) {
         setIsRevealed(false);
@@ -99,26 +106,26 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
       ]).start();
 
       // Icon pops in after card appears
-      setTimeout(() => {
+      timers.current.push(setTimeout(() => {
         Animated.spring(iconScale, {
           toValue: 1,
           tension: 100,
           friction: 5,
           useNativeDriver: true,
         }).start();
-      }, 100);
+      }, 100));
 
       // Header fades in
-      setTimeout(() => {
+      timers.current.push(setTimeout(() => {
         Animated.timing(headerOpacity, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }).start();
-      }, 200);
+      }, 200));
 
       // Hint container slides up and fades in (but content still blurred)
-      setTimeout(() => {
+      timers.current.push(setTimeout(() => {
         Animated.parallel([
           Animated.spring(hintSlideY, {
             toValue: 0,
@@ -132,10 +139,10 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
             useNativeDriver: true,
           }),
         ]).start();
-      }, 300);
+      }, 300));
 
       // Button slides up and fades in
-      setTimeout(() => {
+      timers.current.push(setTimeout(() => {
         Animated.parallel([
           Animated.spring(buttonSlideY, {
             toValue: 0,
@@ -149,8 +156,12 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
             useNativeDriver: true,
           }),
         ]).start();
-      }, 500);
+      }, 500));
     } else {
+      // Clear any pending timers
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+
       // Exit animation
       Animated.parallel([
         Animated.timing(backdropOpacity, {
@@ -170,6 +181,12 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
         }),
       ]).start();
     }
+
+    // Cleanup on unmount or when visible changes
+    return () => {
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+    };
   }, [visible]);
 
 
@@ -201,8 +218,8 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
       // If fully revealed, trigger haptic and confetti
       if (progress >= 1 && !isRevealed) {
         setIsRevealed(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setTimeout(() => confettiRef.current?.start(), 100);
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        timers.current.push(setTimeout(() => confettiRef.current?.start(), 100));
       }
     }
   };

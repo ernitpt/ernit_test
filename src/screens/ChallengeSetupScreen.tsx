@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
 import {
     View,
     Text,
@@ -10,11 +12,12 @@ import {
     StyleSheet,
     Dimensions,
     Platform,
-    TextInput,
+    TextInput as RNTextInput,
     Image,
     Animated,
     Modal,
 } from 'react-native';
+import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
@@ -179,6 +182,9 @@ export default function ChallengeSetupScreen() {
     const slideAnim = useModalAnimation(showConfirm);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const scrollViewRef = useRef<ScrollView>(null);
+
+    // Refs for focus chaining
+    const minutesRef = useRef<RNTextInput>(null);
 
     // Category filter state (single-select, 'All' by default)
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -455,12 +461,6 @@ export default function ChallengeSetupScreen() {
     // ─── Step Content Renderers ──────────────────────────────────────
     const renderStep1 = () => (
         <View style={styles.stepContent}>
-            {validationErrors.goal && (
-                <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please select a goal type</Text>
-                </View>
-            )}
-
             <View style={styles.goalGrid}>
                 {GOAL_TYPES.map((goal, i) => (
                     <MotiView
@@ -507,25 +507,35 @@ export default function ChallengeSetupScreen() {
                 ))}
             </View>
 
+            {validationErrors.goal && (
+                <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: '500' }}>
+                    Please select a goal type
+                </Text>
+            )}
+
             {selectedGoal === 'Other' && (
                 <View style={styles.customGoalContainer}>
-                    <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
-                    <View style={styles.customGoalInputWrapper}>
-                        <Text style={styles.customGoalIcon}>{'\u2728'}</Text>
-                        <TextInput
-                            style={styles.customGoalInput}
-                            placeholder="e.g., Cook, Paint, Write..."
-                            value={customGoal}
-                            onChangeText={(text) => {
-                                setCustomGoal(text);
-                                if (validationErrors.goal && text.trim()) {
-                                    setValidationErrors(prev => ({ ...prev, goal: false }));
-                                }
-                            }}
-                            autoFocus
-                            accessibilityLabel="Custom goal name"
-                        />
-                    </View>
+                    <TextInput
+                        label="Enter your custom goal:"
+                        placeholder="e.g., Cook, Paint, Write..."
+                        value={customGoal}
+                        onChangeText={(text) => {
+                            setCustomGoal(text);
+                            if (validationErrors.goal && text.trim()) {
+                                setValidationErrors(prev => ({ ...prev, goal: false }));
+                            }
+                        }}
+                        maxLength={50}
+                        autoFocus
+                        accessibilityLabel="Custom goal name"
+                        leftIcon={<Text style={styles.customGoalIcon}>{'\u2728'}</Text>}
+                        containerStyle={{ marginBottom: 0 }}
+                    />
+                    {validationErrors.goal && customGoal.trim() === '' && (
+                        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+                            Please enter a custom goal
+                        </Text>
+                    )}
                 </View>
             )}
         </View>
@@ -563,15 +573,9 @@ export default function ChallengeSetupScreen() {
                 <View style={styles.sliderContainer}>
                     <Text style={styles.sliderTitle}>Time per session</Text>
 
-                    {validationErrors.time && (
-                        <View style={[styles.errorBanner, { marginTop: 8, marginBottom: 16 }]}>
-                            <Text style={styles.errorText}>Please set a time per session</Text>
-                        </View>
-                    )}
-
                     <View style={styles.timeRow}>
                         <View style={styles.timeInputGroup}>
-                            <TextInput
+                            <RNTextInput
                                 style={styles.timeInput}
                                 value={hours}
                                 onChangeText={(t) => {
@@ -582,12 +586,15 @@ export default function ChallengeSetupScreen() {
                                 maxLength={1}
                                 placeholder="0"
                                 placeholderTextColor={Colors.textMuted}
+                                returnKeyType="next"
+                                onSubmitEditing={() => minutesRef.current?.focus()}
                                 accessibilityLabel="Hours per session"
                             />
                             <Text style={styles.timeLabel}>hr</Text>
                         </View>
                         <View style={styles.timeInputGroup}>
-                            <TextInput
+                            <RNTextInput
+                                ref={minutesRef}
                                 style={styles.timeInput}
                                 value={minutes}
                                 onChangeText={(t) => {
@@ -600,11 +607,18 @@ export default function ChallengeSetupScreen() {
                                 maxLength={2}
                                 placeholder="00"
                                 placeholderTextColor={Colors.textMuted}
+                                returnKeyType="done"
                                 accessibilityLabel="Minutes per session"
                             />
                             <Text style={styles.timeLabel}>min</Text>
                         </View>
                     </View>
+
+                    {validationErrors.time && (
+                        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 8, fontWeight: '500' }}>
+                            Please set a time per session (at least 1 minute)
+                        </Text>
+                    )}
                 </View>
             </View>
         </View>
@@ -1332,7 +1346,7 @@ export default function ChallengeSetupScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: Colors.surface,
     },
     header: {
         flexDirection: 'row',
@@ -1341,7 +1355,7 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? 56 : 40,
         paddingBottom: 16,
         paddingHorizontal: 20,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
     },
@@ -1354,9 +1368,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1F2937',
+        ...Typography.heading3,
+        color: Colors.gray800,
     },
     stepIndicator: {
         backgroundColor: Colors.primarySurface,
@@ -1365,6 +1378,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     stepIndicatorText: {
+        ...Typography.small,
         fontSize: 13,
         fontWeight: '700',
         color: Colors.primary,
@@ -1374,7 +1388,7 @@ const styles = StyleSheet.create({
     progressBar: {
         paddingHorizontal: 20,
         paddingVertical: 12,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
     },
     progressTrack: {
         height: 4,
@@ -1398,15 +1412,15 @@ const styles = StyleSheet.create({
         paddingBottom: 20,
     },
     stepTitle: {
+        ...Typography.heading1,
         fontSize: 24,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 8,
     },
     stepSubtitle: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
-        lineHeight: 22,
         marginBottom: 28,
     },
     stepContent: {
@@ -1427,9 +1441,8 @@ const styles = StyleSheet.create({
         borderColor: '#FECACA',
     },
     errorText: {
+        ...Typography.smallBold,
         color: '#DC2626',
-        fontSize: 14,
-        fontWeight: '600',
     },
 
     // Goal chips
@@ -1447,7 +1460,7 @@ const styles = StyleSheet.create({
         gap: 6,
         paddingVertical: 14,
         borderRadius: 16,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderWidth: 2,
         borderColor: Colors.border,
     },
@@ -1456,57 +1469,35 @@ const styles = StyleSheet.create({
         backgroundColor: '#FEF2F2',
     },
     goalIcon: {
+        ...Typography.heading2,
         fontSize: 22,
     },
     goalName: {
-        fontSize: 15,
-        fontWeight: '700',
+        ...Typography.bodyBold,
         color: Colors.textSecondary,
     },
     goalNameActive: {
-        color: '#fff',
+        color: Colors.white,
     },
     customGoalContainer: {
         marginTop: 20,
     },
-    customGoalLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.textSecondary,
-        marginBottom: 10,
-    },
-    customGoalInputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        borderWidth: 2,
-        borderColor: Colors.border,
-        paddingHorizontal: 16,
-        paddingVertical: 4,
-    },
     customGoalIcon: {
+        ...Typography.large,
         fontSize: 20,
         marginRight: 8,
-    },
-    customGoalInput: {
-        flex: 1,
-        fontSize: 15,
-        color: '#1F2937',
-        paddingVertical: 10,
     },
 
     // Sliders
     sliderContainer: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 20,
         padding: 24,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
     },
     sliderTitle: {
-        fontSize: 14,
-        fontWeight: '700',
+        ...Typography.smallBold,
         color: Colors.textSecondary,
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -1519,13 +1510,12 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     sliderValue: {
-        fontSize: 32,
+        ...Typography.display,
         fontWeight: '900',
-        color: '#1F2937',
+        color: Colors.gray800,
     },
     sliderUnit: {
-        fontSize: 18,
-        fontWeight: '600',
+        ...Typography.heading3,
         color: Colors.textSecondary,
     },
     sliderLabels: {
@@ -1534,6 +1524,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     sliderLabelText: {
+        ...Typography.small,
         fontSize: 13,
         fontWeight: '600',
         color: Colors.textMuted,
@@ -1557,10 +1548,10 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
@@ -1593,18 +1584,17 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         textAlign: 'center',
-        backgroundColor: '#fff',
-        color: '#1F2937',
+        backgroundColor: Colors.white,
+        color: Colors.gray800,
     },
     timeLabel: {
-        fontSize: 15,
-        fontWeight: '600',
+        ...Typography.bodyBold,
         color: Colors.textSecondary,
     },
 
     // Experience cards
     expCard: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderWidth: 2,
         borderColor: Colors.border,
         borderRadius: 16,
@@ -1637,6 +1627,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     expTitle: {
+        ...Typography.small,
         fontSize: 13,
         fontWeight: '700',
         color: Colors.textSecondary,
@@ -1652,12 +1643,11 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     expPrice: {
-        fontSize: 12,
-        fontWeight: '700',
+        ...Typography.captionBold,
         color: Colors.primary,
     },
     expLocation: {
-        fontSize: 11,
+        ...Typography.tiny,
         color: Colors.textMuted,
         flex: 1,
     },
@@ -1669,9 +1659,8 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     viewDetailsBtnText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#fff',
+        ...Typography.tiny,
+        color: Colors.white,
     },
     checkBadge: {
         position: 'absolute',
@@ -1694,14 +1683,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: Platform.OS === 'ios' ? 34 : 20,
         paddingTop: 16,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
-        shadowColor: '#000',
+        ...Shadows.md,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 8,
     },
     createButton: {
         borderRadius: 16,
@@ -1720,20 +1707,21 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     createButtonText: {
-        color: '#fff',
+        ...Typography.subheading,
         fontSize: 17,
         fontWeight: '700',
+        color: Colors.white,
     },
 
     // Footer hero card
     footerHeroCard: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         padding: 12,
         marginBottom: 12,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 6,
@@ -1759,9 +1747,9 @@ const styles = StyleSheet.create({
         marginLeft: 16,
     },
     footerHeroTitle: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '800',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 2,
     },
 
@@ -1780,12 +1768,14 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     contextEmoji: {
+        ...Typography.small,
         fontSize: 14,
     },
     contextText: {
+        ...Typography.small,
         fontSize: 13,
         fontWeight: '700',
-        color: '#4B5563',
+        color: Colors.gray600,
     },
     contextDivider: {
         width: 1,
@@ -1793,6 +1783,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.border,
     },
     contextLabel: {
+        ...Typography.small,
         fontSize: 13,
         fontWeight: '600',
         color: Colors.textSecondary,
@@ -1800,26 +1791,24 @@ const styles = StyleSheet.create({
 
     // Modal
     modalBox: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 20,
         width: '90%',
         maxWidth: 360,
         paddingVertical: 24,
         paddingHorizontal: 20,
-        shadowColor: '#000',
+        ...Shadows.md,
+        shadowColor: Colors.black,
         shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
         alignItems: 'center',
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
+        ...Typography.large,
         color: Colors.primaryDeep,
         marginBottom: 8,
     },
     modalSubtitle: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textSecondary,
         marginBottom: 20,
         textAlign: 'center',
@@ -1835,8 +1824,8 @@ const styles = StyleSheet.create({
         borderColor: Colors.border,
     },
     modalRow: {
-        fontSize: 15,
-        color: '#374151',
+        ...Typography.body,
+        color: Colors.gray700,
         marginBottom: 4,
     },
     modalLabel: {
@@ -1844,6 +1833,7 @@ const styles = StyleSheet.create({
         color: Colors.primaryDeep,
     },
     pledgeNote: {
+        ...Typography.small,
         fontSize: 13,
         color: '#16a34a',
         textAlign: 'center',
@@ -1869,14 +1859,12 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
     },
     cancelText: {
-        color: '#374151',
-        fontWeight: '600',
-        fontSize: 16,
+        ...Typography.subheading,
+        color: Colors.gray700,
     },
     confirmText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16,
+        ...Typography.subheading,
+        color: Colors.white,
     },
 
     // Carousel filter chips
@@ -1904,15 +1892,14 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     filterChipActive: {
-        backgroundColor: '#1F2937',
+        backgroundColor: Colors.gray800,
     },
     filterText: {
-        fontSize: 12,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: Colors.textSecondary,
     },
     filterTextActive: {
-        color: '#fff',
+        color: Colors.white,
     },
     categoryFadeIndicator: {
         position: 'absolute',
@@ -1950,12 +1937,12 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     categorySectionEmoji: {
+        ...Typography.large,
         fontSize: 20,
     },
     categorySectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
+        ...Typography.subheading,
+        color: Colors.gray800,
         flex: 1,
     },
     categorySectionBadge: {
@@ -1964,13 +1951,12 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     categorySectionCount: {
-        fontSize: 12,
-        fontWeight: '700',
+        ...Typography.captionBold,
     },
 
     // Inline calendar
     inlineCalendar: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
@@ -1988,19 +1974,17 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.backgroundLight,
     },
     calMonthYear: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#374151',
+        ...Typography.subheading,
+        color: Colors.gray700,
     },
     calWeekRow: {
         flexDirection: 'row',
         marginBottom: 8,
     },
     calWeekDay: {
+        ...Typography.captionBold,
         flex: 1,
         textAlign: 'center',
-        fontSize: 12,
-        fontWeight: '600',
         color: Colors.textMuted,
     },
     calDaysGrid: {
@@ -2023,15 +2007,15 @@ const styles = StyleSheet.create({
         borderColor: Colors.secondary,
     },
     calDayText: {
-        fontSize: 14,
-        color: '#374151',
+        ...Typography.small,
+        color: Colors.gray700,
         fontWeight: '500',
     },
     calDisabledText: {
-        color: '#D1D5DB',
+        color: Colors.gray300,
     },
     calSelectedText: {
-        color: '#FFFFFF',
+        color: Colors.white,
         fontWeight: '700',
     },
     calTodayText: {
@@ -2050,19 +2034,21 @@ const styles = StyleSheet.create({
         borderColor: '#BBF7D0',
     },
     endDateLabel: {
+        ...Typography.small,
         fontSize: 13,
         color: Colors.textSecondary,
         fontWeight: '500',
         marginBottom: 4,
     },
     endDateValue: {
+        ...Typography.subheading,
         fontSize: 17,
         fontWeight: '700',
         color: Colors.primary,
         textAlign: 'center',
     },
     endDateSublabel: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
         marginTop: 4,
     },
@@ -2079,18 +2065,18 @@ const styles = StyleSheet.create({
         marginBottom: 0,
     },
     statNumber: {
-        fontSize: 22,
+        ...Typography.heading2,
         fontWeight: '800',
         color: Colors.primary,
         marginBottom: 2,
     },
     statText: {
-        fontSize: 12,
-        color: '#374151',
+        ...Typography.caption,
+        color: Colors.gray700,
         textAlign: 'center',
-        lineHeight: 16,
     },
     statSource: {
+        ...Typography.tiny,
         fontSize: 10,
         color: Colors.textMuted,
         fontStyle: 'italic',
@@ -2116,17 +2102,16 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     expPreviewTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#1F2937',
+        ...Typography.smallBold,
+        color: Colors.gray800,
     },
     expPreviewMeta: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textSecondary,
         marginTop: 2,
     },
     rewardChoice: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         padding: 16,
         borderWidth: 2,
@@ -2143,18 +2128,19 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     rewardChoiceIcon: {
+        ...Typography.heading1,
         fontSize: 28,
     },
     rewardChoiceTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
+        ...Typography.subheading,
+        color: Colors.gray800,
         marginBottom: 2,
     },
     rewardChoiceTitleActive: {
         color: Colors.primary,
     },
     rewardChoiceDesc: {
+        ...Typography.small,
         fontSize: 13,
         color: Colors.textSecondary,
         lineHeight: 18,
@@ -2168,6 +2154,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     rewardChoiceNote: {
+        ...Typography.small,
         fontSize: 13,
         color: Colors.textMuted,
         textAlign: 'center',
@@ -2179,30 +2166,29 @@ const styles = StyleSheet.create({
     rewardCategoryCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         padding: 20,
         marginBottom: 12,
         borderWidth: 1.5,
         borderColor: Colors.backgroundLight,
-        shadowColor: '#000',
+        ...Shadows.sm,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-        elevation: 1,
     },
     rewardCategoryEmoji: {
-        fontSize: 32,
+        ...Typography.display,
         marginRight: 16,
     },
     rewardCategoryLabel: {
+        ...Typography.subheading,
         fontSize: 17,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.gray800,
         marginBottom: 2,
     },
     rewardCategoryTagline: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textSecondary,
     },
     rewardCategoryCheck: {
@@ -2219,6 +2205,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     browseLinkText: {
+        ...Typography.small,
         fontSize: 13,
         color: Colors.textMuted,
         marginBottom: 4,
@@ -2229,8 +2216,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     browseLinkActionText: {
-        fontSize: 14,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: Colors.primary,
     },
     browseBackButton: {
@@ -2240,8 +2226,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     browseBackText: {
-        fontSize: 14,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: Colors.primary,
     },
 });

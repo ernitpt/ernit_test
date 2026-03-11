@@ -91,7 +91,8 @@ const MysteryChoiceScreen = () => {
     // Redirect if experience is missing
     useEffect(() => {
         if (!experience) {
-            navigation.goBack();
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate('CategorySelection');
         }
     }, [experience, navigation]);
 
@@ -136,7 +137,10 @@ const MysteryChoiceScreen = () => {
                     <View style={styles.header}>
                         <TouchableOpacity
                             style={styles.backButton}
-                            onPress={() => navigation.goBack()}
+                            onPress={() => {
+                                if (navigation.canGoBack()) navigation.goBack();
+                                else navigation.navigate('CategorySelection');
+                            }}
                             activeOpacity={0.8}
                             accessibilityRole="button"
                             accessibilityLabel="Go back"

@@ -338,7 +338,10 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
+              onPress={() => {
+                if (navigation.canGoBack()) navigation.goBack();
+                else navigation.navigate('CategorySelection');
+              }}
               style={styles.backButton}
               accessibilityRole="button"
               accessibilityLabel="Go back"
@@ -360,7 +363,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             </View>
           )}
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
             {/* Summary */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Your Gifts</Text>
@@ -518,7 +521,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
         if (list.length === 0) {
           showError("Could not load experiences for checkout.");
           initRef.current = false; // Allow retry
-          navigation.goBack();
+          if (navigation.canGoBack()) navigation.goBack();
+          else navigation.navigate('CategorySelection');
           return;
         }
 
@@ -561,7 +565,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
         });
         showError(err.message || "Failed to initialize payment.");
         initRef.current = false; // Allow retry
-        navigation.goBack();
+        if (navigation.canGoBack()) navigation.goBack();
+        else navigation.navigate('CategorySelection');
       } finally {
         setLoading(false);
       }
@@ -619,7 +624,10 @@ const ExperienceCheckoutScreen: React.FC = () => {
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Could not initialize payment.</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.retryButton}>
+          <TouchableOpacity onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate('CategorySelection');
+          }} style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>

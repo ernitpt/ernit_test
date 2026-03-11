@@ -14,8 +14,10 @@ import {
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare } from 'lucide-react-native';
+import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare, Heart, Gift } from 'lucide-react-native';
 import { RootStackParamList, UserProfile, Goal, Experience } from '../types';
+import EmpowerChoiceModal from '../components/EmpowerChoiceModal';
+import MotivationModal from '../components/MotivationModal';
 import { userService } from '../services/userService';
 import { friendService } from '../services/FriendService';
 import { goalService } from '../services/GoalService';
@@ -31,6 +33,9 @@ import { db } from '../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
+import { EmptyState } from '../components/EmptyState';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -54,11 +59,15 @@ const CapsuleMini = ({ filled }: { filled: boolean }) => (
   />
 );
 
-const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string | undefined }) => {
+const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId: string | undefined; userName: string | null }) => {
   const [giverName, setGiverName] = useState<string | null>(null);
   const [showHintHistory, setShowHintHistory] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [showEmpowerModal, setShowEmpowerModal] = useState(false);
+  const [showMotivateModal, setShowMotivateModal] = useState(false);
   const isGiver = currentUserId === goal.empoweredBy;
+  const hasExperience = !!goal.experienceGiftId || !!goal.giftAttachedAt;
+  const nextSession = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0) + 1;
 
   useEffect(() => {
     if (goal.empoweredBy) {
@@ -80,7 +89,7 @@ const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string |
 
   return (
     <View style={styles.goalCard}>
-      <Text style={styles.goalTitle}>{goal.title}</Text>
+      <Text style={styles.goalTitle} numberOfLines={2}>{goal.title}</Text>
 
       {giverName && (
         <Text style={styles.goalMeta}>⚡ Empowered by {giverName}</Text>
@@ -118,12 +127,34 @@ const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string |
         </View>
       </View>
 
+      {/* Action Buttons: Empower + Motivate */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+        {!hasExperience && (
+          <TouchableOpacity
+            onPress={() => setShowEmpowerModal(true)}
+            style={styles.empowerActionButton}
+            activeOpacity={0.8}
+          >
+            <Gift color={Colors.white} size={16} />
+            <Text style={styles.empowerActionButtonText}>Empower</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          onPress={() => setShowMotivateModal(true)}
+          style={styles.motivateActionButton}
+          activeOpacity={0.8}
+        >
+          <Heart color={Colors.primary} size={16} />
+          <Text style={styles.motivateActionButtonText}>Motivate</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* View Hints Button (only for giver) */}
       {isGiver && (
         <TouchableOpacity
           onPress={() => setShowHintHistory(true)}
           style={{
-            marginTop: 16,
+            marginTop: 8,
             paddingVertical: 10,
             paddingHorizontal: 16,
             borderRadius: 8,
@@ -133,7 +164,7 @@ const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string |
           }}
           activeOpacity={0.7}
         >
-          <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.textSecondary, textAlign: 'center' }}>
+          <Text style={{ ...Typography.smallBold, color: Colors.textSecondary, textAlign: 'center' }}>
             View Hint History
           </Text>
         </TouchableOpacity>
@@ -237,46 +268,172 @@ const GoalCard = ({ goal, currentUserId }: { goal: Goal; currentUserId: string |
           onClose={() => setSelectedImageUri(null)}
         />
       )}
+
+      {/* Empower Modal */}
+      <EmpowerChoiceModal
+        visible={showEmpowerModal}
+        userName={userName || 'this user'}
+        goalId={goal.id}
+        goalUserId={goal.userId}
+        pledgedExperienceId={goal.pledgedExperience?.experienceId}
+        experienceTitle={goal.pledgedExperience?.title}
+        experiencePrice={goal.pledgedExperience?.price}
+        preferredRewardCategory={goal.preferredRewardCategory}
+        onClose={() => setShowEmpowerModal(false)}
+      />
+
+      {/* Motivate Modal */}
+      <MotivationModal
+        visible={showMotivateModal}
+        recipientName={userName || 'this user'}
+        goalId={goal.id}
+        targetSession={nextSession}
+        onClose={() => setShowMotivateModal(false)}
+      />
     </View>
   );
 };
 
-const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ goal, userName }) => {
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>("Partner");
-  const [gift, setGift] = useState<any>(null);
   const [loadingCard, setLoadingCard] = useState<boolean>(true);
+  const [showEmpowerModal, setShowEmpowerModal] = useState(false);
+
+  const hasReward = !!goal.experienceGiftId || !!goal.giftAttachedAt;
+  const isSelfAchievement = !hasReward && !goal.pledgedExperience;
+  const hasPledgedNotBought = !hasReward && !!goal.pledgedExperience;
+  // Compute effective deadline: explicit field, or fallback to completedAt + 30 days
+  const getEffectiveDeadline = (): Date | null => {
+    if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
+    if (goal.completedAt) {
+      const d = new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
+        ? (goal.completedAt as any).toDate() : goal.completedAt);
+      d.setDate(d.getDate() + 30);
+      return d;
+    }
+    return null;
+  };
+  const effectiveDeadline = getEffectiveDeadline();
+  const withinDeadline = effectiveDeadline && effectiveDeadline > new Date();
+
+  const canEmpower = hasPledgedNotBought && withinDeadline;
+  const canEmpowerSelf = isSelfAchievement && withinDeadline;
 
   useEffect(() => {
     const loadAchievementData = async () => {
       try {
-        if (!goal.experienceGiftId) return;
-
-        const giftData = await experienceGiftService.getExperienceGiftById(
-          goal.experienceGiftId
-        );
-        setGift(giftData);
-
-        const exp = await experienceService.getExperienceById(
-          giftData.experienceId
-        );
-        setExperience(exp || null);
-
-        setPartnerName(exp?.subtitle)
+        if (isSelfAchievement || hasPledgedNotBought) {
+          setLoadingCard(false);
+          return;
+        }
+        if (!goal.experienceGiftId) { setLoadingCard(false); return; }
+        try {
+          const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+          const exp = await experienceService.getExperienceById(giftData.experienceId);
+          setExperience(exp || null);
+          setPartnerName(exp?.subtitle || 'Partner');
+        } catch (dataErr) {
+          logger.warn('Error fetching gift/experience data:', dataErr);
+        }
       } catch (err) {
         logger.error("Error loading achievement data:", err);
       } finally {
         setLoadingCard(false);
       }
     };
-
     loadAchievementData();
   }, [goal.experienceGiftId]);
 
   const weeks = goal.targetCount || 0;
-  const sessions =
-    (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
+  const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
+  // Self-achievement card
+  if (isSelfAchievement) {
+    return (
+      <View style={styles.achievementCard}>
+        <View style={styles.achSelfBanner}>
+          <Text style={{ fontSize: 28 }}>🏆</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.achSelfLabel}>Self-Achievement</Text>
+            <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
+          </View>
+        </View>
+        <View style={styles.achievementContent}>
+          <Text style={styles.achievementMeta}>
+            {sessions} sessions completed • {weeks} weeks
+          </Text>
+          {canEmpowerSelf && (
+            <TouchableOpacity
+              onPress={() => setShowEmpowerModal(true)}
+              style={styles.empowerButton}
+              activeOpacity={0.7}
+            >
+              <Gift color={Colors.white} size={16} />
+              <Text style={styles.empowerButtonText}>Empower</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <EmpowerChoiceModal
+          visible={showEmpowerModal}
+          userName={userName || 'this user'}
+          goalId={goal.id}
+          goalUserId={goal.userId}
+          preferredRewardCategory={goal.preferredRewardCategory}
+          onClose={() => setShowEmpowerModal(false)}
+        />
+      </View>
+    );
+  }
+
+  // Pledged but not bought card
+  if (hasPledgedNotBought && goal.pledgedExperience) {
+    const pledged = goal.pledgedExperience;
+    const cover = pledged.coverImageUrl;
+    return (
+      <View style={styles.achievementCard}>
+        {cover ? (
+          <Image source={{ uri: cover }} style={styles.achievementImage} />
+        ) : (
+          <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
+            <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
+          </View>
+        )}
+        <View style={styles.achievementContent}>
+          <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
+          <Text style={styles.achievementGoal} numberOfLines={1}>🎁 {pledged.title}</Text>
+          <Text style={styles.achievementMeta}>
+            {sessions} sessions completed • {weeks} weeks
+          </Text>
+          {canEmpower && (
+            <TouchableOpacity
+              onPress={() => setShowEmpowerModal(true)}
+              style={styles.empowerButton}
+              activeOpacity={0.7}
+            >
+              <Gift color={Colors.white} size={16} />
+              <Text style={styles.empowerButtonText}>Empower</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <EmpowerChoiceModal
+          visible={showEmpowerModal}
+          userName={userName || 'this user'}
+          goalId={goal.id}
+          goalUserId={goal.userId}
+          pledgedExperienceId={pledged.experienceId}
+          experienceTitle={pledged.title}
+          experiencePrice={pledged.price}
+          preferredRewardCategory={goal.preferredRewardCategory}
+          onClose={() => setShowEmpowerModal(false)}
+        />
+      </View>
+    );
+  }
+
+  // Standard card (has reward / experience gift)
   const cover =
     experience?.coverImageUrl ||
     (experience?.imageUrl && experience.imageUrl.length > 0
@@ -285,16 +442,10 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
 
   return (
     <View style={styles.achievementCard}>
-      {/* Square photo */}
       {cover ? (
         <Image source={{ uri: cover }} style={styles.achievementImage} />
       ) : (
-        <View
-          style={[
-            styles.achievementImage,
-            styles.achievementImagePlaceholder,
-          ]}
-        >
+        <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
           <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
         </View>
       )}
@@ -307,15 +458,12 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
             <Text style={styles.achievementTitle} numberOfLines={1}>
               🎁 {experience?.title || "Experience unlocked"}
             </Text>
-
             <Text style={styles.achievementPartner} numberOfLines={1}>
               👤 {partnerName}
             </Text>
-
             <Text style={styles.achievementGoal} numberOfLines={2}>
               Goal: {goal.title}
             </Text>
-
             <Text style={styles.achievementMeta}>
               {sessions} sessions completed • {weeks} weeks
             </Text>
@@ -509,17 +657,24 @@ const FriendProfileScreen: React.FC = () => {
           ? completedGoals
           : wishlist;
 
-    if (data.length === 0)
-      return <Text style={styles.emptyStateText}>No {activeTab} yet.</Text>;
+    if (data.length === 0) {
+      const icon = activeTab === 'goals' ? '🎯' : activeTab === 'achievements' ? '🏆' : '⭐';
+      const title = `No ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Yet`;
+      const message = activeTab === 'goals'
+        ? 'No active goals at the moment'
+        : activeTab === 'achievements'
+          ? 'No achievements earned yet'
+          : 'No wishlist items yet';
+      return <EmptyState icon={icon} title={title} message={message} />;
+    }
 
     return data.map((item: any) =>
       activeTab === 'wishlist' ? (
         <ExperienceCard key={item.id} experience={item} />
       ) : activeTab === 'goals' ? (
-        <GoalCard key={item.id} goal={item} currentUserId={currentUserId} />
+        <GoalCard key={item.id} goal={item} currentUserId={currentUserId} userName={userName} />
       ) : (
-        // Achievements not clickable (unchanged)
-        <AchievementCard key={item.id} goal={item} />
+        <AchievementCard key={item.id} goal={item} userName={userName} />
       )
     );
   };
@@ -541,7 +696,10 @@ const FriendProfileScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('FriendsList');
+            }}
             style={styles.backButton}
           >
             <ChevronLeft color={Colors.textPrimary} size={24} />
@@ -568,7 +726,7 @@ const FriendProfileScreen: React.FC = () => {
 
           <Text style={styles.userName}>{userName}</Text>
           {userProfile?.description && (
-            <Text style={styles.userDescription}>{userProfile.description}</Text>
+            <Text style={styles.userDescription} numberOfLines={3}>{userProfile.description}</Text>
           )}
 
           {/* Stats */}
@@ -601,8 +759,8 @@ const FriendProfileScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             ) : hasPendingRequest ? (
-              <View style={[styles.friendButton, { backgroundColor: "#f59e0b" }]}>
-                <Clock color="#fff" size={16} />
+              <View style={[styles.friendButton, { backgroundColor: Colors.warning }]}>
+                <Clock color={Colors.white} size={16} />
                 <Text style={styles.friendButtonText}>Sent</Text>
               </View>
             ) : (
@@ -626,7 +784,7 @@ const FriendProfileScreen: React.FC = () => {
                 }}
                 disabled={isActionLoading}
               >
-                <UserPlus color="#fff" size={16} />
+                <UserPlus color={Colors.white} size={16} />
                 <Text style={styles.friendButtonText}>
                   {isActionLoading ? "Sending..." : "Add"}
                 </Text>
@@ -758,7 +916,7 @@ const styles = StyleSheet.create({
 
   // HERO
   heroSection: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingBottom: 32,
     paddingHorizontal: 24,
@@ -781,28 +939,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: 40, fontWeight: '700', color: '#fff' },
+  placeholderText: { ...Typography.display, fontSize: 40, color: Colors.white },
   userName: {
+    ...Typography.heading1,
     fontSize: 24,
-    fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 4,
     marginTop: 14,
   },
   userDescription: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 16,
-    lineHeight: 22,
   },
 
   // STATS
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 20 },
   statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
-  statLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  statNumber: { ...Typography.heading1, fontSize: 24, color: Colors.secondary, marginBottom: 4 },
+  statLabel: { ...Typography.small, fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
 
   // Friend buttons
   friendButtonContainer: { flexDirection: 'row', justifyContent: 'center' },
@@ -814,7 +971,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  friendButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  friendButtonText: { ...Typography.smallBold, color: Colors.white },
 
   // TABS
   tabsContainer: {
@@ -827,79 +984,69 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tabButtonActive: { backgroundColor: Colors.secondary },
-  tabText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  tabTextActive: { color: '#fff' },
+  tabText: { ...Typography.smallBold, color: Colors.textSecondary },
+  tabTextActive: { color: Colors.white },
 
   // NEW GOAL CARD STYLES (copied from user profile)
   goalCard: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 20,
     marginTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadows.sm,
+    shadowColor: Colors.textPrimary,
   },
-  goalTitle: { fontSize: 18, fontWeight: "700", color: Colors.textPrimary, marginBottom: 4 },
-  goalMeta: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
+  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: 4 },
+  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
 
   progressHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 4,
   },
-  progressHeaderLabel: { fontSize: 13, color: Colors.textSecondary },
-  progressHeaderValue: { fontSize: 13, color: Colors.textPrimary, fontWeight: "600" },
+  progressHeaderLabel: { ...Typography.small, fontSize: 13, color: Colors.textSecondary },
+  progressHeaderValue: { ...Typography.small, fontSize: 13, fontWeight: "600", color: Colors.textPrimary },
 
   // Wishlist card
   experienceCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginHorizontal: 20,
     marginTop: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadows.sm,
+    shadowColor: Colors.textPrimary,
   },
   experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
   experienceContent: { padding: 16 },
-  experienceTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  experienceTitle: { ...Typography.subheading, fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   experienceDescription: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
-    lineHeight: 20,
     marginBottom: 8,
   },
-  experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
+  experiencePrice: { ...Typography.heading3, color: Colors.secondary },
 
   emptyStateText: {
+    ...Typography.subheading,
     textAlign: 'center',
     marginTop: 40,
     color: Colors.textMuted,
-    fontSize: 16,
   },
   // ACHIEVEMENT CARD (copied from UserProfileScreen)
   achievementCard: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginHorizontal: 20,
     marginTop: 12,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadows.sm,
+    shadowColor: Colors.textPrimary,
   },
   achievementImage: {
     width: "100%",
@@ -918,33 +1065,105 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   achievementLoadingText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textMuted,
   },
   achievementTitle: {
+    ...Typography.subheading,
     fontSize: 17,
     fontWeight: "700",
     color: Colors.textPrimary,
     marginBottom: 4,
   },
   achievementPartner: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     marginBottom: 4,
   },
   achievementGoal: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     marginBottom: 6,
   },
   achievementMeta: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
+  },
+
+  // Action buttons (Empower/Motivate on GoalCard)
+  empowerActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.secondary,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  empowerActionButtonText: {
+    ...Typography.smallBold,
+    color: Colors.white,
+  },
+  motivateActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primarySurface,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+  },
+  motivateActionButtonText: {
+    ...Typography.smallBold,
+    color: Colors.primary,
+  },
+
+  // Self-achievement banner (AchievementCard)
+  achSelfBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.primarySurface,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primaryBorder,
+  },
+  achSelfLabel: {
+    ...Typography.tiny,
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  achSelfTitle: {
+    ...Typography.subheading,
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+
+  // Empower button on AchievementCard
+  empowerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.secondary,
+  },
+  empowerButtonText: {
+    ...Typography.smallBold,
+    color: Colors.white,
   },
 
   // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary },
+  loadingText: { ...Typography.subheading, marginTop: 12, color: Colors.textSecondary },
 
   // Popup overlay
   modalOverlay: {
@@ -957,27 +1176,26 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   modalBox: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 20,
     width: '85%',
     maxWidth: 360,
     paddingVertical: 24,
     paddingHorizontal: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.textPrimary,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 38,
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...Typography.large,
     color: '#4c1d95',
     marginBottom: 8,
   },
   modalSubtitle: {
-    fontSize: 15,
-    color: '#374151',
+    ...Typography.body,
+    color: Colors.gray700,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -1000,14 +1218,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   cancelText: {
-    color: '#374151',
-    fontWeight: '600',
-    fontSize: 15,
+    ...Typography.bodyBold,
+    color: Colors.gray700,
   },
   confirmText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
+    ...Typography.bodyBold,
+    color: Colors.white,
   },
 });
 
@@ -1019,7 +1235,7 @@ const historyModalStyles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     maxWidth: 500,
     width: '90%',
@@ -1037,12 +1253,11 @@ const historyModalStyles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...Typography.large,
     color: Colors.textPrimary,
   },
   closeButton: {
-    fontSize: 32,
+    ...Typography.display,
     color: Colors.textMuted,
     fontWeight: '300',
   },
@@ -1064,12 +1279,11 @@ const historyModalStyles = StyleSheet.create({
     marginBottom: 12,
   },
   sessionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...Typography.smallBold,
     color: Colors.primary,
   },
   dateLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textSecondary,
   },
   hintImage: {
@@ -1080,9 +1294,8 @@ const historyModalStyles = StyleSheet.create({
     backgroundColor: Colors.border,
   },
   hintText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#374151',
+    ...Typography.body,
+    color: Colors.gray700,
     marginBottom: 8,
   },
   audioContainer: {
@@ -1092,13 +1305,13 @@ const historyModalStyles = StyleSheet.create({
     borderRadius: 8,
   },
   audioText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
   },
   emptyText: {
+    ...Typography.body,
     textAlign: 'center',
     color: Colors.textMuted,
-    fontSize: 15,
     paddingVertical: 40,
   },
 });

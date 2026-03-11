@@ -135,7 +135,8 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
 
         return (
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <TouchableOpacity onPress={handlePress} style={styles.actionButton}>
+                <TouchableOpacity onPress={handlePress} style={styles.actionButton}
+                    hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}>
                     <View style={styles.iconBackground}>
                         {icon}
                     </View>
@@ -159,7 +160,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                         <View style={styles.headerLeft}>
                             {showBack && (
                                 <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-                                    <ChevronLeft color="#1F2937" size={26} strokeWidth={2.5} />
+                                    <ChevronLeft color={Colors.gray800} size={26} strokeWidth={2.5} />
                                 </TouchableOpacity>
                             )}
                             <View style={styles.headerTextContainer}>
@@ -179,7 +180,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                                         ]}
                                     >
                                         <Bug
-                                            color={state.debugMode ? '#FFFFFF' : '#9CA3AF'}
+                                            color={state.debugMode ? Colors.white : '#9CA3AF'}
                                             size={20}
                                             strokeWidth={2}
                                         />
@@ -219,8 +220,8 @@ const styles = StyleSheet.create({
         zIndex: 100,
     },
     solidBackground: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
+        backgroundColor: Colors.white,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -246,11 +247,11 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: 14,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         marginTop: 2,
         fontWeight: '500',
     },
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primarySurface,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
         shadowRadius: 4,
@@ -304,15 +305,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 6,
         borderWidth: 2.5,
-        borderColor: '#fff',
-        shadowColor: '#000',
+        borderColor: Colors.white,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 4,
     },
     badgeText: {
-        color: '#fff',
+        color: Colors.white,
         fontSize: 11,
         fontWeight: '800',
     },
@@ -320,12 +321,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     debugActiveBackground: {
-        backgroundColor: '#EF4444',
+        backgroundColor: Colors.error,
     },
     timeOffsetBadge: {
         position: 'absolute',
         top: 40,
-        backgroundColor: '#EF4444',
+        backgroundColor: Colors.error,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 6,
@@ -333,7 +334,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     timeOffsetText: {
-        color: '#FFFFFF',
+        color: Colors.white,
         fontSize: 9,
         fontWeight: '700',
     },

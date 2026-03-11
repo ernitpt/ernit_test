@@ -5,7 +5,7 @@ import {
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
-import { ShoppingBag, Gift } from 'lucide-react-native';
+import { ShoppingBag, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ExperienceCategory } from '../types';
@@ -13,36 +13,36 @@ import { useApp } from '../context/AppContext';
 import { Colors, Typography, Spacing, BorderRadius } from '../config';
 import { BaseModal } from './BaseModal';
 
-interface EmpowerChoiceModalProps {
+interface ClaimExperienceModalProps {
     visible: boolean;
-    userName: string;
+    goalId: string;
     experienceTitle?: string;
     experiencePrice?: number;
     pledgedExperienceId?: string;
-    goalId: string;
-    goalUserId: string;
-    onClose: () => void;
     preferredRewardCategory?: ExperienceCategory;
+    onClose: () => void;
 }
 
-const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
+const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
     visible,
-    userName,
+    goalId,
     experienceTitle,
     experiencePrice,
     pledgedExperienceId,
-    goalId,
-    goalUserId,
-    onClose,
     preferredRewardCategory,
+    onClose,
 }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const { dispatch } = useApp();
+    const { state, dispatch } = useApp();
 
     const setEmpowerContext = () => {
         dispatch({
             type: 'SET_EMPOWER_CONTEXT',
-            payload: { goalId, userId: goalUserId, userName },
+            payload: {
+                goalId,
+                userId: state.user?.id || '',
+                userName: state.user?.displayName || state.user?.profile?.name || 'You',
+            },
         });
     };
 
@@ -64,9 +64,9 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     };
 
     return (
-        <BaseModal visible={visible} onClose={onClose} title="Gift an Experience">
+        <BaseModal visible={visible} onClose={onClose} title="Claim Your Experience">
             <Text style={styles.subtitle}>
-                Celebrate {userName}'s progress
+                You've earned it — pick your reward!
             </Text>
 
             {/* Option 1: Buy pledged experience */}
@@ -79,7 +79,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                     <ShoppingBag size={18} color={Colors.white} />
                     <View style={{ flex: 1 }}>
                         <Text style={styles.optionPrimaryText} numberOfLines={1}>
-                            Gift "{experienceTitle}"
+                            Claim "{experienceTitle}"
                         </Text>
                         {experiencePrice != null && (
                             <Text style={styles.optionPrice}>
@@ -96,11 +96,11 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                 onPress={handleBrowse}
                 activeOpacity={0.8}
             >
-                <Gift size={18} color={Colors.primary} />
+                <Search size={18} color={Colors.primary} />
                 <Text style={styles.optionSecondaryText}>
                     {preferredRewardCategory && !experienceTitle
                         ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
-                        : 'Choose Another Experience'}
+                        : 'Browse Other Experiences'}
                 </Text>
             </TouchableOpacity>
 
@@ -167,4 +167,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default EmpowerChoiceModal;
+export default ClaimExperienceModal;

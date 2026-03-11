@@ -130,6 +130,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
     case 'START_GOAL_TIMER': {
       const { goalId, startedAt, elapsedBeforePause = 0 } = action.payload;
+      // Prevent starting duplicate timers for the same goal
+      if (state.goalTimers[goalId]?.isRunning) return state;
       return {
         ...state,
         goalTimers: {

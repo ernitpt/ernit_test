@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BaseModal } from './BaseModal';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
@@ -10,7 +11,6 @@ import { storageService } from '../services/StorageService';
 import { useApp } from '../context/AppContext';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
-import { commonStyles } from '../styles/commonStyles';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
@@ -217,92 +217,71 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             )}
 
             {/* Hint History Modal */}
-            <Modal
-                visible={showHistoryModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowHistoryModal(false)}
-            >
-                <TouchableOpacity
-                    style={commonStyles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowHistoryModal(false)}
-                >
-                    <View style={historyStyles.modalContainer}>
-                        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                            <View style={historyStyles.modalHeader}>
-                                <Text style={historyStyles.modalTitle}>Hint History</Text>
-                                <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
-                                    <Text style={historyStyles.closeButton}>×</Text>
-                                </TouchableOpacity>
-                            </View>
+            <BaseModal visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Hint History">
+                <ScrollView style={historyStyles.scrollView}>
+                    {goal?.hints && goal.hints.length > 0 ? (
+                        [...goal.hints].reverse().map((hint: any, index: number) => {
+                            const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+                            const hasImage = hint.imageUrl;
+                            const text = hint.text || hint.hint;
 
-                            <ScrollView style={historyStyles.scrollView}>
-                                {goal?.hints && goal.hints.length > 0 ? (
-                                    [...goal.hints].reverse().map((hint: any, index: number) => {
-                                        const isAudio = hint.type === 'audio' || hint.type === 'mixed';
-                                        const hasImage = hint.imageUrl;
-                                        const text = hint.text || hint.hint;
+                            // Handle date
+                            let dateMs = 0;
+                            if (hint.createdAt) {
+                                if (typeof hint.createdAt.toMillis === 'function') {
+                                    dateMs = hint.createdAt.toMillis();
+                                } else if (hint.createdAt instanceof Date) {
+                                    dateMs = hint.createdAt.getTime();
+                                } else {
+                                    dateMs = new Date(hint.createdAt).getTime();
+                                }
+                            } else if (hint.date) {
+                                dateMs = hint.date;
+                            }
 
-                                        // Handle date
-                                        let dateMs = 0;
-                                        if (hint.createdAt) {
-                                            if (typeof hint.createdAt.toMillis === 'function') {
-                                                dateMs = hint.createdAt.toMillis();
-                                            } else if (hint.createdAt instanceof Date) {
-                                                dateMs = hint.createdAt.getTime();
-                                            } else {
-                                                dateMs = new Date(hint.createdAt).getTime();
-                                            }
-                                        } else if (hint.date) {
-                                            dateMs = hint.date;
-                                        }
+                            return (
+                                <View key={hint.id || index} style={historyStyles.hintItem}>
+                                    <View style={historyStyles.hintHeader}>
+                                        <Text style={historyStyles.sessionLabel}>
+                                            Session {hint.session || index + 1}
+                                        </Text>
+                                        <Text style={historyStyles.dateLabel}>
+                                            {new Date(dateMs).toLocaleDateString()}
+                                        </Text>
+                                    </View>
 
-                                        return (
-                                            <View key={hint.id || index} style={historyStyles.hintItem}>
-                                                <View style={historyStyles.hintHeader}>
-                                                    <Text style={historyStyles.sessionLabel}>
-                                                        Session {hint.session || index + 1}
-                                                    </Text>
-                                                    <Text style={historyStyles.dateLabel}>
-                                                        {new Date(dateMs).toLocaleDateString()}
-                                                    </Text>
-                                                </View>
+                                    {hasImage && (
+                                        <TouchableOpacity
+                                            onPress={() => setSelectedImageUri(hint.imageUrl)}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Image
+                                                source={{ uri: hint.imageUrl }}
+                                                style={historyStyles.hintImage}
+                                                resizeMode="cover"
+                                            />
+                                        </TouchableOpacity>
+                                    )}
 
-                                                {hasImage && (
-                                                    <TouchableOpacity
-                                                        onPress={() => setSelectedImageUri(hint.imageUrl)}
-                                                        activeOpacity={0.9}
-                                                    >
-                                                        <Image
-                                                            source={{ uri: hint.imageUrl }}
-                                                            style={historyStyles.hintImage}
-                                                        />
-                                                    </TouchableOpacity>
-                                                )}
+                                    {text && (
+                                        <Text style={historyStyles.hintText}>{text}</Text>
+                                    )}
 
-                                                {text && (
-                                                    <Text style={historyStyles.hintText}>{text}</Text>
-                                                )}
-
-                                                {isAudio && hint.audioUrl && (
-                                                    <View style={historyStyles.audioContainer}>
-                                                        <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
-                                                    </View>
-                                                )}
-                                            </View>
-                                        );
-                                    })
-                                ) : (
-                                    <Text style={historyStyles.emptyText}>
-                                        No hints have been sent yet.
-                                    </Text>
-                                )}
-                            </ScrollView>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                                    {isAudio && hint.audioUrl && (
+                                        <View style={historyStyles.audioContainer}>
+                                            <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })
+                    ) : (
+                        <Text style={historyStyles.emptyText}>
+                            No hints have been sent yet.
+                        </Text>
+                    )}
+                </ScrollView>
+            </BaseModal>
 
             {/* Fullscreen Image Viewer */}
             {selectedImageUri && (
@@ -401,34 +380,6 @@ const styles = StyleSheet.create({
 });
 
 const historyStyles = StyleSheet.create({
-    modalContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        maxWidth: 500,
-        width: '90%',
-        maxHeight: '80%',
-        alignSelf: 'center',
-        marginTop: 'auto',
-        marginBottom: 'auto',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    closeButton: {
-        fontSize: 32,
-        color: Colors.textMuted,
-        fontWeight: '300',
-    },
     scrollView: {
         maxHeight: 500,
         padding: 20,

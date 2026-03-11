@@ -6,6 +6,9 @@ import SideMenu from '../components/SideMenu';
 import LoginPrompt from '../components/LoginPrompt';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useApp } from '../context/AppContext';
+import Colors from '../config/colors';
 
 type MainScreenProps = {
   children: React.ReactNode;
@@ -21,39 +24,42 @@ type MainScreenProps = {
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { state } = useApp();
   useNetworkStatus();
 
   const handleMenuPress = () => setSideMenuVisible(true);
   const handleCloseSideMenu = () => setSideMenuVisible(false);
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.container}>
-      {/* Main Content */}
-      <View style={styles.content}>{children}</View>
+    <ErrorBoundary screenName="MainScreen" userId={state.user?.id}>
+      <SafeAreaView edges={['bottom']} style={styles.container}>
+        {/* Main Content */}
+        <View style={styles.content}>{children}</View>
 
-      {/* Login Prompt Popup - shown when protected route is accessed without auth */}
-      <LoginPrompt
-        visible={showLoginPrompt}
-        onClose={closeLoginPrompt}
-        message={loginMessage}
-      />
+        {/* Login Prompt Popup - shown when protected route is accessed without auth */}
+        <LoginPrompt
+          visible={showLoginPrompt}
+          onClose={closeLoginPrompt}
+          message={loginMessage}
+        />
 
-      {/* Footer Navigation with guarded navigation */}
-      <FooterNavigation
-        activeRoute={activeRoute}
-        onMenuPress={handleMenuPress}
-      />
+        {/* Footer Navigation with guarded navigation */}
+        <FooterNavigation
+          activeRoute={activeRoute}
+          onMenuPress={handleMenuPress}
+        />
 
-      {/* Side Menu */}
-      <SideMenu visible={sideMenuVisible} onClose={handleCloseSideMenu} />
-    </SafeAreaView>
+        {/* Side Menu */}
+        <SideMenu visible={sideMenuVisible} onClose={handleCloseSideMenu} />
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.surface,
   },
   content: {
     flex: 1,

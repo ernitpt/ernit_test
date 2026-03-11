@@ -1,23 +1,20 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Modal,
     Image,
     ScrollView,
-    Animated,
 } from 'react-native';
-import { X } from 'lucide-react-native';
 import type { Reaction, ReactionType } from '../types';
 import { reactionService } from '../services/ReactionService';
-import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
 import { ReactionSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, Typography, Spacing, BorderRadius } from '../config';
+import { EmptyState } from './EmptyState';
+import { BaseModal } from './BaseModal';
 
 interface ReactionViewerModalProps {
     visible: boolean;
@@ -45,7 +42,6 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     const [reactions, setReactions] = useState<Reaction[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState<ReactionType | 'all'>('all');
-    const slideAnim = useModalAnimation(visible);
 
     useEffect(() => {
         if (visible) {
@@ -107,155 +103,97 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     };
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="fade"
-            onRequestClose={handleClose}
-        >
-            <TouchableOpacity
-                style={[commonStyles.modalOverlay, { justifyContent: 'flex-end' }]}
-                activeOpacity={1}
-                onPress={handleClose}
+        <BaseModal visible={visible} onClose={handleClose} title="Reactions" variant="bottom" noPadding>
+            {/* Tabs */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.tabsContainer}
+                contentContainerStyle={styles.tabsContent}
             >
-                <Animated.View
+                <TouchableOpacity
                     style={[
-                        styles.modalContainer,
-                        {
-                            transform: [{ translateY: slideAnim }],
-                        },
+                        styles.tab,
+                        selectedTab === 'all' && styles.tabActive,
                     ]}
+                    onPress={() => setSelectedTab('all')}
                 >
-                    <TouchableOpacity
-                        activeOpacity={1}
-                        onPress={(e) => e.stopPropagation()}
-                        style={{ flex: 1 }}
+                    <Text
+                        style={[
+                            styles.tabText,
+                            selectedTab === 'all' && styles.tabTextActive,
+                        ]}
                     >
-                        <View style={styles.header}>
-                            <Text style={styles.title}>Reactions</Text>
-                            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                                <X color={Colors.textSecondary} size={24} />
-                            </TouchableOpacity>
-                        </View>
+                        All {reactions.length > 0 && `(${reactions.length})`}
+                    </Text>
+                </TouchableOpacity>
 
-                        {/* Tabs */}
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.tabsContainer}
-                            contentContainerStyle={styles.tabsContent}
+                {reactionTypes.map((type) => (
+                    <TouchableOpacity
+                        key={type}
+                        style={[
+                            styles.tab,
+                            selectedTab === type && styles.tabActive,
+                        ]}
+                        onPress={() => setSelectedTab(type)}
+                    >
+                        <Text style={styles.tabEmoji}>{REACTION_EMOJIS[type]}</Text>
+                        <Text
+                            style={[
+                                styles.tabText,
+                                selectedTab === type && styles.tabTextActive,
+                            ]}
                         >
-                            <TouchableOpacity
-                                style={[
-                                    styles.tab,
-                                    selectedTab === 'all' && styles.tabActive,
-                                ]}
-                                onPress={() => setSelectedTab('all')}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        selectedTab === 'all' && styles.tabTextActive,
-                                    ]}
-                                >
-                                    All {reactions.length > 0 && `(${reactions.length})`}
-                                </Text>
-                            </TouchableOpacity>
-
-                            {reactionTypes.map((type) => (
-                                <TouchableOpacity
-                                    key={type}
-                                    style={[
-                                        styles.tab,
-                                        selectedTab === type && styles.tabActive,
-                                    ]}
-                                    onPress={() => setSelectedTab(type)}
-                                >
-                                    <Text style={styles.tabEmoji}>{REACTION_EMOJIS[type]}</Text>
-                                    <Text
-                                        style={[
-                                            styles.tabText,
-                                            selectedTab === type && styles.tabTextActive,
-                                        ]}
-                                    >
-                                        {getTabCount(type)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-
-                        {/* Reactions List */}
-                        <ScrollView style={styles.reactionsList}>
-                            {loading ? (
-                                <>
-                                    {[1, 2, 3].map((i) => (
-                                        <ReactionSkeleton key={i} />
-                                    ))}
-                                </>
-                            ) : filteredReactions.length === 0 ? (
-                                <View style={styles.emptyContainer}>
-                                    <Text style={styles.emptyText}>No reactions yet</Text>
-                                </View>
-                            ) : (
-                                filteredReactions.map((reaction) => (
-                                    <View key={reaction.id} style={styles.reactionItem}>
-                                        {reaction.userProfileImageUrl ? (
-                                            <Image
-                                                source={{ uri: reaction.userProfileImageUrl }}
-                                                style={styles.avatar}
-                                            />
-                                        ) : (
-                                            <View style={styles.avatarPlaceholder}>
-                                                <Text style={styles.avatarText}>
-                                                    {reaction.userName?.[0]?.toUpperCase() || 'U'}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        <View style={styles.userInfo}>
-                                            <Text style={styles.userName}>{reaction.userName}</Text>
-                                        </View>
-                                        <Text style={styles.reactionEmoji}>
-                                            {REACTION_EMOJIS[reaction.type]}
-                                        </Text>
-                                    </View>
-                                ))
-                            )}
-                        </ScrollView>
+                            {getTabCount(type)}
+                        </Text>
                     </TouchableOpacity>
-                </Animated.View>
-            </TouchableOpacity>
-        </Modal>
+                ))}
+            </ScrollView>
+
+            {/* Reactions List */}
+            <ScrollView style={styles.reactionsList}>
+                {loading ? (
+                    <>
+                        {[1, 2, 3].map((i) => (
+                            <ReactionSkeleton key={i} />
+                        ))}
+                    </>
+                ) : filteredReactions.length === 0 ? (
+                    <EmptyState
+                        icon="❤️"
+                        title="No reactions yet"
+                        message="Be the first to react!"
+                    />
+                ) : (
+                    filteredReactions.map((reaction) => (
+                        <View key={reaction.id} style={styles.reactionItem}>
+                            {reaction.userProfileImageUrl ? (
+                                <Image
+                                    source={{ uri: reaction.userProfileImageUrl }}
+                                    style={styles.avatar}
+                                />
+                            ) : (
+                                <View style={styles.avatarPlaceholder}>
+                                    <Text style={styles.avatarText}>
+                                        {reaction.userName?.[0]?.toUpperCase() || 'U'}
+                                    </Text>
+                                </View>
+                            )}
+                            <View style={styles.userInfo}>
+                                <Text style={styles.userName}>{reaction.userName}</Text>
+                            </View>
+                            <Text style={styles.reactionEmoji}>
+                                {REACTION_EMOJIS[reaction.type]}
+                            </Text>
+                        </View>
+                    ))
+                )}
+            </ScrollView>
+        </BaseModal>
     );
 };
 
 const styles = StyleSheet.create({
-    modalContainer: {
-        backgroundColor: Colors.white,
-        borderTopLeftRadius: BorderRadius.xxl,
-        borderTopRightRadius: BorderRadius.xxl,
-        maxHeight: '80%',
-        paddingBottom: Spacing.xl,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: Spacing.screenPadding,
-        paddingTop: Spacing.screenPadding,
-        paddingBottom: Spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    title: {
-        ...Typography.heading3,
-        color: Colors.textPrimary,
-    },
-    closeButton: {
-        width: 44,
-        height: 44,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     tabsContainer: {
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
@@ -297,14 +235,6 @@ const styles = StyleSheet.create({
     loadingContainer: {
         paddingVertical: Spacing.huge,
         alignItems: 'center',
-    },
-    emptyContainer: {
-        paddingVertical: Spacing.huge,
-        alignItems: 'center',
-    },
-    emptyText: {
-        ...Typography.body,
-        color: Colors.textMuted,
     },
     reactionItem: {
         flexDirection: 'row',

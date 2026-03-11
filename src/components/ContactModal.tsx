@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     Modal,
     StyleSheet,
     TouchableOpacity,
-    TextInput,
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
     Animated,
     ScrollView,
+    TextInput as RNTextInput,
 } from 'react-native';
 import { X, Send, MessageSquare, LifeBuoy, CheckCircle } from 'lucide-react-native';
+import { TextInput } from '../components/TextInput';
 import { useApp } from '../context/AppContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
@@ -39,6 +40,9 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
         friction: 10,
     });
 
+    // Create refs for focus chaining
+    const messageRef = useRef<RNTextInput>(null);
+
     // Reset form when modal opens/closes
     useEffect(() => {
         if (visible) {
@@ -50,7 +54,10 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
     }, [visible]);
 
     const handleSubmit = async () => {
-        if (!subject.trim() || !message.trim()) return;
+        if (!subject.trim() || !message.trim()) {
+            setErrorMessage('Please fill in all fields');
+            return;
+        }
 
         setIsSending(true);
 
@@ -122,7 +129,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                         {showSuccess ? (
                             // Success State
                             <View style={styles.successContainer}>
-                                <CheckCircle color="#10b981" size={64} />
+                                <CheckCircle color={Colors.secondary} size={64} />
                                 <Text style={styles.successTitle}>Message Sent!</Text>
                                 <Text style={styles.successMessage}>
                                     Thank you for your {type === 'feedback' ? 'feedback' : 'message'}.
@@ -137,39 +144,38 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 style={styles.formContainer}
                                 showsVerticalScrollIndicator={false}
                                 keyboardShouldPersistTaps="handled"
+                                keyboardDismissMode="on-drag"
                             >
                                 {/* Subject Input */}
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Subject</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder={type === 'feedback' ? 'Feature request, UI improvement, etc.' : 'Bug report, payment issue, etc.'}
-                                        placeholderTextColor={Colors.textMuted}
-                                        value={subject}
-                                        onChangeText={setSubject}
-                                        maxLength={100}
-                                        editable={!isSending}
-                                    />
-                                    <Text style={styles.charCount}>{subject.length}/100</Text>
-                                </View>
+                                <TextInput
+                                    label="Subject"
+                                    placeholder={type === 'feedback' ? 'Feature request, UI improvement, etc.' : 'Bug report, payment issue, etc.'}
+                                    value={subject}
+                                    onChangeText={setSubject}
+                                    maxLength={100}
+                                    disabled={isSending}
+                                    returnKeyType="next"
+                                    onSubmitEditing={() => messageRef.current?.focus()}
+                                    helperText={`${subject.length}/100`}
+                                    containerStyle={{ marginBottom: 16 }}
+                                />
 
                                 {/* Message Input */}
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Message</Text>
-                                    <TextInput
-                                        style={[styles.input, styles.textArea]}
-                                        placeholder={placeholder}
-                                        placeholderTextColor={Colors.textMuted}
-                                        value={message}
-                                        onChangeText={setMessage}
-                                        multiline
-                                        numberOfLines={6}
-                                        maxLength={1000}
-                                        textAlignVertical="top"
-                                        editable={!isSending}
-                                    />
-                                    <Text style={styles.charCount}>{message.length}/1000</Text>
-                                </View>
+                                <TextInput
+                                    ref={messageRef}
+                                    label="Message"
+                                    placeholder={placeholder}
+                                    value={message}
+                                    onChangeText={setMessage}
+                                    multiline
+                                    numberOfLines={6}
+                                    maxLength={1000}
+                                    textAlignVertical="top"
+                                    disabled={isSending}
+                                    returnKeyType="done"
+                                    helperText={`${message.length}/1000`}
+                                    inputStyle={{ minHeight: 120, paddingTop: 12 }}
+                                />
 
                                 {/* Info Box */}
                                 <View style={styles.infoBox}>
@@ -193,10 +199,10 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     disabled={!subject.trim() || !message.trim() || isSending}
                                 >
                                     {isSending ? (
-                                        <ActivityIndicator size="small" color="#fff" />
+                                        <ActivityIndicator size="small" color={Colors.white} />
                                     ) : (
                                         <>
-                                            <Send color="#fff" size={20} />
+                                            <Send color={Colors.white} size={20} />
                                             <Text style={styles.submitButtonText}>Send Message</Text>
                                         </>
                                     )}
@@ -217,7 +223,7 @@ const styles = StyleSheet.create({
     modalContainer: {
         height: '75%',
         width: '100%',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         shadowColor: '#000',
@@ -255,46 +261,17 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
     },
-    inputGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: Colors.backgroundLight,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 15,
-        color: Colors.textPrimary,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    textArea: {
-        minHeight: 120,
-        paddingTop: 12,
-    },
-    charCount: {
-        fontSize: 12,
-        color: Colors.textMuted,
-        textAlign: 'right',
-        marginTop: 4,
-    },
     infoBox: {
-        backgroundColor: '#eff6ff',
+        backgroundColor: Colors.infoLight,
         borderRadius: 12,
         padding: 12,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#dbeafe',
+        borderColor: Colors.info,
     },
     infoText: {
         fontSize: 13,
-        color: '#1e40af',
+        color: Colors.infoDark,
         textAlign: 'center',
     },
     emailText: {
@@ -320,10 +297,10 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     submitButtonDisabled: {
-        backgroundColor: '#d1d5db',
+        backgroundColor: Colors.gray300,
     },
     submitButtonText: {
-        color: '#fff',
+        color: Colors.white,
         fontSize: 16,
         fontWeight: '600',
     },

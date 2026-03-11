@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import type { ReactionType } from '../types';
 import Colors from '../config/colors';
+import * as Haptics from 'expo-haptics';
 
 interface ReactionBarProps {
     reactionCounts: {
@@ -24,6 +25,11 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
         { type: 'like' as ReactionType, emoji: '👍', count: reactionCounts.like },
     ];
 
+    const handleReact = (type: ReactionType) => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onReact(type);
+    };
+
     return (
         <View style={styles.container}>
             {reactions.map((reaction) => {
@@ -35,8 +41,10 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
                             styles.reactionButton,
                             isActive && styles.reactionButtonActive,
                         ]}
-                        onPress={() => onReact(reaction.type)}
+                        onPress={() => handleReact(reaction.type)}
                         activeOpacity={0.7}
+                        accessibilityLabel={`React with ${reaction.type}`}
+                        accessibilityHint="Double tap to react"
                     >
                         <Text style={styles.emoji}>{reaction.emoji}</Text>
                         {reaction.count > 0 && (
@@ -65,6 +73,8 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         backgroundColor: Colors.backgroundLight,
         gap: 4,
+        minHeight: 44,
+        justifyContent: 'center',
     },
     reactionButtonActive: {
         backgroundColor: Colors.primarySurface,

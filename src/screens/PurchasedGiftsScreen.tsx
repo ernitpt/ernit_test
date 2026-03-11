@@ -5,11 +5,14 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import ErrorRetry from '../components/ErrorRetry';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
@@ -136,25 +139,39 @@ const PurchasedGiftsScreen = () => {
   const userId = state.user?.id;
   const [gifts, setGifts] = useState<ExperienceGift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'claimed'>('all');
+  const [error, setError] = useState(false);
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
 
-  useEffect(() => {
-    const fetchGifts = async () => {
-      if (!userId) return;
-      setLoading(true);
-      try {
-        const userGifts = await experienceGiftService.getExperienceGiftsByUser(userId);
-        setGifts(userGifts);
-      } catch (error) {
-        logger.error('Error fetching purchased gifts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchGifts = async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const userGifts = await experienceGiftService.getExperienceGiftsByUser(userId);
+      setGifts(userGifts);
+      setError(false);
+    } catch (error) {
+      logger.error('Error fetching purchased gifts:', error);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchGifts();
   }, [userId]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchGifts();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Filter gifts based on selected filter
   const filteredGifts = gifts.filter(gift => {
@@ -211,6 +228,11 @@ const PurchasedGiftsScreen = () => {
             <GiftCardSkeleton key={i} />
           ))}
         </View>
+      ) : error ? (
+        <ErrorRetry
+          message="Could not load gifts"
+          onRetry={fetchGifts}
+        />
       ) : filteredGifts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🎁</Text>
@@ -229,6 +251,17 @@ const PurchasedGiftsScreen = () => {
           renderItem={({ item }) => <GiftItem item={item} />}
           keyExtractor={(item) => item.id!}
           contentContainerStyle={styles.listContainer}
+          removeClippedSubviews={Platform.OS !== 'web'}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.secondary]}
+              tintColor={Colors.secondary}
+            />
+          }
         />
       )}
     </MainScreen>

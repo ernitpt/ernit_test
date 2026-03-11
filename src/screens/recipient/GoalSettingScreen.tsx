@@ -138,6 +138,7 @@ const GoalSettingScreen = () => {
   const { state, dispatch } = useApp();
   const { showError } = useToast();
   const scrollViewRef = useRef<ScrollView>(null);
+  const minutesRef = useRef<TextInput>(null);
 
   // Validate required data
   const hasValidData = Boolean(experienceGift?.id && experienceGift?.experienceId);
@@ -516,12 +517,6 @@ const GoalSettingScreen = () => {
   // ─── Step Renderers ───────────────────────────────────────────────
   const renderStep1 = () => (
     <View style={styles.stepContent}>
-      {validationErrors.category && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>Please select a goal category</Text>
-        </View>
-      )}
-
       <View style={styles.goalGrid}>
         {CATEGORIES.map((cat) => (
           <MotiView
@@ -559,6 +554,12 @@ const GoalSettingScreen = () => {
         ))}
       </View>
 
+      {validationErrors.category && (
+        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: '500' }}>
+          Please select a goal category
+        </Text>
+      )}
+
       {selectedCategory === 'Other' && (
         <View style={styles.customGoalContainer}>
           <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
@@ -578,6 +579,11 @@ const GoalSettingScreen = () => {
               accessibilityLabel="Custom goal category"
             />
           </View>
+          {validationErrors.category && customCategory.trim() === '' && (
+            <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+              Please enter a custom category
+            </Text>
+          )}
         </View>
       )}
     </View>
@@ -615,12 +621,6 @@ const GoalSettingScreen = () => {
         <View style={styles.sliderContainer}>
           <Text style={styles.sliderTitle}>Time per session</Text>
 
-          {validationErrors.time && (
-            <View style={[styles.errorBanner, { marginTop: 8, marginBottom: 16 }]}>
-              <Text style={styles.errorText}>Please set a time per session</Text>
-            </View>
-          )}
-
           <View style={styles.timeRow}>
             <View style={styles.timeInputGroup}>
               <TextInput
@@ -634,12 +634,15 @@ const GoalSettingScreen = () => {
                 maxLength={1}
                 placeholder="0"
                 placeholderTextColor={Colors.textMuted}
+                returnKeyType="next"
+                onSubmitEditing={() => minutesRef.current?.focus()}
                 accessibilityLabel="Hours per session"
               />
               <Text style={styles.timeLabel}>hr</Text>
             </View>
             <View style={styles.timeInputGroup}>
               <TextInput
+                ref={minutesRef}
                 style={styles.timeInput}
                 value={minutes}
                 onChangeText={(t) => {
@@ -652,11 +655,18 @@ const GoalSettingScreen = () => {
                 maxLength={2}
                 placeholder="00"
                 placeholderTextColor={Colors.textMuted}
+                returnKeyType="done"
                 accessibilityLabel="Minutes per session"
               />
               <Text style={styles.timeLabel}>min</Text>
             </View>
           </View>
+
+          {validationErrors.time && (
+            <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 8, fontWeight: '500' }}>
+              Please set a time per session (at least 1 minute)
+            </Text>
+          )}
         </View>
       </View>
     </View>
@@ -841,6 +851,7 @@ const GoalSettingScreen = () => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             <MotiView
               key={`title-${currentStep}`}

@@ -7,11 +7,12 @@ import {
   Image,
   StyleSheet,
   Modal,
-  TextInput,
+  TextInput as RNTextInput,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from 'react-native';
+import { TextInput } from '../components/TextInput';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
@@ -28,6 +29,7 @@ import MainScreen from './MainScreen';
 import { storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc, arrayRemove, getDoc } from 'firebase/firestore';
+import { useFocusEffect } from '@react-navigation/native';
 
 //👇 you'll need these services in your project for partner & experience lookups
 import { experienceService } from '../services/ExperienceService';
@@ -35,9 +37,13 @@ import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
+import ClaimExperienceModal from '../components/ClaimExperienceModal';
 import ErrorRetry from '../components/ErrorRetry';
+import { EmptyState } from '../components/EmptyState';
 
 // =========================
 // Goal Card (Active goals)
@@ -86,7 +92,7 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       activeOpacity={0.8}
       style={styles.goalCard}
     >
-      <Text style={styles.goalTitle}>{goal.title}</Text>
+      <Text style={styles.goalTitle} numberOfLines={2}>{goal.title}</Text>
 
       {empoweredName && goal.empoweredBy !== goal.userId && !goal.isFreeGoal && (
         <Text style={styles.goalMeta}>⚡ Empowered by {empoweredName}</Text>
@@ -123,6 +129,23 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           ))}
         </View>
       </View>
+
+      {/* Browse Experiences button for free goals without an experience */}
+      {!goal.experienceGiftId && !goal.giftAttachedAt && goal.isFreeGoal && (
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            navigation.navigate('CategorySelection', {
+              ...(goal.preferredRewardCategory ? { prefilterCategory: goal.preferredRewardCategory } : {}),
+            });
+          }}
+          style={styles.browseButton}
+          activeOpacity={0.7}
+        >
+          <Gift color={Colors.secondary} size={16} />
+          <Text style={styles.browseButtonText}>Browse Experiences</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -158,9 +181,26 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const [partnerName, setPartnerName] = useState<string>('Partner');
   const [gift, setGift] = useState<any>(null);
   const [loadingCard, setLoadingCard] = useState<boolean>(true);
+  const [showClaimModal, setShowClaimModal] = useState(false);
 
   const isSelfAchievement = goal.isFreeGoal && !goal.pledgedExperience && !goal.experienceGiftId;
   const hasPledgedExperience = goal.isFreeGoal && !!goal.pledgedExperience;
+
+  // Compute effective deadline: explicit field, or fallback to completedAt + 30 days
+  const getEffectiveDeadline = (): Date | null => {
+    if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
+    if (goal.completedAt) {
+      const d = new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
+        ? (goal.completedAt as any).toDate() : goal.completedAt);
+      d.setDate(d.getDate() + 30);
+      return d;
+    }
+    return null;
+  };
+  const effectiveDeadline = getEffectiveDeadline();
+
+  const canClaimExperience = goal.isFreeGoal && !goal.giftAttachedAt && !goal.experienceGiftId
+    && effectiveDeadline && effectiveDeadline > new Date();
 
   useEffect(() => {
     const loadAchievementData = async () => {
@@ -220,7 +260,26 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
         </View>
         <View style={styles.achievementContent}>
           <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
+          {canClaimExperience && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setShowClaimModal(true);
+              }}
+              style={styles.claimExperienceButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.claimExperienceButtonText}>Claim Experience</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        <ClaimExperienceModal
+          visible={showClaimModal}
+          goalId={goal.id}
+          preferredRewardCategory={goal.preferredRewardCategory}
+          onClose={() => setShowClaimModal(false)}
+        />
       </TouchableOpacity>
     );
   }
@@ -250,7 +309,29 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
           <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {pledged.title}</Text>
           <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
+          {canClaimExperience && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setShowClaimModal(true);
+              }}
+              style={styles.claimExperienceButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.claimExperienceButtonText}>Claim Experience</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        <ClaimExperienceModal
+          visible={showClaimModal}
+          goalId={goal.id}
+          experienceTitle={pledged.title}
+          experiencePrice={pledged.price}
+          pledgedExperienceId={pledged.experienceId}
+          preferredRewardCategory={goal.preferredRewardCategory}
+          onClose={() => setShowClaimModal(false)}
+        />
       </TouchableOpacity>
     );
   }
@@ -321,7 +402,6 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
       activeOpacity={0.8}
       style={styles.experienceCard}
       onPress={handlePress}
-      accessibilityRole="button"
       accessibilityLabel={`View ${experience.title} experience details`}
     >
       <View style={styles.experienceImageContainer}>
@@ -367,7 +447,6 @@ const UserProfileScreen: React.FC = () => {
   const [activeGoals, setActiveGoals] = useState<Goal[]>([]);
   const [wishlist, setWishlist] = useState<Experience[]>([]);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [unreadFriendRequests, setUnreadFriendRequests] = useState(0);
   const [editFormData, setEditFormData] = useState({
@@ -381,9 +460,11 @@ const UserProfileScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useModalAnimation(isEditModalVisible);
 
-  useEffect(() => {
-    loadProfileAndGoals();
-  }, [userId]);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProfileAndGoals();
+    }, [userId])
+  );
 
   useEffect(() => {
     if (userProfile) animateContent();
@@ -522,35 +603,45 @@ const UserProfileScreen: React.FC = () => {
       return;
     }
 
+    // 1. Save previous state for rollback
+    const previousProfile = userProfile;
+
+    // 2. Prepare updated profile
+    const profileUpdates = {
+      name: editFormData.name.trim() || userProfile?.name || '',
+      description: editFormData.description.trim(),
+      profileImageUrl: editFormData.profileImageUrl || '',
+      updatedAt: new Date(),
+    };
+
+    const updatedProfile: UserProfile = {
+      ...(userProfile as UserProfile),
+      ...profileUpdates,
+    };
+
+    // 3. Update UI immediately
+    setUserProfile(updatedProfile);
+    if (state.user) {
+      const updatedUser: User = { ...state.user, profile: updatedProfile };
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+    }
+
+    // 4. Close modal and show success immediately
+    setIsEditModalVisible(false);
+    showSuccess('Profile updated!');
+
+    // 5. Call API in background
     try {
-      setIsUpdating(true);
-      const profileUpdates = {
-        name: editFormData.name.trim() || userProfile?.name || '',
-        description: editFormData.description.trim(),
-        profileImageUrl: editFormData.profileImageUrl || '',
-        updatedAt: new Date(),
-      };
-
-      const updatedProfile: UserProfile = {
-        ...(userProfile as UserProfile),
-        ...profileUpdates,
-      };
-
       await userService.updateUserProfile(userId, { profile: updatedProfile });
-
-      if (state.user) {
-        const updatedUser: User = { ...state.user, profile: updatedProfile };
-        dispatch({ type: 'SET_USER', payload: updatedUser });
-      }
-
-      setUserProfile(updatedProfile);
-      setIsEditModalVisible(false);
-      showSuccess('Profile updated!');
     } catch (error) {
+      // 6. Rollback on failure
       logger.error('Error updating profile:', error);
-      showError('Failed to update profile.');
-    } finally {
-      setIsUpdating(false);
+      setUserProfile(previousProfile);
+      if (state.user && previousProfile) {
+        const revertedUser: User = { ...state.user, profile: previousProfile };
+        dispatch({ type: 'SET_USER', payload: revertedUser });
+      }
+      showError('Failed to update profile. Please try again.');
     }
   };
 
@@ -599,14 +690,14 @@ const UserProfileScreen: React.FC = () => {
 
     if (activeTab === 'goals') {
       if (!activeGoals.length) {
-        return <Text style={styles.emptyStateText}>No goals yet.</Text>;
+        return <EmptyState icon="🎯" title="No Goals Yet" message="Start a goal to track your progress!" />;
       }
       return activeGoals.map((goal) => <GoalCard key={goal.id} goal={goal} />);
     }
 
     if (activeTab === 'achievements') {
       if (!completedGoals.length) {
-        return <Text style={styles.emptyStateText}>No achievements yet.</Text>;
+        return <EmptyState icon="🏆" title="No Achievements Yet" message="Complete goals to earn achievements!" />;
       }
       return completedGoals.map((goal) => (
         <AchievementCard key={goal.id} goal={goal} />
@@ -615,7 +706,7 @@ const UserProfileScreen: React.FC = () => {
 
     // wishlist
     if (!wishlist.length) {
-      return <Text style={styles.emptyStateText}>No wishlist yet.</Text>;
+      return <EmptyState icon="⭐" title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
     }
 
     return wishlist.map((exp) => (
@@ -657,7 +748,7 @@ const UserProfileScreen: React.FC = () => {
               {userProfile?.name || state.user?.displayName || 'User'}
             </Text>
             {userProfile?.description && (
-              <Text style={styles.userDescription}>{userProfile.description}</Text>
+              <Text style={styles.userDescription} numberOfLines={3}>{userProfile.description}</Text>
             )}
 
             {/* Stats */}
@@ -780,13 +871,10 @@ const UserProfileScreen: React.FC = () => {
                     <Text style={styles.modalTitle}>Edit Profile</Text>
                     <TouchableOpacity
                       onPress={handleSaveProfile}
-                      disabled={isUpdating}
-                      style={[styles.modalSaveButton, isUpdating && styles.disabledButton]}
+                      style={styles.modalSaveButton}
                     >
-                      <Text
-                        style={[styles.modalSaveText, isUpdating && styles.disabledText]}
-                      >
-                        {isUpdating ? 'Saving...' : 'Save'}
+                      <Text style={styles.modalSaveText}>
+                        Save
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -814,44 +902,32 @@ const UserProfileScreen: React.FC = () => {
                       <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
                     </View>
 
-                    <View style={styles.inputSection}>
-                      <Text style={styles.inputLabel}>Name</Text>
-                      <TextInput
-                        style={[styles.textInput, formErrors.name ? { borderColor: '#ef4444', borderWidth: 1.5 } : {}]}
-                        value={editFormData.name}
-                        onChangeText={(text) => {
-                          setEditFormData((prev) => ({ ...prev, name: text }));
-                          validateField('name', text);
-                        }}
-                        placeholder="Enter your name"
-                        maxLength={50}
-                      />
-                      {formErrors.name && (
-                        <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>{formErrors.name}</Text>
-                      )}
-                    </View>
+                    <TextInput
+                      label="Name"
+                      value={editFormData.name}
+                      onChangeText={(text) => {
+                        setEditFormData((prev) => ({ ...prev, name: text }));
+                        validateField('name', text);
+                      }}
+                      placeholder="Enter your name"
+                      maxLength={50}
+                      error={formErrors.name}
+                    />
 
-                    <View style={styles.inputSection}>
-                      <Text style={styles.inputLabel}>
-                        About You ({editFormData.description.length}/300)
-                      </Text>
-                      <TextInput
-                        style={[styles.textInput, styles.descriptionInput, formErrors.description ? { borderColor: '#ef4444', borderWidth: 1.5 } : {}]}
-                        value={editFormData.description}
-                        onChangeText={(text) => {
-                          setEditFormData((prev) => ({ ...prev, description: text }));
-                          validateField('description', text);
-                        }}
-                        placeholder="Tell us about yourself..."
-                        multiline
-                        numberOfLines={6}
-                        textAlignVertical="top"
-                        maxLength={300}
-                      />
-                      {formErrors.description && (
-                        <Text style={{ color: editFormData.description.length > 300 ? '#ef4444' : '#f59e0b', fontSize: 12, marginTop: 4 }}>{formErrors.description}</Text>
-                      )}
-                    </View>
+                    <TextInput
+                      label={`About You (${editFormData.description.length}/300)`}
+                      value={editFormData.description}
+                      onChangeText={(text) => {
+                        setEditFormData((prev) => ({ ...prev, description: text }));
+                        validateField('description', text);
+                      }}
+                      placeholder="Tell us about yourself..."
+                      multiline
+                      numberOfLines={6}
+                      maxLength={300}
+                      error={formErrors.description}
+                      inputStyle={{ minHeight: 120 }}
+                    />
                   </ScrollView>
                 </KeyboardAvoidingView>
               </TouchableOpacity>
@@ -866,7 +942,7 @@ const UserProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   heroSection: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingBottom: 32,
     paddingHorizontal: 24,
@@ -882,11 +958,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   progressHeaderLabel: {
-    fontSize: 13,
+    ...Typography.small,
     color: Colors.textSecondary,
   },
   progressHeaderValue: {
-    fontSize: 13,
+    ...Typography.small,
     color: Colors.textPrimary,
     fontWeight: '600',
   },
@@ -907,7 +983,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: 40, fontWeight: '700', color: '#fff' },
+  placeholderText: { fontSize: 40, fontWeight: '700', color: Colors.white },
   editIconButton: {
     position: 'absolute',
     bottom: 0,
@@ -915,30 +991,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.backgroundLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    ...Shadows.sm,
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  userName: { fontSize: 24, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  userName: { ...Typography.heading1, color: Colors.textPrimary, marginBottom: 4 },
   userDescription: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 16,
-    lineHeight: 22,
   },
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: 24 },
   statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
-  statLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  statNumber: { ...Typography.heading1, color: Colors.secondary, marginBottom: 4 },
+  statLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: '500' },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -951,7 +1023,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryTint,
     position: 'relative',
   },
-  friendsButtonText: { fontSize: 16, fontWeight: '600', color: Colors.secondary },
+  friendsButtonText: { ...Typography.subheading, color: Colors.secondary },
   notificationBadge: {
     position: 'absolute',
     top: -6,
@@ -963,49 +1035,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: Colors.white,
   },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeText: { color: Colors.white, ...Typography.tiny },
   tabsContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16, gap: 8 },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tabButtonActive: { backgroundColor: Colors.secondary },
-  tabText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  tabTextActive: { color: '#fff' },
+  tabText: { ...Typography.smallBold, color: Colors.textSecondary },
+  tabTextActive: { color: Colors.white },
 
   // Active goal card
   goalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 20,
     marginTop: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadows.sm,
   },
-  goalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  goalMeta: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
+  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: 4 },
+  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
 
   // Wishlist card
   experienceCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginHorizontal: 20,
     marginTop: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadows.sm,
   },
   experienceImageContainer: {
     position: 'relative',
@@ -1024,22 +1088,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   experienceContent: { padding: 16 },
-  experienceTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  experienceDescription: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 8 },
-  experiencePrice: { fontSize: 18, fontWeight: '700', color: Colors.secondary },
+  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  experienceDescription: { ...Typography.small, color: Colors.textSecondary, marginBottom: 8 },
+  experiencePrice: { ...Typography.heading3, color: Colors.secondary },
 
   // ACHIEVEMENT CARD
   achievementCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginHorizontal: 20,
     marginTop: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    ...Shadows.md,
     shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
   },
   achievementImage: {
     width: '100%',
@@ -1050,7 +1111,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   achievementTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 2,
@@ -1070,12 +1131,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   achStatValue: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.primary,
   },
   achStatLabel: {
-    fontSize: 11,
+    ...Typography.tiny,
     fontWeight: '500',
     color: Colors.textMuted,
     marginTop: 1,
@@ -1098,14 +1159,13 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.primaryBorder,
   },
   achSelfLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...Typography.tiny,
     color: Colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   achSelfTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
     marginTop: 2,
@@ -1122,9 +1182,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   achCompletedBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
+    ...Typography.tiny,
+    color: Colors.white,
   },
 
   // Color banner fallback (no image)
@@ -1137,7 +1196,7 @@ const styles = StyleSheet.create({
 
   // Goal label
   achGoalLabel: {
-    fontSize: 13,
+    ...Typography.small,
     fontWeight: '500',
     color: Colors.textSecondary,
     marginTop: 2,
@@ -1145,8 +1204,7 @@ const styles = StyleSheet.create({
 
   // Partner label
   achPartnerLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: Colors.primary,
     marginTop: 4,
     marginBottom: 2,
@@ -1163,7 +1221,43 @@ const styles = StyleSheet.create({
   },
 
 
-  emptyStateText: { textAlign: 'center', marginTop: 40, color: Colors.textMuted, fontSize: 16 },
+  // Browse Experiences button (GoalCard)
+  browseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primaryTint,
+  },
+  browseButtonText: {
+    ...Typography.smallBold,
+    color: Colors.secondary,
+  },
+
+  // Claim Experience button (AchievementCard)
+  claimExperienceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primaryTint,
+  },
+  claimExperienceButtonText: {
+    ...Typography.smallBold,
+    color: Colors.secondary,
+  },
+
+  emptyStateText: { textAlign: 'center', marginTop: 40, color: Colors.textMuted, ...Typography.subheading },
   modalContainer: { flex: 1, backgroundColor: Colors.surface },
   modalHeader: {
     flexDirection: 'row',
@@ -1171,15 +1265,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   modalCancelButton: { paddingVertical: 8 },
-  modalCancelText: { fontSize: 16, color: Colors.secondary },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  modalCancelText: { ...Typography.subheading, color: Colors.secondary },
+  modalTitle: { ...Typography.heading3, color: Colors.textPrimary },
   modalSaveButton: { paddingVertical: 8 },
-  modalSaveText: { fontSize: 16, color: Colors.secondary, fontWeight: '600' },
+  modalSaveText: { ...Typography.subheading, color: Colors.secondary },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: Colors.textMuted },
   modalContent: { flex: 1, padding: 20 },
@@ -1197,23 +1291,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: Colors.white,
   },
-  imageOverlayText: { fontSize: 16 },
-  imagePickerLabel: { fontSize: 14, color: Colors.textSecondary },
-  inputSection: { marginBottom: 24 },
-  inputLabel: { fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
-  textInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  descriptionInput: { height: 120, textAlignVertical: 'top' },
+  imageOverlayText: { ...Typography.subheading },
+  imagePickerLabel: { ...Typography.small, color: Colors.textSecondary },
 });
 
 export default UserProfileScreen;

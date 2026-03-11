@@ -115,6 +115,7 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
                             ]}
                             onPress={() => handlePress(reaction.type, index)}
                             activeOpacity={0.7}
+                            accessibilityLabel={`Select ${reaction.type} reaction`}
                         >
                             <Image
                                 source={reaction.image}
@@ -135,11 +136,11 @@ const styles = StyleSheet.create({
         bottom: 40,
         left: 0,
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
+        backgroundColor: Colors.white,
         borderRadius: 30,
         paddingHorizontal: 8,
         paddingVertical: 6,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.backgroundLight,
     },
     selectedReaction: {
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primaryTint,
         transform: [{ scale: 1.1 }],
     },
     reactionImage: {

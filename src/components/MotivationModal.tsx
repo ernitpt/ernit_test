@@ -3,7 +3,6 @@ import {
     View,
     Text,
     Modal,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     Animated,
@@ -13,6 +12,7 @@ import {
     Image,
     Easing,
 } from 'react-native';
+import { TextInput } from '../components/TextInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
@@ -240,7 +240,10 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
 
         // Validate based on mode
         if (mode === 'voice' && !audioUri) return;
-        if (mode === 'text' && !text.trim() && !imageUri) return;
+        if (mode === 'text' && !text.trim() && !imageUri) {
+            showError('Please enter a message or attach an image');
+            return;
+        }
 
         setSubmitting(true);
         setError(null);
@@ -350,6 +353,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                         <ScrollView
                             showsVerticalScrollIndicator={false}
                             keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
                         >
                             {/* Header */}
                             <LinearGradient
@@ -395,21 +399,16 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                 {mode === 'text' ? (
                                     <>
                                         {/* Text Input */}
-                                        <View style={styles.inputContainer}>
-                                            <TextInput
-                                                style={styles.textInput}
-                                                placeholder="You've got this! Keep going..."
-                                                placeholderTextColor="#9CA3AF"
-                                                value={text}
-                                                onChangeText={setText}
-                                                multiline
-                                                maxLength={MAX_TEXT_LENGTH}
-                                                textAlignVertical="top"
-                                            />
-                                            <Text style={styles.charCount}>
-                                                {remainingChars} characters remaining
-                                            </Text>
-                                        </View>
+                                        <TextInput
+                                            placeholder="You've got this! Keep going..."
+                                            value={text}
+                                            onChangeText={setText}
+                                            multiline
+                                            maxLength={MAX_TEXT_LENGTH}
+                                            helperText={`${remainingChars} characters remaining`}
+                                            inputStyle={{ minHeight: 120 }}
+                                            containerStyle={{ marginBottom: 0 }}
+                                        />
 
                                         {/* Image Attachment */}
                                         <View style={styles.attachmentContainer}>
@@ -609,25 +608,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#dc2626',
         textAlign: 'center',
-    },
-    inputContainer: {
-        marginBottom: 16,
-    },
-    textInput: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#111827',
-        minHeight: 120,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    charCount: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        textAlign: 'right',
-        marginTop: 8,
     },
     attachmentContainer: {
         marginBottom: 16,

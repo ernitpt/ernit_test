@@ -53,9 +53,13 @@ export default function CartScreen() {
   useEffect(() => {
     const loadGuestCart = async () => {
       if (!state.user) {
-        const guestCart = await cartService.getGuestCart();
-        if (guestCart.length > 0) {
-          dispatch({ type: 'SET_CART', payload: guestCart });
+        try {
+          const guestCart = await cartService.getGuestCart();
+          if (guestCart.length > 0) {
+            dispatch({ type: 'SET_CART', payload: guestCart });
+          }
+        } catch (error) {
+          logger.error('Error loading guest cart:', error);
         }
       }
     };
@@ -89,18 +93,23 @@ export default function CartScreen() {
 
   const loadItems = async () => {
     setLoading(true);
-    const list: Experience[] = [];
-    const ids: string[] = [];
+    try {
+      const list: Experience[] = [];
+      const ids: string[] = [];
 
-    for (const item of currentCart) {
-      ids.push(item.experienceId);
-      const exp = await experienceService.getExperienceById(item.experienceId);
-      if (exp) list.push(exp);
+      for (const item of currentCart) {
+        ids.push(item.experienceId);
+        const exp = await experienceService.getExperienceById(item.experienceId);
+        if (exp) list.push(exp);
+      }
+
+      setCartExperiences(list);
+      loadedExperienceIds.current = ids;
+    } catch (error) {
+      logger.error('Error loading cart items:', error);
+    } finally {
+      setLoading(false);
     }
-
-    setCartExperiences(list);
-    loadedExperienceIds.current = ids;
-    setLoading(false);
   };
 
   const updateQuantity = async (experienceId: string, newQty: number) => {
@@ -283,6 +292,7 @@ export default function CartScreen() {
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
+              keyboardDismissMode="on-drag"
             >
               {currentCart.map((item) => {
                 const exp = cartExperiences.find(

@@ -37,12 +37,33 @@ export const Colors = {
     white: '#FFFFFF',
     black: '#000000',
     error: '#EF4444',
+    errorLight: '#FEE2E2',
+    errorDark: '#991B1B',
     textPrimary: '#111827',
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
     border: '#E5E7EB',
     surface: '#F9FAFB',
     backgroundLight: '#F3F4F6',
+
+    // ─── Extended grays (complete the Tailwind gray-* scale) ──────────
+    gray300: '#D1D5DB',
+    gray600: '#4B5563',
+    gray700: '#374151',
+    gray800: '#1F2937',
+
+    // ─── Warning / amber ──────────────────────────────────────────────
+    warning: '#F59E0B',
+    warningLight: '#FEF3C7',
+
+    // ─── Info / blue ──────────────────────────────────────────────────
+    info: '#3B82F6',
+    infoLight: '#DBEAFE',
+    infoDark: '#1E40AF',
+
+    // ─── Disabled state ───────────────────────────────────────────────
+    disabled: '#D1D5DB',
+    disabledText: '#6B7280',
 };
 
 export default Colors;

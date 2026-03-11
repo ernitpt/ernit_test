@@ -56,9 +56,7 @@ const Capsule: React.FC<{
         }),
       ]).start(() => {
         // Haptic feedback on capsule fill completion
-        if (Platform.OS !== 'web') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       });
     } else {
       Animated.timing(widthAnim, {

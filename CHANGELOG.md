@@ -52,6 +52,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - split monolithic Goal interface into focused sub-interfaces using intersection types
 - Phase 4 - split Goal type into sub-interfaces, add offline queue utility, add Jest test suite (45 tests)
 - prepare project for Google Play Store (gitignore google-services.json, configure EAS production env, fix deps)
+- migrated FriendProfileScreen, FriendsListScreen, and AddFriendScreen to use design tokens
+- migrated AuthScreen, GoalsScreen, and UserProfileScreen to use design tokens
+- migrated 4 components to use design tokens
+- migrate 3 screen files to use design tokens
+- design system enforcement — migrated 18+ files from hardcoded hex/spacing to design tokens, created shared Button and Card components, added errorLight/errorDark color tokens
+- migrated 6 screens/components to use shared EmptyState component
+- migrated HintHistoryModal, ReactionViewerModal, and HowItWorksModal to use shared BaseModal component
+- created shared TextInput, Avatar, EmptyState, BaseModal components and migrated 14 files to use them
+- migrated 5 files to use shared TextInput component
+- migrated UserProfileScreen, AddFriendScreen, MotivationModal to shared TextInput component
+- added keyboard navigation to auth form and flatlist performance optimizations
+- converted 3 mutation flows to optimistic update pattern for instant UI feedback
+- migrate Typography and Shadows tokens in Batch B screens (ChallengeLanding, UserProfile, Goals)
+- migrate hardcoded typography values to design tokens in FriendProfileScreen and ChallengeSetupScreen
+- comprehensive UI/UX polish — keyboard handling, touch targets, haptics, optimistic updates, typography/shadow tokens, FlatList performance, form navigation
+- migrate 3 components to use BaseModal
+- migrated ClaimExperienceModal and EmpowerChoiceModal to BaseModal, added error logging to FeedPost goal check
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -102,6 +119,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - weekly goal rollover now triggers at midnight instead of exact timestamp, with 24h grace period for cross-day sessions
 - prevent showing motivation button when user already sent one for that session
 - hide motivation button when user already sent one for that session
+- set giftAttachDeadline for all free goals on completion, add completedAt fallback for existing goals
+- gifted goals now always show hint then celebration — no more skipped hints at milestones, all sessions can post to feed
+- ui/ux quick wins - keyboard persistence, touch targets, pull-to-refresh, accessibility, error handling
+- multiple ux fixes - error handling, text truncation, image resizeMode
+- setTimeout memory leaks, BaseModal migration, haptics web guards, text truncation, resizeMode fixes
+- critical safety fixes - Platform.OS checks, ErrorBoundary additions, setTimeout cleanup, try/catch blocks, and Image resizeMode
+- comprehensive UX audit - ErrorBoundary coverage, Platform safety, memory leak cleanup, keyboard dismiss on scroll, form focus chaining, FlatList performance, pull-to-refresh, touch target accessibility, delete confirmation dialog, image resizeMode and accessibility
+- add haptic feedback, character counter, and validation feedback improvements
+- added error recovery (ErrorRetry) to NotificationsScreen, PurchasedGiftsScreen, and CategorySelectionScreen
+- display validation errors and fix animation memory leak
+- validation error display, error recovery with retry, EmptyState components, safe navigation, animation cleanup, character counter, useFocusEffect
+- add missing Platform import in FeedScreen causing runtime crash
+- resolve nested button HTML violation in ExperienceCard on web
+- security + data integrity audit fixes - gift attach deadline enforcement in Firestore rules, SVG XSS prevention in storage rules, transaction-wrapped gift attachment, self-friend prevention, timer race guard, reaction notification atomicity, JourneyScreen deps fix, GoalCard render loop prevention
+- accessibility labels, touch targets, color token migration, BaseModal migration for ClaimExperienceModal and EmpowerChoiceModal
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -169,3 +201,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add animation preview debug page for tweaking progress animations
 - redesigned achievement page - gradient hero, merged reward card, dynamic header title, removed excess whitespace
 - rework StreakBanner with gradual flame progression across 150 sessions
+- add Empower/Motivate buttons to friend profile goals, Browse/Buy Experience buttons to own profile, and differentiate achievement card variants
+- profile screen buttons - Empower/Motivate on friend goals, Empower on achievements, Claim Experience on own achievements
+- added haptic feedback to key user actions (reactions, comments, friend requests, FAB)

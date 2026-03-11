@@ -9,10 +9,19 @@
 import { TextStyle } from 'react-native';
 
 export const Typography: Record<string, TextStyle> = {
+    // ─── Display ────────────────────────────────────────────────────
+    display: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
+
     // ─── Headings ─────────────────────────────────────────────────────
     heading1: { fontSize: 26, fontWeight: '700', lineHeight: 32 },
     heading2: { fontSize: 22, fontWeight: '700', lineHeight: 28 },
     heading3: { fontSize: 18, fontWeight: '700', lineHeight: 24 },
+
+    // ─── Subheading ──────────────────────────────────────────────────
+    subheading: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
+
+    // ─── Large ───────────────────────────────────────────────────────
+    large: { fontSize: 20, fontWeight: '700', lineHeight: 26 },
 
     // ─── Body ─────────────────────────────────────────────────────────
     body: { fontSize: 15, fontWeight: '400', lineHeight: 22 },

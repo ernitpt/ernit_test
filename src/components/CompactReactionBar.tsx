@@ -159,7 +159,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
         onReact(type);
 
         // Haptic feedback on reaction
-        if (Haptics) {
+        if (Platform.OS !== 'web' && Haptics) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
 
@@ -203,6 +203,8 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                         ]}
                         onPress={handleTogglePicker}
                         activeOpacity={0.8}
+                        accessibilityLabel="React to this post"
+                        accessibilityHint="Opens reaction picker"
                     >
                         <SmilePlus
                             color={(showPicker || userReaction) ? Colors.secondary : Colors.textSecondary}
@@ -244,6 +246,8 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                                     ]}
                                     onPress={onViewReactions}
                                     activeOpacity={0.7}
+                                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                    accessibilityLabel={`${reactionCounts[type]} ${type} reactions`}
                                 >
                                     <Animated.Image
                                         source={REACTION_IMAGES[type]}
@@ -289,9 +293,9 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     reactButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: Colors.backgroundLight,
         justifyContent: 'center',
         alignItems: 'center',

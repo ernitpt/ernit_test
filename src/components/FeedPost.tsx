@@ -30,7 +30,9 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from '../services/AnalyticsService';
 import { goalService } from '../services/GoalService';
 import { getTimeAgo } from '../utils/timeUtils';
+import { Platform } from 'react-native';
 import Colors from '../config/colors';
+import * as Haptics from 'expo-haptics';
 
 interface FeedPostProps {
     post: FeedPostType;
@@ -83,7 +85,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     post.goalId, state.user!.id, targetSession
                 );
                 setCanMotivate(!alreadySent);
-            } catch {
+            } catch (error) {
+                logger.error('Error checking goal:', error);
                 setCanMotivate(false);
             }
         };
@@ -169,6 +172,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
     const handleReact = async (type: ReactionType) => {
         if (!state.user?.id) return;
+
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         const previousReaction = userReaction;
         const previousCounts = { ...reactionCounts };
@@ -316,7 +321,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             styles.container,
             {
                 // iOS shadow
-                shadowColor: isHighlighted ? Colors.secondary : '#000',
+                shadowColor: isHighlighted ? Colors.secondary : Colors.textPrimary,
                 shadowOffset: { width: 0, height: 2 },
                 shadowRadius: animatedShadowRadius,
                 shadowOpacity: animatedShadowOpacity,
@@ -478,11 +483,11 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 16,
         overflow: 'hidden',
         marginBottom: 12,
-        shadowColor: '#000',
+        shadowColor: Colors.textPrimary,
         shadowOpacity: 0.05,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -541,7 +546,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     sessionMediaPlayIcon: {
-        color: '#fff',
+        color: Colors.white,
         fontSize: 36,
     },
     // Fullscreen media viewer

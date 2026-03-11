@@ -209,6 +209,7 @@ const CouponEntryScreen = () => {
               }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              keyboardDismissMode="on-drag"
             >
               <View
                 style={{

@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     Animated,
+    Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -25,6 +26,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
+import { EmptyState } from '../components/EmptyState';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -173,13 +175,11 @@ const FeedScreen: React.FC = () => {
         }
 
         return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>👥</Text>
-                <Text style={styles.emptyTitle}>No Activity Yet</Text>
-                <Text style={styles.emptyText}>
-                    Add friends to see their goal progress and celebrate together!
-                </Text>
-            </View>
+            <EmptyState
+                icon="👥"
+                title="No Activity Yet"
+                message="Add friends to see their goal progress and celebrate together!"
+            />
         );
     };
 
@@ -207,6 +207,10 @@ const FeedScreen: React.FC = () => {
                         contentContainerStyle={styles.list}
                         ListEmptyComponent={renderEmpty}
                         showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        removeClippedSubviews={Platform.OS !== 'web'}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
                         onScrollToIndexFailed={(info) => {
                             if (scrollRetryCount.current >= 3) return;
                             scrollRetryCount.current += 1;
@@ -241,29 +245,6 @@ const styles = StyleSheet.create({
     },
     list: {
         padding: 16,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 40,
-        paddingTop: 80,
-    },
-    emptyIcon: {
-        fontSize: 64,
-        marginBottom: 16,
-    },
-    emptyTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: 8,
-    },
-    emptyText: {
-        fontSize: 15,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 22,
     },
 });
 

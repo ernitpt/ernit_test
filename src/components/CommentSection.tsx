@@ -21,7 +21,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     return (
         <View style={styles.container}>
             {totalComments > comments.length && (
-                <TouchableOpacity onPress={onViewAll} style={styles.viewAllButton}>
+                <TouchableOpacity
+                    onPress={onViewAll}
+                    style={styles.viewAllButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View all ${totalComments} comments`}
+                >
                     <Text style={styles.viewAllText}>
                         View all {totalComments} comments
                     </Text>
@@ -34,6 +39,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                         <Image
                             source={{ uri: comment.userProfileImageUrl }}
                             style={styles.avatar}
+                            accessibilityLabel={`${comment.userName}\'s profile picture`}
                         />
                     ) : (
                         <View style={styles.avatarPlaceholder}>
@@ -59,6 +65,8 @@ const styles = StyleSheet.create({
     },
     viewAllButton: {
         marginBottom: 8,
+        minHeight: 44,
+        justifyContent: 'center',
     },
     viewAllText: {
         fontSize: 14,
@@ -79,7 +87,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#e0e7ff',
+        backgroundColor: Colors.primaryTint,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -102,7 +110,7 @@ const styles = StyleSheet.create({
     },
     commentText: {
         fontSize: 14,
-        color: '#374151',
+        color: Colors.gray700,
         lineHeight: 18,
     },
 });

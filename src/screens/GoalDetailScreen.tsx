@@ -104,7 +104,10 @@ const GoalDetailScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate('Goals');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >

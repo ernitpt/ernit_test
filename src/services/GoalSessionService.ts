@@ -387,14 +387,18 @@ export class GoalSessionService {
             experienceTitle = g.pledgedExperience.title;
             experienceImageUrl = g.pledgedExperience.coverImageUrl;
             partnerName = g.pledgedExperience.subtitle;
+          }
 
-            // Set 30-day gift attach deadline
+          // Set 30-day gift attach deadline for ALL free goals
+          if (g.isFreeGoal) {
             const deadline = new Date();
             deadline.setDate(deadline.getDate() + 30);
             const goalRef = doc(db, 'goals', g.id);
             await updateDoc(goalRef, { giftAttachDeadline: deadline });
             g.giftAttachDeadline = deadline;
-          } else if (g.experienceGiftId) {
+          }
+
+          if (!g.isFreeGoal && g.experienceGiftId) {
             // STANDARD GOAL: fetch from gift
             try {
               const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);

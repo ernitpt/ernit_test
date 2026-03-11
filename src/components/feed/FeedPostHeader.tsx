@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Colors from '../../config/colors';
+import { Avatar } from '../Avatar';
 
 interface FeedPostHeaderProps {
     userName: string;
@@ -25,22 +26,10 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={`View ${userName}'s profile`}
             >
-                {userProfileImageUrl ? (
-                    <Image
-                        source={{ uri: userProfileImageUrl }}
-                        style={styles.avatar}
-                        accessibilityLabel={`${userName}'s profile picture`}
-                    />
-                ) : (
-                    <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>
-                            {userName?.[0]?.toUpperCase() || 'U'}
-                        </Text>
-                    </View>
-                )}
+                <Avatar uri={userProfileImageUrl} name={userName} size="md" />
 
                 <View style={styles.headerInfo}>
-                    <Text style={styles.userName}>
+                    <Text style={styles.userName} numberOfLines={1}>
                         <Text style={{ fontWeight: '500' }}>{userName}</Text> {typeInfoText}
                     </Text>
                     <Text style={styles.timeAgo}>{timeAgo}</Text>
@@ -57,24 +46,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 14,
         paddingBottom: 10,
-    },
-    avatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-    },
-    avatarPlaceholder: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Colors.primarySurface,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: Colors.primary,
     },
     headerInfo: {
         marginLeft: 10,

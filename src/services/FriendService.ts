@@ -103,6 +103,11 @@ export class FriendService {
         throw new Error('Missing required user IDs for friend request');
       }
 
+      // Prevent self-friending
+      if (senderId === recipientId) {
+        throw new Error('You cannot send a friend request to yourself');
+      }
+
       const existingRequest = await this.getFriendRequest(senderId, recipientId);
       if (existingRequest) throw new Error('Friend request already exists');
 

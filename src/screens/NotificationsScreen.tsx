@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
+  RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
+import { Avatar } from '../components/Avatar';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,6 +36,9 @@ import { analyticsService } from '../services/AnalyticsService';
 import { Bell, Calendar, TrendingUp, Heart, Gift } from 'lucide-react-native';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import ErrorRetry from '../components/ErrorRetry';
+import * as Haptics from 'expo-haptics';
+import { EmptyState } from '../components/EmptyState';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -81,6 +88,9 @@ const NotificationsScreen = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [userGoals, setUserGoals] = useState<Record<string, boolean>>({}); // Map goalId -> isCompleted
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigation = useNavigation<NotificationNavigationProp>();
 
   // Pre-compute latest goal_progress notification per goal (avoids O(n²) in renderItem)
@@ -105,6 +115,7 @@ const NotificationsScreen = () => {
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
+    setError(false);
 
     let isCancelled = false;
     let unsubscribeNotifs: (() => void) | undefined;
@@ -116,6 +127,7 @@ const NotificationsScreen = () => {
         if (isCancelled) return;
         setNotifications(notifications);
         setLoading(false);
+        setError(false);
       });
 
       if (isCancelled) {
@@ -139,7 +151,10 @@ const NotificationsScreen = () => {
 
     subscribe().catch((error) => {
       logger.error('Error subscribing to notifications:', error);
-      setLoading(false);
+      if (!isCancelled) {
+        setError(true);
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -149,8 +164,18 @@ const NotificationsScreen = () => {
     };
   }, [userId]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    refreshTimeoutRef.current = setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  };
 
-
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    };
+  }, []);
 
   const handlePress = async (n: Notification) => {
     analyticsService.trackEvent('notification_tapped', 'engagement', { type: n.type }, 'NotificationsScreen');
@@ -257,19 +282,32 @@ const NotificationsScreen = () => {
   };
 
 
-  const handleClearAll = async () => {
-    if (!userId) {
-      showError('User not authenticated');
-      return;
-    }
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to clear all notifications? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            if (!userId) {
+              showError('User not authenticated');
+              return;
+            }
 
-    try {
-      await notificationService.clearAllNotifications(userId);
-      showSuccess('All notifications have been cleared.');
-    } catch (error) {
-      logger.error('Error clearing all notifications:', error);
-      showError('Failed to clear notifications. Please try again.');
-    }
+            try {
+              await notificationService.clearAllNotifications(userId);
+              showSuccess('All notifications have been cleared.');
+            } catch (error) {
+              logger.error('Error clearing all notifications:', error);
+              showError('Failed to clear notifications. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
 
@@ -360,21 +398,11 @@ const NotificationsScreen = () => {
         >
           <View style={styles.reactionCardContent}>
             {/* Profile Image or Placeholder */}
-            <View style={styles.reactionEmojiContainer}>
-              {item.data?.reactorProfileImageUrl ? (
-                <Image
-                  source={{ uri: item.data.reactorProfileImageUrl }}
-                  style={styles.reactorProfileImage}
-                  accessibilityLabel={`${item.data?.reactorNames?.[0] || 'User'}'s profile picture`}
-                />
-              ) : (
-                <View style={styles.placeholderAvatar}>
-                  <Text style={styles.placeholderText}>
-                    {item.data?.reactorNames?.[0]?.[0]?.toUpperCase() || 'U'}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <Avatar
+              uri={item.data?.reactorProfileImageUrl}
+              name={item.data?.reactorNames?.[0]}
+              size="lg"
+            />
 
             {/* Content */}
             <View style={styles.reactionContent}>
@@ -410,6 +438,7 @@ const NotificationsScreen = () => {
               }
               style={styles.reactionBadgeImage}
               resizeMode="contain"
+              accessible={false}
             />
           </Animated.View>
 
@@ -422,6 +451,7 @@ const NotificationsScreen = () => {
             }}
             accessibilityRole="button"
             accessibilityLabel="Clear this notification"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Text style={styles.reactionClearText}>×</Text>
           </TouchableOpacity>
@@ -443,6 +473,7 @@ const NotificationsScreen = () => {
                 <Image
                   source={{ uri: item.data.senderProfileImageUrl }}
                   style={styles.reminderIconImage}
+                  resizeMode="cover"
                 />
               ) : (
                 <Heart size={24} color="#ec4899" />
@@ -590,7 +621,7 @@ const NotificationsScreen = () => {
           </View>
 
 
-          <Text style={styles.cardMessage}>{item.message}</Text>
+          <Text style={styles.cardMessage} numberOfLines={3}>{item.message}</Text>
 
 
           <View style={styles.cardFooter}>
@@ -608,6 +639,7 @@ const NotificationsScreen = () => {
             onPress={() => handleClearNotification(item.id!)}
             accessibilityRole="button"
             accessibilityLabel="Clear this notification"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.clearNotificationText}>×</Text>
           </TouchableOpacity>
@@ -644,14 +676,38 @@ const NotificationsScreen = () => {
             <NotificationSkeleton />
             <NotificationSkeleton />
           </ScrollView>
+        ) : error ? (
+          <ErrorRetry
+            message="Could not load notifications"
+            onRetry={() => {
+              setError(false);
+              setLoading(true);
+            }}
+          />
         ) : notifications.length === 0 ? (
-          <Text style={styles.emptyText}>No notifications yet.</Text>
+          <EmptyState
+            icon="🔔"
+            title="No Notifications"
+            message="You'll see updates here when friends interact with your goals"
+          />
         ) : (
           <FlatList
             data={notifications}
             renderItem={renderItem}
             keyExtractor={(item, index) => item.id || index.toString()}
             contentContainerStyle={styles.listContainer}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={Platform.OS !== 'web'}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[Colors.secondary]}
+                tintColor={Colors.secondary}
+              />
+            }
           />
         )}
       </MainScreen>
@@ -678,12 +734,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
@@ -717,7 +773,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   cardMessage: {
-    color: '#4b5563',
+    color: Colors.gray600,
     fontSize: 14,
     marginBottom: 6,
     lineHeight: 20,
@@ -761,10 +817,10 @@ const styles = StyleSheet.create({
   },
   // Enhanced reaction notification styles
   reactionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -781,35 +837,6 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
     alignItems: 'flex-start',
-  },
-  reactionEmojiContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  reactionEmoji: {
-    fontSize: 28,
-  },
-  reactorProfileImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  placeholderAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#e0e7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.accentDark,
   },
   reactionContent: {
     flex: 1,
@@ -881,10 +908,10 @@ const styles = StyleSheet.create({
   },
   // Reminder / Recap notification styles
   reminderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },

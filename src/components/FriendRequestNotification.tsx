@@ -14,6 +14,8 @@ import { Timestamp } from 'firebase/firestore';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 interface FriendRequestNotificationProps {
   notification: Notification;
@@ -40,6 +42,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
         await notificationService.deleteNotification(notification.id, true);
       }
 
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showSuccess(`You are now friends with ${notification.data.senderName}!`);
       onRequestHandled();
     } catch (error) {
@@ -62,6 +65,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
         await notificationService.deleteNotification(notification.id, true);
       }
 
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       showInfo(`Friend request from ${notification.data.senderName} has been declined.`);
       onRequestHandled();
     } catch (error) {

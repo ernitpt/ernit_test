@@ -200,6 +200,17 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           approvalRequestedAt: toDate(data.approvalRequestedAt),
         } as unknown as Goal;
 
+        // Skip update if key data hasn't changed to prevent render loops
+        const prev = currentGoal;
+        if (prev && prev.weeklyCount === data.weeklyCount
+            && prev.currentCount === data.currentCount
+            && prev.isCompleted === data.isCompleted
+            && prev.empoweredBy === data.empoweredBy
+            && prev.experienceGiftId === data.experienceGiftId
+            && prev.giftAttachedAt === (toDate(data.giftAttachedAt) as any)) {
+          return;
+        }
+
         setCurrentGoal(updatedGoal);
       } else {
         // Goal was deleted — stop any active timer and notify user
@@ -260,8 +271,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (Platform.OS === 'web') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
   }, [isTimerRunning, startTime, progress.totalGoalSeconds, currentGoal.id]);
 
   // ─── Timer Helpers ────────────────────────────────────────────────
@@ -646,36 +659,27 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     const celebTotalSessions = updated.targetCount * updated.sessionsPerWeek;
     const celebPct = Math.round((totalSessionsDone / celebTotalSessions) * 100);
 
-    const showCelebrationModal = () => {
-      setCelebrationData({
-        userName: celebUserName || 'You',
-        userProfileImageUrl: celebUserProfile?.profileImageUrl,
-        sessionNumber: totalSessionsDone,
-        totalSessions: celebTotalSessions,
-        progressPct: celebPct,
-        mediaUri: mediaUrl || null,
-        weeklyCount: updated.weeklyCount,
-        sessionsPerWeek: updated.sessionsPerWeek,
-        weeksCompleted: updated.currentCount,
-        totalWeeks: updated.targetCount,
-      });
-      setShowCelebration(true);
-    };
+    // Always prepare celebration data (used after hint dismissal or directly)
+    setCelebrationData({
+      userName: celebUserName || 'You',
+      userProfileImageUrl: celebUserProfile?.profileImageUrl,
+      sessionNumber: totalSessionsDone,
+      totalSessions: celebTotalSessions,
+      progressPct: celebPct,
+      mediaUri: mediaUrl || null,
+      weeklyCount: updated.weeklyCount,
+      sessionsPerWeek: updated.sessionsPerWeek,
+      weeksCompleted: updated.currentCount,
+      totalWeeks: updated.targetCount,
+    });
 
     if (!isSelfGift) {
-      if (hitMilestone) {
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        showCelebrationModal();
-      } else {
-        setShowHint(true);
-      }
+      // Gifted goals: always show hint first, celebration chains after dismissal
+      setShowHint(true);
     } else {
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-      showCelebrationModal();
+      // Self-gifted: no hints, direct to celebration
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowCelebration(true);
     }
 
     onFinish?.(updated);
@@ -1004,7 +1008,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         hint={lastHint || ''}
         sessionNumber={lastSessionNumber}
         totalSessions={progress.overallTotal}
-        onClose={() => setShowHint(false)}
+        onClose={() => {
+          setShowHint(false);
+          // Chain to celebration so user can post to feed with session media
+          if (celebrationData) {
+            setShowCelebration(true);
+          }
+        }}
       />
 
       <CancelSessionModal
@@ -1083,7 +1093,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -1099,7 +1109,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
   empoweredText: { fontSize: 14, color: Colors.textSecondary, marginBottom: 14, textAlign: 'center' },
   mysteryBadge: {
-    alignSelf: 'center', backgroundColor: '#fef3c7', paddingHorizontal: 14,
+    alignSelf: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: 14,
     paddingVertical: 6, borderRadius: 10, marginBottom: 14,
     borderWidth: 1, borderColor: '#fde68a',
   },
@@ -1129,9 +1139,9 @@ const styles = StyleSheet.create({
   debugButton: {
     flex: 1, backgroundColor: Colors.border,
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8,
-    alignItems: 'center', borderWidth: 1, borderColor: '#D1D5DB',
+    alignItems: 'center', borderWidth: 1, borderColor: Colors.gray300,
   },
-  debugButtonText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  debugButtonText: { fontSize: 13, fontWeight: '600', color: Colors.gray700 },
 });
 
 export default DetailedGoalCard;

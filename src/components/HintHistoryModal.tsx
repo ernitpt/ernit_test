@@ -2,15 +2,15 @@ import React from 'react';
 import {
     View,
     Text,
-    Modal,
-    TouchableOpacity,
     ScrollView,
     StyleSheet,
     Image,
 } from 'react-native';
-import { X, MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
+import { MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
 import { Goal, PersonalizedHint } from '../types';
 import Colors from '../config/colors';
+import { EmptyState } from './EmptyState';
+import { BaseModal } from './BaseModal';
 
 interface HintHistoryModalProps {
     visible: boolean;
@@ -91,7 +91,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
 
                     {pHint.audioUrl && (
                         <View style={styles.audioIndicator}>
-                            <Mic size={16} color="#6b7280" />
+                            <Mic size={16} color={Colors.textSecondary} />
                             <Text style={styles.audioText}>
                                 Voice message{pHint.duration ? ` (${pHint.duration}s)` : ''}
                             </Text>
@@ -125,9 +125,9 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
     const getTypeBadgeColor = (type: string) => {
         switch (type) {
             case 'audio':
-                return '#FEF3C7';
+                return Colors.warningLight;
             case 'image':
-                return '#DBEAFE';
+                return Colors.infoLight;
             case 'mixed':
                 return Colors.primarySurface;
             default:
@@ -136,71 +136,31 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
     };
 
     return (
-        <Modal visible={visible} animationType="slide" transparent={true}>
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Hint History</Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color="#111827" />
-                        </TouchableOpacity>
-                    </View>
+        <BaseModal visible={visible} onClose={onClose} title="Hint History" variant="bottom" noPadding>
+            <Text style={styles.subtitle}>
+                {goal.title}
+            </Text>
 
-                    <Text style={styles.subtitle}>
-                        {goal.title}
-                    </Text>
-
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                        {hints.length === 0 ? (
-                            <View style={styles.emptyState}>
-                                <MessageCircle size={48} color="#D1D5DB" />
-                                <Text style={styles.emptyText}>No hints sent yet</Text>
-                                <Text style={styles.emptySubtext}>
-                                    Hints you send will appear here for future reference
-                                </Text>
-                            </View>
-                        ) : (
-                            hints.map((hint, index) => renderHint(hint, index))
-                        )}
-                        <View style={{ height: 20 }} />
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                {hints.length === 0 ? (
+                    <EmptyState
+                        icon="💡"
+                        title="No hints sent yet"
+                        message="Hints you send will appear here for future reference"
+                    />
+                ) : (
+                    hints.map((hint, index) => renderHint(hint, index))
+                )}
+                <View style={{ height: 20 }} />
+            </ScrollView>
+        </BaseModal>
     );
 };
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingTop: 24,
-        maxHeight: '90%',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        marginBottom: 8,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    closeButton: {
-        padding: 4,
-    },
     subtitle: {
         fontSize: 15,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         paddingHorizontal: 24,
         marginBottom: 20,
     },
@@ -247,12 +207,12 @@ const styles = StyleSheet.create({
     typeBadgeText: {
         fontSize: 11,
         fontWeight: '600',
-        color: '#4B5563',
+        color: Colors.gray600,
         textTransform: 'uppercase',
     },
     hintText: {
         fontSize: 15,
-        color: '#374151',
+        color: Colors.gray700,
         lineHeight: 22,
     },
     hintImage: {
@@ -267,7 +227,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 8,
         padding: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.white,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: Colors.border,
@@ -275,24 +235,7 @@ const styles = StyleSheet.create({
     audioText: {
         marginLeft: 8,
         fontSize: 14,
-        color: '#6B7280',
+        color: Colors.textSecondary,
         fontWeight: '500',
-    },
-    emptyState: {
-        alignItems: 'center',
-        paddingVertical: 60,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: Colors.textMuted,
-        marginTop: 16,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: '#D1D5DB',
-        marginTop: 8,
-        textAlign: 'center',
-        maxWidth: 250,
     },
 });

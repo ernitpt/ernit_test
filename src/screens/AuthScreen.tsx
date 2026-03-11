@@ -3,6 +3,7 @@ import Colors from '../config/colors';
 import {
   View,
   Text,
+  TextInput as RNTextInput,
   TextInput,
   TouchableOpacity,
   SafeAreaView,
@@ -64,6 +65,14 @@ const AuthScreen = () => {
   const successScaleAnim = useRef(new Animated.Value(0)).current;
   const successOpacityAnim = useRef(new Animated.Value(0)).current;
 
+  // Input refs for keyboard navigation
+  const emailRef = useRef<RNTextInput>(null);
+  const passwordRef = useRef<RNTextInput>(null);
+  const confirmPasswordRef = useRef<RNTextInput>(null);
+
+  // Timer management for memory leak prevention
+  const navTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -107,7 +116,7 @@ const AuthScreen = () => {
 
   useEffect(() => {
     // Animate background gradient
-    Animated.loop(
+    const gradientLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(gradientAnim, {
           toValue: 1,
@@ -120,10 +129,11 @@ const AuthScreen = () => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    gradientLoop.start();
 
     // Animate button glow - slower, more dramatic pulse
-    Animated.loop(
+    const buttonGlowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(buttonGlowAnim, {
           toValue: 1,
@@ -136,10 +146,11 @@ const AuthScreen = () => {
           useNativeDriver: false,
         }),
       ])
-    ).start();
+    );
+    buttonGlowLoop.start();
 
     // Animate card glow
-    Animated.loop(
+    const cardGlowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(cardGlowAnim, {
           toValue: 1,
@@ -152,10 +163,11 @@ const AuthScreen = () => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    cardGlowLoop.start();
 
     // Animate button gradient colors
-    Animated.loop(
+    const buttonGradientLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(buttonGradientAnim, {
           toValue: 1,
@@ -168,7 +180,23 @@ const AuthScreen = () => {
           useNativeDriver: false,
         }),
       ])
-    ).start();
+    );
+    buttonGradientLoop.start();
+
+    // Clean up on unmount
+    return () => {
+      gradientLoop.stop();
+      buttonGlowLoop.stop();
+      cardGlowLoop.stop();
+      buttonGradientLoop.stop();
+    };
+  }, []);
+
+  // Cleanup navigation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    };
   }, []);
 
   // Button press animation handler
@@ -301,7 +329,7 @@ const AuthScreen = () => {
           ]).start();
 
           // After success animation, navigate to pending route or default
-          setTimeout(async () => {
+          navTimerRef.current = setTimeout(async () => {
             // Check for pending free challenge
             try {
               const challengeData = await getStorageItem('pending_free_challenge');
@@ -367,7 +395,7 @@ const AuthScreen = () => {
                     }),
                   ]).start();
 
-                  setTimeout(async () => {
+                  navTimerRef.current = setTimeout(async () => {
                     // Check for pending free challenge
                     try {
                       const challengeData = await getStorageItem('pending_free_challenge');
@@ -608,7 +636,7 @@ const AuthScreen = () => {
       ]).start();
 
       // After success animation, navigate to pending route or default
-      setTimeout(async () => {
+      navTimerRef.current = setTimeout(async () => {
         // Check for pending free challenge
         try {
           const challengeData = await getStorageItem('pending_free_challenge');
@@ -807,6 +835,7 @@ const AuthScreen = () => {
             contentContainerStyle={{ flexGrow: 1, paddingVertical: 40 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
           >
             {/* Back Button */}
             <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, left: 20, zIndex: 10 }}>
@@ -900,7 +929,7 @@ const AuthScreen = () => {
                       paddingVertical: 14,
                       marginBottom: 20,
                       borderWidth: 1,
-                      borderColor: '#E5E7EB',
+                      borderColor: Colors.border,
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.1,
@@ -920,7 +949,7 @@ const AuthScreen = () => {
                     }}>
                       <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#4285F4' }}>G</Text>
                     </View>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.gray700 }}>
                       Continue with Google
                     </Text>
                   </TouchableOpacity>
@@ -931,59 +960,64 @@ const AuthScreen = () => {
                     alignItems: 'center',
                     marginBottom: 20,
                   }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
-                    <Text style={{ marginHorizontal: 16, color: '#6B7280', fontSize: 14, fontWeight: '500' }}>or</Text>
-                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+                    <Text style={{ marginHorizontal: 16, color: Colors.textSecondary, fontSize: 14, fontWeight: '500' }}>or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
                   </View>
 
                   {!isLogin && (
                     <View style={{ marginBottom: 20 }}>
                       <TextInput
                         style={{
-                          backgroundColor: '#F9FAFB',
+                          backgroundColor: Colors.surface,
                           borderRadius: 12,
                           paddingHorizontal: 16,
                           paddingVertical: 14,
                           fontSize: 16,
                           borderWidth: 1,
-                          borderColor: '#E5E7EB',
+                          borderColor: Colors.border,
                         }}
                         placeholder="Username"
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={Colors.textMuted}
                         value={displayName}
                         onChangeText={handleDisplayNameChange}
                         autoCapitalize="words"
                         accessibilityLabel="Username"
+                        returnKeyType="next"
+                        onSubmitEditing={() => emailRef.current?.focus()}
                       />
                     </View>
                   )}
 
                   <View style={{ marginBottom: 20 }}>
                     <TextInput
+                      ref={emailRef}
                       style={{
-                        backgroundColor: '#F9FAFB',
+                        backgroundColor: Colors.surface,
                         borderRadius: 12,
                         paddingHorizontal: 16,
                         paddingVertical: 14,
                         fontSize: 16,
                         borderWidth: 1,
-                        borderColor: emailError ? '#EF4444' : '#E5E7EB',
+                        borderColor: emailError ? Colors.error : Colors.border,
                       }}
                       placeholder="Email address"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={Colors.textMuted}
                       value={email}
                       onChangeText={handleEmailChange}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       accessibilityLabel="Email address"
+                      returnKeyType="next"
+                      onSubmitEditing={() => passwordRef.current?.focus()}
                     />
                     {emailError && (
-                      <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                      <Text style={{ color: Colors.error, fontSize: 12, marginTop: 4, marginLeft: 4 }}>
                         {emailError}
                       </Text>
                     )}
                     {isCheckingEmail && (
-                      <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                      <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 4, marginLeft: 4 }}>
                         Checking email...
                       </Text>
                     )}
@@ -992,22 +1026,25 @@ const AuthScreen = () => {
                   <View style={{ marginBottom: 16 }}>
                     <View style={{ position: 'relative' }}>
                       <TextInput
+                        ref={passwordRef}
                         style={{
-                          backgroundColor: '#F9FAFB',
+                          backgroundColor: Colors.surface,
                           borderRadius: 12,
                           paddingHorizontal: 16,
                           paddingVertical: 14,
                           paddingRight: 80,
                           fontSize: 16,
                           borderWidth: 1,
-                          borderColor: passwordError ? '#EF4444' : '#E5E7EB',
+                          borderColor: passwordError ? Colors.error : Colors.border,
                         }}
                         placeholder="Password"
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={Colors.textMuted}
                         value={password}
                         onChangeText={handlePasswordChange}
                         secureTextEntry={!showPassword}
                         accessibilityLabel="Password"
+                        returnKeyType={isLogin ? "done" : "next"}
+                        onSubmitEditing={isLogin ? handleAuth : () => confirmPasswordRef.current?.focus()}
                       />
                       <TouchableOpacity
                         onPress={() => setShowPassword(!showPassword)}
@@ -1017,21 +1054,21 @@ const AuthScreen = () => {
                         accessibilityLabel={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
-                          <EyeOff size={20} color="#9CA3AF" />
+                          <EyeOff size={20} color={Colors.textMuted} />
                         ) : (
-                          <Eye size={20} color="#9CA3AF" />
+                          <Eye size={20} color={Colors.textMuted} />
                         )}
                       </TouchableOpacity>
                     </View>
                     {passwordError && (
-                      <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                      <Text style={{ color: Colors.error, fontSize: 12, marginTop: 4, marginLeft: 4 }}>
                         {passwordError}
                       </Text>
                     )}
 
                     {!isLogin && password.length > 0 && (
-                      <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+                      <View style={{ marginTop: 12, padding: 12, backgroundColor: Colors.backgroundLight, borderRadius: 8 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.gray700, marginBottom: 8 }}>
                           Password Requirements:
                         </Text>
                         <View style={{ gap: 4 }}>
@@ -1039,7 +1076,7 @@ const AuthScreen = () => {
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
                               {passwordChecks.minLength ? '?' : '?'}
                             </Text>
-                            <Text style={{ fontSize: 12, color: passwordChecks.minLength ? '#10B981' : '#6B7280' }}>
+                            <Text style={{ fontSize: 12, color: passwordChecks.minLength ? Colors.secondary : Colors.textSecondary }}>
                               At least 8 characters
                             </Text>
                           </View>
@@ -1047,7 +1084,7 @@ const AuthScreen = () => {
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
                               {passwordChecks.hasUpperCase ? '?' : '?'}
                             </Text>
-                            <Text style={{ fontSize: 12, color: passwordChecks.hasUpperCase ? '#10B981' : '#6B7280' }}>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasUpperCase ? Colors.secondary : Colors.textSecondary }}>
                               One uppercase letter
                             </Text>
                           </View>
@@ -1055,7 +1092,7 @@ const AuthScreen = () => {
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
                               {passwordChecks.hasLowerCase ? '?' : '?'}
                             </Text>
-                            <Text style={{ fontSize: 12, color: passwordChecks.hasLowerCase ? '#10B981' : '#6B7280' }}>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasLowerCase ? Colors.secondary : Colors.textSecondary }}>
                               One lowercase letter
                             </Text>
                           </View>
@@ -1063,7 +1100,7 @@ const AuthScreen = () => {
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
                               {passwordChecks.hasNumber ? '?' : '?'}
                             </Text>
-                            <Text style={{ fontSize: 12, color: passwordChecks.hasNumber ? '#10B981' : '#6B7280' }}>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasNumber ? Colors.secondary : Colors.textSecondary }}>
                               One number
                             </Text>
                           </View>
@@ -1071,7 +1108,7 @@ const AuthScreen = () => {
                             <Text style={{ fontSize: 14, marginRight: 8 }}>
                               {passwordChecks.hasSpecialChar ? '?' : '?'}
                             </Text>
-                            <Text style={{ fontSize: 12, color: passwordChecks.hasSpecialChar ? '#10B981' : '#6B7280' }}>
+                            <Text style={{ fontSize: 12, color: passwordChecks.hasSpecialChar ? Colors.secondary : Colors.textSecondary }}>
                               One special character
                             </Text>
                           </View>
@@ -1095,18 +1132,19 @@ const AuthScreen = () => {
                     <View style={{ marginBottom: 20 }}>
                       <View style={{ position: 'relative' }}>
                         <TextInput
+                          ref={confirmPasswordRef}
                           style={{
-                            backgroundColor: '#F9FAFB',
+                            backgroundColor: Colors.surface,
                             borderRadius: 12,
                             paddingHorizontal: 16,
                             paddingVertical: 14,
                             paddingRight: 80,
                             fontSize: 16,
                             borderWidth: 1,
-                            borderColor: confirmPassword && password !== confirmPassword ? '#EF4444' : '#E5E7EB',
+                            borderColor: confirmPassword && password !== confirmPassword ? Colors.error : Colors.border,
                           }}
                           placeholder="Confirm password"
-                          placeholderTextColor="#9CA3AF"
+                          placeholderTextColor={Colors.textMuted}
                           value={confirmPassword}
                           onChangeText={(text) => {
                             const sanitized = sanitizeInput(text);
@@ -1114,6 +1152,8 @@ const AuthScreen = () => {
                           }}
                           secureTextEntry={!showConfirmPassword}
                           accessibilityLabel="Confirm password"
+                          returnKeyType="done"
+                          onSubmitEditing={handleAuth}
                         />
                         <TouchableOpacity
                           onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -1123,14 +1163,14 @@ const AuthScreen = () => {
                           accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                         >
                           {showConfirmPassword ? (
-                            <EyeOff size={20} color="#9CA3AF" />
+                            <EyeOff size={20} color={Colors.textMuted} />
                           ) : (
-                            <Eye size={20} color="#9CA3AF" />
+                            <Eye size={20} color={Colors.textMuted} />
                           )}
                         </TouchableOpacity>
                       </View>
                       {confirmPassword && password !== confirmPassword && (
-                        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                        <Text style={{ color: Colors.error, fontSize: 12, marginTop: 4, marginLeft: 4 }}>
                           Passwords do not match
                         </Text>
                       )}
@@ -1184,7 +1224,7 @@ const AuthScreen = () => {
                         accessibilityLabel={isLogin ? "Sign in to your account" : "Create your account"}
                       >
                         <LinearGradient
-                          colors={isButtonDisabled ? ['#D1D5DB', '#D1D5DB'] : Colors.gradientTriple}
+                          colors={isButtonDisabled ? [Colors.gray300, Colors.gray300] : Colors.gradientTriple}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={{
@@ -1226,7 +1266,7 @@ const AuthScreen = () => {
                               style={{
                                 fontSize: 18,
                                 fontWeight: 'bold',
-                                color: isButtonDisabled ? '#6B7280' : 'white',
+                                color: isButtonDisabled ? Colors.textSecondary : Colors.white,
                                 textAlign: 'center',
                                 letterSpacing: 0.5,
                               }}

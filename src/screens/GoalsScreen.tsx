@@ -8,6 +8,8 @@ import {
   Animated,
   TouchableOpacity,
   Image,
+  RefreshControl,
+  Platform,
 } from 'react-native';
 import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -31,7 +33,10 @@ import { serializeNav } from '../utils/serializeNav';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
 import ErrorRetry from '../components/ErrorRetry';
+import * as Haptics from 'expo-haptics';
 
 
 
@@ -48,12 +53,28 @@ const GoalsScreen: React.FC = () => {
   const [error, setError] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [sessionStreak, setSessionStreak] = useState<number>(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadGoals = () => {
     // Trigger re-render by forcing a re-mount of the listener
     setLoading(true);
     setError(false);
   };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    loadGoals();
+    refreshTimeoutRef.current = setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -151,6 +172,7 @@ const GoalsScreen: React.FC = () => {
     setFabMenuOpen(toOpen);
 
     if (toOpen) {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       Animated.parallel([
         Animated.spring(fabRotation, { toValue: 1, damping: 14, stiffness: 160, useNativeDriver: true }),
         Animated.spring(menuItem1, { toValue: 1, damping: 14, stiffness: 140, useNativeDriver: true }),
@@ -259,6 +281,18 @@ const GoalsScreen: React.FC = () => {
             renderItem={renderGoal}
             keyExtractor={(item) => item.id!}
             contentContainerStyle={styles.listContainer}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={Platform.OS !== 'web'}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[Colors.secondary]}
+                tintColor={Colors.secondary}
+              />
+            }
             ListHeaderComponent={sessionStreak >= 3 ? (
               <StreakBanner streak={sessionStreak} />
             ) : null}
@@ -359,7 +393,7 @@ const GoalsScreen: React.FC = () => {
               accessibilityLabel="Redeem your Ernit coupon"
             >
               <View style={styles.fabMenuIconBg}>
-                <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} />
+                <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} accessible={false} />
               </View>
               <Text style={styles.fabMenuText}>Redeem Your Ernit</Text>
             </TouchableOpacity>
@@ -417,14 +451,11 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    ...Shadows.lg,
     shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
   },
   fabOpen: {
-    backgroundColor: '#374151',
+    backgroundColor: Colors.gray700,
   },
   fabMenuColumn: {
     position: 'absolute',
@@ -441,11 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    ...Shadows.md,
     gap: 10,
   },
   fabMenuIconBg: {
@@ -462,9 +489,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   fabMenuText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    ...Typography.smallBold,
+    color: Colors.gray800,
   },
   listContainer: {
     padding: 20,
@@ -493,17 +519,15 @@ const styles = StyleSheet.create({
     fontSize: 44,
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...Typography.heading2,
     color: Colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
     marginBottom: 28,
   },
   emptyCTA: {
@@ -514,22 +538,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 14,
-    shadowColor: Colors.secondary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    ...Shadows.colored(Colors.secondary),
   },
   emptyCTAText: {
     color: '#fff',
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
   },
   emptyText: {
     textAlign: 'center',
     color: Colors.textSecondary,
     marginTop: 50,
-    fontSize: 16,
+    ...Typography.subheading,
   },
 
   // ── No Active (but has completed) ──
@@ -538,7 +558,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   noActiveText: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textMuted,
     marginBottom: 16,
   },
@@ -552,8 +572,7 @@ const styles = StyleSheet.create({
   },
   noActiveCTAText: {
     color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
 
   // ── Completed Goals Section ──
@@ -561,7 +580,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.border,
   },
   completedHeader: {
     flexDirection: 'row',
@@ -576,9 +595,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   completedHeaderText: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
-    color: '#374151',
+    color: Colors.gray700,
   },
   completedCard: {
     marginBottom: 10,

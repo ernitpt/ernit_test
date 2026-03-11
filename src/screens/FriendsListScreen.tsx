@@ -5,12 +5,12 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
   StyleSheet,
   RefreshControl,
   Animated,
   Platform,
 } from 'react-native';
+import { Avatar } from '../components/Avatar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MotiView } from 'moti';
@@ -27,6 +27,7 @@ import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
+import { EmptyState } from '../components/EmptyState';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -38,14 +39,13 @@ interface EnrichedFriend extends Friend {
 const FriendsListScreen: React.FC = () => {
   const navigation = useNavigation<FriendsListNavigationProp>();
   const { state } = useApp();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   const [friends, setFriends] = useState<EnrichedFriend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<EnrichedFriend | null>(null);
-  const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [showRemovePopup, setShowRemovePopup] = useState(false);
 
   const currentUserId = state.user?.id;
@@ -130,22 +130,33 @@ const FriendsListScreen: React.FC = () => {
 
   const confirmRemoveFriend = async () => {
     if (!currentUserId || !selectedFriend) return;
+
+    // 1. Save for rollback
+    const previousFriends = [...friends];
+
+    // 2. Remove from UI immediately
+    setFriends(friends => friends.filter(f => f.friendId !== selectedFriend.friendId));
+
+    // 3. Show success feedback immediately
+    showSuccess('Friend removed');
+
+    // 4. Close modal immediately
+    closeRemovePopup();
+
+    // 5. Call API in background
     try {
-      setRemovingFriendId(selectedFriend.friendId);
       await friendService.removeFriend(currentUserId, selectedFriend.friendId);
-      await loadFriends();
     } catch (error) {
-      logger.error('? Error removing friend:', error);
-    } finally {
-      setRemovingFriendId(null);
-      closeRemovePopup();
+      // 6. Rollback on failure
+      logger.error('Error removing friend:', error);
+      setFriends(previousFriends);
+      showError('Failed to remove friend. Please try again.');
     }
   };
 
   const renderFriendItem = ({ item }: { item: EnrichedFriend }) => {
     const displayName = item.currentName || item.friendName;
     const displayImage = item.currentProfileImageUrl || null;
-    const isRemoving = removingFriendId === item.friendId;
 
     return (
       <MotiView
@@ -158,24 +169,10 @@ const FriendsListScreen: React.FC = () => {
             style={styles.friendTouchable}
             onPress={() => handleFriendPress(item.friendId)}
             activeOpacity={0.7}
-            disabled={isRemoving}
             accessibilityRole="button"
             accessibilityLabel={`View ${displayName}'s profile`}
           >
-            {displayImage && !imageLoadErrors.has(item.friendId) ? (
-              <Image
-                source={{ uri: displayImage }}
-                style={styles.profileImage}
-                onError={() => setImageLoadErrors(prev => new Set(prev).add(item.friendId))}
-                accessibilityLabel={`${displayName}'s profile picture`}
-              />
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Text style={styles.placeholderText}>
-                  {displayName?.[0]?.toUpperCase() || 'U'}
-                </Text>
-              </View>
-            )}
+            <Avatar uri={displayImage} name={displayName} size="lg" style={styles.avatarMargin} />
             <View style={styles.friendInfo}>
               <Text style={styles.friendName}>{displayName}</Text>
               <Text style={styles.friendDate}>
@@ -185,13 +182,12 @@ const FriendsListScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+            style={styles.removeButton}
             onPress={() => openRemovePopup(item)}
-            disabled={isRemoving}
             accessibilityRole="button"
             accessibilityLabel={`Remove ${displayName} from friends`}
           >
-            <Text style={styles.removeButtonText}>{isRemoving ? 'Removing...' : 'Remove'}</Text>
+            <Text style={styles.removeButtonText}>Remove</Text>
           </TouchableOpacity>
         </View>
       </MotiView>
@@ -236,6 +232,10 @@ const FriendsListScreen: React.FC = () => {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.friendsList}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={Platform.OS !== 'web'}
+            maxToRenderPerBatch={10}
+            windowSize={5}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -249,21 +249,13 @@ const FriendsListScreen: React.FC = () => {
       ) : error && friends.length === 0 ? (
         <ErrorRetry message="Could not load friends" onRetry={loadFriends} />
       ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>👥</Text>
-          <Text style={styles.emptyStateTitle}>No Friends Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Start building your network by adding friends!
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyStateButton}
-            onPress={() => navigation.navigate('AddFriend')}
-            accessibilityRole="button"
-            accessibilityLabel="Add your first friend"
-          >
-            <Text style={styles.emptyStateButtonText}>Add Your First Friend</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="👥"
+          title="No Friends Yet"
+          message="Start building your network by adding friends!"
+          actionLabel="Add Your First Friend"
+          onAction={() => navigation.navigate('AddFriend')}
+        />
       )}
 
       {showRemovePopup && (
@@ -321,13 +313,13 @@ const styles = StyleSheet.create({
 
   friendsList: { padding: 10 },
   friendItem: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.textPrimary,
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -336,12 +328,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.backgroundLight,
   },
   friendTouchable: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  profileImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  avatarMargin: {
     marginRight: 12,
-    backgroundColor: Colors.border,
   },
   friendInfo: { flex: 1 },
   friendName: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
@@ -357,45 +345,6 @@ const styles = StyleSheet.create({
   removeButtonDisabled: { opacity: 0.5 },
   removeButtonText: { fontSize: 13, color: Colors.error, fontWeight: '600' },
 
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyStateIcon: { fontSize: 64, marginBottom: 16 },
-  emptyStateTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 12 },
-  emptyStateText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  emptyStateButton: {
-    backgroundColor: Colors.secondary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: Colors.secondary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  emptyStateButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-
-  placeholderImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 28,
-    marginRight: 12,
-    backgroundColor: '#e0e7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
-
   modalOverlay: {
     position: 'absolute',
     top: 0,
@@ -409,13 +358,13 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   modalBox: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 20,
     width: '85%',
     maxWidth: 360,
     paddingVertical: 24,
     paddingHorizontal: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.textPrimary,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 38,
@@ -424,7 +373,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.primaryDeep, marginBottom: 8 },
   modalSubtitle: {
     fontSize: 15,
-    color: '#374151',
+    color: Colors.gray700,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 22,
@@ -433,8 +382,8 @@ const styles = StyleSheet.create({
   modalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
   cancelButtonPopup: { backgroundColor: Colors.backgroundLight },
   confirmButton: { backgroundColor: Colors.error },
-  cancelText: { color: '#374151', fontWeight: '600', fontSize: 15 },
-  confirmText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  cancelText: { color: Colors.gray700, fontWeight: '600', fontSize: 15 },
+  confirmText: { color: Colors.white, fontWeight: '600', fontSize: 15 },
 });
 
 export default FriendsListScreen;

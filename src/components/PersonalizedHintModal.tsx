@@ -238,14 +238,21 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
             let submission: HintSubmission;
 
             if (mode === 'voice') {
-                if (!audioUri) return;
+                if (!audioUri) {
+                    setSubmitting(false);
+                    return;
+                }
                 submission = {
                     type: 'audio',
                     audioUri,
                     duration: recordingDuration || soundDuration,
                 };
             } else {
-                if (!hintText.trim() && !imageUri) return;
+                if (!hintText.trim() && !imageUri) {
+                    showError('Please enter a hint message');
+                    setSubmitting(false);
+                    return;
+                }
                 submission = {
                     type: imageUri ? (hintText.trim() ? 'mixed' : 'image') : 'text',
                     text: hintText.trim(),
@@ -290,6 +297,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
                     >
                         {/* Header */}
                         <LinearGradient

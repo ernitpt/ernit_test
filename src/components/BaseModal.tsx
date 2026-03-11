@@ -1,0 +1,134 @@
+import React from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  StyleSheet,
+  ViewStyle,
+  Dimensions,
+} from 'react-native';
+import { X } from 'lucide-react-native';
+import { Colors } from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
+import { Typography } from '../config/typography';
+import { Shadows } from '../config/shadows';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { commonStyles } from '../styles/commonStyles';
+
+export type ModalVariant = 'center' | 'bottom';
+
+export interface BaseModalProps {
+  visible: boolean;
+  onClose: () => void;
+  title?: string;
+  variant?: ModalVariant;
+  children: React.ReactNode;
+  noPadding?: boolean;
+  style?: ViewStyle;
+}
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export const BaseModal = React.memo<BaseModalProps>(({
+  visible,
+  onClose,
+  title,
+  variant = 'center',
+  children,
+  noPadding = false,
+  style,
+}) => {
+  const slideAnim = useModalAnimation(visible, {
+    initialValue: variant === 'bottom' ? SCREEN_HEIGHT : 300,
+    toValue: 0,
+  });
+
+  const isBottom = variant === 'bottom';
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={commonStyles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View
+          style={[
+            isBottom ? styles.bottomContainer : styles.centerContainer,
+            { transform: [{ translateY: slideAnim }] },
+            style,
+          ]}
+          accessibilityViewIsModal={true}
+        >
+          <TouchableOpacity activeOpacity={1}>
+            {title && (
+              <View style={styles.header}>
+                <Text style={styles.headerTitle}>{title}</Text>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.closeButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={!noPadding && styles.content}>
+              {children}
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
+});
+
+BaseModal.displayName = 'BaseModal';
+
+const styles = StyleSheet.create({
+  centerContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    width: '90%',
+    maxHeight: '85%',
+    ...Shadows.lg,
+  },
+  bottomContainer: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    width: '100%',
+    maxHeight: '85%',
+    position: 'absolute',
+    bottom: 0,
+    ...Shadows.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.screenPadding,
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  headerTitle: {
+    ...Typography.heading3,
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  closeButton: {
+    padding: Spacing.xs,
+  },
+  content: {
+    padding: Spacing.screenPadding,
+  },
+});

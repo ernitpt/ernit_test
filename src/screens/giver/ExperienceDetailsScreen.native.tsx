@@ -141,7 +141,10 @@ export default function ExperienceDetailsScreen() {
       <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
         <ScrollView contentContainerStyle={{ padding: 24 }}>          <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('CategorySelection');
+            }}
             style={styles.backButton}
             accessibilityRole="button"
             accessibilityLabel="Go back"

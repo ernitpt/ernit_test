@@ -5,6 +5,8 @@ import { MotiView } from 'moti';
 import type { Goal } from '../../types';
 import Colors from '../../config/colors';
 import { useRecipientNavigation } from '../../types/navigation';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { useApp } from '../../context/AppContext';
 
 interface CompletedGoalCardProps {
     goal: Goal;
@@ -13,6 +15,7 @@ interface CompletedGoalCardProps {
 
 const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }) => {
     const navigation = useRecipientNavigation();
+    const { state } = useApp();
 
     const totalSessions = goal.targetCount * goal.sessionsPerWeek;
     const hasPledgedExperience = !!goal.pledgedExperience;
@@ -24,18 +27,19 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
     };
 
     return (
-        <MotiView
-            from={{ opacity: 0, translateY: 10 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-        >
-            <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.7}
-                onPress={handlePress}
-                accessibilityRole="button"
-                accessibilityLabel={`View completed goal: ${goal.title}`}
+        <ErrorBoundary screenName="CompletedGoalCard" userId={state.user?.id}>
+            <MotiView
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 300, delay: index * 60 }}
             >
+                <TouchableOpacity
+                    style={styles.card}
+                    activeOpacity={0.7}
+                    onPress={handlePress}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View completed goal: ${goal.title}`}
+                >
                 {/* Left accent */}
                 <View style={styles.accentBar} />
 
@@ -78,6 +82,7 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                                 <Image
                                     source={{ uri: goal.pledgedExperience.coverImageUrl }}
                                     style={styles.experienceThumb}
+                                    resizeMode="cover"
                                     accessibilityLabel={`${goal.pledgedExperience.title} thumbnail`}
                                 />
                             ) : null}
@@ -96,19 +101,20 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                 </View>
             </TouchableOpacity>
         </MotiView>
+        </ErrorBoundary>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderRadius: 14,
         marginBottom: 10,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
         overflow: 'hidden',
-        shadowColor: '#000',
+        shadowColor: Colors.textPrimary,
         shadowOpacity: 0.04,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
@@ -185,13 +191,13 @@ const styles = StyleSheet.create({
         marginTop: 8,
         paddingTop: 8,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#e5e7eb',
+        borderTopColor: Colors.border,
     },
     experienceThumb: {
         width: 32,
         height: 32,
         borderRadius: 6,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.backgroundLight,
     },
     experienceTitle: {
         flex: 1,
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
         paddingTop: 8,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#e5e7eb',
+        borderTopColor: Colors.border,
     },
     selfBadgeText: {
         fontSize: 13,

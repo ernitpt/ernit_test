@@ -152,9 +152,7 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
   ).current;
 
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Flame pulse loop (native driver — transforms only)
     const pulse = Animated.loop(
