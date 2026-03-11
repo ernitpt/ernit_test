@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - phase 3 audit fixes - client-side rate limiting for analytics/errors, shared CORS config for Cloud Functions (removed localhost from production), restricted friend request update fields, split FeedPost into 3 sub-components (561 lines from 1068), split GoalService into GoalService + GoalSessionService
 - split monolithic Goal interface into focused sub-interfaces using intersection types
 - Phase 4 - split Goal type into sub-interfaces, add offline queue utility, add Jest test suite (45 tests)
+- prepare project for Google Play Store (gitignore google-services.json, configure EAS production env, fix deps)
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -91,6 +92,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - removed all high-priority 'any' type issues - added ChallengeSetupPrefill interface, fixed route params, removed unnecessary type casts
 - phase 1 audit fixes - race condition in GoalService streak tracking, skeleton loaders on GoalDetailScreen and FriendProfileScreen, FeedPost memoization, cart validation, console.log replaced with logger
 - phase 2 audit fixes - CSP header, feed privacy documentation, notification relationship validation, UserProfileScreen inline validation, retry logic for API calls, image compression before upload
+- second audit critical fixes - double-submit guard, Firestore cart clear after purchase, friend accept transaction, goal deletion handling, logout timer cleanup
+- ContactModal now awaits send result before showing success; cleaned up dead claim code helpers to match server 12-char format
+- back chevron on browse rewards page now returns to reward category selection instead of skipping to previous step
+- removed Set as Goal button from experience details screens
+- prevent background page scrolling when side menu is open
+- share achievement now works on web using Web Share API with download fallback
+- camera button now opens native camera on web; session image shows in completion summary
+- weekly goal rollover now triggers at midnight instead of exact timestamp, with 24h grace period for cross-day sessions
+- prevent showing motivation button when user already sent one for that session
+- hide motivation button when user already sent one for that session
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -151,3 +162,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add drag-and-drop experience reordering within categories
 - main app respects experience order and draft status from admin panel
 - added offline detection with toast notifications via @react-native-community/netinfo
+- added experience booking reminder notifications (day 1, 3, 7, 14 post-completion)
+- expandable session cards with photo fullscreen and inline video playback
+- add privacy policy page for Google Play Store submission
+- unified achievement detail - profile and goals now open same Journey screen with share-to-social section
+- add animation preview debug page for tweaking progress animations
+- redesigned achievement page - gradient hero, merged reward card, dynamic header title, removed excess whitespace
+- rework StreakBanner with gradual flame progression across 150 sessions

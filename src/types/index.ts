@@ -401,7 +401,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion' | 'motivation_received' | 'session_reminder' | 'weekly_recap';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion' | 'motivation_received' | 'session_reminder' | 'weekly_recap' | 'experience_booking_reminder';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -446,6 +446,9 @@ export interface Notification {
     preferredRewardCategory?: ExperienceCategory;
     totalCompleted?: number;
     totalRequired?: number;
+    // Booking reminder fields
+    experienceGiftId?: string;
+    experienceName?: string;
   };
 }
 
@@ -538,6 +541,7 @@ export type RootStackParamList = {
   ChallengeLanding: undefined;
   MysteryChoice: { experience: Experience };
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
+  AnimationPreview: undefined;
 };
 
 export type GiverStackParamList = {

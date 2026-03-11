@@ -301,9 +301,11 @@ service cloud.firestore {
          NESTED MOTIVATIONS (Free Goals)
          =============================== */
       match /motivations/{motivationId} {
-        // Goal owner can read all motivations
-        allow read: if request.auth != null &&
-          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        // Goal owner can read all motivations; authors can read their own (needed for duplicate check)
+        allow read: if request.auth != null && (
+          request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId
+          || request.auth.uid == resource.data.authorId
+        );
 
         // Any authenticated user can leave a motivation (except the goal owner - you motivate others, not yourself)
         allow create: if request.auth != null
@@ -576,12 +578,21 @@ service cloud.firestore {
         // SECURITY: Verify sender is either the goal owner or the goal's giver (empoweredBy)
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request',
                                          'goal_change_suggested', 'goal_approval_response',
-                                         'personalized_hint_left'] &&
+                                         'personalized_hint_left', 'motivation_received'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
          (get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.userId == request.auth.uid ||
           get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.empoweredBy == request.auth.uid))
+        ||
+        // Experience empower notifications: friend bought a gift for someone's goal
+        // Verify both goal and gift exist (gift is created server-side after payment)
+        (request.resource.data.type == 'experience_empowered' &&
+         request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
+         'goalId' in request.resource.data.data &&
+         'giftId' in request.resource.data.data &&
+         exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
+         exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)))
         ||
         // Post reactions: allow if post exists (posts are public to authenticated users)
         (request.resource.data.type == 'post_reaction' &&

@@ -29,6 +29,7 @@ import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
 import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../config/colors';
 import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
@@ -211,6 +212,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     // Close side menu when confirming logout
     onClose();
     try {
+      // Clear persisted timer state to prevent stale sessions
+      try { await AsyncStorage.removeItem('global_timer_state'); } catch {}
+
       const auth = getAuth();
       await signOut(auth);
       dispatch({ type: 'RESET_STATE' });

@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
-import { ChevronLeft, HelpCircle, Target } from 'lucide-react-native';
+import { ChevronLeft, HelpCircle } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
@@ -193,16 +193,6 @@ export default function ExperienceDetailsScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ChallengeSetup', { prefill: { experience } })}
-            style={styles.setAsGoalButton}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Set as goal"
-          >
-            <Target color="#16a34a" size={20} />
-            <Text style={styles.setAsGoalText}>Set as Goal</Text>
-          </TouchableOpacity>
         </ScrollView>
 
         <HowItWorksModal
@@ -254,17 +244,4 @@ const styles = StyleSheet.create({
   },
   purchaseButton: { backgroundColor: '#fff', paddingVertical: 14, borderRadius: 12 },
   purchaseText: { textAlign: 'center', color: Colors.primary, fontSize: 18, fontWeight: 'bold' },
-  setAsGoalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  setAsGoalText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

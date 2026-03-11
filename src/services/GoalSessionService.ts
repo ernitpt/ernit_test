@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DateHelper } from '../utils/DateHelper';
 import { db } from './firebase';
 import {
@@ -49,7 +50,30 @@ function addDaysSafe(base: Date | null | undefined, days: number): Date {
   const b = isValidDate(base as any) ? (base as Date) : DateHelper.now();
   const x = new Date(b);
   x.setDate(b.getDate() + days);
+  x.setHours(0, 0, 0, 0); // Normalize to midnight so week boundaries align with calendar dates
   return x;
+}
+
+const TIMER_STORAGE_KEY = 'global_timer_state';
+
+/** Check if a goal has an active timer that started within the current week and < 24h ago */
+async function hasActiveSessionInCurrentWeek(goalId: string, weekStartAt: Date): Promise<boolean> {
+  try {
+    const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
+    if (!stored) return false;
+    const timers = JSON.parse(stored);
+    const timer = timers[goalId];
+    if (!timer?.isRunning || !timer.startTime) return false;
+
+    const sessionStart = new Date(timer.startTime);
+    const hoursSinceStart = (Date.now() - timer.startTime) / (1000 * 60 * 60);
+    const weekEnd = addDaysSafe(weekStartAt, 7);
+
+    // Session started in current week AND less than 24h ago
+    return hoursSinceStart <= 24 && sessionStart >= weekStartAt && sessionStart < weekEnd;
+  } catch {
+    return false; // If we can't read timer state, don't block sweep
+  }
 }
 
 /** Ensure all date-like fields are valid Dates (or null) and fix missing arrays/numbers */
@@ -111,6 +135,12 @@ export class GoalSessionService {
 
     let anchor = new Date(g.weekStartAt);
     const now = DateHelper.now();
+
+    // Defer sweep if there's an active session from the current week (≤24h grace)
+    if (await hasActiveSessionInCurrentWeek(g.id, anchor)) {
+      return g;
+    }
+
     let didSweep = false;
     let hadIncompleteSweep = false;
 
@@ -143,6 +173,8 @@ export class GoalSessionService {
     // Only write to Firestore if weeks were actually swept
     // This prevents infinite loops in real-time listeners (write → snapshot → sweep → write)
     if (didSweep) {
+      // Normalize anchor to midnight so future sweeps align with calendar dates
+      anchor.setHours(0, 0, 0, 0);
       g.weekStartAt = anchor;
       const ref = doc(db, 'goals', g.id);
       const sweepUpdate: any = {
@@ -181,7 +213,7 @@ export class GoalSessionService {
   }
 
   /** Increment a session for the current anchored week */
-  async tickWeeklySession(goalId: string): Promise<Goal> {
+  async tickWeeklySession(goalId: string, sessionStartedAt?: Date): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
 
     // ✅ SECURITY: Atomic read-modify-write via Firestore transaction
@@ -200,8 +232,13 @@ export class GoalSessionService {
       }
 
       // Inline expired weeks sweep (pure computation inside transaction, no standalone writes)
+      // Skip sweep if the session started within the current week (cross-midnight/cross-day protection)
       let hadIncompleteSweep = false;
-      if (g.weekStartAt && g.id && !g.isCompleted) {
+      const shouldSkipSweep = sessionStartedAt && g.weekStartAt
+        && sessionStartedAt >= new Date(g.weekStartAt)
+        && sessionStartedAt < addDaysSafe(new Date(g.weekStartAt), 7);
+
+      if (g.weekStartAt && g.id && !g.isCompleted && !shouldSkipSweep) {
         let anchor = new Date(g.weekStartAt);
         const now = DateHelper.now();
         while (now > addDaysSafe(anchor, 7)) {
@@ -224,7 +261,7 @@ export class GoalSessionService {
         g.weekStartAt = anchor;
       }
 
-      const todayIso = isoDateOnly(DateHelper.now());
+      const todayIso = isoDateOnly(sessionStartedAt ?? DateHelper.now());
 
       // Prevent multiple sessions same day (unless debug)
       if (!this.DEBUG_ALLOW_MULTIPLE_PER_DAY && g.weeklyLogDates.includes(todayIso)) {

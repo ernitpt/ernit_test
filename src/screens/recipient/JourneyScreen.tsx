@@ -26,11 +26,16 @@ import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
 import { useToast } from '../../context/ToastContext';
+import { Video, ResizeMode } from 'expo-av';
+import { MotiView } from 'moti';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -134,13 +139,20 @@ const SessionCard = ({
   session,
   index,
   motivations = [],
+  isExpanded,
+  onToggleExpand,
+  onImagePress,
 }: {
   session: SessionRecord;
   index: number;
   motivations?: Motivation[];
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onImagePress: (uri: string) => void;
 }) => {
   const anim = useRef(new Animated.Value(0)).current;
-  const [expanded, setExpanded] = useState(false);
+  const [motivationsExpanded, setMotivationsExpanded] = useState(false);
+  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -165,10 +177,21 @@ const SessionCard = ({
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
+  const handleCardTap = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    onToggleExpand();
+  };
+
   const toggleMotivations = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(!expanded);
+    setMotivationsExpanded(!motivationsExpanded);
   };
+
+  useEffect(() => {
+    if (!isExpanded && videoRef.current) {
+      videoRef.current.pauseAsync();
+    }
+  }, [isExpanded]);
 
   return (
     <Animated.View
@@ -181,36 +204,89 @@ const SessionCard = ({
         },
       ]}
     >
-      <View style={sessStyles.cardMain}>
-        {/* Left: session badge */}
-        <View style={sessStyles.badge}>
-          <Text style={sessStyles.badgeText}>#{session.sessionNumber}</Text>
-        </View>
-
-        {/* Middle: details */}
-        <View style={sessStyles.details}>
-          <Text style={sessStyles.date}>
-            {fmtDate(session.timestamp)} · {fmtTime(session.timestamp)}
-          </Text>
-          <View style={sessStyles.metaRow}>
-            <Clock size={13} color={Colors.textSecondary} />
-            <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
-            <Text style={sessStyles.weekBadge}>Week {session.weekNumber + 1}</Text>
+      <TouchableOpacity onPress={handleCardTap} activeOpacity={0.9}>
+        <View style={sessStyles.cardMain}>
+          {/* Left: session badge */}
+          <View style={sessStyles.badge}>
+            <Text style={sessStyles.badgeText}>#{session.sessionNumber}</Text>
           </View>
-        </View>
 
-        {/* Right: media thumbnail (if any) */}
-        {session.mediaUrl && (
-          <View style={sessStyles.thumb}>
-            <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
-            {session.mediaType === 'video' && (
-              <View style={sessStyles.videoOverlay}>
-                <PlayCircle size={18} color="#fff" />
+          {/* Middle: details */}
+          <View style={sessStyles.details}>
+            <Text style={sessStyles.date}>
+              {fmtDate(session.timestamp)} · {fmtTime(session.timestamp)}
+            </Text>
+            <View style={sessStyles.metaRow}>
+              <Clock size={13} color={Colors.textSecondary} />
+              <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
+              <Text style={sessStyles.weekBadge}>Week {session.weekNumber + 1}</Text>
+            </View>
+          </View>
+
+          {/* Right: media thumbnail (if any) */}
+          {session.mediaUrl && (
+            <View style={sessStyles.thumb}>
+              <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
+              {session.mediaType === 'video' && (
+                <View style={sessStyles.videoOverlay}>
+                  <PlayCircle size={18} color="#fff" />
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Expanded content */}
+      {isExpanded && (session.mediaUrl || session.notes) && (
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15 }}
+        >
+          {/* Media Section */}
+          {session.mediaUrl && (
+            <>
+              <View style={sessStyles.expandedDivider} />
+              <View style={sessStyles.expandedMediaContainer}>
+                {session.mediaType === 'video' ? (
+                  <Video
+                    ref={videoRef}
+                    source={{ uri: session.mediaUrl }}
+                    style={sessStyles.expandedMedia}
+                    useNativeControls
+                    resizeMode={ResizeMode.CONTAIN}
+                    isLooping={false}
+                    shouldPlay={false}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => onImagePress(session.mediaUrl!)}
+                    activeOpacity={0.9}
+                  >
+                    <Image
+                      source={{ uri: session.mediaUrl }}
+                      style={sessStyles.expandedMedia}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-          </View>
-        )}
-      </View>
+            </>
+          )}
+
+          {/* Notes Section */}
+          {session.notes && (
+            <>
+              <View style={sessStyles.expandedDivider} />
+              <View style={sessStyles.notesContainer}>
+                <Text style={sessStyles.notesLabel}>Notes</Text>
+                <Text style={sessStyles.notesText}>{session.notes}</Text>
+              </View>
+            </>
+          )}
+        </MotiView>
+      )}
 
       {/* Inline motivations */}
       {motivations.length > 0 && (
@@ -220,7 +296,7 @@ const SessionCard = ({
             onPress={toggleMotivations}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${expanded ? 'Hide' : 'Show'} motivations`}
+            accessibilityLabel={`${motivationsExpanded ? 'Hide' : 'Show'} motivations`}
           >
             <MessageCircle size={14} color={Colors.primary} />
             <Text style={sessStyles.motivationToggleText}>
@@ -228,7 +304,7 @@ const SessionCard = ({
             </Text>
           </TouchableOpacity>
 
-          {expanded && (
+          {motivationsExpanded && (
             <View style={sessStyles.motivationList}>
               {motivations.map((m) => (
                 <View key={m.id} style={sessStyles.motivationItem}>
@@ -423,6 +499,37 @@ const sessStyles = StyleSheet.create({
     marginTop: 8,
     backgroundColor: Colors.backgroundLight,
   },
+  expandedDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginVertical: 12,
+  },
+  expandedMediaContainer: {
+    width: '100%',
+    overflow: 'hidden',
+  },
+  expandedMedia: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    backgroundColor: Colors.backgroundLight,
+  },
+  notesContainer: {
+    paddingVertical: 4,
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  notesText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
 });
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -440,6 +547,7 @@ const JourneyScreen = () => {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [motivations, setMotivations] = useState<Motivation[]>([]);
   const [recommendedExperiences, setRecommendedExperiences] = useState<Experience[]>([]);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   // Completed goal state
   const [couponCode, setCouponCode] = useState<string | null>(null);
@@ -454,6 +562,9 @@ const JourneyScreen = () => {
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const couponRequestedRef = useRef(false);
+  const shareCardRef = useRef<View>(null);
+  const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
+  const [isSharing, setIsSharing] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
   // Redirect if no goal
@@ -722,6 +833,58 @@ const JourneyScreen = () => {
     else if (bookingMethod === 'email') handleEmailSchedule();
   }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
+  const handleShare = async () => {
+    if (!shareCardRef.current) return;
+    setIsSharing(true);
+    try {
+      if (Platform.OS === 'web') {
+        const dataUri = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'data-uri',
+        });
+        const res = await fetch(dataUri);
+        const blob = await res.blob();
+        const file = new File([blob], 'ernit-achievement.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'My Achievement',
+            text: 'Check out my achievement on Ernit!',
+          });
+        } else {
+          const link = document.createElement('a');
+          link.href = dataUri;
+          link.download = 'ernit-achievement.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showInfo('Image saved! Share it to Instagram from your gallery.');
+        }
+      } else {
+        const uri = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        });
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share your achievement',
+          });
+        } else {
+          showInfo('Sharing is not available on this device');
+        }
+      }
+    } catch (error) {
+      logger.error('Error sharing achievement:', error);
+      showError('Could not share. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =
     currentGoal && Array.isArray(currentGoal.hints)
@@ -845,7 +1008,18 @@ const JourneyScreen = () => {
     return (
       <View>
         {sessions.map((s, i) => (
-          <SessionCard key={s.id} session={s} index={i} motivations={motivationsBySession[s.sessionNumber] || []} />
+          <SessionCard
+            key={s.id}
+            session={s}
+            index={i}
+            motivations={motivationsBySession[s.sessionNumber] || []}
+            isExpanded={expandedSessionId === s.id}
+            onToggleExpand={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setExpandedSessionId(prev => prev === s.id ? null : s.id);
+            }}
+            onImagePress={(uri) => setSelectedImageUri(uri)}
+          />
         ))}
       </View>
     );
@@ -947,20 +1121,94 @@ const JourneyScreen = () => {
 
     return (
       <>
-        {/* ─── Completion Header ─────────────────────────── */}
-        <View style={cStyles.headerCard}>
-          <View style={cStyles.trophyCircle}>
-            <Trophy size={32} color={Colors.primary} />
+        {/* Off-screen Share Card for capture */}
+        <View style={{ position: 'absolute', left: -9999 }}>
+          <View
+            ref={shareCardRef}
+            style={{
+              width: 1080,
+              height: shareFormat === 'story' ? 1920 : 1080,
+              backgroundColor: '#0891b2',
+            }}
+            collapsable={false}
+          >
+            <LinearGradient
+              colors={['#10b981', '#0891b2', Colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
+            >
+              {currentGoal.pledgedExperience?.coverImageUrl ? (
+                <Image
+                  source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                  style={{
+                    width: 600,
+                    height: shareFormat === 'story' ? 400 : 300,
+                    borderRadius: 40,
+                    marginBottom: 60,
+                  }}
+                  resizeMode="cover"
+                />
+              ) : null}
+              <Trophy color="#fef3c7" size={120} strokeWidth={2.5} fill="#fbbf24" />
+              <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff', textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+                Goal Completed!
+              </Text>
+              <Text style={{ fontSize: 42, fontWeight: '700', color: '#d1fae5', textAlign: 'center', marginBottom: 60 }}>
+                {currentGoal.title || currentGoal.description || ''}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{totalSessions}</Text>
+                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SESSIONS</Text>
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{currentGoal.targetCount || 0}</Text>
+                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>WEEKS</Text>
+                </View>
+              </View>
+              <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
+                <Image
+                  source={require('../../assets/favicon.png')}
+                  style={{ width: 60, height: 60, marginBottom: 12 }}
+                  resizeMode="contain"
+                />
+                <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
+                  Earned with Ernit
+                </Text>
+              </View>
+            </LinearGradient>
           </View>
-          <Text style={cStyles.headerTitle}>Challenge Complete!</Text>
-          <View style={cStyles.statsRow}>
-            <Text style={cStyles.statText}>{totalSessions} sessions</Text>
-            <View style={cStyles.statDot} />
-            <Text style={cStyles.statText}>{currentGoal.targetCount} weeks</Text>
+        </View>
+
+        {/* ─── Completion Hero ──────────────────────────── */}
+        <View style={cStyles.heroContainer}>
+          <View style={cStyles.heroInner}>
+            <View style={cStyles.heroTopRow}>
+              <View style={cStyles.heroTrophyCircle}>
+                <Trophy size={28} color="#f59e0b" strokeWidth={2.5} fill="#fbbf24" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={cStyles.heroTitle}>Challenge Complete!</Text>
+                <Text style={cStyles.heroGoalTitle} numberOfLines={1}>
+                  {currentGoal.title || currentGoal.description || ''}
+                </Text>
+              </View>
+            </View>
+            <View style={cStyles.heroStatsRow}>
+              <View style={cStyles.heroStatPill}>
+                <Text style={cStyles.heroStatNumber}>{totalSessions}</Text>
+                <Text style={cStyles.heroStatLabel}>sessions</Text>
+              </View>
+              <View style={cStyles.heroStatPill}>
+                <Text style={cStyles.heroStatNumber}>{currentGoal.targetCount}</Text>
+                <Text style={cStyles.heroStatLabel}>weeks</Text>
+              </View>
+              {completedDate && (
+                <Text style={cStyles.heroDateText}>Completed {completedDate}</Text>
+              )}
+            </View>
           </View>
-          {completedDate && (
-            <Text style={cStyles.completedDate}>Completed {completedDate}</Text>
-          )}
         </View>
 
         {/* ─── Experience Card ────────────────────────────── */}
@@ -1071,37 +1319,39 @@ const JourneyScreen = () => {
                 )}
               </>
               )}
+
+              {/* Buy CTA (within 2-week window) */}
+              {showBuyCTA && (
+                <>
+                  <View style={cStyles.rewardDivider} />
+                  <Text style={cStyles.buyCTATitle}>You've earned this!</Text>
+                  <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
+                  <TouchableOpacity
+                    style={[styles.buyButton, { marginTop: 8 }]}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('ExperienceCheckout', {
+                      cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+                      goalId: currentGoal.id,
+                    })}
+                  >
+                    <ShoppingBag size={15} color="#fff" />
+                    <Text style={styles.buyButtonText}>
+                      {currentGoal.pledgedExperience!.price > 0
+                        ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
+                        : 'Get This Experience'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* Expired */}
+              {showExpired && (
+                <>
+                  <View style={cStyles.rewardDivider} />
+                  <Text style={cStyles.expiredText}>Purchase window has expired</Text>
+                </>
+              )}
             </View>
-
-            {/* State: Buy CTA (within 2-week window) */}
-            {showBuyCTA && (
-              <View style={cStyles.buyCTACard}>
-                <Text style={cStyles.buyCTATitle}>🎉 You've earned this!</Text>
-                <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
-                <TouchableOpacity
-                  style={styles.buyButton}
-                  activeOpacity={0.8}
-                  onPress={() => navigation.navigate('ExperienceCheckout', {
-                    cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
-                    goalId: currentGoal.id,
-                  })}
-                >
-                  <ShoppingBag size={15} color="#fff" />
-                  <Text style={styles.buyButtonText}>
-                    {currentGoal.pledgedExperience!.price > 0
-                      ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
-                      : 'Get This Experience'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* State: Expired */}
-            {showExpired && (
-              <View style={cStyles.expiredCard}>
-                <Text style={cStyles.expiredText}>Purchase window has expired</Text>
-              </View>
-            )}
           </View>
         )}
 
@@ -1126,6 +1376,33 @@ const JourneyScreen = () => {
             </View>
           </View>
         )}
+
+        {/* ─── Share Section ────────────────────────────── */}
+        <View style={[cStyles.section, { marginBottom: 0 }]}>
+          <Text style={cStyles.sectionTitle}>Share Your Achievement</Text>
+          <View style={cStyles.shareFormatToggle}>
+            <TouchableOpacity
+              style={[cStyles.shareFormatOption, shareFormat === 'story' && cStyles.shareFormatActive]}
+              onPress={() => setShareFormat('story')}
+            >
+              <Text style={[cStyles.shareFormatText, shareFormat === 'story' && cStyles.shareFormatTextActive]}>
+                Story (9:16)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[cStyles.shareFormatOption, shareFormat === 'square' && cStyles.shareFormatActive]}
+              onPress={() => setShareFormat('square')}
+            >
+              <Text style={[cStyles.shareFormatText, shareFormat === 'square' && cStyles.shareFormatTextActive]}>
+                Square (1:1)
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={cStyles.shareButton} onPress={handleShare} disabled={isSharing}>
+            <ShareIcon color="#fff" size={20} />
+            <Text style={cStyles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
+          </TouchableOpacity>
+        </View>
       </>
     );
   };
@@ -1135,13 +1412,13 @@ const JourneyScreen = () => {
     <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
     <MainScreen activeRoute="Goals">
       <StatusBar style="light" />
-      <SharedHeader title="Journey" showBack />
+      <SharedHeader title={currentGoal.isCompleted ? 'Your Achievement' : 'Journey'} showBack />
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: 20,
-          paddingBottom: 20,
+          paddingBottom: currentGoal.isCompleted ? 8 : 20,
           alignItems: 'center',
         }}
       >
@@ -1608,57 +1885,75 @@ const styles = StyleSheet.create({
 
 // ─── Completed Goal Styles ──────────────────────────────────────────────────
 const cStyles = StyleSheet.create({
-  headerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 24,
-    alignItems: 'center',
+  heroContainer: {
     marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: Colors.border,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  trophyCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primarySurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+  heroInner: {
+    padding: 16,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  statsRow: {
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 12,
   },
-  statText: {
+  heroTrophyCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  heroGoalTitle: {
     fontSize: 14,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  heroStatPill: {
+    backgroundColor: Colors.primarySurface,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  heroStatNumber: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  heroStatLabel: {
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  statDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.textMuted,
-  },
-  completedDate: {
-    fontSize: 13,
-    color: Colors.textMuted,
+  heroDateText: {
+    fontSize: 12,
     fontWeight: '500',
-    marginTop: 2,
+    color: Colors.textMuted,
+    marginLeft: 'auto',
   },
   section: {
     marginBottom: 16,
@@ -1866,6 +2161,39 @@ const cStyles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '500',
   },
+  shareFormatToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.backgroundLight,
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 12,
+  },
+  shareFormatOption: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  shareFormatActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shareFormatText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  shareFormatTextActive: { color: Colors.primaryDark },
+  shareButton: {
+    backgroundColor: Colors.secondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  shareButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
 
 export default JourneyScreen;

@@ -621,19 +621,52 @@ const AchievementDetailScreen = () => {
     if (!shareCardRef.current) return;
     setIsSharing(true);
     try {
-      const uri = await captureRef(shareCardRef, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-      });
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Share your achievement',
+      if (Platform.OS === 'web') {
+        // Web: capture as data URI since tmpfile is native-only
+        const dataUri = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'data-uri',
         });
+
+        // Convert data URI to File for Web Share API
+        const res = await fetch(dataUri);
+        const blob = await res.blob();
+        const file = new File([blob], 'ernit-achievement.png', { type: 'image/png' });
+
+        // Use Web Share API with files (works on mobile browsers for Instagram)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'My Achievement',
+            text: 'Check out my achievement on Ernit!',
+          });
+        } else {
+          // Fallback: download the image so the user can share manually
+          const link = document.createElement('a');
+          link.href = dataUri;
+          link.download = 'ernit-achievement.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showInfo('Image saved! Share it to Instagram from your gallery.');
+        }
       } else {
-        showInfo('Sharing is not available on this device');
+        // Native: use tmpfile + expo-sharing
+        const uri = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        });
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share your achievement',
+          });
+        } else {
+          showInfo('Sharing is not available on this device');
+        }
       }
     } catch (error) {
       logger.error('Error sharing achievement:', error);

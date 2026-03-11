@@ -28,7 +28,7 @@ export const formatTime = (seconds: number): string => {
  */
 export const generateClaimCode = async (): Promise<string> => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const codeLength = 8; // Increased from 6 to 8 for better security
+  const codeLength = 12; // Must match server-side (stripeWebhook.ts)
   const randomBytes = await getRandomBytes(codeLength);
 
   let code = '';
@@ -71,6 +71,6 @@ export const validateEmail = (email: string): boolean => {
 };
 
 export const validateClaimCode = (code: string): boolean => {
-  // Updated to support 8-char codes (new secure format) and legacy 6-char codes
-  return /^[A-Z0-9]{6,8}$/.test(code);
+  // Must match server-side 12-char format (stripeWebhook.ts)
+  return /^[A-Z0-9]{12}$/.test(code);
 };

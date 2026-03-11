@@ -48,7 +48,7 @@ const STEP_TITLES = [
     'What is your goal?',
     'Set your challenge intensity',
     'When do you start?',
-    'What kind of reward excites you?',
+    'Your reward',
     'Secure your reward',
 ];
 
@@ -301,7 +301,12 @@ export default function ChallengeSetupScreen() {
     };
 
     const handleBack = () => {
-        if (currentStep > 1) {
+        if (showExperiencePicker) {
+            setShowExperiencePicker(false);
+            setSelectedExperience(null);
+            setValidationErrors(prev => ({ ...prev, experience: false }));
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+        } else if (currentStep > 1) {
             setCurrentStep(prev => prev - 1);
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         } else {
@@ -1079,246 +1084,246 @@ export default function ChallengeSetupScreen() {
 
     return (
         <ErrorBoundary screenName="ChallengeSetupScreen" userId={userId}>
-        <View style={styles.container}>
-            <StatusBar style="dark" />
+            <View style={styles.container}>
+                <StatusBar style="dark" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={handleBack}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Go back"
-                >
-                    <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Create Your Challenge</Text>
-                <View style={styles.stepIndicator}>
-                    <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
-                </View>
-            </View>
-
-            {/* Progress Bar */}
-            <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
-
-            {/* Step Content */}
-            <ScrollView
-                ref={scrollViewRef}
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                {/* Step Title & Subtitle */}
-                <MotiView
-                    key={`title-${currentStep}`}
-                    from={{ opacity: 0, translateY: 10 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 300 }}
-                >
-                    <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
-                    <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
-                </MotiView>
-
-                {/* Animated Step Content */}
-                <AnimatePresence exitBeforeEnter>
-                    <MotiView
-                        key={`step-${currentStep}`}
-                        from={{ opacity: 0, translateX: 30 }}
-                        animate={{ opacity: 1, translateX: 0 }}
-                        exit={{ opacity: 0, translateX: -30 }}
-                        transition={{ type: 'timing', duration: 250 }}
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={handleBack}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Go back"
                     >
-                        {renderCurrentStep()}
-                    </MotiView>
-                </AnimatePresence>
+                        <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Create Your Challenge</Text>
+                    <View style={styles.stepIndicator}>
+                        <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
+                    </View>
+                </View>
 
-                <View style={{ height: 240 }} />
-            </ScrollView>
+                {/* Progress Bar */}
+                <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                {/* Preview card on final step */}
-                {currentStep >= 4 && selectedExperience && (
+                {/* Step Content */}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.scroll}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Step Title & Subtitle */}
                     <MotiView
+                        key={`title-${currentStep}`}
                         from={{ opacity: 0, translateY: 10 }}
                         animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                        transition={{ type: 'timing', duration: 300 }}
                     >
-                        <View style={styles.footerHeroCard}>
-                            <View style={styles.footerHeroRow}>
-                                <View style={styles.heroIconBox}>
-                                    <Image
-                                        source={{ uri: selectedExperience.coverImageUrl }}
-                                        style={styles.heroImage}
-                                        resizeMode="cover"
-                                        accessibilityLabel={selectedExperience.title}
-                                    />
-                                </View>
-                                <View style={styles.heroInfo}>
-                                    <Text style={styles.footerHeroTitle} numberOfLines={1}>
-                                        {selectedExperience.title}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {selectedGoal && (
-                                <View style={styles.heroContextRow}>
-                                    <View style={styles.contextBadge}>
-                                        <Text style={styles.contextEmoji}>
-                                            {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
-                                        </Text>
-                                        <Text style={styles.contextText}>{selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
-                                    </View>
-                                    <View style={styles.contextDivider} />
-                                    <View style={styles.contextBadge}>
-                                        <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
-                                    </View>
-                                    <View style={styles.contextDivider} />
-                                    <View style={styles.contextBadge}>
-                                        <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
+                        <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
+                        <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
                     </MotiView>
-                )}
 
-                {/* CTA Button */}
-                {currentStep === totalSteps ? (
-                    <TouchableOpacity
-                        style={styles.createButton}
-                        onPress={handleCreate}
-                        activeOpacity={0.9}
-                        accessibilityRole="button"
-                        accessibilityLabel={state.user?.id ? 'Create challenge' : 'Sign up and create challenge'}
-                    >
-                        <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                            <Text style={styles.createButtonText}>
-                                {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
-                            </Text>
-                            <ChevronRight color="#fff" size={20} strokeWidth={3} />
-                        </LinearGradient>
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity
-                        style={styles.createButton}
-                        onPress={handleNext}
-                        activeOpacity={0.9}
-                        accessibilityRole="button"
-                        accessibilityLabel="Continue to next step"
-                    >
-                        <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                            <Text style={styles.createButtonText}>Next</Text>
-                            <ChevronRight color="#fff" size={20} strokeWidth={3} />
-                        </LinearGradient>
-                    </TouchableOpacity>
-                )}
-            </View>
+                    {/* Animated Step Content */}
+                    <AnimatePresence exitBeforeEnter>
+                        <MotiView
+                            key={`step-${currentStep}`}
+                            from={{ opacity: 0, translateX: 30 }}
+                            animate={{ opacity: 1, translateX: 0 }}
+                            exit={{ opacity: 0, translateX: -30 }}
+                            transition={{ type: 'timing', duration: 250 }}
+                        >
+                            {renderCurrentStep()}
+                        </MotiView>
+                    </AnimatePresence>
 
-            {/* Confirmation Modal */}
-            <Modal
-                visible={showConfirm}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowConfirm(false)}
-            >
-                <TouchableOpacity
-                    style={commonStyles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowConfirm(false)}
-                >
-                    <Animated.View
-                        style={[
-                            styles.modalBox,
-                            { transform: [{ translateY: slideAnim }] },
-                        ]}
-                    >
-                        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
-                            <Text style={styles.modalTitle}>Confirm Your Challenge</Text>
-                            <Text style={styles.modalSubtitle}>
-                                Ready to commit? Let's do this!
-                            </Text>
+                    <View style={{ height: 240 }} />
+                </ScrollView>
 
-                            <View style={styles.modalDetails}>
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Goal: </Text>
-                                    {finalGoalName}
-                                </Text>
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Duration: </Text>
-                                    {weeks} {weeks === 1 ? 'week' : 'weeks'}
-                                </Text>
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Sessions/week: </Text>
-                                    {sessionsPerWeek}
-                                </Text>
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Per session: </Text>
-                                    {hours || '0'}h {minutes || '0'}m
-                                </Text>
-                                {selectedExperience && (
-                                    <>
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Dream reward: </Text>
+                {/* Footer */}
+                <View style={styles.footer}>
+                    {/* Preview card on final step */}
+                    {currentStep >= 4 && selectedExperience && (
+                        <MotiView
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                        >
+                            <View style={styles.footerHeroCard}>
+                                <View style={styles.footerHeroRow}>
+                                    <View style={styles.heroIconBox}>
+                                        <Image
+                                            source={{ uri: selectedExperience.coverImageUrl }}
+                                            style={styles.heroImage}
+                                            resizeMode="cover"
+                                            accessibilityLabel={selectedExperience.title}
+                                        />
+                                    </View>
+                                    <View style={styles.heroInfo}>
+                                        <Text style={styles.footerHeroTitle} numberOfLines={1}>
                                             {selectedExperience.title}
                                         </Text>
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Reward plan: </Text>
-                                            {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'No reward for now'}
-                                        </Text>
-                                    </>
-                                )}
-                                {!selectedExperience && preferredRewardCategory && (
-                                    <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Reward preference: </Text>
-                                        {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
-                                    </Text>
+                                    </View>
+                                </View>
+
+                                {selectedGoal && (
+                                    <View style={styles.heroContextRow}>
+                                        <View style={styles.contextBadge}>
+                                            <Text style={styles.contextEmoji}>
+                                                {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
+                                            </Text>
+                                            <Text style={styles.contextText}>{selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
+                                        </View>
+                                        <View style={styles.contextDivider} />
+                                        <View style={styles.contextBadge}>
+                                            <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
+                                        </View>
+                                        <View style={styles.contextDivider} />
+                                        <View style={styles.contextBadge}>
+                                            <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
+                                        </View>
+                                    </View>
                                 )}
                             </View>
+                        </MotiView>
+                    )}
 
-                            <Text style={styles.pledgeNote}>
-                                {buyNow
-                                    ? 'Your experience will be unlocked when you complete your challenge!'
-                                    : selectedExperience
-                                        ? 'Friends can track your progress and empower you by gifting experiences!'
-                                        : 'We\'ll recommend the perfect reward as you make progress!'
-                                }
-                            </Text>
+                    {/* CTA Button */}
+                    {currentStep === totalSteps ? (
+                        <TouchableOpacity
+                            style={styles.createButton}
+                            onPress={handleCreate}
+                            activeOpacity={0.9}
+                            accessibilityRole="button"
+                            accessibilityLabel={state.user?.id ? 'Create challenge' : 'Sign up and create challenge'}
+                        >
+                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                                <Text style={styles.createButtonText}>
+                                    {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
+                                </Text>
+                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.createButton}
+                            onPress={handleNext}
+                            activeOpacity={0.9}
+                            accessibilityRole="button"
+                            accessibilityLabel="Continue to next step"
+                        >
+                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                                <Text style={styles.createButtonText}>Next</Text>
+                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    onPress={() => setShowConfirm(false)}
-                                    style={[styles.modalButton, styles.cancelButton]}
-                                    activeOpacity={0.8}
-                                    disabled={isSubmitting}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Cancel challenge creation"
-                                >
-                                    <Text style={styles.cancelText}>Cancel</Text>
-                                </TouchableOpacity>
+                {/* Confirmation Modal */}
+                <Modal
+                    visible={showConfirm}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowConfirm(false)}
+                >
+                    <TouchableOpacity
+                        style={commonStyles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setShowConfirm(false)}
+                    >
+                        <Animated.View
+                            style={[
+                                styles.modalBox,
+                                { transform: [{ translateY: slideAnim }] },
+                            ]}
+                        >
+                            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
+                                <Text style={styles.modalTitle}>Confirm Your Challenge</Text>
+                                <Text style={styles.modalSubtitle}>
+                                    Ready to commit? Let's do this!
+                                </Text>
 
-                                <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                                <View style={styles.modalDetails}>
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Goal: </Text>
+                                        {finalGoalName}
+                                    </Text>
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Duration: </Text>
+                                        {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                                    </Text>
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Sessions/week: </Text>
+                                        {sessionsPerWeek}
+                                    </Text>
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Per session: </Text>
+                                        {hours || '0'}h {minutes || '0'}m
+                                    </Text>
+                                    {selectedExperience && (
+                                        <>
+                                            <Text style={styles.modalRow}>
+                                                <Text style={styles.modalLabel}>Dream reward: </Text>
+                                                {selectedExperience.title}
+                                            </Text>
+                                            <Text style={styles.modalRow}>
+                                                <Text style={styles.modalLabel}>Reward plan: </Text>
+                                                {buyNow ? `Buy now (\u20AC${selectedExperience?.price || 0})` : 'No reward for now'}
+                                            </Text>
+                                        </>
+                                    )}
+                                    {!selectedExperience && preferredRewardCategory && (
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Reward preference: </Text>
+                                            {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
+                                        </Text>
+                                    )}
+                                </View>
+
+                                <Text style={styles.pledgeNote}>
+                                    {buyNow
+                                        ? 'Your experience will be unlocked when you complete your challenge!'
+                                        : selectedExperience
+                                            ? 'Friends can track your progress and empower you by gifting experiences!'
+                                            : 'We\'ll recommend the perfect reward as you make progress!'
+                                    }
+                                </Text>
+
+                                <View style={styles.modalButtons}>
                                     <TouchableOpacity
-                                        onPress={confirmCreateGoal}
-                                        style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                                        onPress={() => setShowConfirm(false)}
+                                        style={[styles.modalButton, styles.cancelButton]}
                                         activeOpacity={0.8}
                                         disabled={isSubmitting}
                                         accessibilityRole="button"
-                                        accessibilityLabel={isSubmitting ? 'Creating challenge' : buyNow ? 'Buy reward and create challenge' : 'Create challenge'}
+                                        accessibilityLabel="Cancel challenge creation"
                                     >
-                                        <Text style={styles.confirmText}>
-                                            {isSubmitting ? 'Creating...' : buyNow ? 'Buy & Create' : "Let's Go!"}
-                                        </Text>
+                                        <Text style={styles.cancelText}>Cancel</Text>
                                     </TouchableOpacity>
-                                </Animated.View>
-                            </View>
-                        </TouchableOpacity>
-                    </Animated.View>
-                </TouchableOpacity>
-            </Modal>
-        </View>
+
+                                    <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                                        <TouchableOpacity
+                                            onPress={confirmCreateGoal}
+                                            style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                                            activeOpacity={0.8}
+                                            disabled={isSubmitting}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={isSubmitting ? 'Creating challenge' : buyNow ? 'Buy reward and create challenge' : 'Create challenge'}
+                                        >
+                                            <Text style={styles.confirmText}>
+                                                {isSubmitting ? 'Creating...' : buyNow ? 'Buy & Create' : "Let's Go!"}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </Animated.View>
+                                </View>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </TouchableOpacity>
+                </Modal>
+            </View>
         </ErrorBoundary>
     );
 }

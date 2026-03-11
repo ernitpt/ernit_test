@@ -41,6 +41,7 @@ import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
+import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 
@@ -200,6 +201,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         ChallengeSetup: 'challenge/create',
         MysteryChoice: 'mystery-choice',
         AchievementDetail: 'achievement',
+        AnimationPreview: 'animation-preview',
       },
     },
   };
@@ -244,6 +246,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="Cart" component={CartScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
+        <RootStack.Screen name="AnimationPreview" component={AnimationPreviewScreen} />
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">

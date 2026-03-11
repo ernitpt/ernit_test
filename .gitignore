@@ -73,6 +73,7 @@ node_modules/
 app.json
 
 ernit-3fc0b-firebase-adminsdk.json
+google-services.json
 
 # Temporarily allow editing service worker to fix icon
 # public/firebase-messaging-sw.js

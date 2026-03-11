@@ -31,6 +31,7 @@ import {
 
 import { stripeService } from "../../services/stripeService";
 import { experienceService } from "../../services/ExperienceService";
+import { userService } from "../../services/userService";
 import { useApp } from "../../context/AppContext";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import LoginPrompt from "../../components/LoginPrompt";
@@ -161,6 +162,14 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(false);
 
+  /** Clear cart both client-side and in Firestore */
+  const clearCartEverywhere = async () => {
+    dispatch({ type: "CLEAR_CART" });
+    if (state.user?.id) {
+      try { await userService.clearCart(state.user.id); } catch {}
+    }
+  };
+
   // --- Handle redirect-based flows (e.g. MB Way) ---
   useEffect(() => {
     const checkRedirectReturn = async () => {
@@ -199,7 +208,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
           if (gifts.length === 1) {
             dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
-            dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
+            await clearCartEverywhere();
             await removeStorageItem(`pending_payment_${clientSecret}`);
 
             if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -209,7 +218,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             showSuccess("Your payment was processed successfully!");
             navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
-            dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
+            await clearCartEverywhere();
             await removeStorageItem(`pending_payment_${clientSecret}`);
             if (Platform.OS === "web" && typeof window !== "undefined") {
               window.history.replaceState({}, document.title, window.location.pathname);
@@ -246,6 +255,9 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   }, [stripe, clientSecret, navigation, dispatch, totalQuantity]);
 
   const handlePurchase = async () => {
+    // Prevent double-submit: guard against rapid clicks before React re-renders
+    if (isProcessing) return;
+
     if (!stripe || !elements) {
       showInfo("Please wait a few seconds and try again.");
       return;

@@ -241,6 +241,22 @@ class MotivationService {
       return 0;
     }
   }
+
+  /** Check if a user has already sent a motivation for a specific session */
+  async hasUserSentMotivation(goalId: string, authorId: string, targetSession: number): Promise<boolean> {
+    try {
+      const motivationsRef = this.getMotivationsCollection(goalId);
+      const q = query(
+        motivationsRef,
+        where('authorId', '==', authorId),
+        where('targetSession', '==', targetSession),
+      );
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const motivationService = new MotivationService();

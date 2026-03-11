@@ -11,6 +11,7 @@ import { checkUnstartedGoals_Test } from "./scheduled/checkUnstartedGoals_Test";
 import { sendSessionReminders_Test } from "./scheduled/sendSessionReminders_Test";
 import { sendInactivityNudges_Test } from "./scheduled/sendInactivityNudges_Test";
 import { sendWeeklyRecap_Test } from "./scheduled/sendWeeklyRecap_Test";
+import { sendBookingReminders_Test } from "./scheduled/sendBookingReminders_Test";
 // Production functions
 import { stripeCreatePaymentIntent } from "./stripeCreatePaymentIntent";
 import { getGiftsByPaymentIntent } from "./getGiftsByPaymentIntent";
@@ -21,6 +22,7 @@ import { checkUnstartedGoals } from "./scheduled/checkUnstartedGoals";
 import { sendSessionReminders } from "./scheduled/sendSessionReminders";
 import { sendInactivityNudges } from "./scheduled/sendInactivityNudges";
 import { sendWeeklyRecap } from "./scheduled/sendWeeklyRecap";
+import { sendBookingReminders } from "./scheduled/sendBookingReminders";
 import { sendContactEmail } from "./sendContactEmail";
 
 import * as admin from "firebase-admin";
@@ -52,6 +54,7 @@ export {
     sendSessionReminders_Test,
     sendInactivityNudges_Test,
     sendWeeklyRecap_Test,
+    sendBookingReminders_Test,
     // Production
     stripeCreatePaymentIntent,
     getGiftsByPaymentIntent,
@@ -62,6 +65,7 @@ export {
     sendSessionReminders,
     sendInactivityNudges,
     sendWeeklyRecap,
+    sendBookingReminders,
 };
 
 // Admin functions

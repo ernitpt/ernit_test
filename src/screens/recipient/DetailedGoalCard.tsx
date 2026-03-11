@@ -201,6 +201,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         } as unknown as Goal;
 
         setCurrentGoal(updatedGoal);
+      } else {
+        // Goal was deleted — stop any active timer and notify user
+        logger.warn(`Goal ${currentGoal.id} was deleted while viewing`);
+        stopTimer(currentGoal.id);
+        showError('This goal has been removed.');
       }
     }, (error) => {
       logger.error('Error listening to goal updates:', error);
@@ -273,6 +278,23 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // ─── Media Capture ──────────────────────────────────────────────
 
   const handleCaptureMedia = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      // On web, use <input capture="environment"> to open the native camera app
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,video/*';
+      input.capture = 'environment';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (file) {
+          const uri = URL.createObjectURL(file);
+          setSessionMediaUri(uri);
+          setSessionMediaType(file.type.startsWith('video') ? 'video' : 'photo');
+        }
+      };
+      input.click();
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -466,7 +488,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     setLoading(true);
 
     try {
-      const updated = await goalService.tickWeeklySession(goalId);
+      // Pass session start time for cross-midnight/cross-day protection
+      const sessionStartDate = timerState?.startTime ? new Date(timerState.startTime) : undefined;
+      const updated = await goalService.tickWeeklySession(goalId, sessionStartDate);
       // Store session timestamp for interval validation
       await AsyncStorage.setItem(`lastSession_${goalId}`, String(Date.now()));
 
@@ -629,7 +653,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         sessionNumber: totalSessionsDone,
         totalSessions: celebTotalSessions,
         progressPct: celebPct,
-        mediaUri: lastSessionMediaUrl,
+        mediaUri: mediaUrl || null,
         weeklyCount: updated.weeklyCount,
         sessionsPerWeek: updated.sessionsPerWeek,
         weeksCompleted: updated.currentCount,

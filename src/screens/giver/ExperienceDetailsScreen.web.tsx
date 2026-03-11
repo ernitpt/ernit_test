@@ -14,7 +14,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRoute } from "@react-navigation/native";
-import { ChevronLeft, MapPin, Clock, ShoppingCart, Info, Target } from "lucide-react-native";
+import { ChevronLeft, MapPin, Clock, ShoppingCart, Info } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import { Heart } from "lucide-react-native";
 import { getAuth } from "firebase/auth";
@@ -261,13 +261,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     navigation.navigate("Cart");
   };
 
-  const handleSetAsGoal = () => {
-    if (!requireAuth("Please log in to set this as a goal.")) {
-      return;
-    }
-    navigation.navigate("ChallengeSetup", { prefill: { experience } });
-  };
-
   return (
     <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
@@ -504,17 +497,6 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
           </TouchableOpacity>
         </View>
 
-        {/* Set as Goal (Free Pledge) */}
-        <TouchableOpacity
-          style={styles.setAsGoalButton}
-          onPress={handleSetAsGoal}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Set as goal"
-        >
-          <Target color="#16a34a" size={20} />
-          <Text style={styles.setAsGoalText}>Set as Goal</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Zoomable Image Modal */}
@@ -864,23 +846,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
-  },
-  setAsGoalButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#f0fdf4",
-    borderWidth: 1.5,
-    borderColor: "#bbf7d0",
-  },
-  setAsGoalText: {
-    color: "#16a34a",
-    fontSize: 16,
-    fontWeight: "700",
   },
   zoomModalContainer: {
     flex: 1,

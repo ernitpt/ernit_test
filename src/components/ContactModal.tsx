@@ -32,6 +32,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     const slideAnim = useModalAnimation(visible, {
         initialValue: 1000,
         tension: 80,
@@ -44,6 +45,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
             setSubject('');
             setMessage('');
             setShowSuccess(false);
+            setErrorMessage('');
         }
     }, [visible]);
 
@@ -52,32 +54,27 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
         setIsSending(true);
 
-        // Start sending in background (don't await)
-        const sendPromise = type === 'feedback'
-            ? contactService.submitFeedback(subject.trim(), message.trim())
-            : contactService.submitSupport(subject.trim(), message.trim());
+        try {
+            if (type === 'feedback') {
+                await contactService.submitFeedback(subject.trim(), message.trim());
+            } else {
+                await contactService.submitSupport(subject.trim(), message.trim());
+            }
 
-        // Handle the promise in background
-        sendPromise
-            .then(() => {
-                logger.log(`${type} sent successfully in background`);
-            })
-            .catch((error) => {
-                logger.error(`Error sending ${type} in background:`, error);
-            });
-
-        // Show success immediately
-        setShowSuccess(true);
-
-        // Close after 2 seconds (user doesn't wait for email)
-        setTimeout(() => {
-            onClose();
-        }, 2000);
-
-        // Stop loading spinner after showing success
-        setTimeout(() => {
+            logger.log(`${type} sent successfully`);
+            setShowSuccess(true);
             setIsSending(false);
-        }, 1500);
+
+            // Close after 2 seconds
+            setTimeout(() => {
+                onClose();
+            }, 2000);
+        } catch (error) {
+            logger.error(`Error sending ${type}:`, error);
+            setIsSending(false);
+            setShowSuccess(false);
+            setErrorMessage('Failed to send. Please try again.');
+        }
     };
 
     const Icon = type === 'feedback' ? MessageSquare : LifeBuoy;
@@ -180,6 +177,11 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                         We'll respond to <Text style={styles.emailText}>{userEmail}</Text>
                                     </Text>
                                 </View>
+
+                                {/* Error message */}
+                                {errorMessage ? (
+                                    <Text style={styles.errorText}>{errorMessage}</Text>
+                                ) : null}
 
                                 {/* Submit Button */}
                                 <TouchableOpacity
@@ -298,6 +300,13 @@ const styles = StyleSheet.create({
     emailText: {
         fontWeight: '600',
         color: Colors.secondary,
+    },
+    errorText: {
+        color: Colors.error,
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 12,
+        fontWeight: '500',
     },
     submitButton: {
         backgroundColor: Colors.secondary,

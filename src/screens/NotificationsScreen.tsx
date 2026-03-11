@@ -29,7 +29,7 @@ import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import { Bell, Calendar, TrendingUp, Heart } from 'lucide-react-native';
+import { Bell, Calendar, TrendingUp, Heart, Gift } from 'lucide-react-native';
 import Colors from '../config/colors';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -229,6 +229,24 @@ const NotificationsScreen = () => {
       } catch (error) {
         logger.error('Error attaching empowered gift:', error);
         showError('Could not attach the gift. Please try again.');
+      }
+    }
+
+    if (n.type === 'experience_booking_reminder' && n.data?.goalId) {
+      try {
+        const goal = await goalService.getGoalById(n.data.goalId);
+        if (goal) {
+          if (goal.experienceGiftId) {
+            const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+            if (gift) {
+              navigation.navigate('Completion', { goal, experienceGift: gift });
+              return;
+            }
+          }
+          navigation.navigate('Journey', { goal });
+        }
+      } catch (error) {
+        logger.error('Error navigating from booking reminder:', error);
       }
     }
   };
@@ -510,6 +528,37 @@ const NotificationsScreen = () => {
                   <Text style={styles.recapProgressText}>{completed}/{required} sessions</Text>
                 </View>
               )}
+              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.reactionClearButton}
+            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+          >
+            <Text style={styles.reactionClearText}>×</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle experience booking reminder notifications
+    if (item.type === 'experience_booking_reminder') {
+      return (
+        <TouchableOpacity
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
+        >
+          <View style={styles.reminderCardContent}>
+            <View style={[styles.reminderIconContainer, { backgroundColor: '#fef3c7' }]}>
+              <Gift size={24} color="#f59e0b" />
+            </View>
+            <View style={styles.reminderTextContent}>
+              <View style={styles.reactionHeader}>
+                <Text style={styles.reminderTitle}>{item.title}</Text>
+                {!item.read && <View style={styles.reactionUnreadDot} />}
+              </View>
+              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
               <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
             </View>
           </View>

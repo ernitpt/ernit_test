@@ -23,6 +23,7 @@ import FeedPostContent from './feed/FeedPostContent';
 import FeedPostEmpowerActions from './feed/FeedPostEmpowerActions';
 import { reactionService } from '../services/ReactionService';
 import { commentService } from '../services/CommentService';
+import { motivationService } from '../services/MotivationService';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
@@ -66,12 +67,22 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 const currentSessionsDone =
                     (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0);
                 if (post.sessionNumber) {
-                    // Only show on the latest session post
-                    setCanMotivate(post.sessionNumber === currentSessionsDone);
+                    if (post.sessionNumber !== currentSessionsDone) {
+                        setCanMotivate(false);
+                        return;
+                    }
                 } else {
-                    // goal_started/goal_approved: show only if no sessions done yet
-                    setCanMotivate(currentSessionsDone === 0);
+                    if (currentSessionsDone !== 0) {
+                        setCanMotivate(false);
+                        return;
+                    }
                 }
+                // Check if user already sent motivation for this session
+                const targetSession = post.sessionNumber ? post.sessionNumber + 1 : 1;
+                const alreadySent = await motivationService.hasUserSentMotivation(
+                    post.goalId, state.user!.id, targetSession
+                );
+                setCanMotivate(!alreadySent);
             } catch {
                 setCanMotivate(false);
             }

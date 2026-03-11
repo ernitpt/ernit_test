@@ -11,6 +11,8 @@
   orderBy,
   serverTimestamp,
   writeBatch,
+  runTransaction,
+  Timestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from './firebase';
@@ -153,59 +155,65 @@ export class FriendService {
       if (!requestId) throw new Error('Request ID is required');
 
       const requestRef = doc(db, 'friendRequests', requestId);
-      const requestDoc = await getDoc(requestRef);
 
-      if (!requestDoc.exists()) {
-        throw new Error('Friend request not found');
-      }
-
-      const requestData = requestDoc.data();
-
-      const senderId = requestData?.senderId;
-      const recipientId = requestData?.recipientId;
-      const senderName = requestData?.senderName || 'Unknown';
-      const recipientName = requestData?.recipientName || 'Unknown';
-      const senderProfileImageUrl = requestData?.senderProfileImageUrl ?? null;
-
-      if (!senderId || !recipientId) throw new Error('Invalid friend request data: missing user IDs');
-
-      // ✅ FIX: Fetch recipient's profile image for the sender's friend entry
+      // Track IDs outside transaction for post-transaction cleanup
+      let senderId = '';
+      let recipientId = '';
+      let senderName = 'Unknown';
+      let recipientName = 'Unknown';
       let recipientProfileImageUrl: string | null = null;
-      try {
-        const recipientDoc = await getDoc(doc(db, 'users', recipientId));
+
+      // Use a transaction to atomically verify status + create friends + delete request
+      await runTransaction(db, async (transaction) => {
+        const requestSnap = await transaction.get(requestRef);
+
+        if (!requestSnap.exists()) {
+          throw new Error('Friend request not found or already processed');
+        }
+
+        const requestData = requestSnap.data();
+
+        // Verify request is still pending (prevents double-accept or accept-after-cancel)
+        if (requestData?.status !== 'pending') {
+          throw new Error(`Friend request already ${requestData?.status || 'processed'}`);
+        }
+
+        senderId = requestData?.senderId;
+        recipientId = requestData?.recipientId;
+        senderName = requestData?.senderName || 'Unknown';
+        recipientName = requestData?.recipientName || 'Unknown';
+        const senderProfileImageUrl = requestData?.senderProfileImageUrl ?? null;
+
+        if (!senderId || !recipientId) throw new Error('Invalid friend request data: missing user IDs');
+
+        // Fetch recipient's profile image
+        const recipientDoc = await transaction.get(doc(db, 'users', recipientId));
         if (recipientDoc.exists()) {
           recipientProfileImageUrl = recipientDoc.data()?.profile?.profileImageUrl ?? null;
         }
-      } catch (error) {
-        logger.warn('Could not fetch recipient profile image:', error);
-      }
 
-      // T2-1: Atomic batch — create both friend docs + delete request
-      const batch = writeBatch(db);
+        // Create bidirectional friend docs
+        const friendDoc1Ref = doc(collection(db, 'friends'));
+        transaction.set(friendDoc1Ref, {
+          userId: senderId,
+          friendId: recipientId,
+          friendName: recipientName,
+          friendProfileImageUrl: recipientProfileImageUrl ?? null,
+          createdAt: Timestamp.now(),
+        });
 
-      // Sender sees recipient's profile image
-      const friendDoc1Ref = doc(collection(db, 'friends'));
-      batch.set(friendDoc1Ref, {
-        userId: senderId,
-        friendId: recipientId,
-        friendName: recipientName,
-        friendProfileImageUrl: recipientProfileImageUrl ?? null,
-        createdAt: serverTimestamp(),
+        const friendDoc2Ref = doc(collection(db, 'friends'));
+        transaction.set(friendDoc2Ref, {
+          userId: recipientId,
+          friendId: senderId,
+          friendName: senderName,
+          friendProfileImageUrl: senderProfileImageUrl ?? null,
+          createdAt: Timestamp.now(),
+        });
+
+        // Delete the friend request
+        transaction.delete(requestRef);
       });
-
-      // Recipient sees sender's profile image
-      const friendDoc2Ref = doc(collection(db, 'friends'));
-      batch.set(friendDoc2Ref, {
-        userId: recipientId,
-        friendId: senderId,
-        friendName: senderName,
-        friendProfileImageUrl: senderProfileImageUrl ?? null,
-        createdAt: serverTimestamp(),
-      });
-
-      // Delete the friend request
-      batch.delete(requestRef);
-      await batch.commit();
 
       // T3-3: Clean up friend request notifications
       try {

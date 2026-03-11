@@ -497,10 +497,10 @@ export class GoalService {
 
 
   /** Increment a session for the current anchored week - delegated to GoalSessionService */
-  async tickWeeklySession(goalId: string): Promise<Goal> {
+  async tickWeeklySession(goalId: string, sessionStartedAt?: Date): Promise<Goal> {
     // Import dynamically to avoid circular dependency at module load time
     const { goalSessionService } = await import('./GoalSessionService');
-    return goalSessionService.tickWeeklySession(goalId);
+    return goalSessionService.tickWeeklySession(goalId, sessionStartedAt);
   }
 
   /** Approve a goal */

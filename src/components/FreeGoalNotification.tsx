@@ -10,6 +10,8 @@ import { Heart, Gift, X, CheckCircle } from 'lucide-react-native';
 import { Notification } from '../types';
 import { notificationService } from '../services/NotificationService';
 import { goalService } from '../services/GoalService';
+import { motivationService } from '../services/MotivationService';
+import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
@@ -25,32 +27,41 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     notification,
     onActionComplete,
 }) => {
+    const { state } = useApp();
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
     const [showMotivationModal, setShowMotivationModal] = useState(false);
     const [alreadyEmpowered, setAlreadyEmpowered] = useState(false);
+    const [alreadySentMotivation, setAlreadySentMotivation] = useState(false);
     const [targetSession, setTargetSession] = useState<number>(1);
 
     const data = notification.data || {};
     const isCompleted = notification.type === 'free_goal_completed' || data.milestone === 100;
     const milestone = data.milestone || 0;
 
-    // Check if goal already has a gift attached
+    // Check if goal already has a gift attached and if user already sent motivation
     useEffect(() => {
-        if (!data.goalId) return;
+        if (!data.goalId || !state.user?.id) return;
         const check = async () => {
             try {
                 const goal = await goalService.getGoalById(data.goalId);
                 if (goal?.giftAttachedAt) setAlreadyEmpowered(true);
                 if (goal) {
                     const currentDone = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0);
-                    setTargetSession(currentDone + 1);
+                    const nextSession = currentDone + 1;
+                    setTargetSession(nextSession);
+
+                    // Check if user already sent motivation for this session
+                    const alreadySent = await motivationService.hasUserSentMotivation(
+                        data.goalId, state.user.id, nextSession
+                    );
+                    setAlreadySentMotivation(alreadySent);
                 }
             } catch (error) {
                 logger.error('Error checking goal empowerment:', error);
             }
         };
         check();
-    }, [data.goalId]);
+    }, [data.goalId, state.user?.id]);
 
     const handleClear = async () => {
         try {
@@ -178,8 +189,8 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                         </TouchableOpacity>
                     )}
 
-                    {/* Only show Motivate for milestones (not completed) */}
-                    {!isCompleted && (
+                    {/* Only show Motivate for milestones (not completed) and if not already sent */}
+                    {!isCompleted && !alreadySentMotivation && (
                         <TouchableOpacity
                             style={styles.motivateButton}
                             onPress={() => setShowMotivationModal(true)}
