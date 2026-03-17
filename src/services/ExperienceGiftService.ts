@@ -52,15 +52,9 @@ export class ExperienceGiftService {
         const data = doc.data() as ExperienceGift;
         return {
           ...data,
-          id: data.id,
-          createdAt:
-            data.createdAt && typeof data.createdAt === 'function'
-              ? data.createdAt
-              : data.createdAt,
-          deliveryDate:
-            data.deliveryDate && typeof data.deliveryDate === 'function'
-              ? data.deliveryDate
-              : data.deliveryDate,
+          id: doc.id,
+          createdAt: data.createdAt?.toDate?.() ?? data.createdAt,
+          deliveryDate: data.deliveryDate?.toDate?.() ?? data.deliveryDate,
         };
       });
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   ScrollView,
   Animated,
+  LayoutAnimation,
   TouchableOpacity,
   Image,
   RefreshControl,
@@ -33,9 +34,12 @@ import { serializeNav } from '../utils/serializeNav';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import ErrorRetry from '../components/ErrorRetry';
+import Button from '../components/Button';
 import * as Haptics from 'expo-haptics';
 
 
@@ -43,8 +47,8 @@ import * as Haptics from 'expo-haptics';
 const GoalsScreen: React.FC = () => {
   const { state, dispatch } = useApp();
   const navigation = useRootNavigation();
-  const { showError } = useToast();
-  const userId = state.user?.id || 'current_user';
+  const { showError, showInfo } = useToast();
+  const userId = state.user?.id || '';
 
   const [currentGoals, setCurrentGoals] = useState<Goal[]>([]);
   const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
@@ -55,20 +59,17 @@ const GoalsScreen: React.FC = () => {
   const [sessionStreak, setSessionStreak] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const loadGoals = () => {
-    // Trigger re-render by forcing a re-mount of the listener
-    setLoading(true);
-    setError(false);
-  };
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    loadGoals();
+    setRefreshKey(prev => prev + 1); // Force listener re-subscribe
     refreshTimeoutRef.current = setTimeout(() => {
       setRefreshing(false);
-    }, 500);
+    }, 1000);
   };
+
+  const loadGoals = () => setRefreshKey(prev => prev + 1);
 
   useEffect(() => {
     return () => {
@@ -127,7 +128,7 @@ const GoalsScreen: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   // Fetch user-level session streak
   useEffect(() => {
@@ -190,7 +191,7 @@ const GoalsScreen: React.FC = () => {
   };
 
 
-  const handleFinishGoal = async (updatedGoal: Goal) => {
+  const handleFinishGoal = useCallback(async (updatedGoal: Goal) => {
     try {
       // NO! DetailedGoalCard already calls tickWeeklySession.
       // We just need to handle the UI/Navigation consequences.
@@ -225,10 +226,10 @@ const GoalsScreen: React.FC = () => {
       });
       showError('Failed to update goal progress.');
     }
-  };
+  }, [navigation, showError, userId]);
 
 
-  const renderGoal = ({ item }: { item: Goal }) => (
+  const renderGoal = useCallback(({ item }: { item: Goal }) => (
     <MotiView
       from={{ opacity: 0, translateY: 16 }}
       animate={{ opacity: 1, translateY: 0 }}
@@ -241,7 +242,7 @@ const GoalsScreen: React.FC = () => {
         onFinish={(updated) => handleFinishGoal(updated)}
       />
     </MotiView>
-  );
+  ), [handleFinishGoal]);
   return (
     <ErrorBoundary screenName="GoalsScreen" userId={userId}>
       <MainScreen activeRoute="Goals">
@@ -264,16 +265,13 @@ const GoalsScreen: React.FC = () => {
             <Text style={styles.emptySubtitle}>
               Set a goal, pick a dream reward, and challenge yourself to earn it.
             </Text>
-            <TouchableOpacity
-              style={styles.emptyCTA}
-              activeOpacity={0.85}
+            <Button
+              variant="primary"
+              title="Create Your First Goal"
+              icon={<Rocket color={Colors.white} size={18} strokeWidth={2.5} />}
               onPress={() => navigation.navigate('ChallengeSetup')}
-              accessibilityRole="button"
-              accessibilityLabel="Create your first goal"
-            >
-              <Rocket color="#fff" size={18} strokeWidth={2.5} />
-              <Text style={styles.emptyCTAText}>Create Your First Goal</Text>
-            </TouchableOpacity>
+              style={styles.emptyCTA}
+            />
           </View>
         ) : (
           <FlatList
@@ -313,7 +311,10 @@ const GoalsScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.completedHeader}
                   activeOpacity={0.7}
-                  onPress={() => setShowCompleted((v) => !v)}
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setShowCompleted((v) => !v);
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={`${showCompleted ? 'Hide' : 'Show'} ${completedGoals.length} completed goals`}
                 >
@@ -369,6 +370,10 @@ const GoalsScreen: React.FC = () => {
               activeOpacity={0.85}
               onPress={() => {
                 toggleFabMenu();
+                if (currentGoals.length >= 3) {
+                  showInfo('You can have up to 3 active goals. Complete or remove a goal to create a new one.');
+                  return;
+                }
                 navigation.navigate('ChallengeSetup');
               }}
               accessibilityRole="button"
@@ -422,7 +427,7 @@ const GoalsScreen: React.FC = () => {
                 rotate: fabRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }),
               }],
             }}>
-              <Plus color="#fff" size={28} strokeWidth={3} />
+              <Plus color={Colors.white} size={28} strokeWidth={3} />
             </Animated.View>
           </TouchableOpacity>
         </Animated.View>
@@ -435,20 +440,20 @@ const GoalsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   fabBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: Colors.overlayLight,
     zIndex: 90,
   },
   fabContainer: {
     position: 'absolute',
     bottom: 30,
-    right: 24,
+    right: Spacing.xxl,
     zIndex: 100,
   },
   fab: {
     backgroundColor: Colors.secondary,
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: BorderRadius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     ...Shadows.lg,
@@ -460,25 +465,25 @@ const styles = StyleSheet.create({
   fabMenuColumn: {
     position: 'absolute',
     bottom: 100,
-    right: 24,
+    right: Spacing.xxl,
     zIndex: 95,
-    gap: 10,
+    gap: Spacing.sm,
     alignItems: 'flex-end',
   },
   fabMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     ...Shadows.md,
-    gap: 10,
+    gap: Spacing.sm,
   },
   fabMenuIconBg: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -486,42 +491,30 @@ const styles = StyleSheet.create({
   fabMenuLogo: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
   },
   fabMenuText: {
     ...Typography.smallBold,
     color: Colors.gray800,
   },
   listContainer: {
-    padding: 20,
+    padding: Spacing.xl,
   },
   cardWrapper: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   // ── Upgraded Empty State ──
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: Spacing.huge,
     paddingBottom: 80,
-  },
-  emptyIllustration: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.primarySurface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  emptyEmoji: {
-    fontSize: 44,
   },
   emptyTitle: {
     ...Typography.heading2,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
@@ -531,42 +524,23 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   emptyCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.secondary,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    ...Shadows.colored(Colors.secondary),
+    paddingHorizontal: Spacing.xxl,
   },
-  emptyCTAText: {
-    color: '#fff',
-    ...Typography.subheading,
-    fontWeight: '700',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    marginTop: 50,
-    ...Typography.subheading,
-  },
-
   // ── No Active (but has completed) ──
   noActiveContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: Spacing.xxxl,
   },
   noActiveText: {
     ...Typography.body,
     color: Colors.textMuted,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   noActiveCTA: {
     backgroundColor: Colors.primarySurface,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.primary,
   },
@@ -577,8 +551,8 @@ const styles = StyleSheet.create({
 
   // ── Completed Goals Section ──
   completedSection: {
-    marginTop: 8,
-    paddingTop: 16,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
@@ -586,21 +560,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   completedHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   completedHeaderText: {
     ...Typography.subheading,
     fontWeight: '700',
     color: Colors.gray700,
-  },
-  completedCard: {
-    marginBottom: 10,
   },
 });
 

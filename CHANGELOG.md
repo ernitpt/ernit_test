@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
 
 ### Changed
+- replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen
 - migrate all colors to centralized Colors config - fix string literals, update SVG icon gradients to emerald/teal palette
 - install react-native-worklets (reanimated v4 peer dep)
 - DetailedGoalCard split into hooks, components, and utils with UX improvements
@@ -69,6 +70,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - comprehensive UI/UX polish — keyboard handling, touch targets, haptics, optimistic updates, typography/shadow tokens, FlatList performance, form navigation
 - migrate 3 components to use BaseModal
 - migrated ClaimExperienceModal and EmpowerChoiceModal to BaseModal, added error logging to FeedPost goal check
+- replaced hardcoded brand purple and overlay colors with design tokens
+- improve design tokens - add animation config, glassmorphism, button micro-interactions, fix hardcoded colors
+- install Claude Code skills (frontend-design, RN best practices, Expo, UI UX Pro Max) and MCP servers (Figma, Gluestack)
+- redesigned footer navigation with floating dock, frosted glass, and elevated center Goals button
+- refined footer with upward shadow, rounded top corners, animated pill active state, and proper design tokens
+- redesign side menu with gradient profile header, grouped sections, spring animations, and full design token migration
+- replace all any types with proper TypeScript types across 8 components
+- replace hardcoded hex colors with design tokens in all screen files
+- replace hardcoded borderRadius values with BorderRadius tokens across all screen files
+- replace hardcoded fontSize values with Typography tokens in screen files
+- visual reimagining of feed post cards with design tokens, type chips, accent strips, and spring animations
+- replace hardcoded spacing values with Spacing tokens across all screen files
+- comprehensive audit fixes — memoized AppContext, replaced all any types, migrated hardcoded colors/borderRadius/spacing/fontSize to design tokens, fixed stale theme-color meta tag, removed redundant title interval
+- unified notification card design with accent strips, X icon clear buttons, and entry animations
+- full reimagining of notification and feed post cards with accent strips, type chips, animated capsules, and unified design tokens
+- replace hardcoded color values with design tokens across all screen files
+- migrate hardcoded fontSize and spacing values to design tokens in 7 screen files
+- replaced hardcoded design values with tokens in all component files
+- second audit pass — memoized 3 more context providers, fixed 69 any types, migrated component design tokens, added 12 color tokens, resolved all TODOs, memoized FlatList callbacks, fixed remaining screen hardcoded values
+- upgraded FriendsListScreen UI — icon remove button, accent border on friend cards, count header polish
+- polish UserProfileScreen and FriendsListScreen UI with stat cards, accent borders, and improved visual hierarchy
+- skeleton loader on claim experience modal navigation
+- replace hardcoded fontSize values with Typography tokens in screens
+- final audit cleanup — replaced hardcoded fontSize/colors with design tokens, fixed catch block any types, resolved TODO
+- replace hardcoded hex colors in notification components with design tokens
+- fix H8 HintItem at module scope, H11 deduplicate goal onSnapshot, M13 renderGoal useCallback, M16 O(n) latestGoalProgressMap, H16 pure reducer cart persistence
+- replace hardcoded hex colors with design tokens across 12 component/screen files
+- replace hardcoded hex colors with design tokens in giver screens
+- replace hardcoded spacing and font size values with design tokens in Toast, FeedPostContent, FeedPostEmpowerActions, and SkeletonLoader
+- set up jest testing foundation with GoalHelpers unit tests
+- replace raw TouchableOpacity buttons with design-system Button component in HowItWorksModal, ContactModal, ClaimExperienceModal, CartScreen, and FeedPostContent
+- phase 6 UX polish — BaseModal ScrollView for tall content, drag handle for bottom sheet, spring exit animation, dead code cleanup
+- replace hardcoded hex colors with design tokens in recipient sub-components and shared components
+- replace hardcoded category/palette hex colors with design tokens across 7 screen files
+- replace hardcoded icon color hex strings with design token references across screen and component files
+- replace raw TouchableOpacity action buttons with design-system Button component across notification and modal components
+- replace hardcoded spacing/font values with design tokens across FeedPostHeader, FriendRequestNotification, GoalApprovalNotification, GoalChangeSuggestionNotification, BookingCalendar, FooterNavigation, SharedHeader
+- wrap SessionCard, SegmentedControl in React.memo; wrap renderPost, renderUserItem, renderFriendItem, renderComment, handleRefresh in useCallback; extract ListEmptyComponent in CategorySelectionScreen
+- replace hardcoded fontSize values with Typography token references across 16 files
+- replace hardcoded rgba() values with design tokens across screens and components
+- extract shared audio/image media logic into useMediaComposer hook
+- extract HintItem to module level and memoize render callbacks in FriendsListScreen, AddFriendScreen, and CommentModal
+- replace hardcoded spacing values with design tokens in LoginPrompt, LogoutConfirmation, and themes/commonStyles
+- UI/UX audit round 3 - rgba tokens, fontSize tokens, useMediaComposer hook, performance fixes, spacing
+- replace remaining hardcoded hex colors, rgba values, and fontSize literals with design tokens
+- replace last hardcoded hex and rgba values with design tokens
+- redesign comment list in CommentModal with chat-bubble layout
+- migrate raw TouchableOpacity buttons to design-system Button component in GoalsScreen, EmpowerChoiceModal, BookingCalendar, ExperiencePurchaseCTA, and PWAInstaller
+- migrate Avatar and Button component usage in ReactionViewerModal, FriendRequestNotification, GoalApprovalNotification, GoalChangeSuggestionNotification, and LandingScreen
+- wrap NavButton and CommentSection in React.memo, deduplicate BaseModal ScrollView, bump refresh timeouts to 1000ms, extract LandingScreen inline styles to StyleSheet
+- add TTL (30 days) and size limit (100 entries) to AIHintService local cache
+- rewrite GiftFlowScreen to match ChallengeSetupScreen format exactly
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -134,6 +187,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve nested button HTML violation in ExperienceCard on web
 - security + data integrity audit fixes - gift attach deadline enforcement in Firestore rules, SVG XSS prevention in storage rules, transaction-wrapped gift attachment, self-friend prevention, timer race guard, reaction notification atomicity, JourneyScreen deps fix, GoalCard render loop prevention
 - accessibility labels, touch targets, color token migration, BaseModal migration for ClaimExperienceModal and EmpowerChoiceModal
+- added payment double-tap guards and form reset on auth mode toggle
+- LayoutAnimation Platform guards, StatusBar expo migration, overlay color tokens, HintPopup/PWAInstaller BaseModal migration, payment double-tap guard, AuthScreen form reset, ErrorBoundary on DetailedGoalCard/AnimationPreviewScreen, SafeAreaView fix on LandingScreen
+- experience hero image resizeMode cover and backgroundLight; edit profile modal width 100%
+- android back button closes fullscreen image viewer
+- align comment avatars to top and increment comment count when posting
+- experience images cropped with black space, edit profile modal width, comment avatar alignment, comments not updating after posting, back button on fullscreen image
+- replace catch (error: any) with catch (error: unknown) and add proper type narrowing across giver screens
+- removed remove-friend button and confirmation modal from FriendsListScreen
+- eliminated extra scrollable empty space on AchievementDetailScreen caused by off-screen share card
+- add close animations to SessionMediaPrompt, CancelSessionModal, SideMenu TimePicker, and FriendProfileScreen HintHistory modal
+- smooth close animations on all modals (useModalAnimation root fix), entry animations on list items (PurchasedGifts, Cart, Profile tabs), EmptyState fade-in, completed goals LayoutAnimation
+- tighten Firestore security rules (C2 goal_progress delete, C3 experienceGifts get, C4 goals read, C7 friends create, H1 valentineChallenges list)
+- use server-verified auth identity in sendContactEmail and switch searchUsers to production DB with read limit
+- phase 1 critical fixes — GoalDetailScreen infinite skeleton, GoalApprovalNotification emoji, Toast info styling, SharedHeader ActionButton re-render, remove debug log, LogoutConfirmation button order, ExperiencePurchaseCTA currency symbol
+- add platform-safe ErrorBoundary reset, onSnapshot error callbacks, and HTTP timeouts for Stripe fetch calls
+- C9 normalizeGoal in JourneyScreen onSnapshot, M11 remove current_user fallback in GoalsScreen/ChallengeSetupScreen/UserProfileScreen, H13 extract shared GoalHelpers to eliminate duplication
+- accessibility improvements — accessibilityLabel on skeleton loaders, a11y labels and safe area insets on ImageViewer, Dismiss modal label on BaseModal overlay, hitSlop on small touch targets in CartScreen, ExperienceDetailsScreen, NotificationsScreen, and AuthScreen
+- resolve code quality issues — couponRequestedRef guard, component-body logger calls, dead styles, dead addUserGoal method, App.tsx double import and console.log
+- comprehensive security, performance, error handling, and code quality audit fixes
+- comprehensive UI/UX audit - token compliance, accessibility, component adoption, dead code cleanup
+- add ScrollView to BaseModal bottom variant, replace FeedPost inline fullscreen Modal with ImageViewer component
+- UI/UX audit round 2 - remaining colors, button adoption, accessibility, haptics, spacing, structural fixes
+- resolved 5 HIGH security issues — HTML escaping in sendContactEmail, valentineChallenges get scoped to participants, post_reaction notification read bypass removed, friends update field whitelist added, free_goal notification types added to create rules
+- fix memory leaks - animation cleanup, isMounted guards, and setTimeout ref patterns across CompletionScreen, FreeGoalCompletionScreen, GoalSettingScreen, ChallengeSetupScreen, JourneyScreen, AchievementDetailScreen, and ConfirmationScreen
+- remove handleCancelBooking copy-paste bug, fix completedAt any casts, remove dead imports/styles, add userId guard, remove sensitive auth logging
+- second-pass audit - security rules, memory leaks, performance, and code quality fixes
+- add missing accessibilityRole and accessibilityLabel to action buttons on FriendProfileScreen, CompletionScreen, and SideMenu
+- UI/UX audit round 4 - final hex/rgba/fontSize cleanup, accessibility on worst screens, SVG token compliance
+- UI/UX audit round 5 - fontWeight bold to 700, last hex/rgba tokens, final polish
+- remove error detail leaks and hardcoded Vercel URL from checkout, webhook, createExperience, sendContactEmail, and environment config
+- type all useState<any> to proper types (Experience, PartnerUser, ExperienceGift, Goal) across 8 screens; add error state with retry to ConfirmationScreen and ConfirmationMultipleScreen
+- guard all unguarded setTimeouts with refs and cleanup, debounce AsyncStorage writes in TimerContext, add AbortController 30s timeouts to StorageService fetch calls
+- third-pass audit - field name bug, memory leaks, type safety, error recovery, and security hardening
+- web notification cancel, guest cart restore, goals pull-to-refresh, ExperienceGiftService doc.id
+- replace Math.random with crypto.getRandomValues in CouponService, reject MIME-less uploads in StorageService, guard localStorage in errorLogger for native, consolidate duplicate notification delete rules in firestore.rules, remove dead offlineQueue.ts
+- fourth-pass audit - notification cancel, cart persistence, pull-to-refresh, coupon crypto, MIME validation, dead code removal
+- prevent duplicate gifting for the same goal from FeedPost empower/gift buttons
+- track pending empower purchases to fully prevent duplicate gifting for the same goal
+- migrate Cloud Functions from Error to HttpsError to prevent error message leaks
+- fifth-pass audit — .exists() property fix in booking reminders, wrong field name fix (name→title), claim code generation moved outside transaction, modulo bias eliminated with rejection sampling, crypto import moved to top-level, error message leaks plugged in deleteExperience/updateExperience, onSnapshot error callback added to GoalService, all onCall functions migrated from throw Error to HttpsError
+- P0 bugs - loadGoals undefined in GoalsScreen, password strength broken emoji icons in AuthScreen, wrong activeRoute in NotificationsScreen
+- lazy-render FeedPost modals, add KeyboardAvoidingView to CommentModal, fix UserProfileScreen tab icons, prevent CouponEntryScreen backdrop dismiss
+- increase touch targets to meet 44px minimum across components
+- replace hardcoded shadow, spacing, and color values with design tokens across 6 files
+- add missing UX patterns across FeedScreen, GoalDetailScreen, AuthScreen, CategorySelectionScreen and CartScreen
+- add offline banner, audio loading indicator, toggle animation, landing entrance animations, font loading spinner
+- comprehensive UI/UX audit — 7 P0 bug fixes (undefined loadGoals, broken password emojis, wrong footer tab, lazy modals, KAV on CommentModal, duplicate tab icons, modal backdrop dismiss), 11 touch target fixes, 15 haptic additions, 12 Button/Avatar migrations, hardcoded token replacements, React.memo on NavButton/CommentSection, StyleSheet extraction on LandingScreen, offline banner, entrance animations, search clear button, audio loading indicator, stale data fix on GoalDetailScreen
+- add ref guard to handleAddToCart to prevent double-tap race condition
+- replace useEffect with useFocusEffect in FriendProfileScreen to refresh data on navigation focus
+- H1 include doc.id in CategorySelectionScreen experience mapping; H2 relax hasValidData in FreeGoalCompletionScreen to not require pledgedExperience; H3 documented friend create authorization gap; H4 enforce senderId == auth.uid on friend_request notifications
+- resolve 4 critical runtime crashes — hooks-after-return in GoalSettingScreen, useCallback-in-JSX in PurchasedGiftsScreen, named import of default export in GoalDetailScreen, missing Experience type in ConfirmationScreen
+- address 12 medium-severity issues including input validation, race conditions, dedup tracking, and UX fixes
+- resolve 9 low-severity issues (dead params, type casts, unbounded cache, modulo bias, shadowed imports, unused vars, hardcoded tokens, broad Firestore list rules)
+- sixth-pass audit — 4 critical crash fixes (hooks-after-return in GoalSettingScreen, useCallback-in-JSX in PurchasedGiftsScreen, named-import-of-default ErrorRetry, missing Experience type import), 2 high data fixes (missing doc.id in CategorySelectionScreen, hasValidData too strict in FreeGoalCompletionScreen), Firestore rules sender identity check on friend_request notifications, previousHints prompt injection validation, cart item validation in stripeWebhook, lastNudgeLevel reset, checkUnstartedGoals dedup, sweepExpiredWeeks concurrency guard, addToCart atomicity via arrayUnion, updateUserProfile field whitelist, 9 low fixes including dead code removal and modulo bias fix
+- add max retry depth to generateCouponForGoal, reset CommentModal edit state on close, add onSubmitEditing to comment input
+- coupon retry limit, guest cart merge on login, comment modal state/menu/keyboard, hint cache TTL
+- ErrorRetry re-fetch, CommentModal onChange count, GoalCore Timestamp types, userService typed reduce, AuthScreen dead Alert import, vercel moved to devDependencies
+- seventh-pass audit — restored LLM_PROVIDER secret (round 6 regression), fixed CategorySelectionScreen retry (was showing skeleton forever), fixed CommentModal onChange to pass accurate comment count, typed GoalCore.completedAt/startDate as Date|Timestamp, removed dead Alert import, moved vercel to devDependencies in functions
+- add image error handling and verify BackHandler cleanup in ImageViewer
+- add cross-validation, rate limiting, batch writes, and active-gift guard to Cloud Functions
+- logout loading state, profile null safety, and setTimeout cleanup in SideMenu/LoginPrompt/LogoutConfirmation
+- cloud function hardening (hint validation, email rate limit, batch reminders, delete guard), component reliability (logout state, timeout cleanup, image errors)
+- resolve 8 code issues — Timestamp date conversions, lastNudgeLevel type, as-any casts, interval cleanup, null guard, coupon expiry validation
+- eighth-pass audit — removed unused react-native-worklets and firebase-admin from root deps, fixed typescript to ^5.7.3, removed incompatible @types/stripe and dead vercel from functions deps, fixed ExperienceGiftService no-op date conversion, added lastNudgeLevel to GoalWeeklyTracking type, cleaned up 4 as-any casts (completedAt Timestamp narrowing, giverId), added useMediaComposer interval cleanup on unmount, added null guard in GoalSessionService, added coupon expiry validation
+- footer glow now animates on every tab change by replacing SVG radial gradient with View-based glow
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -204,3 +322,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add Empower/Motivate buttons to friend profile goals, Browse/Buy Experience buttons to own profile, and differentiate achievement card variants
 - profile screen buttons - Empower/Motivate on friend goals, Empower on achievements, Claim Experience on own achievements
 - added haptic feedback to key user actions (reactions, comments, friend requests, FAB)
+- ImageViewer supports multiple images with swipe scrolling and dot indicators
+- add loading state to ClaimExperienceModal buttons to prevent double-navigation
+- add pull-to-refresh to UserProfileScreen, FriendProfileScreen, and JourneyScreen
+- add 3 active goal creation limit, exempt paid gifted goals
+- add like/unlike feature on comments
+- add swipe-to-change-tab functionality to JourneyScreen
+- add swipe-to-change-tab to FriendProfileScreen
+- multi-image scrolling in fullscreen viewer, pull-to-refresh on Profile/FriendProfile/Journey, goal creation limit of 3, comment likes, swipeable tabs on profile and journey screens
+- add MotiView entry animations to list items and cards across PurchasedGiftsScreen, CartScreen, UserProfileScreen, FriendProfileScreen, GoalsScreen completed section, and EmptyState component
+- add accessibility props to interactive elements across the app
+- add haptic feedback on success actions in ContactModal, ClaimExperienceModal, GoalChangeSuggestionModal, PersonalizedHintModal
+- added haptic feedback to 15 components and screens
+- added confirmation dialogs for destructive actions on CartScreen, UserProfileScreen, and NotificationsScreen
+- add feed pagination, confirmation dialogs, keyboard handling, useFocusEffect, double-submit guard
+- add GiftLandingScreen — amber-themed gift landing page with dial-rotation headline, hero carousel, 3-step how-it-works, and cross-link to ChallengeLanding
+- add GiftFlowScreen multi-step gift wizard with solo/together paths, experience picker, reveal mode, payment choice, and animated step transitions
+- add gift flow - landing page, 5/6-step wizard, Cloud Functions for free and deferred gifts
+- rewrite GiftFlowScreen to match ChallengeSetupScreen format with dynamic solo/together steps
+- added GiftLandingScreen as amber-themed gift flow entry point
+- add chargeDeferredGift trigger, auto-friend on redeem, together mode goal acceptance
+- merged landing pages into single screen with For myself / For a loved one toggle
+- dual carousel hero with goal and reward images side by side with lock icon

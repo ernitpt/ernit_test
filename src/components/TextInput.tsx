@@ -57,6 +57,8 @@ export const TextInput = React.memo<TextInputProps>(({
         <RNTextInput
           {...inputProps}
           editable={!disabled}
+          accessibilityLabel={inputProps.accessibilityLabel || label}
+          accessibilityState={{ disabled }}
           style={[
             styles.input,
             leftIcon && styles.inputWithIcon,

@@ -1,4 +1,5 @@
 import { DateHelper } from '../utils/DateHelper';
+import { isoDateOnly, isValidDate, toJSDate, addDaysSafe, normalizeGoal } from '../utils/GoalHelpers';
 import { db } from './firebase';
 import {
   collection,
@@ -29,76 +30,9 @@ import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
 
-// ===== Helpers =====
-export const isoDateOnly = (d: Date) => {
-  const y = d.getFullYear();
-  const m = `${d.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${d.getDate()}`.padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-};
-export const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
-
-export function toJSDate(value: any): Date | null {
-  if (!value) return null;
-
-  // Firestore Timestamp - proper type guard instead of @ts-ignore
-  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-
-  const d = new Date(value);
-  return isValidDate(d) ? d : null;
-}
-
-export function addDaysSafe(base: Date | null | undefined, days: number): Date {
-  const b = isValidDate(base as any) ? (base as Date) : DateHelper.now();
-  const x = new Date(b);
-  x.setDate(b.getDate() + days);
-  return x;
-}
-
-/** Ensure all date-like fields are valid Dates (or null) and fix missing arrays/numbers */
-export function normalizeGoal(g: any): Goal {
-  const startDate = toJSDate(g.startDate) ?? DateHelper.now();
-  const endDate = toJSDate(g.endDate) ?? addDaysSafe(startDate, 7);
-  const weekStartAt = toJSDate(g.weekStartAt);
-  const plannedStartDate = toJSDate(g.plannedStartDate);
-  const approvalRequestedAt = toJSDate(g.approvalRequestedAt);
-  const approvalDeadline = toJSDate(g.approvalDeadline);
-
-  return {
-    ...g,
-    startDate,
-    endDate,
-    weekStartAt: weekStartAt ?? null,
-    plannedStartDate: plannedStartDate ?? null,
-    targetCount: typeof g.targetCount === 'number' ? g.targetCount : 1,
-    weeklyCount: typeof g.weeklyCount === 'number' ? g.weeklyCount : 0,
-    weeklyLogDates: Array.isArray(g.weeklyLogDates) ? g.weeklyLogDates : [],
-    currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
-    sessionsPerWeek: typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1,
-    isCompleted: !!g.isCompleted,
-    isWeekCompleted: !!g.isWeekCompleted,
-    updatedAt: toJSDate(g.updatedAt) ?? DateHelper.now(),
-    // Approval fields
-    approvalStatus: g.approvalStatus || (g.isFreeGoal ? 'approved' : 'pending'),
-    initialTargetCount: typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
-    initialSessionsPerWeek: typeof g.initialSessionsPerWeek === 'number' ? g.initialSessionsPerWeek : g.sessionsPerWeek,
-    suggestedTargetCount: typeof g.suggestedTargetCount === 'number' ? g.suggestedTargetCount : null,
-    suggestedSessionsPerWeek: typeof g.suggestedSessionsPerWeek === 'number' ? g.suggestedSessionsPerWeek : null,
-    approvalRequestedAt: approvalRequestedAt ?? null,
-    approvalDeadline: approvalDeadline ?? null,
-    giverMessage: g.giverMessage || null,
-    receiverMessage: g.receiverMessage || null,
-    giverActionTaken: !!g.giverActionTaken,
-    // Free Goal fields
-    isFreeGoal: !!g.isFreeGoal,
-    pledgedExperience: g.pledgedExperience || null,
-    pledgedAt: toJSDate(g.pledgedAt) ?? null,
-    giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
-    giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
-  } as Goal;
-}
+// Re-export helpers from GoalHelpers so existing importers of these symbols from
+// GoalService continue to work without breaking changes.
+export { isoDateOnly, isValidDate, toJSDate, addDaysSafe, normalizeGoal } from '../utils/GoalHelpers';
 
 /** Rotate weekday labels starting from the cadence anchor */
 export function orderedWeekdaysFrom(start: Date) {
@@ -133,6 +67,20 @@ export class GoalService {
   /** Create a new goal */
   async createGoal(goal: Goal) {
     try {
+      // Check goal limit (max 3 active goals, exempt paid gifted goals)
+      const isPaidGiftedGoal = !!goal.experienceGiftId && !goal.isFreeGoal;
+      if (!isPaidGiftedGoal) {
+        const activeGoalsQuery = query(
+          this.goalsCollection,
+          where('userId', '==', goal.userId),
+          where('isCompleted', '==', false),
+        );
+        const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
+        if (activeGoalsSnapshot.size >= 3) {
+          throw new Error('GOAL_LIMIT_REACHED');
+        }
+      }
+
       const normalized = normalizeGoal(goal);
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
@@ -181,6 +129,17 @@ export class GoalService {
     try {
       if (!goal.isFreeGoal) {
         throw new Error('Invalid free goal data: missing isFreeGoal');
+      }
+
+      // Check goal limit (max 3 active goals)
+      const activeGoalsQuery = query(
+        this.goalsCollection,
+        where('userId', '==', goal.userId),
+        where('isCompleted', '==', false),
+      );
+      const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
+      if (activeGoalsSnapshot.size >= 3) {
+        throw new Error('GOAL_LIMIT_REACHED');
       }
 
       const normalized = normalizeGoal(goal);
@@ -265,6 +224,7 @@ export class GoalService {
         experienceGiftId,
         giftAttachedAt: serverTimestamp(),
         empoweredBy: giverId,
+        empowerPending: false,
         updatedAt: serverTimestamp(),
       };
 
@@ -277,6 +237,12 @@ export class GoalService {
 
     analyticsService.trackEvent('gift_attached_to_goal', 'conversion', { goalId, experienceGiftId, giverId, isMystery });
     logger.log(`✅ Gift attached to free goal: ${goalId}${isMystery ? ' (mystery)' : ''}`);
+  }
+
+  /** Mark a goal as having a pending empower gift (prevents duplicate gifting) */
+  async markEmpowerPending(goalId: string): Promise<void> {
+    const goalRef = doc(db, 'goals', goalId);
+    await updateDoc(goalRef, { empowerPending: true, updatedAt: serverTimestamp() });
   }
 
 
@@ -305,6 +271,8 @@ export class GoalService {
         const fallbackGoals = snap.docs.map((d) => normalizeGoal({ id: d.id, ...d.data() }));
         cb(fallbackGoals);
       }
+    }, (error) => {
+      logger.error('listenToUserGoals snapshot error:', error.message);
     });
     return unsub;
   }
@@ -332,7 +300,7 @@ export class GoalService {
     return await this.applyExpiredWeeksSweep(data);
   }
 
-  async appendHint(goalId: string, hintObj: any) {
+  async appendHint(goalId: string, hintObj: Record<string, unknown>) {
     // SECURITY: Validate hint structure
     if (!hintObj || typeof hintObj !== 'object') {
       throw new Error('Invalid hint object');
@@ -376,7 +344,7 @@ export class GoalService {
     }
 
     // Create clean hint object with only allowed fields
-    const cleanHint: any = {
+    const cleanHint: Record<string, unknown> = {
       id: hintObj.id,
       session: hintObj.session,
       giverName: hintObj.giverName || 'Anonymous',
@@ -527,7 +495,7 @@ export class GoalService {
     const finalSessionsPerWeek = currentGoal.suggestedSessionsPerWeek || currentGoal.sessionsPerWeek;
 
     // If suggestions exist, recalculate duration and endDate
-    let updates: any = {
+    let updates: Record<string, unknown> = {
       approvalStatus: 'approved',
       giverMessage: message || '',
       giverActionTaken: true,
@@ -598,7 +566,7 @@ export class GoalService {
     }
 
     const ref = doc(db, 'goals', goalId);
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       approvalStatus: 'suggested_change',
       suggestedTargetCount,
       suggestedSessionsPerWeek,
@@ -654,7 +622,7 @@ export class GoalService {
     // Update description to reflect new values
     const updatedDescription = `Work on ${category} for ${newTargetCount} weeks, ${newSessionsPerWeek} times per week.`;
 
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       approvalStatus: 'approved',
       targetCount: newTargetCount,
       sessionsPerWeek: newSessionsPerWeek,

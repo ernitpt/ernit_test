@@ -2,12 +2,15 @@ import React from 'react';
 import {
     View,
     Text,
-    TouchableOpacity,
     StyleSheet,
     ScrollView,
 } from 'react-native';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { BaseModal } from './BaseModal';
+import Button from './Button';
 
 interface HowItWorksModalProps {
     visible: boolean;
@@ -92,9 +95,14 @@ export default function HowItWorksModal({ visible, onClose }: HowItWorksModalPro
 
             {/* Bottom Button */}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity onPress={onClose} style={styles.gotItButton}>
-                    <Text style={styles.gotItButtonText}>Got it, let's start!</Text>
-                </TouchableOpacity>
+                <Button
+                    title="Got it, let's start!"
+                    onPress={onClose}
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    gradient
+                />
             </View>
         </BaseModal>
     );
@@ -105,91 +113,77 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: 20,
-        paddingBottom: 10,
+        padding: Spacing.xl,
+        paddingBottom: Spacing.sm,
     },
     exampleHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
         backgroundColor: Colors.surface,
-        padding: 16,
-        borderRadius: 12,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     exampleIcon: {
-        fontSize: 32,
-        marginRight: 12,
+        fontSize: Typography.display.fontSize,
+        marginRight: Spacing.md,
     },
     exampleTitle: {
-        fontSize: 17,
-        fontWeight: '600',
+        ...Typography.subheading,
         color: Colors.textPrimary,
         flex: 1,
     },
     step: {
         flexDirection: 'row',
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
     stepNumber: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.secondary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
-        marginTop: 2,
+        marginRight: Spacing.lg,
+        marginTop: Spacing.xxs,
     },
     stepNumberText: {
-        color: '#fff',
-        fontSize: 16,
+        color: Colors.white,
+        ...Typography.subheading,
         fontWeight: '700',
     },
     stepContent: {
         flex: 1,
     },
     stepTitle: {
-        fontSize: 16,
-        fontWeight: '600',
+        ...Typography.subheading,
         color: Colors.textPrimary,
-        marginBottom: 6,
+        marginBottom: Spacing.xs,
     },
     stepDescription: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
         lineHeight: 21,
     },
     ctaContainer: {
-        marginTop: 12,
-        padding: 16,
-        backgroundColor: '#eff6ff',
-        borderRadius: 12,
+        marginTop: Spacing.md,
+        padding: Spacing.lg,
+        backgroundColor: Colors.infoLight,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: '#dbeafe',
+        borderColor: Colors.infoLight,
     },
     ctaText: {
-        fontSize: 16,
-        fontWeight: '600',
+        ...Typography.subheading,
         color: Colors.secondary,
         textAlign: 'center',
     },
     buttonContainer: {
-        padding: 20,
-        paddingTop: 12,
+        padding: Spacing.xl,
+        paddingTop: Spacing.md,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
-    },
-    gotItButton: {
-        backgroundColor: Colors.secondary,
-        borderRadius: 12,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    gotItButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
     },
 });

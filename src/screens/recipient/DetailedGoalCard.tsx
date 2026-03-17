@@ -22,6 +22,7 @@ import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { experienceService } from '../../services/ExperienceService';
 import { useRootNavigation } from '../../types/navigation';
 import HintPopup from '../../components/HintPopup';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { aiHintService } from '../../services/AIHintService';
 import { pushNotificationService } from '../../services/PushNotificationService';
 
@@ -29,9 +30,10 @@ import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { serializeNav } from '../../utils/serializeNav';
-import { db } from '../../services/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 
 // Extracted utilities, hooks, and components
@@ -139,7 +141,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     if (prevTimerRunning.current !== isTimerRunning) {
       prevTimerRunning.current = isTimerRunning;
       // Animate height change
-      LayoutAnimation.configureNext(LayoutAnimation.create(250, 'easeInEaseOut', 'opacity'));
+      if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(250, 'easeInEaseOut', 'opacity'));
       // Fade-in the new content
       timerFadeAnim.setValue(0);
       Animated.timing(timerFadeAnim, {
@@ -149,6 +151,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }).start();
     }
   }, [isTimerRunning, timerFadeAnim]);
+
+  // Cleanup CTA timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (ctaTimeoutRef.current) clearTimeout(ctaTimeoutRef.current);
+    };
+  }, []);
 
   // ─── Hooks ──────────────────────────────────────────────────────
 
@@ -177,53 +186,20 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
   }, [currentGoal.empoweredBy]);
 
-  // Real-time goal listener
+  // Sync goal prop changes from parent (JourneyScreen owns the onSnapshot listener)
   useEffect(() => {
-    if (!currentGoal.id) return;
-
-    const unsubscribe = onSnapshot(doc(db, 'goals', currentGoal.id), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const toDate = (val: { toDate?: () => Date } | Date | null | undefined) =>
-          val && typeof val === 'object' && 'toDate' in val && val.toDate ? val.toDate() : val;
-
-        const updatedGoal = {
-          id: snapshot.id,
-          ...data,
-          createdAt: toDate(data.createdAt),
-          updatedAt: toDate(data.updatedAt),
-          startDate: toDate(data.startDate),
-          endDate: toDate(data.endDate),
-          weekStartAt: toDate(data.weekStartAt),
-          plannedStartDate: toDate(data.plannedStartDate),
-          approvalDeadline: toDate(data.approvalDeadline),
-          approvalRequestedAt: toDate(data.approvalRequestedAt),
-        } as unknown as Goal;
-
-        // Skip update if key data hasn't changed to prevent render loops
-        const prev = currentGoal;
-        if (prev && prev.weeklyCount === data.weeklyCount
-            && prev.currentCount === data.currentCount
-            && prev.isCompleted === data.isCompleted
-            && prev.empoweredBy === data.empoweredBy
-            && prev.experienceGiftId === data.experienceGiftId
-            && prev.giftAttachedAt === (toDate(data.giftAttachedAt) as any)) {
-          return;
-        }
-
-        setCurrentGoal(updatedGoal);
-      } else {
-        // Goal was deleted — stop any active timer and notify user
-        logger.warn(`Goal ${currentGoal.id} was deleted while viewing`);
-        stopTimer(currentGoal.id);
-        showError('This goal has been removed.');
-      }
-    }, (error) => {
-      logger.error('Error listening to goal updates:', error);
-    });
-
-    return () => unsubscribe();
-  }, [currentGoal.id]);
+    // Skip update if key data hasn't changed to prevent render loops
+    if (
+      goal.weeklyCount === currentGoal.weeklyCount &&
+      goal.currentCount === currentGoal.currentCount &&
+      goal.isCompleted === currentGoal.isCompleted &&
+      goal.empoweredBy === currentGoal.empoweredBy &&
+      goal.experienceGiftId === currentGoal.experienceGiftId
+    ) {
+      return;
+    }
+    setCurrentGoal(goal);
+  }, [goal]);
 
   // Background timer awareness — notify when app becomes visible and timer running
   useEffect(() => {
@@ -470,6 +446,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const finishLock = useRef(false);
   const hintGeneratingRef = useRef(false);
+  const ctaTimeoutRef = useRef<NodeJS.Timeout>();
 
   const handleFinish = useCallback(async () => {
     if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
@@ -904,13 +881,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
+    <ErrorBoundary screenName="DetailedGoalCard">
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <Pressable
         onPressIn={isTimerRunning ? undefined : onPressIn}
         onPressOut={isTimerRunning ? undefined : onPressOut}
         onPress={isTimerRunning ? undefined : () => handlePress(currentGoal)}
         disabled={isTimerRunning}
-        style={{ borderRadius: 16 }}
+        style={{ borderRadius: BorderRadius.lg }}
       >
         <View style={styles.card}>
           {/* Title & badges */}
@@ -1031,7 +1009,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           setCelebrationData(null);
           // Show CTA 2s after celebration dismisses (if decision was stored)
           if (ctaDecision && !showCTA) {
-            setTimeout(() => setShowCTA(true), 2000);
+            ctaTimeoutRef.current = setTimeout(() => setShowCTA(true), 2000);
           }
         }}
         onPostToFeed={handlePostToFeed}
@@ -1082,6 +1060,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         />
       )}
     </Animated.View>
+    </ErrorBoundary>
   );
 };
 
@@ -1090,9 +1069,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.88)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
     shadowColor: Colors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -1106,42 +1085,42 @@ const styles = StyleSheet.create({
       WebkitBackdropFilter: 'blur(12px)',
     } as Record<string, string> : {}),
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
-  empoweredText: { fontSize: 14, color: Colors.textSecondary, marginBottom: 14, textAlign: 'center' },
+  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
+  empoweredText: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
   mysteryBadge: {
-    alignSelf: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: 14,
-    paddingVertical: 6, borderRadius: 10, marginBottom: 14,
-    borderWidth: 1, borderColor: '#fde68a',
+    alignSelf: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: Colors.warningBorder,
   },
-  mysteryBadgeText: { fontSize: 13, fontWeight: '700', color: '#92400e' },
-  selfChallengeText: { fontSize: 14, color: Colors.primary, marginBottom: 14, fontWeight: '600', textAlign: 'center' },
-  startDateText: { fontSize: 13, color: '#059669', marginBottom: 14, fontWeight: '600', textAlign: 'center' },
+  mysteryBadgeText: { ...Typography.caption, fontWeight: '700', color: Colors.warningDark },
+  selfChallengeText: { ...Typography.small, color: Colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
+  startDateText: { ...Typography.caption, color: Colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
   projectedFinish: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.primary,
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: Spacing.xs,
     marginBottom: 2,
   },
 
   // Debug
   debugContainer: {
-    marginTop: 20, padding: 16,
-    backgroundColor: Colors.backgroundLight, borderRadius: 12,
+    marginTop: Spacing.xl, padding: Spacing.lg,
+    backgroundColor: Colors.backgroundLight, borderRadius: BorderRadius.md,
     borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
   },
   debugTitle: {
-    fontSize: 12, fontWeight: '700', color: Colors.textSecondary,
-    marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5,
+    ...Typography.caption, fontWeight: '700', color: Colors.textSecondary,
+    marginBottom: Spacing.md, textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  debugButtonsRow: { flexDirection: 'row', gap: 10 },
+  debugButtonsRow: { flexDirection: 'row', gap: Spacing.sm },
   debugButton: {
     flex: 1, backgroundColor: Colors.border,
-    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm,
     alignItems: 'center', borderWidth: 1, borderColor: Colors.gray300,
   },
-  debugButtonText: { fontSize: 13, fontWeight: '600', color: Colors.gray700 },
+  debugButtonText: { ...Typography.caption, fontWeight: '600', color: Colors.gray700 },
 });
 
 export default DetailedGoalCard;

@@ -1,5 +1,5 @@
 // ✅ Firebase Functions v2 version
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import {
   selectHintCategory,
@@ -309,7 +309,7 @@ async function callOpenAI(prompt: string): Promise<string> {
   const model = OPENAI_MODEL.value() || "gpt-4-turbo";
   */
 
-  throw new Error("OpenAI provider not configured. Use OpenRouter instead.");
+  throw new HttpsError('unimplemented', 'OpenAI provider not configured');
 
   /* Commented out until OpenAI secrets are configured
   const key = OPENAI_KEY.value();
@@ -378,13 +378,13 @@ export const aiGenerateHint = onCall(
       LLM_PROVIDER,
     ],
   },
-  async (requestData, context) => {
+  async (requestData) => {
     console.log("🚀 aiGenerateHint called");
 
     // ✅ SECURITY: Rate limiting check
     const auth = requestData.auth;
     if (!auth?.uid) {
-      throw new Error("User must be authenticated to generate hints.");
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
     }
 
     const userId = auth.uid;
@@ -392,8 +392,8 @@ export const aiGenerateHint = onCall(
     const oneHourAgo = now - (60 * 60 * 1000);
     const RATE_LIMIT = 20; // Maximum hints per hour per user
 
-    // Import db from index
-    const { db } = await import('./index.js');
+    // Import production db from index
+    const { dbProd: db } = await import('./index.js');
 
     // Check rate limit using Firestore
     const rateLimitRef = db.collection('rateLimits').doc(`hints_${userId}`);
@@ -407,7 +407,7 @@ export const aiGenerateHint = onCall(
 
       if (recentRequests.length >= RATE_LIMIT) {
         console.warn(`⚠️ Rate limit exceeded for user ${userId}`);
-        throw new Error("Rate limit exceeded. Please try again later.");
+        throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again later.');
       }
 
       // Update with new request
@@ -424,7 +424,7 @@ export const aiGenerateHint = onCall(
     }
 
     // `requestData.data` for Firebase SDK clients
-    const data = (requestData?.data || requestData) as any;
+    const data = requestData.data as any;
     let {
       experienceType,
       experienceDescription,
@@ -443,22 +443,22 @@ export const aiGenerateHint = onCall(
     if (goalId && !experienceType) {
       console.log(`🔍 Mystery hint: looking up experience for goalId=${goalId}`);
       const goalDoc = await db.collection('goals').doc(goalId).get();
-      if (!goalDoc.exists) throw new Error("Goal not found");
+      if (!goalDoc.exists) throw new HttpsError('not-found', 'Goal not found');
 
       const goalData = goalDoc.data();
-      if (!goalData?.experienceGiftId) throw new Error("No gift attached to goal");
+      if (!goalData?.experienceGiftId) throw new HttpsError('not-found', 'No gift attached to goal');
 
       // Verify the requesting user owns this goal
       if (goalData.userId !== userId) {
-        throw new Error("Unauthorized: you do not own this goal");
+        throw new HttpsError('permission-denied', 'You do not own this goal');
       }
 
       const giftDoc = await db.collection('experienceGifts').doc(goalData.experienceGiftId).get();
-      if (!giftDoc.exists) throw new Error("Gift not found");
+      if (!giftDoc.exists) throw new HttpsError('not-found', 'Gift not found');
 
       const giftData = giftDoc.data();
       const expDoc = await db.collection('experiences').doc(giftData?.experienceId).get();
-      if (!expDoc.exists) throw new Error("Experience not found");
+      if (!expDoc.exists) throw new HttpsError('not-found', 'Experience not found');
 
       const expData = expDoc.data();
       experienceType = expData?.title || 'experience';
@@ -476,30 +476,42 @@ export const aiGenerateHint = onCall(
 
     if (!experienceType || !sessionNumber || !totalSessions || !style) {
       console.error("❌ Missing required fields", data);
-      throw new Error("Missing required fields.");
+      throw new HttpsError('invalid-argument', 'Missing required fields');
     }
 
     // Input length and range validation
     if (typeof experienceType !== 'string' || experienceType.length > 200) {
-        throw new Error('experienceType must be a string under 200 characters');
+        throw new HttpsError('invalid-argument', 'experienceType must be a string under 200 characters');
     }
     if (experienceDescription && (typeof experienceDescription !== 'string' || experienceDescription.length > 2000)) {
-        throw new Error('experienceDescription must be under 2000 characters');
+        throw new HttpsError('invalid-argument', 'experienceDescription must be under 2000 characters');
     }
     if (userName && (typeof userName !== 'string' || userName.length > 100)) {
-        throw new Error('userName must be under 100 characters');
+        throw new HttpsError('invalid-argument', 'userName must be under 100 characters');
     }
     if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 1000) {
-        throw new Error('sessionNumber must be between 1 and 1000');
+        throw new HttpsError('invalid-argument', 'sessionNumber must be between 1 and 1000');
     }
     if (!Number.isInteger(totalSessions) || totalSessions < 1 || totalSessions > 1000) {
-        throw new Error('totalSessions must be between 1 and 1000');
+        throw new HttpsError('invalid-argument', 'totalSessions must be between 1 and 1000');
+    }
+    if (sessionNumber > totalSessions) {
+        throw new HttpsError('invalid-argument', 'sessionNumber cannot exceed totalSessions');
     }
     if (previousHints && (!Array.isArray(previousHints) || previousHints.length > 100)) {
-        throw new Error('previousHints must be an array with max 100 items');
+        throw new HttpsError('invalid-argument', 'previousHints must be an array with max 100 items');
     }
+
+    // Validate and sanitize previousHints
+    const sanitizedHints = Array.isArray(previousHints)
+      ? previousHints
+          .filter((h: unknown) => typeof h === 'string')
+          .map((h: string) => h.substring(0, 500))
+          .slice(0, 100)
+      : [];
+
     if (previousCategories && (!Array.isArray(previousCategories) || previousCategories.length > 100)) {
-        throw new Error('previousCategories must be an array with max 100 items');
+        throw new HttpsError('invalid-argument', 'previousCategories must be an array with max 100 items');
     }
 
     // NEW: Select category for this hint
@@ -513,7 +525,7 @@ export const aiGenerateHint = onCall(
       sessionNumber,
       totalSessions,
       style,
-      previousHintsCount: previousHints.length,
+      previousHintsCount: sanitizedHints.length,
       previousCategoriesCount: previousCategories.length,
       assignedCategory,
     });
@@ -527,7 +539,7 @@ export const aiGenerateHint = onCall(
       totalSessions,
       userName,
       style,
-      previousHints,
+      previousHints: sanitizedHints,
       hintCategory: assignedCategory, // NEW
       categoryDefinition: categoryDef, // NEW
     });
@@ -560,7 +572,7 @@ export const aiGenerateHint = onCall(
       return { hint: finalHint, style, category: assignedCategory };
     } catch (err: any) {
       console.error("aiGenerateHint error:", err?.message || err);
-      throw new Error("Failed to generate hint.");
+      throw new HttpsError('internal', 'Failed to generate hint');
     }
   }
 );

@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useCallback, useRef, ReactNode, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
@@ -233,18 +233,18 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
     setPendingNavigation(null);
   }, []);
 
+  const contextValue = useMemo(() => ({
+    isAuthenticated,
+    requireAuth,
+    showLoginPrompt,
+    loginMessage,
+    closeLoginPrompt,
+    clearAuthBlock,
+    handleAuthSuccess,
+  }), [isAuthenticated, requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt, clearAuthBlock, handleAuthSuccess]);
+
   return (
-    <AuthGuardContext.Provider
-      value={{
-        isAuthenticated,
-        requireAuth,
-        showLoginPrompt,
-        loginMessage,
-        closeLoginPrompt,
-        clearAuthBlock,
-        handleAuthSuccess,
-      }}
-    >
+    <AuthGuardContext.Provider value={contextValue}>
       {children}
     </AuthGuardContext.Provider>
   );

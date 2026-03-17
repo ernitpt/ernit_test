@@ -37,7 +37,11 @@ import SharedHeader from '../../components/SharedHeader';
 import { logger } from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import * as Haptics from 'expo-haptics';
 
 type Category = { id: ExperienceCategory; title: string; experiences: Experience[] };
 
@@ -76,9 +80,9 @@ const ExperienceCard = ({
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         {isWishlisted ? (
-          <Heart fill="#ef4444" color="#ef4444" size={22} />
+          <Heart fill={Colors.error} color={Colors.error} size={22} />
         ) : (
-          <Heart color="#fff" size={22} />
+          <Heart color={Colors.white} size={22} />
         )}
 
       </TouchableOpacity>
@@ -144,13 +148,11 @@ const CategoryCarousel = ({
 
 
 const CategorySelectionScreen = () => {
-  logger.log('[CategorySelectionScreen] Rendering...');
   const navigation = useGiverNavigation();
   const rootNavigation = useRootNavigation();
   const route = useRoute();
   const routeParams = route.params as { prefilterCategory?: string } | undefined;
   const { state, dispatch } = useApp();
-  logger.log('[CategorySelectionScreen] State loaded:', { hasUser: !!state?.user, hasState: !!state });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const searchAnim = useRef(new Animated.Value(0)).current;
@@ -221,60 +223,60 @@ const CategorySelectionScreen = () => {
   };
 
   // Load experiences from Firestore
-  useEffect(() => {
-    const fetchExperiences = async () => {
-      setError(false);
-      try {
-        const snapshot = await getDocs(collection(db, 'experiences'));
-        const allExperiences = snapshot.docs.map((doc) => doc.data() as Experience);
+  const fetchExperiences = useCallback(async () => {
+    setError(false);
+    setIsLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'experiences'));
+      const allExperiences = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Experience));
 
-        const validCategories = ['adventure', 'creative', 'wellness'];
+      const validCategories = ['adventure', 'creative', 'wellness'];
 
-        // Filter out draft experiences and group by category
-        const grouped = allExperiences
-          .filter((exp) => exp.status !== 'draft')
-          .reduce((acc, exp) => {
-            const cat = exp.category.toLowerCase();
-            if (validCategories.includes(cat)) {
-              if (!acc[cat]) acc[cat] = [];
-              acc[cat].push(exp);
-            }
-            return acc;
-          }, {} as Record<string, Experience[]>);
+      // Filter out draft experiences and group by category
+      const grouped = allExperiences
+        .filter((exp) => exp.status !== 'draft')
+        .reduce((acc, exp) => {
+          const cat = exp.category.toLowerCase();
+          if (validCategories.includes(cat)) {
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(exp);
+          }
+          return acc;
+        }, {} as Record<string, Experience[]>);
 
-        // Sort experiences within each category by admin-defined order
-        for (const cat of Object.keys(grouped)) {
-          grouped[cat].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-        }
-
-        const categoryOrder = ['adventure', 'wellness', 'creative'];
-
-        const categoriesArray = Object.keys(grouped)
-          .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b))
-          .map((cat) => ({
-            id: cat,
-            title:
-              cat === 'adventure'
-                ? 'Adventure'
-                : cat === 'wellness'
-                  ? 'Wellness'
-                  : 'Creative',
-            experiences: grouped[cat],
-          }));
-
-        setCategories(categoriesArray as Category[]);
-        setError(false);
-      } catch (error) {
-        logger.error('Error fetching experiences:', error);
-        setError(true);
-        setIsLoading(false);
-      } finally {
-        setIsLoading(false);
+      // Sort experiences within each category by admin-defined order
+      for (const cat of Object.keys(grouped)) {
+        grouped[cat].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
       }
-    };
 
-    fetchExperiences();
+      const categoryOrder = ['adventure', 'wellness', 'creative'];
+
+      const categoriesArray = Object.keys(grouped)
+        .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b))
+        .map((cat) => ({
+          id: cat,
+          title:
+            cat === 'adventure'
+              ? 'Adventure'
+              : cat === 'wellness'
+                ? 'Wellness'
+                : 'Creative',
+          experiences: grouped[cat],
+        }));
+
+      setCategories(categoriesArray as Category[]);
+      setError(false);
+    } catch (error) {
+      logger.error('Error fetching experiences:', error);
+      setError(true);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchExperiences();
+  }, [fetchExperiences]);
 
   useFocusEffect(
     useCallback(() => {
@@ -322,6 +324,7 @@ const CategorySelectionScreen = () => {
   };
 
   const toggleWishlist = async (experienceId: string) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!user || !state.user) {
       showInfo('Please log in to use wishlist.');
       return;
@@ -371,6 +374,14 @@ const CategorySelectionScreen = () => {
     navigation.navigate('ExperienceDetails', { experience });
   };
 
+  const renderEmptyExperiences = useCallback(() => (
+    <EmptyState
+      icon={searchQuery ? "🔍" : "🎁"}
+      title={searchQuery ? `No results for "${searchQuery}"` : "No Experiences Available"}
+      message={searchQuery ? "Try a different search term" : "Check back soon for new experiences!"}
+    />
+  ), [searchQuery]);
+
   return (
     <ErrorBoundary screenName="CategorySelectionScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
@@ -382,15 +393,13 @@ const CategorySelectionScreen = () => {
           rightActions={
             <TouchableOpacity
               onPress={toggleSearch}
-              style={styles.headerActionButton}
-              activeOpacity={0.85}
+              activeOpacity={0.7}
               accessibilityRole="button"
-              returnKeyType="search"
-                accessibilityLabel="Search experiences"
+              accessibilityLabel="Search experiences"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ padding: Spacing.xs }}
             >
-              <View style={styles.headerActionIcon}>
-                <Search color={Colors.primary} size={20} strokeWidth={2} />
-              </View>
+              <Search color={Colors.textSecondary} size={22} strokeWidth={1.8} />
             </TouchableOpacity>
           }
         />
@@ -431,7 +440,6 @@ const CategorySelectionScreen = () => {
             }
           ]}>
             <View style={styles.searchBar}>
-              <Text style={styles.searchIcon}>🔍</Text>
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search experiences..."
@@ -442,6 +450,16 @@ const CategorySelectionScreen = () => {
                 returnKeyType="search"
                 accessibilityLabel="Search experiences"
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <X size={18} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              )}
             </View>
           </Animated.View>
         )}
@@ -457,13 +475,13 @@ const CategorySelectionScreen = () => {
                 <View style={{
                   width: 120,
                   height: 24,
-                  backgroundColor: '#e5e7eb',
-                  borderRadius: 4
+                  backgroundColor: Colors.border,
+                  borderRadius: BorderRadius.xs
                 }} />
               </View>
 
               {/* Horizontal scrolling skeleton cards */}
-              <View style={{ flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 8, gap: 12 }}>
+              <View style={{ flexDirection: 'row', paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.sm, gap: Spacing.md }}>
                 <ExperienceCardSkeleton />
                 <ExperienceCardSkeleton />
                 <ExperienceCardSkeleton />
@@ -474,10 +492,7 @@ const CategorySelectionScreen = () => {
       ) : error ? (
         <ErrorRetry
           message="Could not load experiences"
-          onRetry={() => {
-            setError(false);
-            setIsLoading(true);
-          }}
+          onRetry={fetchExperiences}
         />
       ) : (
         <FlatList
@@ -493,13 +508,7 @@ const CategorySelectionScreen = () => {
               wishlist={wishlist}
             />
           )}
-          ListEmptyComponent={() => (
-            <EmptyState
-              icon="🎁"
-              title="No Experiences Available"
-              message="Check back soon for amazing experiences!"
-            />
-          )}
+          ListEmptyComponent={renderEmptyExperiences}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.categoriesListMoved}
           showsVerticalScrollIndicator={false}
@@ -516,63 +525,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primarySurface,
-    marginHorizontal: 24,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 10,
+    marginHorizontal: Spacing.xxl,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
   },
   empowerBannerText: {
     flex: 1,
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.primary,
   },
   empowerBannerName: {
     fontWeight: '700',
   },
   empowerBannerClose: {
-    padding: 4,
+    padding: Spacing.xs,
   },
   searchContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.lg,
   },
   searchBar: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    backgroundColor: Colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: '#6b7280',
+    borderColor: Colors.border,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
-    color: '#111827',
-    paddingVertical: 10,
-  },
-  headerActionButton: {
-    // marginRight: 6  <-- Removed to let SharedHeader gap handle spacing
-  },
-  headerActionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: Colors.primarySurface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Typography.body,
+    color: Colors.textPrimary,
+    paddingVertical: Spacing.sm,
   },
   categoriesListMoved: {
     paddingTop: 0, // REMOVED GAP
@@ -582,26 +570,25 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   categoryHeaderInline: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.sm,
   },
   categoryTitleInline: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#111827',
+    ...Typography.heading2,
+    color: Colors.textPrimary,
   },
   carouselContentContinuous: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.sm,
   },
   experienceCard: {
-    marginRight: 12,
+    marginRight: Spacing.md,
     width: 175,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
-    shadowColor: '#000',
+    borderColor: Colors.backgroundLight,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -615,18 +602,18 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: 100,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   heartButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    padding: 6,
-    borderRadius: 20,
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: Colors.overlay,
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.xl,
   },
   cardContent: {
-    padding: 10,
+    padding: Spacing.sm,
     height: 90, // fixed consistent text+price zone
     justifyContent: "space-between",
   },
@@ -638,21 +625,21 @@ const styles = StyleSheet.create({
 
   cardTitle: {
     color: Colors.textPrimary,
+    ...Typography.body,
     fontWeight: "bold",
-    fontSize: 15,
     lineHeight: 18,
   },
 
   cardSubtitle: {
     color: Colors.textSecondary,
-    fontSize: 13,
+    ...Typography.caption,
     lineHeight: 17,
     marginTop: 2,
   },
 
   cardPrice: {
     color: Colors.primary,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: "bold",
     textAlign: "right",
   },
@@ -661,7 +648,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.xl,
   },
   listContainer: {
     flex: 1,

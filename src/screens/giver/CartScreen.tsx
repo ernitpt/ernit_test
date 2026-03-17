@@ -9,8 +9,9 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { Plus, Minus, X, ShoppingBag, ArrowRight } from "lucide-react-native";
+import { Plus, Minus, X, ArrowRight } from "lucide-react-native";
 import { useApp } from "../../context/AppContext";
 import { userService } from "../../services/userService";
 import { experienceService } from "../../services/ExperienceService";
@@ -22,10 +23,17 @@ import { GiverStackParamList, Experience, CartItem } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import MainScreen from "../MainScreen";
 import { CartItemSkeleton } from '../../components/SkeletonLoader';
+import { EmptyState } from '../../components/EmptyState';
+import ErrorRetry from '../../components/ErrorRetry';
+import Button from '../../components/Button';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import { MotiView } from 'moti';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -37,6 +45,7 @@ export default function CartScreen() {
 
   const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
 
   // Track loaded experience IDs to prevent unnecessary reloads
@@ -93,6 +102,7 @@ export default function CartScreen() {
 
   const loadItems = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const list: Experience[] = [];
       const ids: string[] = [];
@@ -107,6 +117,7 @@ export default function CartScreen() {
       loadedExperienceIds.current = ids;
     } catch (error) {
       logger.error('Error loading cart items:', error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -158,43 +169,56 @@ export default function CartScreen() {
   };
 
   const removeItem = async (experienceId: string) => {
-    // Mark as updating
-    setUpdatingItems(prev => new Set(prev).add(experienceId));
+    Alert.alert(
+      'Remove Item',
+      'Are you sure you want to remove this item from your cart?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            // Mark as updating
+            setUpdatingItems(prev => new Set(prev).add(experienceId));
 
-    try {
-      const updated = currentCart.filter(
-        (item) => item.experienceId !== experienceId
-      );
+            try {
+              const updated = currentCart.filter(
+                (item) => item.experienceId !== experienceId
+              );
 
-      // Update context immediately
-      dispatch({ type: "SET_CART", payload: updated });
+              // Update context immediately
+              dispatch({ type: "SET_CART", payload: updated });
 
-      // Remove from experiences list immediately for smooth UX
-      setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
-      loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
+              // Remove from experiences list immediately for smooth UX
+              setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
+              loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
 
-      // Update database in background if authenticated
-      if (state.user) {
-        await userService.removeFromCart(state.user.id, experienceId);
-      }
-    } catch (error) {
-      logger.error("Error removing item:", error);
-      await logErrorToFirestore(error, {
-        screenName: 'CartScreen',
-        feature: 'RemoveItem',
-        userId: state.user?.id,
-        additionalData: { experienceId }
-      });
-      showError("Failed to remove item. Please try again.");
-      // Reload to ensure consistency
-      loadItems();
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(experienceId);
-        return newSet;
-      });
-    }
+              // Update database in background if authenticated
+              if (state.user) {
+                await userService.removeFromCart(state.user.id, experienceId);
+              }
+            } catch (error) {
+              logger.error("Error removing item:", error);
+              await logErrorToFirestore(error, {
+                screenName: 'CartScreen',
+                feature: 'RemoveItem',
+                userId: state.user?.id,
+                additionalData: { experienceId }
+              });
+              showError("Failed to remove item. Please try again.");
+              // Reload to ensure consistency
+              loadItems();
+            } finally {
+              setUpdatingItems(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(experienceId);
+                return newSet;
+              });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const total = currentCart.reduce((sum, item) => {
@@ -268,23 +292,19 @@ export default function CartScreen() {
           )}
         </View>
 
+        {loadError && cartExperiences.length === 0 && (
+          <ErrorRetry message="Could not load cart items" onRetry={loadItems} />
+        )}
+
         {isEmpty ? (
           <View style={styles.emptyContainer}>
-            <ShoppingBag size={64} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>Your cart is empty</Text>
-            <Text style={styles.emptySubtitle}>
-              Start adding experiences to your cart to continue shopping
-            </Text>
-            <TouchableOpacity
-              style={styles.keepShoppingButton}
-              onPress={handleKeepShopping}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Start shopping"
-            >
-              <Text style={styles.keepShoppingText}>Start Shopping</Text>
-              <ArrowRight size={20} color={Colors.secondary} />
-            </TouchableOpacity>
+            <EmptyState
+              icon="🛒"
+              title="Your cart is empty"
+              message="Browse experiences to find the perfect gift"
+              actionLabel="Keep Shopping"
+              onAction={() => navigation.navigate('CategorySelection')}
+            />
           </View>
         ) : (
           <>
@@ -294,7 +314,7 @@ export default function CartScreen() {
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
             >
-              {currentCart.map((item) => {
+              {currentCart.map((item, index) => {
                 const exp = cartExperiences.find(
                   (e) => e.id === item.experienceId
                 );
@@ -308,7 +328,13 @@ export default function CartScreen() {
                 const isUpdating = updatingItems.has(item.experienceId);
 
                 return (
-                  <View key={item.experienceId} style={styles.cartItemCard}>
+                  <MotiView
+                    key={item.experienceId}
+                    from={{ opacity: 0, translateY: 12 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+                  >
+                  <View style={styles.cartItemCard}>
                     <TouchableOpacity
                       onPress={() => handleExperiencePress(exp)}
                       activeOpacity={0.9}
@@ -341,8 +367,9 @@ export default function CartScreen() {
                           activeOpacity={0.7}
                           accessibilityRole="button"
                           accessibilityLabel="Remove item from cart"
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                          <X size={18} color="#ef4444" />
+                          <X size={18} color={Colors.error} />
                         </TouchableOpacity>
                       </View>
 
@@ -358,8 +385,9 @@ export default function CartScreen() {
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel="Decrease quantity"
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Minus size={16} color={item.quantity === 1 ? "#d1d5db" : Colors.secondary} />
+                            <Minus size={16} color={item.quantity === 1 ? Colors.disabled : Colors.secondary} />
                           </TouchableOpacity>
 
                           <Text style={styles.quantityValue}>{item.quantity}</Text>
@@ -374,8 +402,9 @@ export default function CartScreen() {
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel="Increase quantity"
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Plus size={16} color={item.quantity === 10 ? "#d1d5db" : Colors.secondary} />
+                            <Plus size={16} color={item.quantity === 10 ? Colors.disabled : Colors.secondary} />
                           </TouchableOpacity>
                         </View>
 
@@ -385,6 +414,7 @@ export default function CartScreen() {
                       </View>
                     </View>
                   </View>
+                  </MotiView>
                 );
               })}
             </ScrollView>
@@ -395,26 +425,25 @@ export default function CartScreen() {
                 <Text style={styles.totalAmount}>€{total.toFixed(2)}</Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.checkoutButton}
+              <Button
+                title="Proceed to Checkout"
                 onPress={proceedToCheckout}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Proceed to checkout"
-              >
-                <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
-                <ArrowRight size={20} color="#fff" />
-              </TouchableOpacity>
+                variant="primary"
+                size="lg"
+                fullWidth
+                gradient
+                icon={<ArrowRight size={20} color={Colors.white} />}
+                iconPosition="right"
+                style={{ marginBottom: Spacing.md }}
+              />
 
-              <TouchableOpacity
-                style={styles.keepShoppingButton}
+              <Button
+                title="Keep Shopping"
                 onPress={handleKeepShopping}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Keep shopping"
-              >
-                <Text style={styles.keepShoppingText}>Keep Shopping</Text>
-              </TouchableOpacity>
+                variant="secondary"
+                size="md"
+                fullWidth
+              />
             </View>
           </>
         )}
@@ -435,21 +464,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   headerTitle: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   headerSubtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     fontWeight: "500",
   },
@@ -457,35 +486,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 10,
+    padding: Spacing.xl,
+    paddingBottom: Spacing.sm,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginTop: 24,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
+    paddingHorizontal: Spacing.huge,
   },
   cartItemCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginBottom: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
     overflow: "hidden",
-    shadowColor: "#000",
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -499,31 +514,31 @@ const styles = StyleSheet.create({
   },
   cartItemContent: {
     flex: 1,
-    padding: 16,
+    padding: Spacing.lg,
     justifyContent: "space-between",
   },
   cartItemHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   cartItemInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   cartItemTitle: {
-    fontSize: 17,
+    ...Typography.heading3,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   cartItemSubtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
   },
   removeButton: {
-    padding: 4,
+    padding: Spacing.xs,
     width: 26,
     height: 26,
     justifyContent: "center",
@@ -537,16 +552,16 @@ const styles = StyleSheet.create({
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Spacing.md,
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   quantityButton: {
-    padding: 4,
-    borderRadius: 4,
-    backgroundColor: "#fff",
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.xs,
+    backgroundColor: Colors.white,
     width: 28,
     height: 28,
     justifyContent: "center",
@@ -556,76 +571,36 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   quantityValue: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: "700",
     color: Colors.textPrimary,
     minWidth: 24,
     textAlign: "center",
   },
   cartItemPrice: {
-    fontSize: 20,
-    fontWeight: "700",
+    ...Typography.large,
     color: Colors.secondary,
   },
   bottomContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    padding: 20,
-    paddingBottom: 32,
+    padding: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
   },
   totalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   totalLabel: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: "600",
     color: Colors.textPrimary,
   },
   totalAmount: {
-    fontSize: 24,
-    fontWeight: "700",
+    ...Typography.heading1,
     color: Colors.secondary,
-  },
-  checkoutButton: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  checkoutButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  keepShoppingButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: Colors.secondary,
-    backgroundColor: "#fff",
-  },
-  keepShoppingText: {
-    color: Colors.secondary,
-    fontWeight: "600",
-    fontSize: 16,
   },
 });

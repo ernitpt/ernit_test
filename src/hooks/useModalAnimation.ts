@@ -39,7 +39,12 @@ export const useModalAnimation = (visible: boolean, config: UseModalAnimationCon
                 }).start();
             }
         } else {
-            anim.setValue(initialValue);
+            Animated.spring(anim, {
+                toValue: initialValue,
+                useNativeDriver: true,
+                tension: 200,
+                friction: 20,
+            }).start();
         }
     }, [visible, initialValue, toValue, tension, friction, useSpring, duration]);
 

@@ -7,11 +7,12 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    ActivityIndicator,
     Animated,
     ScrollView,
     TextInput as RNTextInput,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import Button from './Button';
 import { X, Send, MessageSquare, LifeBuoy, CheckCircle } from 'lucide-react-native';
 import { TextInput } from '../components/TextInput';
 import { useApp } from '../context/AppContext';
@@ -20,6 +21,9 @@ import { commonStyles } from '../styles/commonStyles';
 import { contactService } from '../services/ContactService';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 
 interface ContactModalProps {
     visible: boolean;
@@ -69,6 +73,9 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
             }
 
             logger.log(`${type} sent successfully`);
+            if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
             setShowSuccess(true);
             setIsSending(false);
 
@@ -157,7 +164,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     returnKeyType="next"
                                     onSubmitEditing={() => messageRef.current?.focus()}
                                     helperText={`${subject.length}/100`}
-                                    containerStyle={{ marginBottom: 16 }}
+                                    containerStyle={{ marginBottom: Spacing.lg }}
                                 />
 
                                 {/* Message Input */}
@@ -190,23 +197,17 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 ) : null}
 
                                 {/* Submit Button */}
-                                <TouchableOpacity
-                                    style={[
-                                        styles.submitButton,
-                                        (!subject.trim() || !message.trim() || isSending) && styles.submitButtonDisabled,
-                                    ]}
+                                <Button
+                                    title="Send Message"
                                     onPress={handleSubmit}
+                                    variant="primary"
+                                    size="md"
+                                    fullWidth
                                     disabled={!subject.trim() || !message.trim() || isSending}
-                                >
-                                    {isSending ? (
-                                        <ActivityIndicator size="small" color={Colors.white} />
-                                    ) : (
-                                        <>
-                                            <Send color={Colors.white} size={20} />
-                                            <Text style={styles.submitButtonText}>Send Message</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
+                                    loading={isSending}
+                                    icon={<Send color={Colors.white} size={20} />}
+                                    style={{ marginBottom: Spacing.xl }}
+                                />
                             </ScrollView>
                         )}
                     </KeyboardAvoidingView>
@@ -224,9 +225,9 @@ const styles = StyleSheet.create({
         height: '75%',
         width: '100%',
         backgroundColor: Colors.white,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        shadowColor: '#000',
+        borderTopLeftRadius: BorderRadius.xxl,
+        borderTopRightRadius: BorderRadius.xxl,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
@@ -239,38 +240,37 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
-        paddingBottom: 16,
+        padding: Spacing.xl,
+        paddingBottom: Spacing.lg,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
     },
     headerTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: Spacing.md,
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
+        ...Typography.large,
         color: Colors.textPrimary,
     },
     closeButton: {
-        padding: 4,
+        padding: Spacing.xs,
     },
     formContainer: {
         flex: 1,
-        padding: 20,
+        padding: Spacing.xl,
     },
     infoBox: {
         backgroundColor: Colors.infoLight,
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 20,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        marginBottom: Spacing.xl,
         borderWidth: 1,
         borderColor: Colors.info,
     },
     infoText: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.infoDark,
         textAlign: 'center',
     },
@@ -280,45 +280,25 @@ const styles = StyleSheet.create({
     },
     errorText: {
         color: Colors.error,
-        fontSize: 14,
+        ...Typography.small,
         textAlign: 'center',
-        marginBottom: 12,
+        marginBottom: Spacing.md,
         fontWeight: '500',
-    },
-    submitButton: {
-        backgroundColor: Colors.secondary,
-        borderRadius: 12,
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginBottom: 20,
-    },
-    submitButtonDisabled: {
-        backgroundColor: Colors.gray300,
-    },
-    submitButtonText: {
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: '600',
     },
     successContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 40,
+        paddingHorizontal: Spacing.huge,
     },
     successTitle: {
-        fontSize: 24,
-        fontWeight: '700',
+        ...Typography.heading1,
         color: Colors.textPrimary,
-        marginTop: 16,
-        marginBottom: 12,
+        marginTop: Spacing.lg,
+        marginBottom: Spacing.md,
     },
     successMessage: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,

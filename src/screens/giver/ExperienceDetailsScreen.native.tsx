@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, TextInput,
   StyleSheet,
@@ -27,6 +27,9 @@ import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 
 export default function ExperienceDetailsScreen() {
@@ -44,6 +47,7 @@ export default function ExperienceDetailsScreen() {
   const [personalizedMessage, setPersonalizedMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partner, setPartner] = useState<PartnerUser | null>(null);
+  const submittingRef = useRef(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   // Redirect if data is missing
@@ -72,7 +76,7 @@ export default function ExperienceDetailsScreen() {
       <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.white, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -80,8 +84,12 @@ export default function ExperienceDetailsScreen() {
   }
 
   const handlePurchase = async () => {
+    if (submittingRef.current || isSubmitting) return;
+    submittingRef.current = true;
+
     if (!personalizedMessage.trim()) {
       showError('Please add a personalized message');
+      submittingRef.current = false;
       return;
     }
     setIsSubmitting(true);
@@ -117,7 +125,10 @@ export default function ExperienceDetailsScreen() {
         status: 'pending',
         payment: 'paid',
         createdAt: new Date(),
-        claimCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        claimCode: Array.from(
+          crypto.getRandomValues(new Uint8Array(8)),
+          (b) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 36]
+        ).join(''),
       };
 
       const experienceGift = await experienceGiftService.createExperienceGift(
@@ -126,10 +137,12 @@ export default function ExperienceDetailsScreen() {
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
       showSuccess('Gift purchased successfully!');
       navigation.navigate('Confirmation', { experienceGift });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Payment error:', err);
-      showError(err.message || 'Please try again.');
+      const message = err instanceof Error ? err.message : String(err);
+      showError(message || 'Please try again.');
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -139,7 +152,7 @@ export default function ExperienceDetailsScreen() {
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
-        <ScrollView contentContainerStyle={{ padding: 24 }}>          <View style={styles.headerRow}>
+        <ScrollView contentContainerStyle={{ padding: Spacing.xxl }}>          <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();
@@ -149,7 +162,7 @@ export default function ExperienceDetailsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <ChevronLeft color="#fff" size={22} />
+            <ChevronLeft color={Colors.white} size={22} />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
@@ -177,7 +190,7 @@ export default function ExperienceDetailsScreen() {
           <TextInput
             style={styles.textInput}
             placeholder="Write a personal message..."
-            placeholderTextColor="#ccc"
+            placeholderTextColor={Colors.gray300}
             value={personalizedMessage}
             onChangeText={setPersonalizedMessage}
             multiline
@@ -210,41 +223,41 @@ export default function ExperienceDetailsScreen() {
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
-  backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  backText: { color: '#fff', fontSize: 17, fontWeight: '600', marginLeft: 4 },
-  image: { width: '100%', height: 240, borderRadius: 16, marginBottom: 16 },
-  title: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  desc: { color: '#ddd', fontSize: 16, marginBottom: 8 },
+  backText: { color: Colors.white, ...Typography.heading3, fontWeight: '600', marginLeft: Spacing.xs },
+  image: { width: '100%', height: 240, borderRadius: BorderRadius.lg, marginBottom: Spacing.lg },
+  title: { color: Colors.white, ...Typography.heading2, fontWeight: '700', marginBottom: Spacing.sm },
+  desc: { color: Colors.border, ...Typography.subheading, marginBottom: Spacing.sm },
   howItWorksButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.md,
     alignSelf: 'flex-start',
   },
   howItWorksText: {
     color: Colors.primary,
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
-    marginLeft: 6,
+    marginLeft: Spacing.xs,
   },
-  price: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  price: { color: Colors.white, ...Typography.large, fontWeight: '700', marginBottom: Spacing.lg },
   textInput: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    color: '#fff',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: Colors.whiteAlpha25,
+    color: Colors.white,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
   },
-  purchaseButton: { backgroundColor: '#fff', paddingVertical: 14, borderRadius: 12 },
-  purchaseText: { textAlign: 'center', color: Colors.primary, fontSize: 18, fontWeight: 'bold' },
+  purchaseButton: { backgroundColor: Colors.white, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  purchaseText: { textAlign: 'center', color: Colors.primary, ...Typography.heading3, fontWeight: '700' },
 });

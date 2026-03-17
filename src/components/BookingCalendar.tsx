@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
+import Button from './Button';
 
 interface BookingCalendarProps {
     visible: boolean;
@@ -87,6 +93,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
     const handleDateSelect = (date: Date | null) => {
         if (!date || isDateDisabled(date)) return;
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedDate(date);
     };
 
@@ -127,16 +134,16 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
                         {/* Header */}
                         <View style={styles.header}>
-                            <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-                                <Text style={styles.navButtonText}>‹</Text>
+                            <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel="Previous month" accessibilityRole="button">
+                                <ChevronLeft color={Colors.secondary} size={24} />
                             </TouchableOpacity>
 
                             <Text style={styles.monthYear}>
                                 {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                             </Text>
 
-                            <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-                                <Text style={styles.navButtonText}>›</Text>
+                            <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel="Next month" accessibilityRole="button">
+                                <ChevronRight color={Colors.secondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
@@ -167,6 +174,9 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                                         onPress={() => handleDateSelect(date)}
                                         disabled={disabled}
                                         activeOpacity={0.7}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={date ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined}
+                                        accessibilityState={{ disabled, selected }}
                                     >
                                         {date && (
                                             <Text
@@ -187,18 +197,18 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
                         {/* Footer with Confirm Button */}
                         <View style={styles.footer}>
-                            <TouchableOpacity onPress={onCancel} style={styles.cancelButton}>
-                                <Text style={styles.cancelText}>Skip</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
+                            <Button
+                                variant="ghost"
+                                title="Cancel"
+                                onPress={onCancel}
+                                style={styles.cancelButton}
+                            />
+                            <Button
+                                variant="primary"
+                                title={`Book for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                                 onPress={handleConfirm}
                                 style={styles.confirmButton}
-                            >
-                                <Text style={styles.confirmText}>
-                                    Book for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         </View>
                     </TouchableOpacity>
                 </Animated.View>
@@ -210,28 +220,27 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: Colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },
     calendarContainer: {
         backgroundColor: Colors.white,
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xl,
         width: Math.min(Dimensions.get('window').width * 0.9, 400),
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 12,
         elevation: 8,
     },
     titleContainer: {
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
         alignItems: 'center',
     },
     title: {
-        fontSize: 18,
-        fontWeight: '700',
+        ...Typography.heading3,
         color: Colors.textPrimary,
         textAlign: 'center',
     },
@@ -239,30 +248,24 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
     navButton: {
-        padding: 8,
-        borderRadius: 8,
-    },
-    navButtonText: {
-        fontSize: 28,
-        color: Colors.secondary,
-        fontWeight: '600',
+        padding: Spacing.sm,
+        borderRadius: BorderRadius.sm,
     },
     monthYear: {
-        fontSize: 18,
-        fontWeight: '700',
+        ...Typography.heading3,
         color: Colors.gray700,
     },
     weekDaysRow: {
         flexDirection: 'row',
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     weekDay: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
     },
@@ -275,8 +278,8 @@ const styles = StyleSheet.create({
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
-        marginVertical: 2,
+        borderRadius: BorderRadius.md,
+        marginVertical: Spacing.xxs,
     },
     selectedDay: {
         backgroundColor: Colors.secondary,
@@ -286,7 +289,7 @@ const styles = StyleSheet.create({
         borderColor: Colors.secondary,
     },
     dayText: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.gray700,
         fontWeight: '500',
     },
@@ -304,37 +307,37 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 16,
-        paddingTop: 16,
+        marginTop: Spacing.lg,
+        paddingTop: Spacing.lg,
         borderTopWidth: 1,
         borderTopColor: Colors.border,
-        gap: 12,
+        gap: Spacing.md,
     },
     cancelButton: {
         flex: 1,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: 12,
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
         borderColor: Colors.border,
         alignItems: 'center',
     },
     cancelText: {
         color: Colors.textSecondary,
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '600',
     },
     confirmButton: {
         flex: 2,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: 12,
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.secondary,
         alignItems: 'center',
     },
     confirmText: {
         color: Colors.white,
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '700',
     },
 });

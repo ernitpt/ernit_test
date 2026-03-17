@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MotiView, AnimatePresence } from 'moti';
 import {
     View,
     Text,
@@ -6,25 +7,28 @@ import {
     StyleSheet,
     TouchableOpacity,
     TextInput,
-    FlatList,
-    KeyboardAvoidingView,
+    ScrollView,
     Platform,
     ActivityIndicator,
     Animated,
     Alert,
+    Dimensions,
+    KeyboardAvoidingView,
 } from 'react-native';
-import { X, Send, MoreHorizontal, Edit2, Trash2 } from 'lucide-react-native';
+import { X, Send, MoreHorizontal, Edit2, Trash2, Heart } from 'lucide-react-native';
 import { Avatar } from './Avatar';
 import { commentService } from '../services/CommentService';
 import type { Comment } from '../types';
 import { useApp } from '../context/AppContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
 import { CommentSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import { getTimeAgo } from '../utils/timeUtils';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
 import { EmptyState } from './EmptyState';
 import * as Haptics from 'expo-haptics';
@@ -33,8 +37,10 @@ interface CommentModalProps {
     visible: boolean;
     postId: string;
     onClose: () => void;
-    onChange?: () => void;
+    onChange?: (newCount?: number) => void;
 }
+
+const MODAL_HEIGHT = Dimensions.get('window').height * 0.7;
 
 const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, onChange }) => {
     const { state } = useApp();
@@ -55,6 +61,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     useEffect(() => {
         if (visible) {
             loadComments();
+        } else {
+            setEditingCommentId(null);
+            setOriginalCommentText('');
+            setCommentText('');
+            setMenuVisibleId(null);
         }
     }, [visible, postId]);
 
@@ -90,10 +101,10 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             }
 
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            // Only clear text on success
             setCommentText('');
-            await loadComments();
-            onChange?.();
+            const reloaded = await commentService.getComments(postId);
+            setComments(reloaded);
+            onChange?.(reloaded.length);
         } catch (error) {
             logger.error('Error sending/updating comment:', error);
             showError('Could not send comment. Please try again.');
@@ -102,20 +113,48 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
         }
     };
 
-    const startEditing = (comment: Comment) => {
+    const startEditing = useCallback((comment: Comment) => {
         setEditingCommentId(comment.id);
         setOriginalCommentText(comment.text);
         setCommentText(comment.text);
         setMenuVisibleId(null);
-    };
+    }, []);
 
-    const cancelEditing = () => {
+    const cancelEditing = useCallback(() => {
         setEditingCommentId(null);
         setCommentText('');
         setOriginalCommentText('');
-    };
+    }, []);
 
-    const handleDeleteComment = (commentId: string) => {
+    const handleLikeComment = useCallback(async (comment: Comment) => {
+        if (!state.user?.id) return;
+        const isLiked = comment.likedBy?.includes(state.user.id);
+
+        setComments(prev => prev.map(c => {
+            if (c.id !== comment.id) return c;
+            const currentLikedBy = c.likedBy || [];
+            return {
+                ...c,
+                likedBy: isLiked
+                    ? currentLikedBy.filter(id => id !== state.user!.id)
+                    : [...currentLikedBy, state.user!.id],
+            };
+        }));
+
+        try {
+            if (isLiked) {
+                await commentService.unlikeComment(postId, comment.id, state.user.id);
+            } else {
+                await commentService.likeComment(postId, comment.id, state.user.id);
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+        } catch (error) {
+            logger.error('Error toggling comment like:', error);
+            await loadComments();
+        }
+    }, [state.user?.id, postId]);
+
+    const handleDeleteComment = useCallback((commentId: string) => {
         Alert.alert(
             'Delete Comment',
             'Are you sure you want to delete this comment?',
@@ -127,8 +166,9 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     onPress: async () => {
                         try {
                             await commentService.deleteComment(postId, commentId);
-                            await loadComments();
-                            onChange?.();
+                            const reloaded = await commentService.getComments(postId);
+                            setComments(reloaded);
+                            onChange?.(reloaded.length);
                             setMenuVisibleId(null);
                         } catch (error) {
                             logger.error('Error deleting comment:', error);
@@ -138,30 +178,41 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 },
             ]
         );
-    };
+    }, [postId, onChange, showError]);
 
-    const renderComment = ({ item }: { item: Comment }) => {
+    const renderCommentItem = (item: Comment) => {
         const isOwnComment = state.user?.id === item.userId;
+        const isLiked = item.likedBy?.includes(state.user?.id || '');
+        const likeCount = item.likedBy?.length || 0;
 
         return (
-            <View style={styles.commentItem}>
-                <Avatar uri={item.userProfileImageUrl} name={item.userName} size="sm" />
+            <View key={item.id} style={styles.commentBubble}>
+                {/* Avatar + Name + menu */}
+                <View style={styles.bubbleHeader}>
+                    <Avatar uri={item.userProfileImageUrl} name={item.userName} size="sm" />
+                    <Text style={styles.userName}>{item.userName}</Text>
+                    {isOwnComment && (
+                        <View style={{ position: 'relative', zIndex: menuVisibleId === item.id ? 100 : 0 }}>
+                            <TouchableOpacity
+                                onPress={() => setMenuVisibleId(menuVisibleId === item.id ? null : item.id)}
+                                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                                style={styles.moreButton}
+                                accessibilityLabel="Comment options"
+                                accessibilityRole="button"
+                            >
+                                <MoreHorizontal size={14} color={Colors.textMuted} />
+                            </TouchableOpacity>
 
-                <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                        <Text style={styles.userName}>{item.userName}</Text>
-                        {isOwnComment && (
-                            <View style={{ position: 'relative' }}>
-                                <TouchableOpacity
-                                    onPress={() => setMenuVisibleId(menuVisibleId === item.id ? null : item.id)}
-                                    hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                                    style={styles.moreButton}
-                                >
-                                    <MoreHorizontal size={16} color={Colors.textMuted} />
-                                </TouchableOpacity>
-
+                            <AnimatePresence>
                                 {menuVisibleId === item.id && (
-                                    <View style={styles.menuDropdown}>
+                                    <MotiView
+                                        key="menu"
+                                        from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                                        animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                        exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                                        transition={{ type: 'timing', duration: 150 }}
+                                        style={styles.menuDropdown}
+                                    >
                                         <TouchableOpacity
                                             style={styles.menuItem}
                                             onPress={() => startEditing(item)}
@@ -177,16 +228,36 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             <Trash2 size={14} color={Colors.error} />
                                             <Text style={[styles.menuText, { color: Colors.error }]}>Delete</Text>
                                         </TouchableOpacity>
-                                    </View>
+                                    </MotiView>
                                 )}
-                            </View>
+                            </AnimatePresence>
+                        </View>
+                    )}
+                </View>
+
+                {/* Comment text */}
+                <Text style={styles.commentText}>{item.text}</Text>
+
+                {/* Meta row */}
+                <View style={styles.bubbleMeta}>
+                    <Text style={styles.timestamp}>{getTimeAgo(item.createdAt)}</Text>
+                    {item.updatedAt && <Text style={styles.editedTag}>edited</Text>}
+                    <TouchableOpacity
+                        onPress={() => handleLikeComment(item)}
+                        style={styles.likeButton}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <Heart
+                            size={13}
+                            color={isLiked ? Colors.error : Colors.textMuted}
+                            fill={isLiked ? Colors.error : 'none'}
+                        />
+                        {likeCount > 0 && (
+                            <Text style={[styles.likeCount, isLiked && { color: Colors.error }]}>
+                                {likeCount}
+                            </Text>
                         )}
-                    </View>
-                    <Text style={styles.commentText}>{item.text}</Text>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.timestamp}>{getTimeAgo(item.createdAt)}</Text>
-                        {item.updatedAt && <Text style={styles.editedText}>(edited)</Text>}
-                    </View>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
@@ -196,100 +267,109 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
         <Modal
             visible={visible}
             transparent
-            animationType="none"
+            animationType="fade"
             onRequestClose={onClose}
         >
-            <View style={[commonStyles.modalOverlay, { justifyContent: 'flex-end' }]}>
-                <TouchableOpacity
-                    style={styles.backdrop}
-                    activeOpacity={1}
-                    onPress={onClose}
-                />
-                <Animated.View
-                    style={[
-                        styles.modalContainer,
-                        { transform: [{ translateY: slideAnim }] }
-                    ]}
-                >
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                        style={styles.keyboardView}
+            {/* Full-screen backdrop */}
+            <TouchableOpacity
+                style={styles.backdrop}
+                activeOpacity={1}
+                onPress={onClose}
+            />
+
+            {/* Bottom sheet container — absolute positioned, fixed pixel height */}
+            <Animated.View
+                style={[
+                    styles.modalContainer,
+                    { transform: [{ translateY: slideAnim }] }
+                ]}
+            >
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Comments</Text>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        style={styles.closeButton}
+                        accessibilityLabel="Close comments"
+                        accessibilityRole="button"
                     >
-                        <View style={styles.header}>
-                            <Text style={styles.headerTitle}>Comments</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <X color={Colors.textSecondary} size={24} />
-                            </TouchableOpacity>
-                        </View>
+                        <X color={Colors.textSecondary} size={24} />
+                    </TouchableOpacity>
+                </View>
 
-                        {isLoading ? (
-                            <View style={styles.commentsList}>
-                                {[1, 2, 3, 4].map((i) => (
-                                    <CommentSkeleton key={i} />
-                                ))}
-                            </View>
-                        ) : comments.length === 0 ? (
-                            <EmptyState
-                                icon="💬"
-                                title="No comments yet"
-                                message="Be the first to comment!"
-                            />
+                {/* Scrollable content area */}
+                <ScrollView
+                    style={styles.scrollArea}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                >
+                    {isLoading ? (
+                        <>
+                            {[1, 2, 3, 4].map((i) => (
+                                <CommentSkeleton key={i} />
+                            ))}
+                        </>
+                    ) : comments.length === 0 ? (
+                        <EmptyState
+                            icon="💬"
+                            title="No comments yet"
+                            message="Be the first to comment!"
+                        />
+                    ) : (
+                        comments.map(renderCommentItem)
+                    )}
+                </ScrollView>
+
+                {/* Input bar — always visible at bottom */}
+                <View style={styles.inputContainer}>
+                    {editingCommentId && (
+                        <TouchableOpacity
+                            onPress={cancelEditing}
+                            style={styles.cancelEditButton}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <X size={20} color={Colors.textSecondary} />
+                        </TouchableOpacity>
+                    )}
+                    <View style={styles.inputWrapper}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
+                            placeholderTextColor={Colors.textMuted}
+                            value={commentText}
+                            onChangeText={setCommentText}
+                            multiline
+                            maxLength={300}
+                            autoFocus={!!editingCommentId}
+                            returnKeyType="send"
+                            onSubmitEditing={handleSendComment}
+                        />
+                        <Text style={[styles.charCount, commentText.length > 280 && { color: Colors.error }]}>
+                            {commentText.length}/300
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        style={[
+                            styles.sendButton,
+                            (!commentText.trim() || isSending) && styles.sendButtonDisabled,
+                        ]}
+                        onPress={handleSendComment}
+                        disabled={!commentText.trim() || isSending}
+                    >
+                        {isSending ? (
+                            <ActivityIndicator size="small" color={Colors.white} />
+                        ) : editingCommentId ? (
+                            <Edit2 color={Colors.white} size={18} />
                         ) : (
-                            <FlatList
-                                data={comments}
-                                keyExtractor={(item) => item.id}
-                                renderItem={renderComment}
-                                contentContainerStyle={styles.commentsList}
-                                showsVerticalScrollIndicator={false}
-                                keyboardShouldPersistTaps="handled"
-                                removeClippedSubviews={Platform.OS !== 'web'}
-                                maxToRenderPerBatch={10}
-                                windowSize={5}
-                            />
+                            <Send color={Colors.white} size={20} />
                         )}
-
-                        <View style={styles.inputContainer}>
-                            {editingCommentId && (
-                                <TouchableOpacity onPress={cancelEditing} style={styles.cancelEditButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                    <X size={20} color={Colors.textSecondary} />
-                                </TouchableOpacity>
-                            )}
-                            <View style={{ flex: 1 }}>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
-                                    placeholderTextColor={Colors.textMuted}
-                                    value={commentText}
-                                    onChangeText={setCommentText}
-                                    multiline
-                                    maxLength={300}
-                                    autoFocus={!!editingCommentId}
-                                    returnKeyType="send"
-                                />
-                                <Text style={{ fontSize: 12, color: commentText.length > 280 ? '#ef4444' : Colors.textMuted, textAlign: 'right', marginTop: 4, paddingHorizontal: 16 }}>
-                                    {commentText.length}/300
-                                </Text>
-                            </View>
-                            <TouchableOpacity
-                                style={[
-                                    styles.sendButton,
-                                    (!commentText.trim() || isSending) && styles.sendButtonDisabled,
-                                ]}
-                                onPress={handleSendComment}
-                                disabled={!commentText.trim() || isSending}
-                            >
-                                {isSending ? (
-                                    <ActivityIndicator size="small" color={Colors.white} />
-                                ) : editingCommentId ? (
-                                    <Edit2 color={Colors.white} size={18} />
-                                ) : (
-                                    <Send color={Colors.white} size={20} />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </KeyboardAvoidingView>
-                </Animated.View>
-            </View>
+                    </TouchableOpacity>
+                </View>
+                </KeyboardAvoidingView>
+            </Animated.View>
         </Modal>
     );
 };
@@ -297,108 +377,111 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
 const styles = StyleSheet.create({
     backdrop: {
         ...StyleSheet.absoluteFillObject,
+        backgroundColor: Colors.overlay,
     },
     modalContainer: {
-        height: '70%',
-        width: '100%',
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: MODAL_HEIGHT,
         backgroundColor: Colors.white,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: BorderRadius.xxl,
+        borderTopRightRadius: BorderRadius.xxl,
         shadowColor: Colors.black,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
         elevation: 8,
     },
-    keyboardView: {
-        flex: 1,
-    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
-        paddingBottom: 16,
+        paddingHorizontal: Spacing.xl,
+        paddingTop: Spacing.xl,
+        paddingBottom: Spacing.lg,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
+        ...Typography.large,
         color: Colors.textPrimary,
     },
     closeButton: {
-        padding: 4,
+        padding: Spacing.xs,
     },
-    loadingContainer: {
+    scrollArea: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
-    commentsList: {
-        padding: 20,
-        paddingHorizontal: 16,
+    scrollContent: {
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
     },
-    commentItem: {
+    commentBubble: {
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        marginBottom: Spacing.md,
+        overflow: 'visible',
+    },
+    bubbleHeader: {
         flexDirection: 'row',
-        marginBottom: 16,
-        gap: 12,
-        paddingRight: 8,
-        alignItems: 'flex-start',
-    },
-    commentContent: {
-        flex: 1,
-        maxWidth: '85%',
-    },
-    commentHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        gap: Spacing.sm,
+        marginBottom: Spacing.sm,
     },
     userName: {
-        fontSize: 15,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: Colors.textPrimary,
-        flexShrink: 1,
-    },
-    deleteText: {
-        fontSize: 13,
-        color: Colors.error,
-        fontWeight: '600',
+        flex: 1,
     },
     commentText: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.gray700,
-        lineHeight: 20,
-        marginBottom: 4,
+        lineHeight: 21,
+    },
+    bubbleMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginTop: Spacing.xs,
     },
     timestamp: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
+    },
+    editedTag: {
+        ...Typography.caption,
+        color: Colors.textMuted,
+        fontStyle: 'italic',
     },
     inputContainer: {
         flexDirection: 'row',
-        padding: 16,
+        padding: Spacing.lg,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
-        gap: 12,
+        gap: Spacing.md,
         alignItems: 'flex-end',
+        backgroundColor: Colors.white,
+    },
+    inputWrapper: {
+        flex: 1,
     },
     input: {
-        flex: 1,
         backgroundColor: Colors.backgroundLight,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        fontSize: 15,
+        borderRadius: BorderRadius.xl,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        ...Typography.body,
         color: Colors.textPrimary,
         maxHeight: 100,
     },
     sendButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
@@ -406,16 +489,23 @@ const styles = StyleSheet.create({
     sendButtonDisabled: {
         backgroundColor: Colors.gray300,
     },
+    charCount: {
+        ...Typography.caption,
+        color: Colors.textMuted,
+        textAlign: 'right' as const,
+        marginTop: Spacing.xs,
+        paddingHorizontal: Spacing.lg,
+    },
     moreButton: {
-        padding: 8,
+        padding: Spacing.sm,
     },
     menuDropdown: {
         position: 'absolute',
         top: 30,
         right: 0,
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        shadowColor: '#000',
+        borderRadius: BorderRadius.md,
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 12,
@@ -428,11 +518,11 @@ const styles = StyleSheet.create({
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        gap: 10,
+        padding: Spacing.lg,
+        gap: Spacing.sm,
     },
     menuText: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.gray700,
         fontWeight: '500',
     },
@@ -440,19 +530,22 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: Colors.backgroundLight,
     },
-    metaRow: {
+    cancelEditButton: {
+        padding: Spacing.sm,
+        marginRight: Spacing.xs,
+    },
+    likeButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: Spacing.xxs,
+        marginLeft: 'auto',
+        paddingVertical: Spacing.xxs,
+        paddingHorizontal: Spacing.xs,
     },
-    editedText: {
-        fontSize: 11,
+    likeCount: {
+        ...Typography.caption,
         color: Colors.textMuted,
-        fontStyle: 'italic',
-    },
-    cancelEditButton: {
-        padding: 8,
-        marginRight: 4,
+        fontWeight: '600',
     },
 });
 

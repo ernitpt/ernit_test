@@ -37,11 +37,11 @@ export class FriendService {
   async searchUsers(searchTerm: string, _currentUserId: string): Promise<UserSearchResult[]> {
     try {
       const callable = httpsCallable(functions, 'searchUsers');
-      const result: any = await callable({ searchTerm });
-      const users = result?.data?.users || [];
+      const result = await callable({ searchTerm });
+      const users = (result?.data as { users?: Record<string, unknown>[] })?.users || [];
 
       // Map server response to UserSearchResult (email intentionally omitted for privacy)
-      return users.map((u: any) => ({
+      return users.map((u: Record<string, unknown>) => ({
         id: u.id,
         name: u.name || 'Unknown User',
         email: '', // Not returned from server for privacy

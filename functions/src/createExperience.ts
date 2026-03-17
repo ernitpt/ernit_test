@@ -1,5 +1,5 @@
 // ✅ Firebase Functions v2 version
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -25,7 +25,7 @@ export const createExperience = onCall(
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
         if (!auth?.uid) {
-            throw new Error("Unauthorized: User must be authenticated");
+            throw new HttpsError('unauthenticated', 'User must be authenticated');
         }
 
         const userId = auth.uid;
@@ -38,13 +38,13 @@ export const createExperience = onCall(
 
         if (!partnerUserSnap.exists) {
             console.warn(`❌ User ${userId} is not a partner user`);
-            throw new Error("Unauthorized: User is not a partner");
+            throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
             console.warn(`❌ User ${userId} is not an admin`);
-            throw new Error("Unauthorized: User is not an admin");
+            throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
         console.log(`✅ Admin verified: ${userId}`);
@@ -63,34 +63,34 @@ export const createExperience = onCall(
 
         // ✅ VALIDATION: Check required fields
         if (!title || !subtitle || !description || !category || typeof price !== "number" || !partnerId) {
-            throw new Error("Missing required fields");
+            throw new HttpsError('invalid-argument', 'Missing required fields');
         }
 
         // ✅ VALIDATION: Validate category
         const validCategories = ["adventure", "creative", "wellness"];
         if (!validCategories.includes(category)) {
-            throw new Error(`Invalid category. Must be one of: ${validCategories.join(", ")}`);
+            throw new HttpsError('invalid-argument', `Invalid category. Must be one of: ${validCategories.join(", ")}`);
         }
 
         // ✅ VALIDATION: Validate price
         if (price <= 0) {
-            throw new Error("Price must be greater than 0");
+            throw new HttpsError('invalid-argument', 'Price must be greater than 0');
         }
 
         // ✅ VALIDATION: Validate partner exists
         const partnerRef = db.collection("partnerUsers").doc(partnerId);
         const partnerSnap = await partnerRef.get();
         if (!partnerSnap.exists) {
-            throw new Error("Partner not found");
+            throw new HttpsError('not-found', 'Partner not found');
         }
 
         // ✅ VALIDATION: Validate images
         if (!images || !Array.isArray(images) || images.length === 0) {
-            throw new Error("At least one image is required");
+            throw new HttpsError('invalid-argument', 'At least one image is required');
         }
 
         if (images.length > 10) {
-            throw new Error("Maximum 10 images allowed");
+            throw new HttpsError('invalid-argument', 'Maximum 10 images allowed');
         }
 
         console.log(`📦 Creating experience: ${title} (${category})`);
@@ -107,18 +107,18 @@ export const createExperience = onCall(
 
                 // Validate base64 format
                 if (typeof imageData !== "string" || !imageData.startsWith("data:image/")) {
-                    throw new Error(`Invalid image format at index ${i}`);
+                    throw new HttpsError('invalid-argument', `Invalid image format at index ${i}`);
                 }
 
                 // Extract base64 data and mime type
                 const matches = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
                 if (!matches) {
-                    throw new Error(`Invalid base64 image at index ${i}`);
+                    throw new HttpsError('invalid-argument', `Invalid base64 image at index ${i}`);
                 }
 
                 const mimeType = matches[1].toLowerCase();
                 if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-                    throw new Error(`Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+                    throw new HttpsError('invalid-argument', `Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
                 }
 
                 const base64Data = matches[2];
@@ -127,7 +127,7 @@ export const createExperience = onCall(
                 // Validate file size (max 5MB)
                 const maxSize = 5 * 1024 * 1024; // 5MB
                 if (buffer.length > maxSize) {
-                    throw new Error(`Image ${i} exceeds 5MB limit`);
+                    throw new HttpsError('invalid-argument', `Image ${i} exceeds 5MB limit`);
                 }
 
                 // Generate unique filename
@@ -207,7 +207,7 @@ export const createExperience = onCall(
                 }
             }
 
-            throw new Error(`Failed to create experience: ${error.message}`);
+            throw new HttpsError('internal', 'Failed to create experience');
         }
     }
 );

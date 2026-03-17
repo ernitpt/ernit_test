@@ -6,6 +6,9 @@ import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Experience } from '../types';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = Math.min(SCREEN_W - 48, 400);
@@ -283,7 +286,7 @@ const JourneyDemo: React.FC = React.memo(() => {
                   resizeMode="cover"
                 />
                 <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  colors={['transparent', Colors.overlayHeavy]}
                   start={{ x: 0, y: 0.3 }}
                   end={{ x: 0, y: 1 }}
                   style={s.rewardGradient}
@@ -342,31 +345,31 @@ export default JourneyDemo;
 const s = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginVertical: Spacing.huge,
     width: '100%',
   },
 
   // Replay button
   replayRow: {
-    marginTop: 20,
+    marginTop: Spacing.xl,
     alignItems: 'center',
   },
   replayButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.xl,
     backgroundColor: Colors.backgroundLight,
   },
   replayIcon: {
-    fontSize: 16,
+    ...Typography.subheading,
     color: Colors.textSecondary,
     fontWeight: '700',
   },
   replayText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -374,13 +377,13 @@ const s = StyleSheet.create({
   // Demo card
   card: {
     width: CARD_W,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    paddingTop: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxl,
+    paddingTop: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.backgroundLight,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
     shadowRadius: 32,
@@ -394,7 +397,7 @@ const s = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: Colors.backgroundLight,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
     overflow: 'hidden',
   },
   progressFill: {
@@ -405,10 +408,10 @@ const s = StyleSheet.create({
 
   // Phase label
   phaseLabel: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   phaseLabelText: {
-    fontSize: 11,
+    ...Typography.tiny,
     fontWeight: '800',
     color: Colors.primary,
     textTransform: 'uppercase',
@@ -424,8 +427,8 @@ const s = StyleSheet.create({
   goalEmojiBox: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: '#EFF6FF',
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.infoLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -436,12 +439,12 @@ const s = StyleSheet.create({
     flex: 1,
   },
   goalTitle: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '800',
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
   goalSubtitle: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textMuted,
     fontWeight: '500',
     marginTop: 2,
@@ -462,18 +465,18 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: Spacing.md,
   },
   progressWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.sm,
   },
   capsuleContainer: {
     flex: 1,
     flexDirection: 'row',
-    gap: 5,
+    gap: Spacing.xxs,
   },
   capsule: {
     flex: 1,
@@ -488,7 +491,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.secondary,
   },
   progressCount: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '800',
     color: Colors.textSecondary,
   },
@@ -498,27 +501,27 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FFF7ED',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    backgroundColor: Colors.warningLighter,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: Colors.warningBorder,
   },
   streakFlame: {
-    fontSize: 12,
+    ...Typography.caption,
   },
   streakNum: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '800',
-    color: '#EA580C',
+    color: Colors.warningDark,
   },
 
   // Empowerment card (animated)
   empowerCardAnimated: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
     borderLeftWidth: 3,
@@ -526,16 +529,15 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   empowerMessage: {
-    fontSize: 14,
+    ...Typography.small,
     fontStyle: 'italic',
-    color: '#374151',
-    lineHeight: 20,
+    color: Colors.gray700,
   },
   empowerAttribution: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primaryDeep,
-    marginTop: 8,
+    marginTop: Spacing.sm,
     textAlign: 'right',
   },
 
@@ -544,7 +546,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   rewardTitle: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '800',
     color: Colors.primaryDeep,
     textAlign: 'center',
@@ -553,7 +555,7 @@ const s = StyleSheet.create({
   rewardCard: {
     width: '100%',
     height: 160,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
   rewardImage: {
@@ -564,38 +566,37 @@ const s = StyleSheet.create({
   rewardGradient: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    padding: 16,
-    gap: 6,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
   },
   earnedTag: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 10,
+    backgroundColor: Colors.whiteAlpha25,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: Colors.whiteAlpha40,
   },
   earnedTagText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.white,
     letterSpacing: 0.3,
   },
   rewardExpTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '800',
-    color: '#FFFFFF',
-    lineHeight: 22,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    color: Colors.white,
+    textShadowColor: Colors.overlay,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   scheduleText: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: Spacing.md,
     fontStyle: 'italic',
   },
 });

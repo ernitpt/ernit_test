@@ -7,8 +7,11 @@ import {
     Animated,
     Easing,
     Image,
+    ImageSourcePropType,
 } from 'react-native';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
 import type { ReactionType } from '../types';
 
 interface ReactionPickerProps {
@@ -17,7 +20,7 @@ interface ReactionPickerProps {
     userReaction: ReactionType | null;
 }
 
-const REACTIONS: { type: ReactionType; image: any }[] = [
+const REACTIONS: { type: ReactionType; image: ImageSourcePropType }[] = [
     { type: 'like', image: require('../assets/reactions/like.png') },
     { type: 'heart', image: require('../assets/reactions/heart.png') },
     { type: 'muscle', image: require('../assets/reactions/muscle.png') },
@@ -137,20 +140,20 @@ const styles = StyleSheet.create({
         left: 0,
         flexDirection: 'row',
         backgroundColor: Colors.white,
-        borderRadius: 30,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
+        borderRadius: BorderRadius.pill,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
         shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
         elevation: 8,
-        gap: 4,
+        gap: Spacing.xs,
     },
     reactionButton: {
         width: 48,
         height: 48,
-        borderRadius: 24,
+        borderRadius: BorderRadius.circle,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: Colors.backgroundLight,

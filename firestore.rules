@@ -129,7 +129,14 @@ service cloud.firestore {
      * 🎯 GOALS
      * ===================== **/
     match /goals/{goalId} {
-      allow read: if request.auth != null;
+      // Read: goal owner, giver (empoweredBy), or friends of goal owner
+      // NOTE: list queries use where('userId', '==', uid) which Firestore enforces.
+      // get access is broader to support feed, notifications, and friend profile views.
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.userId ||
+         request.auth.uid == resource.data.empoweredBy ||
+         exists(/databases/$(database)/documents/friends/$(request.auth.uid + '_' + resource.data.userId)) ||
+         exists(/databases/$(database)/documents/friends/$(resource.data.userId + '_' + request.auth.uid)));
 
       /* ===============================
          RECEIVER PERMISSIONS
@@ -327,13 +334,16 @@ service cloud.firestore {
      * 💝 VALENTINE CHALLENGES
      * ===================== **/
     match /valentineChallenges/{challengeId} {
-      // Allow querying in two scenarios:
-      // 1. Unauthenticated with limit 1 (for confirmation screen - paymentIntentId is secret)
-      // 2. Authenticated users (for redemption - querying by code)
-      allow list: if request.query.limit == 1 || request.auth != null;
+      // Require authentication for all queries; limit result set size
+      allow list: if request.auth != null && request.query.limit <= 100;
 
-      // Allow reading individual challenge documents if authenticated
-      allow get: if request.auth != null;
+      // Allow reading individual challenge if user is a participant
+      allow get: if request.auth != null &&
+        (resource.data.purchaserUserId == request.auth.uid ||
+         resource.data.partnerUserId == request.auth.uid ||
+         // Allow get before user IDs are set (during redemption flow)
+         !('purchaserUserId' in resource.data) ||
+         resource.data.purchaserUserId == null);
 
       // Create: only via cloud functions (server-side after payment)
       allow create: if false;
@@ -376,11 +386,14 @@ service cloud.firestore {
     match /experienceGifts/{giftId} {
       // List: allow authenticated users to query (for viewing own gifts and claiming)
       // Queries include: where('giverId', '==', userId) and where('claimCode', '==', code)
-      allow list: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 100;
 
-      // Get: allow any authenticated user to read gifts
-      // This is needed because goal owners need to access gifts for completion screens
-      allow get: if request.auth != null;
+      // Get: allow giver, recipient, or if gift has no recipient yet (for claiming flow)
+      allow get: if request.auth != null &&
+        (resource.data.giverId == request.auth.uid ||
+         resource.data.recipientId == request.auth.uid ||
+         !('recipientId' in resource.data) ||
+         resource.data.status == 'pending');
 
       // Create: only via cloud functions (server-side)
       allow create: if false;
@@ -404,9 +417,11 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).changedKeys()
              .hasOnly(['status', 'recipientId', 'claimedAt', 'claimedBy', 'updatedAt']))
         ||
-        // Anyone can update an active gift to claimed when creating a goal
+        // Goal owner can claim an active gift when creating a goal
+        // SECURITY: Must set recipientId to their own uid
         (resource.data.status == 'active' &&
          request.resource.data.status == 'claimed' &&
+         request.resource.data.recipientId == request.auth.uid &&
          request.resource.data.diff(resource.data).changedKeys()
              .hasOnly(['status', 'recipientId', 'claimedAt', 'updatedAt']))
       );
@@ -419,7 +434,13 @@ service cloud.firestore {
      * 💡 HINTS (flat collection)
      * ===================== **/
     match /hints/{hintId} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      // Create: use request.resource.data (resource is null on create)
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.userId;
+      // Update/delete: use resource.data (document exists)
+      allow update, delete: if request.auth != null
         && request.auth.uid == resource.data.userId;
     }
 
@@ -475,20 +496,26 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId ||
          request.auth.uid == resource.data.friendId);
 
-      // Allow creating friendship doc — creator must be one of the users
-      // and required fields must be present
+      // Creating friendship doc — creator must be one of the users
+      // NOTE: Real authorization happens in the acceptFriendRequest transaction
+      // (verifies request status == 'accepted', creates friends, deletes request atomically).
+      // Firestore rules can't check auto-generated friend request IDs, so we validate
+      // structure here and rely on the transaction for status verification.
       allow create: if request.auth != null &&
         request.resource.data.userId is string &&
         request.resource.data.friendId is string &&
         request.resource.data.keys().hasAll(['userId', 'friendId', 'createdAt']) &&
+        request.resource.data.keys().hasOnly(['userId', 'friendId', 'friendName', 'friendProfileImageUrl', 'createdAt']) &&
         request.resource.data.userId != request.resource.data.friendId &&
         (request.auth.uid == request.resource.data.userId ||
          request.auth.uid == request.resource.data.friendId);
 
-      // Allow updates by either friend in case you add fields later
+      // Allow updates by either friend — restricted to safe fields only
       allow update: if request.auth != null &&
         (request.auth.uid == resource.data.userId ||
-         request.auth.uid == resource.data.friendId);
+         request.auth.uid == resource.data.friendId) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['friendName', 'friendProfileImageUrl', 'updatedAt']);
     }
 
 
@@ -503,7 +530,8 @@ service cloud.firestore {
             || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
       }
 
-      // Allow deletion by: target user, sender of friend request, or recipient of goal change suggestion
+      // Allow deletion by: target user, sender of friend request, recipient of goal change suggestion,
+      // or goal owner for goal_progress notifications
       allow delete: if request.auth != null &&
         (
           request.auth.uid == resource.data.userId ||
@@ -514,6 +542,12 @@ service cloud.firestore {
           (
             resource.data.type == "goal_change_suggested" &&
             request.auth.uid == resource.data.userId
+          ) ||
+          (
+            resource.data.type == 'goal_progress' &&
+            'goalId' in resource.data.data &&
+            exists(/databases/$(database)/documents/goals/$(resource.data.data.goalId)) &&
+            get(/databases/$(database)/documents/goals/$(resource.data.data.goalId)).data.userId == request.auth.uid
           )
         );
 
@@ -545,20 +579,18 @@ service cloud.firestore {
           )
         );
 
-      // Allow reading own notifications OR post_reaction notifications (for aggregation)
+      // Only notification owner can read their notifications
       allow read: if request.auth != null &&
-        (request.auth.uid == resource.data.userId ||
-         (resource.data.type == 'post_reaction' &&
-          'postId' in resource.data.data &&
-          exists(/databases/$(database)/documents/feedPosts/$(resource.data.data.postId))));
+        request.auth.uid == resource.data.userId;
 
       // SECURITY: Create rules with relationship validation
       allow create: if request.auth != null && (
         // Creating notification for yourself
         request.auth.uid == request.resource.data.userId
         ||
-        // Friend requests: always allowed (spam prevention via client-side logic)
-        request.resource.data.type == 'friend_request'
+        // Friend requests: sender must be the authenticated user
+        (request.resource.data.type == 'friend_request' &&
+         request.resource.data.senderId == request.auth.uid)
         ||
         // Valentine partner notifications: verify both users are in same challenge
         (request.resource.data.type == 'valentine_partner_progress' &&
@@ -580,21 +612,26 @@ service cloud.firestore {
         // SECURITY: Verify sender is either the goal owner or the goal's giver (empoweredBy)
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request',
                                          'goal_change_suggested', 'goal_approval_response',
-                                         'personalized_hint_left', 'motivation_received'] &&
+                                         'personalized_hint_left', 'motivation_received',
+                                         'free_goal_completed', 'free_goal_milestone'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
          (get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.userId == request.auth.uid ||
-          get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.empoweredBy == request.auth.uid))
+          get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.empoweredBy == request.auth.uid ||
+          // Allow friends to send free goal notifications
+          (request.resource.data.type in ['free_goal_completed', 'free_goal_milestone'] &&
+           areFriends(request.auth.uid, request.resource.data.userId))))
         ||
         // Experience empower notifications: friend bought a gift for someone's goal
-        // Verify both goal and gift exist (gift is created server-side after payment)
+        // SECURITY: Verify sender is the gift giver
         (request.resource.data.type == 'experience_empowered' &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data &&
          'giftId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
-         exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)))
+         exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)) &&
+         get(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)).data.giverId == request.auth.uid)
         ||
         // Post reactions: allow if post exists (posts are public to authenticated users)
         (request.resource.data.type == 'post_reaction' &&
@@ -602,10 +639,6 @@ service cloud.firestore {
          exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)))
       );
 
-      // Allow deleting own notifications OR goal_progress notifications (for cleanup)
-      allow delete: if request.auth != null &&
-        (request.auth.uid == resource.data.userId ||
-         resource.data.type == 'goal_progress');
     }
 
 

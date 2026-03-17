@@ -9,6 +9,9 @@ import {
 import { MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
 import { Goal, PersonalizedHint } from '../types';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { EmptyState } from './EmptyState';
 import { BaseModal } from './BaseModal';
 
@@ -25,7 +28,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
 }) => {
     const hints = goal.hints || [];
 
-    const formatDate = (date: any) => {
+    const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
         let d: Date;
 
         // Handle Firestore Timestamp
@@ -112,7 +115,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
                             <Text style={styles.sessionLabel}>Session {legacyHint.session}</Text>
                             <Text style={styles.dateText}>{formatDate(legacyHint.date)}</Text>
                         </View>
-                        <View style={[styles.typeBadge, { backgroundColor: '#E0E7FF' }]}>
+                        <View style={[styles.typeBadge, { backgroundColor: Colors.infoLight }]}>
                             <Text style={styles.typeBadgeText}>text</Text>
                         </View>
                     </View>
@@ -131,7 +134,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
             case 'mixed':
                 return Colors.primarySurface;
             default:
-                return '#E0E7FF';
+                return Colors.infoLight;
         }
     };
 
@@ -159,82 +162,82 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
 
 const styles = StyleSheet.create({
     subtitle: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
-        paddingHorizontal: 24,
-        marginBottom: 20,
+        paddingHorizontal: Spacing.xxl,
+        marginBottom: Spacing.xl,
     },
     scrollView: {
-        paddingHorizontal: 24,
+        paddingHorizontal: Spacing.xxl,
     },
     hintCard: {
         backgroundColor: Colors.surface,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        marginBottom: Spacing.md,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     hintHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     hintTypeIcon: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.backgroundLight,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     sessionLabel: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.textPrimary,
-        marginBottom: 2,
+        marginBottom: Spacing.xxs,
     },
     dateText: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
     },
     typeBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.xs,
     },
     typeBadgeText: {
-        fontSize: 11,
+        ...Typography.tiny,
         fontWeight: '600',
         color: Colors.gray600,
         textTransform: 'uppercase',
     },
     hintText: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.gray700,
         lineHeight: 22,
     },
     hintImage: {
         width: '100%',
         height: 180,
-        borderRadius: 8,
-        marginTop: 12,
+        borderRadius: BorderRadius.sm,
+        marginTop: Spacing.md,
         backgroundColor: Colors.border,
     },
     audioIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 8,
-        padding: 12,
+        marginTop: Spacing.sm,
+        padding: Spacing.sm,
         backgroundColor: Colors.white,
-        borderRadius: 8,
+        borderRadius: BorderRadius.sm,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     audioText: {
-        marginLeft: 8,
-        fontSize: 14,
+        marginLeft: Spacing.sm,
+        ...Typography.small,
         color: Colors.textSecondary,
         fontWeight: '500',
     },

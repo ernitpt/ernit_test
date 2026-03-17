@@ -7,13 +7,15 @@ import {
   Modal,
   StyleSheet,
   Animated,
-  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, X } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
+import Button from './Button';
 
 interface LogoutConfirmationProps {
   visible: boolean;
@@ -27,6 +29,11 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   onConfirm,
 }) => {
   const slideAnim = useModalAnimation(visible);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handleClose = () => {
     onClose();
@@ -35,7 +42,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   const handleConfirm = () => {
     onClose();
     // Small delay to let close animation start
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       onConfirm();
     }, 100);
   };
@@ -48,7 +55,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
       onRequestClose={handleClose}
     >
       <TouchableOpacity
-        style={[commonStyles.modalOverlay, { padding: 20 }]}
+        style={[commonStyles.modalOverlay, { padding: Spacing.xl }]}
         activeOpacity={1}
         onPress={handleClose}
       >
@@ -71,9 +78,10 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
                 style={styles.closeButton}
                 onPress={handleClose}
                 activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <View style={styles.closeButtonInner}>
-                  <X color="#6B7280" size={20} />
+                  <X color={Colors.textSecondary} size={20} />
                 </View>
               </TouchableOpacity>
 
@@ -92,31 +100,22 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
 
               {/* Buttons */}
               <View style={styles.buttonContainer}>
-                {/* Confirm Logout Button with gradient */}
-                <TouchableOpacity
-                  style={styles.primaryButtonWrapper}
-                  onPress={handleConfirm}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    colors={Colors.gradientTriple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.primaryButton}
-                  >
-                    <LogOut color="white" size={20} strokeWidth={2.5} />
-                    <Text style={styles.primaryButtonText}>Logout</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Cancel Button */}
-                <TouchableOpacity
-                  style={styles.secondaryButton}
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
                   onPress={handleClose}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
-                </TouchableOpacity>
+                />
+                <Button
+                  title="Logout"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  gradient
+                  onPress={handleConfirm}
+                  icon={<LogOut color={Colors.white} size={20} strokeWidth={2.5} />}
+                />
               </View>
             </View>
           </TouchableOpacity>
@@ -134,9 +133,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   modal: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: Colors.surfaceFrosted,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxxl,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
@@ -151,73 +150,34 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   closeButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.circle,
     backgroundColor: Colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: 28,
+    ...Typography.heading1,
     fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 32,
+    ...Typography.subheading,
+    color: Colors.gray600,
+    marginBottom: Spacing.xxxl,
     textAlign: 'center',
     lineHeight: 24,
   },
   buttonContainer: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  primaryButtonWrapper: {
-    borderRadius: 12,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 17,
-    letterSpacing: 0.3,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: Colors.primarySurface,
-    borderWidth: 2,
-    borderColor: Colors.primaryTint,
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 17,
-    letterSpacing: 0.3,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
 });
 

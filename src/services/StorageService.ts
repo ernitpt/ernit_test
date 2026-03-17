@@ -22,7 +22,7 @@ class StorageService {
         blob: Blob,
         allowedTypes: string[],
         maxSize: number,
-        fileType: 'audio' | 'image'
+        fileType: 'audio' | 'image' | 'video'
     ): void {
         // Check file size
         if (blob.size > maxSize) {
@@ -40,9 +40,9 @@ class StorageService {
             throw new Error(`Invalid ${fileType} type. Allowed types: ${allowedTypes.join(', ')}`);
         }
 
-        // Additional check: if no type, verify it's not empty
+        // Reject files with no MIME type — cannot verify safety
         if (!blob.type) {
-            logger.warn(`⚠️ File uploaded without MIME type - allowing based on extension`);
+            throw new Error('File has no MIME type. Upload rejected for security.');
         }
     }
 
@@ -54,7 +54,10 @@ class StorageService {
      */
     async uploadAudio(uri: string, userId: string): Promise<string> {
         try {
-            const response = await fetch(uri);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
             const blob = await response.blob();
 
             // ✅ SECURITY: Validate audio file
@@ -81,7 +84,10 @@ class StorageService {
      */
     async uploadImage(uri: string, userId: string): Promise<string> {
         try {
-            const response = await fetch(uri);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
             let blob = await response.blob();
 
             // Compress before validation (may reduce size below limit)
@@ -108,7 +114,10 @@ class StorageService {
      */
     async uploadMotivationAudio(uri: string, userId: string): Promise<string> {
         try {
-            const response = await fetch(uri);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
             const blob = await response.blob();
             this.validateFile(blob, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
             const filename = `audio_${Date.now()}.m4a`;
@@ -128,7 +137,10 @@ class StorageService {
      */
     async uploadMotivationImage(uri: string, userId: string): Promise<string> {
         try {
-            const response = await fetch(uri);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
             let blob = await response.blob();
             blob = await compressImageBlob(blob);
             this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
@@ -154,11 +166,14 @@ class StorageService {
         mediaType: 'photo' | 'video'
     ): Promise<string> {
         try {
-            const response = await fetch(uri);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
             let blob = await response.blob();
 
             if (mediaType === 'video') {
-                this.validateFile(blob, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video' as 'image');
+                this.validateFile(blob, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video');
             } else {
                 blob = await compressImageBlob(blob);
                 this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');

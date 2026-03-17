@@ -6,9 +6,9 @@ import {
     TouchableOpacity,
     Image,
     Animated,
-    Modal,
 } from 'react-native';
-import { MessageCircle, X } from 'lucide-react-native';
+import { MessageCircle } from 'lucide-react-native';
+import ImageViewer from './ImageViewer';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { FeedPost as FeedPostType, ReactionType, Comment as CommentType, RootStackParamList } from '../types';
@@ -31,7 +31,8 @@ import { analyticsService } from '../services/AnalyticsService';
 import { goalService } from '../services/GoalService';
 import { getTimeAgo } from '../utils/timeUtils';
 import { Platform } from 'react-native';
-import Colors from '../config/colors';
+import { Colors, Spacing, BorderRadius, Shadows } from '../config';
+import { Typography } from '../config/typography';
 import * as Haptics from 'expo-haptics';
 
 interface FeedPostProps {
@@ -52,17 +53,28 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [fullscreenMedia, setFullscreenMedia] = useState(false);
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
     const [canMotivate, setCanMotivate] = useState(false);
+    const [goalHasGift, setGoalHasGift] = useState(false);
 
-    // Check if motivate button should be visible (goal not completed + latest session)
+    // Check goal state: gift status + motivate visibility
     useEffect(() => {
-        if (post.userId === state.user?.id || post.type === 'goal_completed') {
-            setCanMotivate(false);
-            return;
-        }
         const checkGoal = async () => {
             try {
                 const goal = await goalService.getGoalById(post.goalId);
-                if (!goal || goal.isCompleted) {
+                if (!goal) {
+                    setCanMotivate(false);
+                    setGoalHasGift(false);
+                    return;
+                }
+
+                // Always check gift status (attached or pending empower)
+                setGoalHasGift(!!goal.experienceGiftId || !!goal.empowerPending);
+
+                // Motivate logic
+                if (post.userId === state.user?.id || post.type === 'goal_completed') {
+                    setCanMotivate(false);
+                    return;
+                }
+                if (goal.isCompleted) {
                     setCanMotivate(false);
                     return;
                 }
@@ -167,6 +179,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         await loadComments();
         if (newCount !== undefined) {
             setCommentCount(newCount);
+        } else {
+            setCommentCount(prev => prev + 1);
         }
     }, [loadComments]);
 
@@ -223,6 +237,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     };
 
     const handleEmpower = useCallback(() => {
+        if (goalHasGift) return;
         if (!post.pledgedExperienceId && !post.preferredRewardCategory) {
             // No pledged experience and no category — go straight to browse
             setEmpowerContext();
@@ -237,7 +252,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
         // Has pledged experience — show choice modal
         setShowEmpowerModal(true);
-    }, [post.pledgedExperienceId, post.preferredRewardCategory, navigation, setEmpowerContext]);
+    }, [goalHasGift, post.pledgedExperienceId, post.preferredRewardCategory, navigation, setEmpowerContext]);
 
     // get third word from goal description
     const getActivityType = (text: string) => {
@@ -252,41 +267,48 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 return {
                     text: 'set a new goal',
                     color: Colors.accent,
+                    typeLabel: 'New Goal',
                 };
             case 'goal_approved':
                 return {
                     text: 'got goal approved!',
-                    color: '#10b981',
+                    color: Colors.secondary,
+                    typeLabel: 'Approved',
                 };
             case 'session_progress':
             case 'goal_progress': // Support migrated posts with this type
                 return {
                     text: (<>completed <Text style={{ fontWeight: '500' }}>{getActivityType(post.goalDescription)}</Text> session</>),
                     color: Colors.secondary,
+                    typeLabel: 'Session',
                 };
             case 'goal_completed':
                 if (post.isFreeGoal && !post.experienceGiftId) {
                     // Free goal without attached gift — they completed a challenge, not earned a reward
                     return {
                         text: 'completed their challenge!',
-                        color: '#22c55e',
+                        color: Colors.success,
+                        typeLabel: 'Completed!',
                     };
                 }
                 if (post.experienceTitle) {
                     return {
                         text: (<>completed their goal and earned:</>),
-                        color: '#22c55e',
+                        color: Colors.success,
+                        typeLabel: 'Completed!',
                     };
                 }
                 return {
                     text: 'completed their goal!',
-                    color: '#22c55e',
+                    color: Colors.success,
+                    typeLabel: 'Completed!',
                 };
             default:
                 // Fallback for unknown post types
                 return {
                     text: 'made progress',
                     color: Colors.textSecondary,
+                    typeLabel: '',
                 };
         }
     }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle]);
@@ -320,6 +342,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         <Animated.View style={[
             styles.container,
             {
+                borderLeftWidth: 3,
+                borderLeftColor: typeInfo.color,
                 // iOS shadow
                 shadowColor: isHighlighted ? Colors.secondary : Colors.textPrimary,
                 shadowOffset: { width: 0, height: 2 },
@@ -369,13 +393,16 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 typeInfoText={typeInfo.text}
                 timeAgo={timeAgo}
                 onUserPress={handleUserPress}
+                typeColor={typeInfo.color}
+                typeLabel={typeInfo.typeLabel}
             />
 
             <FeedPostContent
                 post={post}
                 currentUserId={state.user?.id}
+                goalHasGift={goalHasGift}
                 onEmpowerContext={setEmpowerContext}
-                onNavigate={(screen, params) => navigation.navigate(screen as any, params)}
+                onNavigate={(screen, params) => navigation.navigate(screen, params as never)}
             />
 
             <View style={styles.interactionRow}>
@@ -404,6 +431,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 post={post}
                 currentUserId={state.user?.id}
                 canMotivate={canMotivate}
+                goalHasGift={goalHasGift}
                 onEmpower={handleEmpower}
                 onMotivate={() => setShowMotivationModal(true)}
             />
@@ -414,68 +442,63 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     <CommentSection
                         comments={comments}
                         totalComments={commentCount}
+                        postId={post.id}
                         onViewAll={() => setShowCommentModal(true)}
+                        onCommentsUpdate={(updated) => setComments(updated)}
                     />
                 </>
             )}
 
             {/* Motivation Modal */}
-            <MotivationModal
-                visible={showMotivationModal}
-                recipientName={post.userName}
-                goalId={post.goalId}
-                targetSession={post.sessionNumber ? post.sessionNumber + 1 : 1}
-                onClose={() => setShowMotivationModal(false)}
-            />
+            {showMotivationModal && (
+                <MotivationModal
+                    visible={showMotivationModal}
+                    recipientName={post.userName}
+                    goalId={post.goalId}
+                    targetSession={post.sessionNumber ? post.sessionNumber + 1 : 1}
+                    onClose={() => setShowMotivationModal(false)}
+                />
+            )}
 
             {/* Empower Choice Modal */}
-            <EmpowerChoiceModal
-                visible={showEmpowerModal}
-                userName={post.userName}
-                experienceTitle={post.experienceTitle}
-                experiencePrice={post.pledgedExperiencePrice}
-                pledgedExperienceId={post.pledgedExperienceId}
-                goalId={post.goalId}
-                goalUserId={post.userId}
-                preferredRewardCategory={post.preferredRewardCategory}
-                onClose={() => setShowEmpowerModal(false)}
-            />
+            {showEmpowerModal && (
+                <EmpowerChoiceModal
+                    visible={showEmpowerModal}
+                    userName={post.userName}
+                    experienceTitle={post.experienceTitle}
+                    experiencePrice={post.pledgedExperiencePrice}
+                    pledgedExperienceId={post.pledgedExperienceId}
+                    goalId={post.goalId}
+                    goalUserId={post.userId}
+                    preferredRewardCategory={post.preferredRewardCategory}
+                    onClose={() => setShowEmpowerModal(false)}
+                />
+            )}
 
-            <CommentModal
-                visible={showCommentModal}
-                postId={post.id}
-                onClose={() => setShowCommentModal(false)}
-                onChange={handleCommentsChange}
-            />
+            {showCommentModal && (
+                <CommentModal
+                    visible={showCommentModal}
+                    postId={post.id}
+                    onClose={() => setShowCommentModal(false)}
+                    onChange={handleCommentsChange}
+                />
+            )}
 
-            <ReactionViewerModal
-                visible={showReactionModal}
-                postId={post.id}
-                onClose={() => setShowReactionModal(false)}
-            />
+            {showReactionModal && (
+                <ReactionViewerModal
+                    visible={showReactionModal}
+                    postId={post.id}
+                    onClose={() => setShowReactionModal(false)}
+                />
+            )}
 
             {/* Fullscreen media viewer */}
-            {post.mediaUrl && (
-                <Modal
+            {post.mediaUrl && fullscreenMedia && (
+                <ImageViewer
                     visible={fullscreenMedia}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setFullscreenMedia(false)}
-                >
-                    <View style={styles.fullscreenOverlay}>
-                        <TouchableOpacity
-                            style={styles.fullscreenClose}
-                            onPress={() => setFullscreenMedia(false)}
-                        >
-                            <X color="#fff" size={24} strokeWidth={2.5} />
-                        </TouchableOpacity>
-                        <Image
-                            source={{ uri: post.mediaUrl }}
-                            style={styles.fullscreenImage}
-                            resizeMode="contain"
-                        />
-                    </View>
-                </Modal>
+                    imageUri={post.mediaUrl}
+                    onClose={() => setFullscreenMedia(false)}
+                />
             )}
         </Animated.View>
     );
@@ -484,48 +507,40 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 const styles = StyleSheet.create({
     container: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
+        borderRadius: BorderRadius.lg,
         overflow: 'hidden',
-        marginBottom: 12,
-        shadowColor: Colors.textPrimary,
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-    },
-    highlightedContainer: {
-        borderWidth: 2,
-        borderColor: Colors.secondary,
-        backgroundColor: Colors.primarySurface,
-        shadowOpacity: 0.15,
+        marginBottom: Spacing.md,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        ...Shadows.md,
     },
     interactionRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        paddingBottom: 10,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        paddingBottom: Spacing.md,
     },
     commentIconButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 18,
+        gap: Spacing.xs,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.xl,
         backgroundColor: Colors.backgroundLight,
     },
     commentCountText: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
     },
     divider: {
         height: 1,
         backgroundColor: Colors.border,
-        marginVertical: 8,
-        marginHorizontal: 16,
+        marginVertical: Spacing.sm,
+        marginHorizontal: Spacing.lg,
     },
     // Session media (top of card)
     sessionMediaContainer: {
@@ -541,36 +556,13 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.2)',
+        backgroundColor: Colors.blackAlpha20,
         alignItems: 'center',
         justifyContent: 'center',
     },
     sessionMediaPlayIcon: {
         color: Colors.white,
         fontSize: 36,
-    },
-    // Fullscreen media viewer
-    fullscreenOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    fullscreenClose: {
-        position: 'absolute',
-        top: 50,
-        right: 20,
-        zIndex: 10,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    fullscreenImage: {
-        width: '100%',
-        height: '80%',
     },
 });
 

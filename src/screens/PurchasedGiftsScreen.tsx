@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,13 +18,17 @@ import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
 import { userService } from '../services/userService';
-import { ExperienceGift, RootStackParamList } from '../types';
+import { ExperienceGift, Experience, RootStackParamList } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import SharedHeader from '../components/SharedHeader';
 import { GiftCardSkeleton, SkeletonBox } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
+import { MotiView } from 'moti';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -35,7 +39,7 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 // Helper Functions and Components (moved outside parent for performance)
 // ------------------------------------------------------------------
 
-const formatDate = (date: any) => {
+const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!date) return 'N/A';
   const jsDate =
     typeof date.toDate === 'function' ? date.toDate() : new Date(date);
@@ -50,7 +54,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
   const [claimedByName, setClaimedByName] = useState<string | null>(null);
   const [loadingName, setLoadingName] = useState(false);
-  const [experience, setExperience] = useState<any>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
 
   useEffect(() => {
     const fetchClaimerName = async () => {
@@ -116,7 +120,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
         </View>
 
         {item.status === 'claimed' ? (
-          <Text style={[styles.detail, { color: '#166534', fontWeight: '500' }]}>
+          <Text style={[styles.detail, { color: Colors.primaryDeep, fontWeight: '500' }]}>
             Claimed by:{' '}
             {loadingName ? (
               <SkeletonBox width={80} height={14} borderRadius={4} />
@@ -178,6 +182,16 @@ const PurchasedGiftsScreen = () => {
     if (filterStatus === 'all') return true;
     return gift.status === filterStatus;
   });
+
+  const renderGiftItem = useCallback(({ item, index }: { item: ExperienceGift; index: number }) => (
+    <MotiView
+      from={{ opacity: 0, translateY: 12 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+    >
+      <GiftItem item={item} />
+    </MotiView>
+  ), []);
 
   return (
     <ErrorBoundary screenName="PurchasedGiftsScreen" userId={state.user?.id}>
@@ -248,7 +262,7 @@ const PurchasedGiftsScreen = () => {
       ) : (
         <FlatList
           data={filteredGifts}
-          renderItem={({ item }) => <GiftItem item={item} />}
+          renderItem={renderGiftItem}
           keyExtractor={(item) => item.id!}
           contentContainerStyle={styles.listContainer}
           removeClippedSubviews={Platform.OS !== 'web'}
@@ -271,69 +285,68 @@ const PurchasedGiftsScreen = () => {
 
 const styles = StyleSheet.create({
   listContainer: {
-    padding: 20,
+    padding: Spacing.xl,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-    padding: 16,
+    padding: Spacing.lg,
   },
   cardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
     flex: 1,
-    marginRight: 10,
+    marginRight: Spacing.sm,
   },
   status: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    ...Typography.caption,
+    fontWeight: '700',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
     overflow: 'hidden',
   },
   statusClaimed: {
-    backgroundColor: '#DCFCE7',
-    color: '#166534',
+    backgroundColor: Colors.successLight,
+    color: Colors.primaryDeep,
   },
   statusPending: {
-    backgroundColor: '#FEF9C3',
-    color: '#854D0E',
+    backgroundColor: Colors.warningLight,
+    color: Colors.warningDeep,
   },
   detail: {
-    color: '#4b5563',
-    fontSize: 14,
+    color: Colors.gray600,
+    ...Typography.small,
     lineHeight: 20,
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.white,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -343,36 +356,34 @@ const styles = StyleSheet.create({
     borderColor: Colors.secondary,
   },
   filterText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
+    color: Colors.white,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: Spacing.huge,
     paddingTop: 60,
   },
   emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: Typography.emojiLarge.fontSize,
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...Typography.heading2,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   emptyText: {
     textAlign: 'center',
     color: Colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
+    ...Typography.body,
   },
 });
 

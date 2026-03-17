@@ -4,7 +4,9 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
+    Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { ShoppingBag, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +14,7 @@ import type { RootStackParamList, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
 import { Colors, Typography, Spacing, BorderRadius } from '../config';
 import { BaseModal } from './BaseModal';
+import Button from './Button';
 
 interface EmpowerChoiceModalProps {
     visible: boolean;
@@ -48,6 +51,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
 
     const handleDirect = () => {
         if (!pledgedExperienceId) return;
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEmpowerContext();
         onClose();
         navigation.navigate('ExperienceCheckout', {
@@ -56,6 +60,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     };
 
     const handleBrowse = () => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEmpowerContext();
         onClose();
         navigation.navigate('CategorySelection',
@@ -71,46 +76,38 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
 
             {/* Option 1: Buy pledged experience */}
             {experienceTitle && pledgedExperienceId && (
-                <TouchableOpacity
-                    style={styles.optionPrimary}
+                <Button
+                    variant="primary"
+                    title={`Gift "${experienceTitle}"${experiencePrice != null ? `  €${experiencePrice}` : ''}`}
+                    icon={<ShoppingBag size={18} color={Colors.white} />}
                     onPress={handleDirect}
-                    activeOpacity={0.8}
-                >
-                    <ShoppingBag size={18} color={Colors.white} />
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.optionPrimaryText} numberOfLines={1}>
-                            Gift "{experienceTitle}"
-                        </Text>
-                        {experiencePrice != null && (
-                            <Text style={styles.optionPrice}>
-                                {'\u20AC'}{experiencePrice}
-                            </Text>
-                        )}
-                    </View>
-                </TouchableOpacity>
+                    style={styles.optionPrimary}
+                    fullWidth
+                />
             )}
 
             {/* Option 2: Browse */}
-            <TouchableOpacity
-                style={styles.optionSecondary}
-                onPress={handleBrowse}
-                activeOpacity={0.8}
-            >
-                <Gift size={18} color={Colors.primary} />
-                <Text style={styles.optionSecondaryText}>
-                    {preferredRewardCategory && !experienceTitle
+            <Button
+                variant="secondary"
+                title={
+                    preferredRewardCategory && !experienceTitle
                         ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
-                        : 'Choose Another Experience'}
-                </Text>
-            </TouchableOpacity>
+                        : 'Choose Another Experience'
+                }
+                icon={<Gift size={18} color={Colors.primary} />}
+                onPress={handleBrowse}
+                style={styles.optionSecondary}
+                fullWidth
+            />
 
             {/* Cancel */}
-            <TouchableOpacity
-                style={styles.cancelButton}
+            <Button
+                variant="ghost"
+                title="Cancel"
                 onPress={onClose}
-            >
-                <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+                style={styles.cancelButton}
+                fullWidth
+            />
         </BaseModal>
     );
 };
@@ -137,7 +134,7 @@ const styles = StyleSheet.create({
     },
     optionPrice: {
         ...Typography.caption,
-        color: 'rgba(255,255,255,0.8)',
+        color: Colors.whiteAlpha80,
         fontWeight: '600',
         marginTop: Spacing.xxs,
     },

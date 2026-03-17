@@ -1,17 +1,25 @@
 // components/HintPopup.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, Animated, Pressable, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, Animated, Pressable, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import type { GestureEvent, HandlerStateChangeEvent } from 'react-native-gesture-handler';
+import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import type { Explosion as ConfettiCannonType } from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
 import { commonStyles } from '../styles/commonStyles';
 import AudioPlayer from './AudioPlayer';
+import { BaseModal } from './BaseModal';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
+import type { PersonalizedHint } from '../types';
 
 
 interface Props {
   visible: boolean;
-  hint: any; // string or PersonalizedHint object
+  hint: PersonalizedHint | string;
   sessionNumber: number;
   totalSessions: number;
   onClose: () => void;
@@ -20,7 +28,7 @@ interface Props {
 }
 
 const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose, isFirstHint = false, additionalMessage }) => {
-  const confettiRef = useRef<any>(null);
+  const confettiRef = useRef<ConfettiCannonType>(null);
   const [isRevealed, setIsRevealed] = useState(false);
 
   // Animation values
@@ -194,7 +202,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   const lastPosition = useRef({ x: 0, y: 0 });
   const totalScratchDistance = useRef(0);
 
-  const onGestureEvent = (event: any) => {
+  const onGestureEvent = (event: GestureEvent<PanGestureHandlerEventPayload>) => {
     if (event.nativeEvent.state === State.ACTIVE) {
       const { translationX, translationY } = event.nativeEvent;
 
@@ -224,7 +232,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
     }
   };
 
-  const onHandlerStateChange = (event: any) => {
+  const onHandlerStateChange = (event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
     if (event.nativeEvent.state === State.BEGAN) {
       // Reset position tracking when touch begins
       lastPosition.current = { x: 0, y: 0 };
@@ -244,21 +252,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
 
   return (
     <>
-      <Modal visible={visible} transparent onRequestClose={onClose}>
-        <Animated.View
-          style={[
-            commonStyles.modalOverlay,
-            {
-              padding: 24,
-              opacity: backdropOpacity,
-            }
-          ]}
-        >
-          <TouchableOpacity
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-            activeOpacity={1}
-            onPress={onClose}
-          >
+      <BaseModal visible={visible} onClose={onClose}>
             <Animated.View
               style={[
                 styles.card,
@@ -278,7 +272,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                     }
                   ]}
                 >
-                  <Text style={{ fontSize: 32 }}>✨</Text>
+                  <Text style={{ fontSize: Typography.display.fontSize }}>✨</Text>
                 </Animated.View>
 
                 <Animated.View style={{ opacity: headerOpacity, alignItems: 'center' }}>
@@ -391,9 +385,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                 />
               </Pressable>
             </Animated.View>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
+      </BaseModal>
     </>
   );
 };
@@ -402,11 +394,11 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 24,
-    padding: 24,
-    backgroundColor: '#ffffff',
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxl,
+    backgroundColor: Colors.white,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.25,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
@@ -415,66 +407,66 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: BorderRadius.circle,
     backgroundColor: Colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
     borderWidth: 4,
     borderColor: Colors.primaryTint,
   },
   h1: {
-    fontSize: 22,
+    ...Typography.heading2,
     fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subHeader: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
     color: Colors.textSecondary,
-    marginBottom: 18,
+    marginBottom: Spacing.xl,
     textAlign: 'center',
   },
   instructionText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   hintOuterContainer: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   hintContainer: {
     width: '100%',
     maxHeight: 400,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.border,
     position: 'relative',
   },
   hintContent: {
-    padding: 16,
+    padding: Spacing.lg,
     alignItems: 'center',
   },
   hint: {
-    fontSize: 16,
+    ...Typography.subheading,
     lineHeight: 24,
-    color: '#374151',
+    color: Colors.gray700,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   hintImage: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
     backgroundColor: Colors.backgroundLight,
   },
   audioContainer: {
@@ -482,15 +474,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signatureContainer: {
-    marginTop: 16,
-    paddingTop: 12,
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.border,
     width: '100%',
     alignItems: 'flex-end',
   },
   signatureText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
     color: Colors.textSecondary,
     fontStyle: 'italic',
@@ -505,7 +497,7 @@ const styles = StyleSheet.create({
   },
   blurLayer1: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: Colors.whiteAlpha40,
   },
   blurLayer2: {
     ...StyleSheet.absoluteFillObject,
@@ -518,10 +510,10 @@ const styles = StyleSheet.create({
   swipeInstruction: {
     position: 'absolute',
     zIndex: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
+    backgroundColor: Colors.surfaceFrosted,
+    borderRadius: BorderRadius.xxl,
     borderWidth: 2,
     borderColor: Colors.primary,
     shadowColor: Colors.primary,
@@ -531,7 +523,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   swipeText: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '800',
     color: Colors.primary,
     textAlign: 'center',
@@ -540,8 +532,8 @@ const styles = StyleSheet.create({
   btn: {
     width: '100%',
     backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg,
     alignItems: 'center',
     shadowColor: Colors.primary,
     shadowOpacity: 0.3,
@@ -550,24 +542,24 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: '700',
-    fontSize: 17,
+    ...Typography.subheading,
     letterSpacing: 0.5,
   },
   firstHintMessageContainer: {
     width: '100%',
     backgroundColor: Colors.primarySurface,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
   },
   firstHintMessage: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.primary,
     textAlign: 'center',

@@ -12,6 +12,9 @@ import { SmilePlus } from 'lucide-react-native';
 import type { ReactionType } from '../types';
 import ReactionPicker from './ReactionPicker';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 
 let Haptics: typeof import('expo-haptics') | null = null;
 if (Platform.OS !== 'web') {
@@ -29,7 +32,7 @@ interface CompactReactionBarProps {
     onViewReactions?: () => void;
 }
 
-const REACTION_IMAGES: Record<ReactionType, any> = {
+const REACTION_IMAGES: Record<ReactionType, ReturnType<typeof require>> = {
     like: require('../assets/reactions/like.png'),
     heart: require('../assets/reactions/heart.png'),
     muscle: require('../assets/reactions/muscle.png'),
@@ -280,7 +283,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        paddingVertical: 8,
+        paddingVertical: Spacing.sm,
         position: 'relative',
     },
     pickerBackdrop: {
@@ -290,13 +293,13 @@ const styles = StyleSheet.create({
     reactionsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: Spacing.sm,
     },
     reactButton: {
         width: 44,
         height: 44,
-        borderRadius: 22,
-        backgroundColor: Colors.backgroundLight,
+        borderRadius: BorderRadius.circle,
+        backgroundColor: Colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -305,17 +308,17 @@ const styles = StyleSheet.create({
     },
     countsContainer: {
         flexDirection: 'row',
-        gap: 6,
+        gap: Spacing.xs,
         flexWrap: 'wrap',
     },
     reactionCount: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.backgroundLight,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 2,
-        gap: 4,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.pill,
+        gap: Spacing.xs,
     },
     userReactionCount: {
         backgroundColor: Colors.primaryTint,
@@ -327,7 +330,7 @@ const styles = StyleSheet.create({
         height: 28,
     },
     countText: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
     },

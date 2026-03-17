@@ -1,25 +1,29 @@
- import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
+import Colors from '../config/colors';
+import { Spacing } from '../config/spacing';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
 
 export const commonStyles = StyleSheet.create({
     gradientHeader: {
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        borderBottomLeftRadius: BorderRadius.xxl,
+        borderBottomRightRadius: BorderRadius.xxl,
         overflow: 'hidden',
-        paddingBottom: 18,
-        paddingTop: 28,
+        paddingBottom: Spacing.xl,
+        paddingTop: Spacing.xxxl,
     },
     header: {
-        paddingHorizontal: 24,
+        paddingHorizontal: Spacing.xxl,
         // paddingTop: 34,
-        paddingBottom: 10,
+        paddingBottom: Spacing.sm,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 26,
-        fontWeight: 'bold',
-        color: '#ffffff',
+        fontSize: Typography.heading1.fontSize,
+        fontWeight: '700',
+        color: Colors.white,
         // marginBottom: 4,
     },
 });

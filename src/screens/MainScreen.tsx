@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
@@ -9,6 +9,8 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 
 type MainScreenProps = {
   children: React.ReactNode;
@@ -25,7 +27,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const { state } = useApp();
-  useNetworkStatus();
+  const { isConnected } = useNetworkStatus();
 
   const handleMenuPress = () => setSideMenuVisible(true);
   const handleCloseSideMenu = () => setSideMenuVisible(false);
@@ -33,6 +35,13 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   return (
     <ErrorBoundary screenName="MainScreen" userId={state.user?.id}>
       <SafeAreaView edges={['bottom']} style={styles.container}>
+        {/* Offline Banner */}
+        {!isConnected && (
+          <View style={{ backgroundColor: Colors.error, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, alignItems: 'center' }}>
+            <Text style={{ ...Typography.caption, color: Colors.white }}>You're offline — some features may not work</Text>
+          </View>
+        )}
+
         {/* Main Content */}
         <View style={styles.content}>{children}</View>
 

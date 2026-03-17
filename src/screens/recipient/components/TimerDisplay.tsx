@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform, P
 import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import Colors from '../../../config/colors';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Typography } from '../../../config/typography';
+import { Spacing } from '../../../config/spacing';
 import { formatDurationDisplay } from '../goalCardUtils';
 
 // ─── Timer Ring ─────────────────────────────────────────────────────
@@ -28,7 +31,7 @@ const TimerRing: React.FC<TimerRingProps> = React.memo(({ elapsed, total }) => {
         cx={RING_SIZE / 2}
         cy={RING_SIZE / 2}
         r={RING_RADIUS}
-        stroke="#E5E7EB"
+        stroke={Colors.border}
         strokeWidth={RING_STROKE}
         fill="transparent"
       />
@@ -121,8 +124,8 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
             StyleSheet.absoluteFill,
             {
               width: fillWidth,
-              backgroundColor: 'rgba(255,255,255,0.25)',
-              borderRadius: 12,
+              backgroundColor: Colors.whiteAlpha25,
+              borderRadius: BorderRadius.md,
             },
           ]}
         />
@@ -143,6 +146,9 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
         styles.finishButton,
         canFinish ? styles.finishButtonActive : styles.finishButtonDisabled,
       ]}
+      accessibilityLabel="Hold to complete session"
+      accessibilityRole="button"
+      accessibilityHint="Press and hold to finish your session"
     >
       {/* Fill overlay */}
       <Animated.View
@@ -150,8 +156,8 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
           StyleSheet.absoluteFill,
           {
             width: fillWidth,
-            backgroundColor: 'rgba(255,255,255,0.25)',
-            borderRadius: 12,
+            backgroundColor: Colors.whiteAlpha25,
+            borderRadius: BorderRadius.md,
           },
         ]}
       />
@@ -233,7 +239,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
     ? Colors.primary
     : almostDone
       ? Colors.secondary
-      : '#111827';
+      : Colors.textPrimary;
 
   return (
     <View style={styles.timerContainer}>
@@ -270,6 +276,8 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
           onPress={onCancel}
           disabled={loading}
           activeOpacity={0.85}
+          accessibilityLabel="Cancel session"
+          accessibilityRole="button"
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
@@ -291,7 +299,7 @@ const styles = StyleSheet.create({
     height: RING_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   ring: {
     position: 'absolute',
@@ -300,45 +308,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: { fontSize: 28, fontWeight: 'bold', color: Colors.textPrimary },
+  timerText: { ...Typography.display, fontWeight: 'bold', color: Colors.textPrimary },
   almostDoneText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.secondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   overtimeText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   buttonsContainer: {
     width: '100%',
     alignItems: 'center',
   },
   finishButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
     width: '100%',
     overflow: 'hidden',
   },
   finishButtonActive: { backgroundColor: Colors.primary },
   finishButtonDisabled: { backgroundColor: Colors.textMuted },
-  finishButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  finishButtonText: { ...Typography.subheading, color: Colors.white, textAlign: 'center' },
   cancelButton: {
-    marginTop: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#b3afafff',
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.textMuted,
     width: '100%',
   },
-  cancelButtonText: { color: '#fff', fontSize: 16, fontWeight: '400', textAlign: 'center' },
+  cancelButtonText: { ...Typography.subheading, color: Colors.white, fontWeight: '400', textAlign: 'center' },
   sessionDurationText: {
-    marginTop: 8,
+    marginTop: Spacing.sm,
     color: Colors.textSecondary,
-    fontSize: 13,
+    ...Typography.caption,
     textAlign: 'center',
   },
 });

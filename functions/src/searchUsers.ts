@@ -1,4 +1,4 @@
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { allowedOrigins } from "./cors";
 
 export const searchUsers = onCall(
@@ -12,7 +12,7 @@ export const searchUsers = onCall(
     // ✅ SECURITY: Authentication check
     const auth = requestData.auth;
     if (!auth?.uid) {
-      throw new Error("User must be authenticated to search users.");
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
     }
 
     const userId = auth.uid;
@@ -21,17 +21,17 @@ export const searchUsers = onCall(
 
     // ✅ VALIDATION: searchTerm checks
     if (!searchTerm || typeof searchTerm !== "string") {
-      throw new Error("searchTerm must be a non-empty string.");
+      throw new HttpsError('invalid-argument', 'searchTerm must be a non-empty string');
     }
 
     const trimmedSearchTerm = searchTerm.trim();
 
     if (trimmedSearchTerm.length < 2) {
-      throw new Error("searchTerm must be at least 2 characters long.");
+      throw new HttpsError('invalid-argument', 'searchTerm must be at least 2 characters');
     }
 
     if (trimmedSearchTerm.length > 50) {
-      throw new Error("searchTerm cannot exceed 50 characters.");
+      throw new HttpsError('invalid-argument', 'searchTerm cannot exceed 50 characters');
     }
 
     // ✅ RATE LIMITING: Max 30 searches per minute
@@ -39,11 +39,11 @@ export const searchUsers = onCall(
     const oneMinuteAgo = now - (60 * 1000);
     const RATE_LIMIT = 30; // Maximum searches per minute per user
 
-    // Import test db from index
-    const { db } = await import('./index.js');
+    // Import production db from index
+    const { dbProd } = await import('./index.js');
 
     // Check rate limit using Firestore
-    const rateLimitRef = db.collection('rateLimits').doc(`search_${userId}`);
+    const rateLimitRef = dbProd.collection('rateLimits').doc(`search_${userId}`);
     const rateLimitDoc = await rateLimitRef.get();
 
     if (rateLimitDoc.exists) {
@@ -54,7 +54,7 @@ export const searchUsers = onCall(
 
       if (recentRequests.length >= RATE_LIMIT) {
         console.warn(`⚠️ Search rate limit exceeded for user ${userId}`);
-        throw new Error("Rate limit exceeded. Please try again in a minute.");
+        throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again in a minute.');
       }
 
       // Update with new request
@@ -74,14 +74,15 @@ export const searchUsers = onCall(
       // 🔍 SEARCH LOGIC
       const searchLower = trimmedSearchTerm.toLowerCase();
 
-      // Fetch all users from test db
-      const usersSnapshot = await db.collection('users').get();
+      // SECURITY: Limit the number of documents read to prevent DoS
+      // For proper full-text search, consider Algolia or Typesense
+      const usersSnapshot = await dbProd.collection('users').limit(500).get();
 
       // Fetch current user's friends and pending requests
       const [friendsSnapshot, sentRequestsSnapshot, receivedRequestsSnapshot] = await Promise.all([
-        db.collection('friends').where('userId', '==', userId).get(),
-        db.collection('friendRequests').where('senderId', '==', userId).get(),
-        db.collection('friendRequests').where('receiverId', '==', userId).get(),
+        dbProd.collection('friends').where('userId', '==', userId).get(),
+        dbProd.collection('friendRequests').where('senderId', '==', userId).get(),
+        dbProd.collection('friendRequests').where('recipientId', '==', userId).get(),
       ]);
 
       // Build friend and pending request sets
@@ -95,7 +96,7 @@ export const searchUsers = onCall(
       sentRequestsSnapshot.forEach((doc) => {
         const reqData = doc.data();
         if (reqData.status === 'pending') {
-          pendingRequestIds.add(reqData.receiverId);
+          pendingRequestIds.add(reqData.recipientId);
         }
       });
       receivedRequestsSnapshot.forEach((doc) => {
@@ -156,7 +157,7 @@ export const searchUsers = onCall(
       };
     } catch (err: any) {
       console.error("searchUsers error:", err?.message || err);
-      throw new Error("Failed to search users.");
+      throw new HttpsError('internal', 'Failed to search users');
     }
   }
 );

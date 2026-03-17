@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Colors from '../../config/colors';
+import { Colors, Typography, Spacing, BorderRadius } from '../../config';
 import { Avatar } from '../Avatar';
 
 interface FeedPostHeaderProps {
@@ -9,6 +9,8 @@ interface FeedPostHeaderProps {
     typeInfoText: React.ReactNode;
     timeAgo: string;
     onUserPress: () => void;
+    typeColor: string;
+    typeLabel: string;
 }
 
 const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
@@ -17,6 +19,8 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
     typeInfoText,
     timeAgo,
     onUserPress,
+    typeColor,
+    typeLabel,
 }) => {
     return (
         <View style={styles.header}>
@@ -26,13 +30,25 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={`View ${userName}'s profile`}
             >
-                <Avatar uri={userProfileImageUrl} name={userName} size="md" />
+                <Avatar
+                    uri={userProfileImageUrl}
+                    name={userName}
+                    size="md"
+                    style={{ borderWidth: 2, borderColor: typeColor + '4D' }}
+                />
 
                 <View style={styles.headerInfo}>
                     <Text style={styles.userName} numberOfLines={1}>
-                        <Text style={{ fontWeight: '500' }}>{userName}</Text> {typeInfoText}
+                        <Text style={{ ...Typography.bodyBold }}>{userName}</Text>{' '}{typeInfoText}
                     </Text>
-                    <Text style={styles.timeAgo}>{timeAgo}</Text>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.timeAgo}>{timeAgo}</Text>
+                        {typeLabel ? (
+                            <View style={[styles.typeChip, { backgroundColor: typeColor + '1A' }]}>
+                                <Text style={[styles.typeChipText, { color: typeColor }]}>{typeLabel}</Text>
+                            </View>
+                        ) : null}
+                    </View>
                 </View>
             </TouchableOpacity>
         </View>
@@ -43,22 +59,35 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 14,
-        paddingBottom: 10,
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.md,
     },
     headerInfo: {
-        marginLeft: 10,
+        marginLeft: Spacing.md,
         flex: 1,
     },
     userName: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textPrimary,
-        marginBottom: 1,
+        marginBottom: Spacing.xxs,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
     },
     timeAgo: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
+    },
+    typeChip: {
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.pill,
+    },
+    typeChipText: {
+        ...Typography.tiny,
     },
     clickableHeader: {
         flexDirection: 'row',

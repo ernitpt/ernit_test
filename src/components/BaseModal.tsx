@@ -8,7 +8,9 @@ import {
   StyleSheet,
   ViewStyle,
   Dimensions,
+  ScrollView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { Colors } from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
@@ -16,7 +18,6 @@ import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
 import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
 
 export type ModalVariant = 'center' | 'bottom';
 
@@ -56,10 +57,13 @@ export const BaseModal = React.memo<BaseModalProps>(({
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={commonStyles.modalOverlay}
+        style={styles.overlay}
         activeOpacity={1}
         onPress={onClose}
+        accessibilityLabel="Dismiss modal"
+        accessibilityRole="button"
       >
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         <Animated.View
           style={[
             isBottom ? styles.bottomContainer : styles.centerContainer,
@@ -68,7 +72,12 @@ export const BaseModal = React.memo<BaseModalProps>(({
           ]}
           accessibilityViewIsModal={true}
         >
-          <TouchableOpacity activeOpacity={1}>
+          <TouchableOpacity activeOpacity={1} accessible={false}>
+            {variant === 'bottom' && (
+              <View style={styles.dragHandle}>
+                <View style={styles.dragHandlePill} />
+              </View>
+            )}
             {title && (
               <View style={styles.header}>
                 <Text style={styles.headerTitle}>{title}</Text>
@@ -76,14 +85,21 @@ export const BaseModal = React.memo<BaseModalProps>(({
                   onPress={onClose}
                   style={styles.closeButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityLabel="Close"
+                  accessibilityRole="button"
                 >
                   <X size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             )}
-            <View style={!noPadding && styles.content}>
-              {children}
-            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <View style={!noPadding && styles.content}>
+                {children}
+              </View>
+            </ScrollView>
           </TouchableOpacity>
         </Animated.View>
       </TouchableOpacity>
@@ -94,6 +110,12 @@ export const BaseModal = React.memo<BaseModalProps>(({
 BaseModal.displayName = 'BaseModal';
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: Colors.overlayLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   centerContainer: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.xl,
@@ -130,5 +152,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.screenPadding,
+  },
+  dragHandle: {
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  dragHandlePill: {
+    width: 36,
+    height: 4,
+    borderRadius: BorderRadius.xs,
+    backgroundColor: Colors.gray300,
   },
 });

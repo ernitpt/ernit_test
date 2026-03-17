@@ -25,8 +25,8 @@ export const ReactionHeart: React.FC<ReactionIconProps> = ({ size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Defs>
             <LinearGradient id="heartGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <Stop offset="0%" stopColor="#ec4899" />
-                <Stop offset="100%" stopColor="#ef4444" />
+                <Stop offset="0%" stopColor={Colors.pink} />
+                <Stop offset="100%" stopColor={Colors.error} />
             </LinearGradient>
         </Defs>
         <Path
@@ -40,8 +40,8 @@ export const ReactionMuscle: React.FC<ReactionIconProps> = ({ size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Defs>
             <LinearGradient id="muscleGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <Stop offset="0%" stopColor="#f59e0b" />
-                <Stop offset="100%" stopColor="#d97706" />
+                <Stop offset="0%" stopColor={Colors.warning} />
+                <Stop offset="100%" stopColor={Colors.warningDark} />
             </LinearGradient>
         </Defs>
         <Path

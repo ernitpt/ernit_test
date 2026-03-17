@@ -4,6 +4,9 @@ import { Audio } from 'expo-av';
 import { logger } from '../utils/logger';
 import { Play, Pause } from 'lucide-react-native';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
 
 function formatDuration(seconds: number) {
@@ -22,6 +25,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
     const { showError } = useToast();
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [position, setPosition] = useState(0);
 
     useEffect(() => {
@@ -33,7 +37,9 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
     const togglePlayback = async () => {
         try {
             if (!sound) {
+                setIsLoading(true);
                 const { sound: newSound } = await Audio.Sound.createAsync({ uri });
+                setIsLoading(false);
                 setSound(newSound);
                 newSound.setOnPlaybackStatusUpdate((status) => {
                     if (status.isLoaded) {
@@ -55,6 +61,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
                 }
             }
         } catch (error) {
+            setIsLoading(false);
             logger.error("Error loading audio:", error);
             showError('Failed to load audio');
         }
@@ -64,8 +71,10 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
 
     return (
         <View style={[styles.audioPlayer, isPopup && styles.audioPlayerPopup]}>
-            <TouchableOpacity onPress={togglePlayback} style={[styles.playButton, isPopup && styles.playButtonPopup]}>
-                {isPlaying ? (
+            <TouchableOpacity onPress={togglePlayback} disabled={isLoading} style={[styles.playButton, isPopup && styles.playButtonPopup]} accessibilityLabel={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"} accessibilityRole="button">
+                {isLoading ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                ) : isPlaying ? (
                     <Pause size={isPopup ? 24 : 16} color={Colors.white} />
                 ) : (
                     <Play size={isPopup ? 24 : 16} color={Colors.white} />
@@ -93,17 +102,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.gray700,
-        borderRadius: 20,
-        padding: 8,
-        paddingRight: 16,
-        marginTop: 8,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.sm,
+        paddingRight: Spacing.lg,
+        marginTop: Spacing.sm,
         alignSelf: 'flex-start',
     },
     audioPlayerPopup: {
         backgroundColor: Colors.primary,
-        borderRadius: 24,
-        padding: 12,
-        paddingRight: 20,
+        borderRadius: BorderRadius.xxl,
+        padding: Spacing.md,
+        paddingRight: Spacing.xl,
         alignSelf: 'stretch',
         shadowColor: Colors.primary,
         shadowOpacity: 0.3,
@@ -114,18 +123,18 @@ const styles = StyleSheet.create({
     playButton: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.textSecondary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     playButtonPopup: {
         width: 48,
         height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        marginRight: 16,
+        borderRadius: BorderRadius.circle,
+        backgroundColor: Colors.whiteAlpha25,
+        marginRight: Spacing.lg,
     },
     audioInfo: {
         flex: 1,
@@ -136,12 +145,12 @@ const styles = StyleSheet.create({
         height: 4,
         backgroundColor: Colors.gray600,
         borderRadius: 2,
-        marginBottom: 6,
+        marginBottom: Spacing.xs,
         overflow: 'hidden',
     },
     audioProgressPopup: {
         height: 6,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        backgroundColor: Colors.whiteAlpha25,
         borderRadius: 3,
     },
     progressBar: {
@@ -150,12 +159,12 @@ const styles = StyleSheet.create({
     },
     audioDuration: {
         color: Colors.gray300,
-        fontSize: 12,
+        ...Typography.caption,
         fontVariant: ['tabular-nums'],
     },
     audioDurationPopup: {
         color: Colors.white,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
     },
 });

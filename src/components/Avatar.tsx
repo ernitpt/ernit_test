@@ -41,18 +41,22 @@ export const Avatar = React.memo<AvatarProps>(({
     borderRadius,
   };
 
+  const accessibilityLabel = name ? `${name}'s avatar` : 'User avatar';
+
   if (uri) {
     return (
       <Image
         source={{ uri }}
         style={[styles.image, sizeStyle, style]}
         resizeMode="cover"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="image"
       />
     );
   }
 
   return (
-    <View style={[styles.fallback, sizeStyle, style]}>
+    <View style={[styles.fallback, sizeStyle, style]} accessibilityLabel={accessibilityLabel} accessibilityRole="image">
       <Text style={[styles.fallbackText, { fontSize }]}>{initial}</Text>
     </View>
   );

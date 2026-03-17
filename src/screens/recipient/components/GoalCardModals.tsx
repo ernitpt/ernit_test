@@ -14,6 +14,9 @@ import { X, MapPin, Share2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Colors from '../../../config/colors';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Typography } from '../../../config/typography';
+import { Spacing } from '../../../config/spacing';
 import { Experience, PartnerUser } from '../../../types';
 import { partnerService } from '../../../services/PartnerService';
 
@@ -33,25 +36,53 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
   message,
 }) => {
   const cancelScale = useRef(new Animated.Value(300)).current;
+  const cancelOverlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = useState(visible);
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(cancelScale, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
+      setShouldRender(true);
+      Animated.parallel([
+        Animated.spring(cancelScale, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(cancelOverlayOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(cancelScale, {
+          toValue: 300,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cancelOverlayOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShouldRender(false);
+      });
     }
-  }, [visible, cancelScale]);
+  }, [visible, cancelScale, cancelOverlayOpacity]);
+
+  if (!shouldRender) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={shouldRender}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
+      <Animated.View style={{ flex: 1, opacity: cancelOverlayOpacity }}>
       <TouchableOpacity
         style={styles.modalOverlay}
         activeOpacity={1}
@@ -74,6 +105,8 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
                 onPress={onClose}
                 style={[styles.modalButton, styles.cancelButtonPopup]}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="No"
               >
                 <Text style={styles.cancelText}>No</Text>
               </TouchableOpacity>
@@ -81,6 +114,8 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
                 onPress={onConfirm}
                 style={[styles.modalButton, styles.confirmButton]}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Yes, cancel"
               >
                 <Text style={styles.confirmText}>Yes, cancel</Text>
               </TouchableOpacity>
@@ -88,6 +123,7 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
           </TouchableOpacity>
         </Animated.View>
       </TouchableOpacity>
+      </Animated.View>
     </Modal>
   );
 };
@@ -131,7 +167,15 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   const celebrationScale = useRef(new Animated.Value(0)).current;
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<ConfettiCannon | null>(null);
+  const confettiTimeoutRef = useRef<NodeJS.Timeout>();
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
+
+  // Cleanup confetti timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -152,7 +196,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
       ]).start();
 
       // Fire confetti after a brief delay
-      setTimeout(() => {
+      confettiTimeoutRef.current = setTimeout(() => {
         confettiRef.current?.start();
       }, 200);
     } else {
@@ -255,7 +299,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                           styles.feedCapsule,
                           i < (weeklyCount || 0)
                             ? { backgroundColor: Colors.primary }
-                            : { backgroundColor: '#E5E7EB' },
+                            : { backgroundColor: Colors.border },
                         ]}
                       />
                     ))}
@@ -278,7 +322,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                           styles.feedCapsule,
                           i < (weeksCompleted || 0)
                             ? { backgroundColor: Colors.secondary }
-                            : { backgroundColor: '#E5E7EB' },
+                            : { backgroundColor: Colors.border },
                         ]}
                       />
                     ))}
@@ -294,8 +338,10 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                   style={styles.shareButton}
                   onPress={() => { onPostToFeed(); onClose(); }}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share to Feed"
                 >
-                  <Share2 size={16} color="#fff" />
+                  <Share2 size={16} color={Colors.white} />
                   <Text style={styles.shareButtonText}>Share to Feed</Text>
                 </TouchableOpacity>
               )}
@@ -303,6 +349,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                 style={styles.celebrationCloseBtn}
                 onPress={onClose}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={onPostToFeed ? 'Skip' : 'Close'}
               >
                 <Text style={styles.celebrationCloseBtnText}>
                   {onPostToFeed ? 'Skip' : 'Close'}
@@ -327,7 +375,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                 style={styles.fullscreenClose}
                 onPress={() => setFullscreenMedia(false)}
               >
-                <X color="#fff" size={24} strokeWidth={2.5} />
+                <X color={Colors.white} size={24} strokeWidth={2.5} />
               </TouchableOpacity>
               <Image
                 source={{ uri: mediaUri }}
@@ -349,43 +397,42 @@ const styles = StyleSheet.create({
   // Cancel modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBox: {
     width: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xxl,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...Typography.large,
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   modalSubtitle: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: Spacing.xxl,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
     width: '100%',
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
   },
   cancelButtonPopup: {
@@ -395,53 +442,51 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
   },
   cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    ...Typography.subheading,
+    color: Colors.gray700,
   },
   confirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    ...Typography.subheading,
+    color: Colors.white,
   },
   // Celebration
   celebrationOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: Spacing.xxl,
   },
   celebrationContainer: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxl,
+    shadowColor: Colors.black,
     shadowOpacity: 0.25,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 10,
   },
   celebrationHeader: {
-    fontSize: 22,
+    ...Typography.heading2,
     fontWeight: '800',
     color: Colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   // Feed post preview
   feedPreviewCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   feedMediaWrapper: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   feedMediaAdaptive: {
     width: '100%',
@@ -451,15 +496,15 @@ const styles = StyleSheet.create({
   feedAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   feedAvatar: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.border,
   },
   feedAvatarPlaceholder: {
@@ -468,50 +513,50 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
   },
   feedAvatarText: {
-    color: '#fff',
-    fontSize: 13,
+    ...Typography.caption,
+    color: Colors.white,
     fontWeight: '700',
   },
   feedAuthorName: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textPrimary,
   },
   feedTimestamp: {
-    fontSize: 11,
+    ...Typography.tiny,
     color: Colors.textMuted,
   },
   feedProgressBlock: {
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   feedProgressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
   },
   feedProgressBlockLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
   feedProgressBlockCount: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textPrimary,
     fontWeight: '600',
   },
   feedCapsuleRow: {
     flexDirection: 'row',
-    gap: 5,
+    gap: Spacing.xs,
   },
   feedCapsule: {
     flex: 1,
     height: 7,
-    borderRadius: 50,
+    borderRadius: BorderRadius.pill,
   },
   fullscreenOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundColor: Colors.overlayDark,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -522,8 +567,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.whiteAlpha15,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -532,28 +577,28 @@ const styles = StyleSheet.create({
     height: '80%',
   },
   celebrationButtons: {
-    gap: 8,
+    gap: Spacing.sm,
   },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
   },
   shareButtonText: {
-    color: '#fff',
-    fontSize: 15,
+    ...Typography.body,
+    color: Colors.white,
     fontWeight: '700',
   },
   celebrationCloseBtn: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
   },
   celebrationCloseBtnText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textMuted,
   },

@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppProvider } from './src/context/AppContext';
 import { AuthGuardProvider } from './src/context/AuthGuardContext';
 import { TimerProvider } from './src/context/TimerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
+import Colors from './src/config/colors';
 import { PWAInstaller } from './src/components/PWAInstaller';
 import { pushNotificationService } from './src/services/PushNotificationService';
 import { initializeAnalytics } from './src/utils/analytics';
@@ -14,6 +14,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastProvider } from './src/context/ToastContext';
 import ToastOverlay from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { logger } from './src/utils/logger';
 
 import {
   useFonts,
@@ -24,7 +25,7 @@ import {
 } from '@expo-google-fonts/outfit';
 
 export default function App() {
-  console.log('[App] Component mounting...');
+  logger.log('[App] Component mounting...');
 
   const [fontsLoaded] = useFonts({
     Outfit_400Regular,
@@ -34,7 +35,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    console.log('[App] useEffect running...');
+    logger.log('[App] useEffect running...');
 
     // Setup local notification handler
     pushNotificationService.setupNotificationHandler();
@@ -56,7 +57,7 @@ export default function App() {
       // Add theme color meta tag
       const themeColorMeta = document.createElement('meta');
       themeColorMeta.name = 'theme-color';
-      themeColorMeta.content = '#8B5CF6';
+      themeColorMeta.content = '#059669';
       document.head.appendChild(themeColorMeta);
 
       // Add apple mobile web app capable
@@ -85,25 +86,21 @@ export default function App() {
       // Initialize Google Analytics 4 (web only)
       initializeAnalytics();
 
-      // Also use a fallback interval to ensure title stays "Ernit"
-      const titleInterval = setInterval(() => {
-        if (document.title !== 'Ernit') {
-          document.title = 'Ernit';
-        }
-      }, 100);
-
       return () => {
         titleObserver.disconnect();
-        clearInterval(titleInterval);
       };
     }
   }, []);
 
   if (!fontsLoaded) {
-    return null; // Or a splash screen component
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.white, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.secondary} />
+      </View>
+    );
   }
 
-  console.log('[App] Rendering AppProvider and AppNavigator');
+  logger.log('[App] Rendering AppProvider and AppNavigator');
 
   return (
     <SafeAreaProvider>

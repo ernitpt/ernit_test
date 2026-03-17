@@ -1,5 +1,5 @@
 // ✅ Firebase Functions v2 version
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -19,7 +19,7 @@ export const deleteExperience = onCall(
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
         if (!auth?.uid) {
-            throw new Error("Unauthorized: User must be authenticated");
+            throw new HttpsError('unauthenticated', 'User must be authenticated');
         }
 
         const userId = auth.uid;
@@ -32,13 +32,13 @@ export const deleteExperience = onCall(
 
         if (!partnerUserSnap.exists) {
             console.warn(`❌ User ${userId} is not a partner user`);
-            throw new Error("Unauthorized: User is not a partner");
+            throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
             console.warn(`❌ User ${userId} is not an admin`);
-            throw new Error("Unauthorized: User is not an admin");
+            throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
         console.log(`✅ Admin verified: ${userId}`);
@@ -48,7 +48,7 @@ export const deleteExperience = onCall(
 
         // ✅ VALIDATION: Check required fields
         if (!experienceId || typeof experienceId !== "string") {
-            throw new Error("Missing or invalid experienceId");
+            throw new HttpsError('invalid-argument', 'Missing or invalid experienceId');
         }
 
         console.log(`🗑️ Deleting experience: ${experienceId}`);
@@ -59,7 +59,7 @@ export const deleteExperience = onCall(
             const experienceSnap = await experienceRef.get();
 
             if (!experienceSnap.exists) {
-                throw new Error("Experience not found");
+                throw new HttpsError('not-found', 'Experience not found');
             }
 
             const experienceData = experienceSnap.data();
@@ -106,6 +106,20 @@ export const deleteExperience = onCall(
                 }
             }
 
+            // ✅ CHECK FOR ACTIVE GIFT REFERENCES before deleting
+            const activeGifts = await db.collection('experienceGifts')
+                .where('experienceId', '==', experienceId)
+                .where('status', 'in', ['pending', 'claimed'])
+                .limit(1)
+                .get();
+
+            if (!activeGifts.empty) {
+                throw new HttpsError(
+                    'failed-precondition',
+                    'Cannot delete experience: it has active or claimed gifts. Please resolve them first.'
+                );
+            }
+
             // ✅ DELETE EXPERIENCE DOCUMENT from Firestore
             await experienceRef.delete();
 
@@ -117,7 +131,7 @@ export const deleteExperience = onCall(
             };
         } catch (error: any) {
             console.error("❌ Error deleting experience:", error);
-            throw new Error(`Failed to delete experience: ${error.message}`);
+            throw new HttpsError('internal', 'Failed to delete experience');
         }
     }
 );

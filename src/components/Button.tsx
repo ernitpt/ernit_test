@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
-  TouchableOpacity,
+  Animated,
   Text,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
   StyleSheet,
-  View,
+  Pressable,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import { Typography } from '../config/typography';
+import { Animations } from '../config/animations';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'icon';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -30,6 +32,7 @@ export interface ButtonProps {
   textStyle?: TextStyle;
   activeOpacity?: number;
   fullWidth?: boolean;
+  gradient?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -45,7 +48,23 @@ const Button: React.FC<ButtonProps> = ({
   textStyle,
   activeOpacity = 0.8,
   fullWidth = false,
+  gradient = false,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      ...Animations.springs.bouncy,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      ...Animations.springs.bouncy,
+    }).start();
+  }, [scaleAnim]);
   const getVariantStyles = (): ViewStyle => {
     switch (variant) {
       case 'primary':
@@ -118,8 +137,7 @@ const Button: React.FC<ButtonProps> = ({
         Object.assign(baseTextStyle, Typography.bodyBold);
         break;
       case 'lg':
-        baseTextStyle.fontSize = 16;
-        baseTextStyle.fontWeight = '700';
+        Object.assign(baseTextStyle, Typography.subheading, { fontWeight: '700' as const });
         break;
     }
 
@@ -160,10 +178,13 @@ const Button: React.FC<ButtonProps> = ({
     }
   };
 
+  const useGradient = gradient && (variant === 'primary' || variant === 'icon');
+
   const containerStyle: ViewStyle = {
     ...styles.container,
     ...getVariantStyles(),
-    ...getSizeStyles(),
+    ...(useGradient ? {} : getSizeStyles()),
+    ...(useGradient && { backgroundColor: 'transparent' }),
     ...(fullWidth && { width: '100%' }),
     ...(disabled && { opacity: 0.5 }),
     ...style,
@@ -208,15 +229,33 @@ const Button: React.FC<ButtonProps> = ({
     );
   };
 
+  const content = renderContent();
+
   return (
-    <TouchableOpacity
-      style={containerStyle}
+    <Pressable
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
-      activeOpacity={activeOpacity}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: disabled || loading }}
     >
-      {renderContent()}
-    </TouchableOpacity>
+      <Animated.View style={[containerStyle, { transform: [{ scale: scaleAnim }] }]}>
+        {useGradient ? (
+          <LinearGradient
+            colors={Colors.gradientPrimary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.gradientInner, variant === 'icon' && styles.gradientIcon]}
+          >
+            {content}
+          </LinearGradient>
+        ) : (
+          content
+        )}
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -225,8 +264,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  gradientInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  gradientIcon: {
+    width: 44,
+    height: 44,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderRadius: BorderRadius.circle,
   },
 });
 

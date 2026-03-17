@@ -37,6 +37,31 @@ export const Typography: Record<string, TextStyle> = {
 
     // ─── Tiny ─────────────────────────────────────────────────────────
     tiny: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
+
+    // ─── Micro (badges, nav labels) ─────────────────────────────────
+    micro: { fontSize: 9, fontWeight: '700', lineHeight: 12 },
+
+    // ─── Medium weight variants ─────────────────────────────────────
+    bodyMedium: { fontSize: 15, fontWeight: '500', lineHeight: 22 },
+    smallMedium: { fontSize: 14, fontWeight: '500', lineHeight: 20 },
+
+    // ─── Extra bold variants ─────────────────────────────────────────
+    displayBold: { fontSize: 32, fontWeight: '800', lineHeight: 40 },
+    heading1Bold: { fontSize: 26, fontWeight: '800', lineHeight: 32 },
+
+    // ─── Hero (celebration stats, large displays) ───────────────────
+    hero: { fontSize: 72, fontWeight: '800', lineHeight: 80 },
+    heroSub: { fontSize: 42, fontWeight: '700', lineHeight: 50 },
+
+    // ─── Display large (profile/placeholder/celebration) ───────────
+    displayLarge: { fontSize: 40, fontWeight: '700', lineHeight: 48 },
+
+    // ─── Emoji display sizes ────────────────────────────────────────
+    emoji: { fontSize: 48, fontWeight: '400', lineHeight: 56 },
+    emojiLarge: { fontSize: 64, fontWeight: '400', lineHeight: 72 },
+
+    // ─── Brand logo (Landing screen title) ──────────────────────────
+    brandLogo: { fontSize: 46, fontWeight: '800', lineHeight: 54 },
 };
 
 export default Typography;

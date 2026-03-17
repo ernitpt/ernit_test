@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
+    ActivityIndicator,
+    Platform,
 } from 'react-native';
 import { ShoppingBag, Search } from 'lucide-react-native';
+import Button from './Button';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
 import { Colors, Typography, Spacing, BorderRadius } from '../config';
+import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 
 interface ClaimExperienceModalProps {
@@ -34,6 +38,11 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
 }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state, dispatch } = useApp();
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    useEffect(() => {
+        if (!visible) setIsNavigating(false);
+    }, [visible]);
 
     const setEmpowerContext = () => {
         dispatch({
@@ -47,70 +56,95 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
     };
 
     const handleDirect = () => {
-        if (!pledgedExperienceId) return;
+        if (!pledgedExperienceId || isNavigating) return;
+        setIsNavigating(true);
         setEmpowerContext();
-        onClose();
-        navigation.navigate('ExperienceCheckout', {
-            cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
-        });
+        if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        // Brief delay so user sees loading feedback before modal closes
+        setTimeout(() => {
+            onClose();
+            navigation.navigate('ExperienceCheckout', {
+                cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
+            });
+        }, 400);
     };
 
     const handleBrowse = () => {
+        if (isNavigating) return;
+        setIsNavigating(true);
         setEmpowerContext();
-        onClose();
-        navigation.navigate('CategorySelection',
-            preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
-        );
+        if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        setTimeout(() => {
+            onClose();
+            navigation.navigate('CategorySelection',
+                preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
+            );
+        }, 400);
     };
 
     return (
         <BaseModal visible={visible} onClose={onClose} title="Claim Your Experience">
-            <Text style={styles.subtitle}>
-                You've earned it — pick your reward!
-            </Text>
+            {isNavigating ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.loadingText}>Taking you there...</Text>
+                </View>
+            ) : (
+                <>
+                    <Text style={styles.subtitle}>
+                        You've earned it — pick your reward!
+                    </Text>
 
-            {/* Option 1: Buy pledged experience */}
-            {experienceTitle && pledgedExperienceId && (
-                <TouchableOpacity
-                    style={styles.optionPrimary}
-                    onPress={handleDirect}
-                    activeOpacity={0.8}
-                >
-                    <ShoppingBag size={18} color={Colors.white} />
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.optionPrimaryText} numberOfLines={1}>
-                            Claim "{experienceTitle}"
-                        </Text>
-                        {experiencePrice != null && (
-                            <Text style={styles.optionPrice}>
-                                {'\u20AC'}{experiencePrice}
-                            </Text>
-                        )}
-                    </View>
-                </TouchableOpacity>
+                    {/* Option 1: Buy pledged experience */}
+                    {experienceTitle && pledgedExperienceId && (
+                        <TouchableOpacity
+                            style={styles.optionPrimary}
+                            onPress={handleDirect}
+                            activeOpacity={0.8}
+                        >
+                            <ShoppingBag size={18} color={Colors.white} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.optionPrimaryText} numberOfLines={1}>
+                                    Claim "{experienceTitle}"
+                                </Text>
+                                {experiencePrice != null && (
+                                    <Text style={styles.optionPrice}>
+                                        {'\u20AC'}{experiencePrice}
+                                    </Text>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Option 2: Browse */}
+                    <Button
+                        title={
+                            preferredRewardCategory && !experienceTitle
+                                ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
+                                : 'Browse Other Experiences'
+                        }
+                        onPress={handleBrowse}
+                        variant="secondary"
+                        size="md"
+                        fullWidth
+                        icon={<Search size={18} color={Colors.primary} />}
+                        style={{ marginBottom: Spacing.sm }}
+                    />
+
+                    {/* Cancel */}
+                    <Button
+                        title="Cancel"
+                        onPress={onClose}
+                        variant="ghost"
+                        size="sm"
+                        fullWidth
+                    />
+                </>
             )}
-
-            {/* Option 2: Browse */}
-            <TouchableOpacity
-                style={styles.optionSecondary}
-                onPress={handleBrowse}
-                activeOpacity={0.8}
-            >
-                <Search size={18} color={Colors.primary} />
-                <Text style={styles.optionSecondaryText}>
-                    {preferredRewardCategory && !experienceTitle
-                        ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
-                        : 'Browse Other Experiences'}
-                </Text>
-            </TouchableOpacity>
-
-            {/* Cancel */}
-            <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={onClose}
-            >
-                <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
         </BaseModal>
     );
 };
@@ -137,33 +171,19 @@ const styles = StyleSheet.create({
     },
     optionPrice: {
         ...Typography.caption,
-        color: 'rgba(255,255,255,0.8)',
+        color: Colors.whiteAlpha80,
         fontWeight: '600',
         marginTop: Spacing.xxs,
     },
-    optionSecondary: {
-        flexDirection: 'row',
+    loadingContainer: {
         alignItems: 'center',
-        gap: Spacing.md,
-        backgroundColor: Colors.primarySurface,
-        paddingVertical: Spacing.lg,
-        paddingHorizontal: Spacing.cardPadding,
-        borderRadius: BorderRadius.lg,
-        borderWidth: 1,
-        borderColor: Colors.primaryBorder,
-        marginBottom: Spacing.sm,
+        justifyContent: 'center',
+        paddingVertical: Spacing.xxxl,
+        gap: Spacing.lg,
     },
-    optionSecondaryText: {
-        ...Typography.bodyBold,
-        color: Colors.primary,
-    },
-    cancelButton: {
-        alignItems: 'center',
-        paddingVertical: Spacing.sm,
-    },
-    cancelText: {
-        ...Typography.small,
-        color: Colors.textMuted,
+    loadingText: {
+        ...Typography.body,
+        color: Colors.textSecondary,
     },
 });
 

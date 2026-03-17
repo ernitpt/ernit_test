@@ -4,6 +4,9 @@ import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import type { Goal } from '../../types';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useRecipientNavigation } from '../../types/navigation';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useApp } from '../../context/AppContext';
@@ -109,8 +112,8 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         backgroundColor: Colors.white,
-        borderRadius: 14,
-        marginBottom: 10,
+        borderRadius: BorderRadius.lg,
+        marginBottom: Spacing.sm,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
         overflow: 'hidden',
@@ -126,38 +129,38 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: 14,
+        padding: Spacing.md,
     },
     topRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     titleArea: {
         flex: 1,
-        marginRight: 10,
+        marginRight: Spacing.sm,
     },
     title: {
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '700',
         color: Colors.textPrimary,
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     completedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: Spacing.xs,
     },
     completedBadgeText: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.primary,
     },
     trophyCircle: {
         width: 34,
         height: 34,
-        borderRadius: 17,
+        borderRadius: BorderRadius.xl,
         backgroundColor: Colors.primarySurface,
         alignItems: 'center',
         justifyContent: 'center',
@@ -165,54 +168,54 @@ const styles = StyleSheet.create({
     statsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginBottom: 4,
+        gap: Spacing.xs,
+        marginBottom: Spacing.xs,
     },
     stat: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: Spacing.xs,
     },
     statText: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textSecondary,
         fontWeight: '500',
     },
     statDot: {
         width: 3,
         height: 3,
-        borderRadius: 1.5,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.textMuted,
     },
     experienceRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginTop: 8,
-        paddingTop: 8,
+        gap: Spacing.sm,
+        marginTop: Spacing.sm,
+        paddingTop: Spacing.sm,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: Colors.border,
     },
     experienceThumb: {
         width: 32,
         height: 32,
-        borderRadius: 6,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.backgroundLight,
     },
     experienceTitle: {
         flex: 1,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
     },
     selfBadge: {
-        marginTop: 8,
-        paddingTop: 8,
+        marginTop: Spacing.sm,
+        paddingTop: Spacing.sm,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: Colors.border,
     },
     selfBadgeText: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.primary,
     },

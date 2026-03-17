@@ -8,28 +8,29 @@ import Colors from '../config/colors';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Shadows } from '../config/shadows';
+import { Spacing } from '../config/spacing';
 
 const TOAST_CONFIG = {
   success: {
-    bg: '#ECFDF5',
-    border: '#6EE7B7',
-    text: '#065F46',
+    bg: Colors.successLighter,
+    border: Colors.primaryBorder,
+    text: Colors.primaryDeep,
     Icon: CheckCircle,
     iconColor: Colors.primary,
   },
   error: {
-    bg: '#FEF2F2',
-    border: '#FECACA',
-    text: '#991B1B',
+    bg: Colors.errorLight,
+    border: Colors.errorBorder,
+    text: Colors.errorDark,
     Icon: AlertCircle,
     iconColor: Colors.error,
   },
   info: {
-    bg: '#F0FDFA',
-    border: '#99F6E4',
-    text: '#115E59',
+    bg: Colors.infoLight,
+    border: Colors.info,
+    text: Colors.infoDark,
     Icon: Info,
-    iconColor: Colors.accent,
+    iconColor: Colors.info,
   },
 } as const;
 
@@ -66,6 +67,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
       <TouchableOpacity
         onPress={() => onDismiss(toast.id)}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityLabel="Dismiss"
+        accessibilityRole="button"
       >
         <X size={16} color={config.text} />
       </TouchableOpacity>
@@ -83,6 +86,7 @@ const ToastOverlay: React.FC = () => {
     <View
       style={[styles.overlay, { top: insets.top + 8 }]}
       pointerEvents="box-none"
+      accessibilityLiveRegion="polite"
     >
       <AnimatePresence>
         {toasts.map(toast => (
@@ -106,12 +110,12 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    marginBottom: 8,
-    gap: 10,
+    marginBottom: Spacing.sm,
+    gap: Spacing.md,
     ...Shadows.md,
   },
   message: {

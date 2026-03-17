@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../../config/colors';
+import { Typography } from '../../../config/typography';
+import { Spacing } from '../../../config/spacing';
 import { day2, dayMonth, isoDay } from '../goalCardUtils';
 
 // ─── AnimatedFilledDay ──────────────────────────────────────────────
@@ -126,7 +128,7 @@ WeeklyCalendar.displayName = 'WeeklyCalendar';
 const CIRCLE = 38;
 
 const styles = StyleSheet.create({
-  calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
   dayCell: { alignItems: 'center', width: CIRCLE },
   emptyCircle: {
     width: CIRCLE,
@@ -146,11 +148,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   dayTextEmpty: { color: Colors.textSecondary, fontWeight: '600' },
-  dayTextFilled: { color: '#fff', fontWeight: '700' },
+  dayTextFilled: { color: Colors.white, fontWeight: '700' },
   dateLabel: {
-    fontSize: 10,
+    ...Typography.caption,
     color: Colors.textMuted,
-    marginTop: 4,
+    marginTop: Spacing.xs,
     textAlign: 'center',
   },
   todayDateLabel: {

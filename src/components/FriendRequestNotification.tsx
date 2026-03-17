@@ -3,16 +3,16 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Avatar } from './Avatar';
 import { Notification } from '../types';
 import { friendService } from '../services/FriendService';
 import { notificationService } from '../services/NotificationService';
 import { Timestamp } from 'firebase/firestore';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { useToast } from '../context/ToastContext';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -28,7 +28,6 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
   const [isHandling, setIsHandling] = useState(false);
-  const [imageLoadError, setImageLoadError] = useState(false);
 
   const handleAccept = async () => {
     if (!notification.data?.friendRequestId) return;
@@ -84,19 +83,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          {senderProfileImageUrl && !imageLoadError ? (
-            <Image
-              source={{ uri: senderProfileImageUrl }}
-              style={styles.profileImage}
-              onError={() => setImageLoadError(true)}
-            />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Text style={styles.placeholderText}>
-                {senderName?.[0]?.toUpperCase() || 'U'}
-              </Text>
-            </View>
-          )}
+          <Avatar uri={senderProfileImageUrl} name={senderName} size="md" />
           <View style={styles.userDetails}>
             <Text style={styles.userName}>{senderName}</Text>
             {senderCountry && (
@@ -118,9 +105,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           style={[styles.button, styles.declineButton]}
           onPress={handleDecline}
           disabled={isHandling}
+          accessibilityRole="button"
+          accessibilityLabel="Decline friend request"
         >
           {isHandling ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={Colors.white} />
           ) : (
             <Text style={styles.declineButtonText}>Decline</Text>
           )}
@@ -130,9 +119,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           style={[styles.button, styles.acceptButton]}
           onPress={handleAccept}
           disabled={isHandling}
+          accessibilityRole="button"
+          accessibilityLabel="Accept friend request"
         >
           {isHandling ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={Colors.white} />
           ) : (
             <Text style={styles.acceptButtonText}>Accept</Text>
           )}
@@ -144,100 +135,81 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.secondary,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.info,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
   userDetails: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
+    ...Typography.subheading,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xxs,
   },
   userCountry: {
-    fontSize: 14,
-    color: '#6b7280',
+    ...Typography.small,
+    color: Colors.textSecondary,
   },
   timestamp: {
-    fontSize: 12,
-    color: '#9ca3af',
+    ...Typography.caption,
+    color: Colors.textMuted,
   },
   messageContainer: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   message: {
-    fontSize: 14,
-    color: '#374151',
+    ...Typography.small,
+    color: Colors.gray700,
     lineHeight: 20,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 32,
+    gap: Spacing.xxxl,
   },
   button: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    // minHeight: 24,
   },
   acceptButton: {
-    backgroundColor: '#abd8b2ff',
-    marginRight: 26
+    backgroundColor: Colors.approveLight,
+    marginRight: Spacing.xxl,
   },
   acceptButtonText: {
-    color: '#3e802aff',
-    fontSize: 14,
+    color: Colors.approveDark,
+    ...Typography.small,
     fontWeight: '600',
   },
   declineButton: {
-    backgroundColor: '#ddb1b1ff',
-    marginLeft: 26
+    backgroundColor: Colors.declineLight,
+    marginLeft: Spacing.xxl,
   },
   declineButtonText: {
-    color: '#9b2929ff',
-    fontSize: 14,
+    color: Colors.declineDark,
+    ...Typography.small,
     fontWeight: '600',
   },
-  placeholderImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 28,
-    marginRight: 12,
-    backgroundColor: '#e0e7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: { color: Colors.accentDark, fontSize: 20, fontWeight: '700' },
-
 });
 
 export default FriendRequestNotification;

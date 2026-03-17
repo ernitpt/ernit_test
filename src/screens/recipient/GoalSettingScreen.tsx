@@ -11,6 +11,7 @@ import {
   Platform,
   Animated,
   Dimensions,
+  GestureResponderEvent,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +22,7 @@ import {
   RecipientStackParamList,
   ExperienceGift,
   Goal,
+  Experience,
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { goalService } from '../../services/GoalService';
@@ -37,6 +39,9 @@ import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Spacing } from '../../config/spacing';
+import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 
 const { width } = Dimensions.get('window');
@@ -45,12 +50,12 @@ const TOTAL_STEPS = 4;
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
 const CATEGORIES = [
-  { icon: '\u{1F9D8}', name: 'Yoga', color: '#EC4899' },
+  { icon: '\u{1F9D8}', name: 'Yoga', color: Colors.categoryPink },
   { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
   { icon: '\u{1F3C3}\u200D\u2640\uFE0F', name: 'Running', color: Colors.accent },
-  { icon: '\u{1F4BB}', name: 'Courses', color: '#F59E0B' },
-  { icon: '\u{1F4DA}', name: 'Education', color: '#8B5CF6' },
-  { icon: '\u{1F3B9}', name: 'Piano', color: '#3B82F6' },
+  { icon: '\u{1F4BB}', name: 'Courses', color: Colors.categoryAmber },
+  { icon: '\u{1F4DA}', name: 'Education', color: Colors.categoryViolet },
+  { icon: '\u{1F3B9}', name: 'Piano', color: Colors.categoryBlue },
   { icon: '\u270F\uFE0F', name: 'Other', color: Colors.textSecondary },
 ];
 
@@ -76,7 +81,7 @@ const ModernSlider = ({
   onChange: (val: number) => void; leftLabel: string; rightLabel: string;
   unit?: string; unitPlural?: string;
 }) => {
-  const handlePress = (event: any) => {
+  const handlePress = (event: GestureResponderEvent) => {
     const { locationX } = event.nativeEvent;
     const trackWidth = width - 96;
     const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
@@ -140,6 +145,31 @@ const GoalSettingScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const minutesRef = useRef<TextInput>(null);
 
+  // ─── Wizard State ──────────────────────────────────────────────────
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [customCategory, setCustomCategory] = useState('');
+  const [weeks, setWeeks] = useState(3);
+  const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
+  const [hours, setHours] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [plannedStartDate, setPlannedStartDate] = useState(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({ category: false, time: false });
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [hintPromise, setHintPromise] = useState<Promise<string> | null>(null);
+  const [showHintPopup, setShowHintPopup] = useState(false);
+  const [firstHint, setFirstHint] = useState<string | null>(null);
+  const [createdGoal, setCreatedGoal] = useState<Goal | null>(null);
+
+  // Calendar state
+  const [calendarMonth, setCalendarMonth] = useState(
+    new Date(plannedStartDate.getFullYear(), plannedStartDate.getMonth(), 1)
+  );
+
+  // Animations
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
   // Validate required data
   const hasValidData = Boolean(experienceGift?.id && experienceGift?.experienceId);
 
@@ -155,7 +185,7 @@ const GoalSettingScreen = () => {
     return (
       <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
         <MainScreen activeRoute="Goals">
-          <View style={{ padding: 20, gap: 16 }}>
+          <View style={{ padding: Spacing.xl, gap: Spacing.lg }}>
             <SkeletonBox width="100%" height={120} borderRadius={12} />
             <SkeletonBox width="60%" height={20} borderRadius={8} />
             <SkeletonBox width="100%" height={48} borderRadius={12} />
@@ -164,31 +194,6 @@ const GoalSettingScreen = () => {
       </ErrorBoundary>
     );
   }
-
-  // ─── Wizard State ──────────────────────────────────────────────────
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [customCategory, setCustomCategory] = useState('');
-  const [weeks, setWeeks] = useState(3);
-  const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
-  const [hours, setHours] = useState('');
-  const [minutes, setMinutes] = useState('');
-  const [plannedStartDate, setPlannedStartDate] = useState(new Date());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({ category: false, time: false });
-  const [experience, setExperience] = useState<any>(null);
-  const [hintPromise, setHintPromise] = useState<Promise<string> | null>(null);
-  const [showHintPopup, setShowHintPopup] = useState(false);
-  const [firstHint, setFirstHint] = useState<string | null>(null);
-  const [createdGoal, setCreatedGoal] = useState<Goal | null>(null);
-
-  // Calendar state
-  const [calendarMonth, setCalendarMonth] = useState(
-    new Date(plannedStartDate.getFullYear(), plannedStartDate.getMonth(), 1)
-  );
-
-  // Animations
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
 
@@ -215,12 +220,14 @@ const GoalSettingScreen = () => {
   // Pulse animation while submitting
   useEffect(() => {
     if (isSubmitting) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.05, duration: 600, useNativeDriver: true }),
           Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      loop.start();
+      return () => loop.stop();
     } else {
       pulseAnim.setValue(1);
     }
@@ -346,13 +353,14 @@ const GoalSettingScreen = () => {
       // CRITICAL: Claim the gift FIRST before creating goal
       try {
         await updateGiftStatus(experienceGift.id);
-      } catch (claimError: any) {
-        if (claimError.message === 'Gift already claimed') {
+      } catch (claimError: unknown) {
+        const claimErrMsg = claimError instanceof Error ? claimError.message : '';
+        if (claimErrMsg === 'Gift already claimed') {
           showError('This code has already been claimed by someone else. Please check with the person who sent it to you.');
-        } else if (claimError.message === 'User not authenticated') {
+        } else if (claimErrMsg === 'User not authenticated') {
           showError('Please sign in to continue.');
         } else {
-          await logErrorToFirestore(claimError, {
+          await logErrorToFirestore(claimError instanceof Error ? claimError : new Error(claimErrMsg), {
             screenName: 'GoalSettingScreen',
             feature: 'ClaimGift',
             userId: currentUserId,
@@ -514,9 +522,91 @@ const GoalSettingScreen = () => {
 
   const finalCategory = selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
 
+  // ─── Together Mode: pre-fill from giver's goal ───────────────────
+  const togetherData = experienceGift?.togetherData;
+  const [acceptedGiverGoal, setAcceptedGiverGoal] = useState(false);
+
+  const handleAcceptGiverGoal = () => {
+    if (!togetherData) return;
+    setAcceptedGiverGoal(true);
+    // Pre-fill from giver's goal data
+    // Parse duration (e.g. "3 weeks" → weeks=3)
+    const durationMatch = togetherData.duration?.match(/(\d+)/);
+    if (durationMatch) setWeeks(parseInt(durationMatch[1], 10));
+    // Parse frequency (e.g. "3x per week" → sessionsPerWeek=3)
+    const freqMatch = togetherData.frequency?.match(/(\d+)/);
+    if (freqMatch) setSessionsPerWeek(parseInt(freqMatch[1], 10));
+    // Parse session time (e.g. "1h 30m")
+    const timeMatch = togetherData.sessionTime?.match(/(\d+)h\s*(\d+)m/);
+    if (timeMatch) {
+      setHours(timeMatch[1]);
+      setMinutes(timeMatch[2]);
+    }
+  };
+
   // ─── Step Renderers ───────────────────────────────────────────────
   const renderStep1 = () => (
     <View style={styles.stepContent}>
+      {/* Together mode: show giver's goal with accept option */}
+      {togetherData && !acceptedGiverGoal && (
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+        >
+          <View style={{
+            backgroundColor: Colors.warningLighter,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.lg,
+            marginBottom: Spacing.xl,
+            borderWidth: 1,
+            borderColor: Colors.warningBorder,
+          }}>
+            <Text style={{ ...Typography.smallBold, color: Colors.warningDark, marginBottom: Spacing.sm }}>
+              {experienceGift?.giverName || 'Someone'} is doing this together with you!
+            </Text>
+            {togetherData.goalName ? (
+              <Text style={{ ...Typography.body, color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+                Their goal: {togetherData.goalName}
+              </Text>
+            ) : null}
+            <Text style={{ ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.lg }}>
+              {togetherData.duration} · {togetherData.frequency} · {togetherData.sessionTime}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: Colors.warning,
+                  borderRadius: BorderRadius.md,
+                  paddingVertical: Spacing.md,
+                  alignItems: 'center',
+                }}
+                onPress={handleAcceptGiverGoal}
+                activeOpacity={0.8}
+              >
+                <Text style={{ ...Typography.smallBold, color: Colors.white }}>Accept same challenge</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.md,
+                  paddingVertical: Spacing.md,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+                onPress={() => setAcceptedGiverGoal(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={{ ...Typography.smallBold, color: Colors.textSecondary }}>Create my own</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </MotiView>
+      )}
+
       <View style={styles.goalGrid}>
         {CATEGORIES.map((cat) => (
           <MotiView
@@ -555,7 +645,7 @@ const GoalSettingScreen = () => {
       </View>
 
       {validationErrors.category && (
-        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: '500' }}>
+        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
           Please select a goal category
         </Text>
       )}
@@ -580,7 +670,7 @@ const GoalSettingScreen = () => {
             />
           </View>
           {validationErrors.category && customCategory.trim() === '' && (
-            <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+            <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
               Please enter a custom category
             </Text>
           )}
@@ -663,7 +753,7 @@ const GoalSettingScreen = () => {
           </View>
 
           {validationErrors.time && (
-            <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 8, fontWeight: '500' }}>
+            <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
               Please set a time per session (at least 1 minute)
             </Text>
           )}
@@ -897,7 +987,7 @@ const GoalSettingScreen = () => {
                     <Text style={styles.ctaText}>
                       {isSubmitting ? 'Creating Goal...' : 'Create Goal'}
                     </Text>
-                    {!isSubmitting && <ChevronRight color="#fff" size={20} strokeWidth={3} />}
+                    {!isSubmitting && <ChevronRight color={Colors.white} size={20} strokeWidth={3} />}
                   </LinearGradient>
                 </Animated.View>
               </TouchableOpacity>
@@ -910,7 +1000,7 @@ const GoalSettingScreen = () => {
                   style={styles.ctaGradient}
                 >
                   <Text style={styles.ctaText}>Next</Text>
-                  <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                  <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -945,8 +1035,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.backgroundLight,
@@ -954,42 +1044,42 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   stepIndicator: {
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
   },
   stepIndicatorText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
   },
   // Progress bar
   progressBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
   },
   progressTrack: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: BorderRadius.xs,
     backgroundColor: Colors.border,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: BorderRadius.xs,
     backgroundColor: Colors.secondary,
   },
   // Scroll
@@ -997,69 +1087,69 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl,
   },
   stepTitle: {
-    fontSize: 24,
+    ...Typography.heading1,
     fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   stepSubtitle: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 28,
+    marginBottom: Spacing.xxxl,
   },
   stepContent: {},
   section: {
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   // Error banner
   errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    backgroundColor: Colors.errorLight,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: Colors.errorBorder,
   },
   errorText: {
-    color: '#DC2626',
-    fontSize: 14,
+    color: Colors.error,
+    ...Typography.small,
     fontWeight: '600',
   },
   // Goal chips (Step 1)
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 4,
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
   },
   goalChip: {
     width: '30%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 16,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: Colors.border,
   },
   goalChipError: {
-    borderColor: '#FECACA',
-    backgroundColor: '#FEF2F2',
+    borderColor: Colors.errorBorder,
+    backgroundColor: Colors.errorLight,
   },
   goalIcon: {
-    fontSize: 22,
+    ...Typography.heading2,
   },
   goalName: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
@@ -1067,95 +1157,95 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   customGoalContainer: {
-    marginTop: 20,
+    marginTop: Spacing.xl,
   },
   customGoalLabel: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   customGoalInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     borderWidth: 2,
     borderColor: Colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
   },
   customGoalIcon: {
-    fontSize: 20,
-    marginRight: 8,
+    ...Typography.large,
+    marginRight: Spacing.sm,
   },
   customGoalInput: {
     flex: 1,
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textPrimary,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
   },
   // Sliders (Step 2)
   sliderContainer: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     borderWidth: 1,
     borderColor: Colors.backgroundLight,
   },
   sliderTitle: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '700',
     color: Colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   sliderValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 20,
-    gap: 8,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
   },
   sliderValue: {
-    fontSize: 32,
+    ...Typography.display,
     fontWeight: '900',
     color: Colors.textPrimary,
   },
   sliderUnit: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   sliderLabelText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.textMuted,
   },
   sliderTrack: {
     height: 8,
     backgroundColor: Colors.border,
-    borderRadius: 4,
+    borderRadius: BorderRadius.xs,
     position: 'relative',
     width: '100%',
   },
   sliderProgress: {
     height: '100%',
     backgroundColor: Colors.primary,
-    borderRadius: 4,
+    borderRadius: BorderRadius.xs,
   },
   sliderThumb: {
     position: 'absolute',
     top: -8,
-    marginLeft: -12,
+    marginLeft: -Spacing.md,
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1168,42 +1258,42 @@ const styles = StyleSheet.create({
   sliderThumbInner: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: BorderRadius.xs,
     backgroundColor: Colors.primary,
   },
   // Time inputs (Step 2)
   timeRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: Spacing.lg,
   },
   timeInputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   timeInput: {
     width: 60,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 18,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    ...Typography.heading3,
     fontWeight: '700',
     textAlign: 'center',
     backgroundColor: Colors.white,
     color: Colors.textPrimary,
   },
   timeLabel: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
   // Calendar (Step 3)
   inlineCalendar: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -1211,26 +1301,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   calNavBtn: {
-    padding: 8,
-    borderRadius: 8,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.backgroundLight,
   },
   calMonthYear: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   calWeekRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   calWeekDay: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.textMuted,
   },
@@ -1243,7 +1333,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
     marginVertical: 1,
   },
   calSelectedDay: {
@@ -1254,12 +1344,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.secondary,
   },
   calDayText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textPrimary,
     fontWeight: '500',
   },
   calDisabledText: {
-    color: '#D1D5DB',
+    color: Colors.disabled,
   },
   calSelectedText: {
     color: Colors.white,
@@ -1272,35 +1362,35 @@ const styles = StyleSheet.create({
   // End date info (Step 3)
   endDateContainer: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
   endDateLabel: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   endDateValue: {
-    fontSize: 17,
+    ...Typography.heading3,
     fontWeight: '700',
     color: Colors.primary,
     textAlign: 'center',
   },
   endDateSublabel: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
   // Review card (Step 4)
   reviewCard: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.backgroundLight,
   },
@@ -1308,15 +1398,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
   },
   reviewLabel: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '500',
     color: Colors.textSecondary,
   },
   reviewValue: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
@@ -1326,22 +1416,22 @@ const styles = StyleSheet.create({
   },
   experiencePreview: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
   experiencePreviewLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   experiencePreviewTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.primaryDeep,
   },
@@ -1351,9 +1441,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    paddingTop: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
+    paddingTop: Spacing.lg,
     backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.backgroundLight,
@@ -1364,7 +1454,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   ctaButton: {
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -1375,13 +1465,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 18,
-    borderRadius: 16,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xl,
+    borderRadius: BorderRadius.lg,
   },
   ctaText: {
     color: Colors.white,
-    fontSize: 17,
+    ...Typography.heading3,
     fontWeight: '700',
   },
 });

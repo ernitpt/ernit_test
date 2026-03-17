@@ -38,32 +38,14 @@ import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import ImageViewer from '../../components/ImageViewer';
 
 const { width, height } = Dimensions.get("window");
 
-// Zoomable Image Component (Simple version for web compatibility)
-const ZoomableImage = ({ uri, onClose }: { uri: string; onClose: () => void }) => {
-  return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.zoomModalContainer}>
-        <TouchableOpacity style={styles.zoomCloseButton} onPress={onClose}>
-          <Text style={styles.zoomCloseText}>✕</Text>
-        </TouchableOpacity>
-
-        <ScrollView
-          contentContainerStyle={styles.zoomScrollContent}
-          maximumZoomScale={3}
-          minimumZoomScale={1}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-        >
-          <Image source={{ uri }} style={styles.zoomableImage} resizeMode="contain" />
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-};
 
 function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }) {
   const navigation = useGiverNavigation();
@@ -90,6 +72,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
   // Save guest cart to local storage whenever it changes
   const prevCartRef = useRef<string>('');
+  // Ref guard to prevent rapid double-taps from firing handleAddToCart twice
+  const addingToCartRef = useRef(false);
 
   // Redirect if data is missing (e.g., after page refresh)
   useEffect(() => {
@@ -139,7 +123,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -184,6 +168,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   };
 
   const handleAddToCart = async () => {
+    if (addingToCartRef.current) return;
+    addingToCartRef.current = true;
     setIsAddingToCart(true);
     try {
       const cartItem: CartItem = {
@@ -201,11 +187,13 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       // Guest cart is saved automatically via useEffect
 
       showSuccess(`Added ${quantity} item(s) to cart!`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error adding to cart:", error);
-      showError(error.message || "Failed to add item to cart.");
-    } finally{
+      const message = error instanceof Error ? error.message : String(error);
+      showError(message || "Failed to add item to cart.");
+    } finally {
       setIsAddingToCart(false);
+      addingToCartRef.current = false;
     }
   };
 
@@ -229,9 +217,10 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     if (user && state.user) {
       try {
         await userService.addToCart(user.uid, cartItem);
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error("Error adding to cart:", error);
-        showError(error.message || "Failed to add item to cart.");
+        const message = error instanceof Error ? error.message : String(error);
+        showError(message || "Failed to add item to cart.");
         return;
       }
     }
@@ -270,7 +259,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
           <LinearGradient
-            colors={["rgba(0,0,0,0.4)", "transparent"]}
+            colors={[Colors.overlay, "transparent"]}
             style={styles.heroGradient}
           >
             <TouchableOpacity
@@ -279,7 +268,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <ChevronLeft color="#fff" size={24} />
+              <ChevronLeft color={Colors.white} size={24} />
             </TouchableOpacity>
             <View style={styles.headerButtons}>
               <TouchableOpacity
@@ -288,7 +277,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityRole="button"
                 accessibilityLabel={`View cart, ${cartItemCount} items`}
               >
-                <ShoppingCart color="#fff" size={24} />
+                <ShoppingCart color={Colors.white} size={24} />
                 {cartItemCount > 0 && (
                   <View style={styles.cartBadge}>
                     <Text style={styles.cartBadgeText}>
@@ -304,9 +293,9 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
                 {isWishlisted ? (
-                  <Heart fill="#ef4444" color="#ef4444" size={24} />
+                  <Heart fill={Colors.error} color={Colors.error} size={24} />
                 ) : (
-                  <Heart color="#fff" size={24} />
+                  <Heart color={Colors.white} size={24} />
                 )}
               </TouchableOpacity>
             </View>
@@ -335,7 +324,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 <Image
                   source={{ uri: url }}
                   style={styles.heroImage}
-                  resizeMode="contain"
+                  resizeMode="cover"
                   accessibilityLabel={`${experience.title} image ${index + 1}`}
                 />
               </TouchableOpacity>
@@ -400,6 +389,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 style={styles.howItWorksButton}
                 accessibilityRole="button"
                 accessibilityLabel="How it works"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Info color={Colors.secondary} size={18} />
               </TouchableOpacity>
@@ -415,7 +405,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               <Text style={styles.sectionTitle}>Location</Text>
               {partner.address && (
                 <View style={styles.addressContainer}>
-                  <MapPin color="#6b7280" size={16} />
+                  <MapPin color={Colors.textSecondary} size={16} />
                   <Text style={styles.addressText}>{partner.address}</Text>
                 </View>
               )}
@@ -426,7 +416,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                     src={streetMapUrl}
                     width="100%"
                     height="100%"
-                    style={{ border: 0, borderRadius: 12 }}
+                    style={{ border: 0, borderRadius: BorderRadius.md }}
                     allowFullScreen
                     loading="lazy"
                     title="Location"
@@ -458,6 +448,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               disabled={quantity === 1}
               accessibilityRole="button"
               accessibilityLabel="Decrease quantity"
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             >
               <Text style={[styles.quantityButtonText, quantity === 1 && styles.quantityButtonTextDisabled]}>-</Text>
             </TouchableOpacity>
@@ -468,6 +459,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               disabled={quantity === 10}
               accessibilityRole="button"
               accessibilityLabel="Increase quantity"
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             >
               <Text style={[styles.quantityButtonText, quantity === 10 && styles.quantityButtonTextDisabled]}>+</Text>
             </TouchableOpacity>
@@ -499,12 +491,16 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
       </View>
 
-      {/* Zoomable Image Modal */}
-      {
-        selectedImage && (
-          <ZoomableImage uri={selectedImage} onClose={() => setSelectedImage(null)} />
-        )
-      }
+      {/* Fullscreen Image Viewer */}
+      {selectedImage && (
+        <ImageViewer
+          visible={!!selectedImage}
+          imageUri={selectedImage}
+          imageUris={images.length > 1 ? images : undefined}
+          initialIndex={images.length > 1 ? images.indexOf(selectedImage) : 0}
+          onClose={() => setSelectedImage(null)}
+        />
+      )}
 
       {/* Login Prompt */}
       <LoginPrompt
@@ -529,7 +525,7 @@ export default ExperienceDetailsScreenInner;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
   },
   heroContainer: {
     position: "relative",
@@ -548,18 +544,18 @@ const styles = StyleSheet.create({
   },
   backButtonHero: {
     marginTop: Platform.OS === "ios" ? 50 : 40,
-    marginLeft: 20,
+    marginLeft: Spacing.xl,
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
   },
   heroImage: {
     width: Platform.OS === "web" ? Math.min(width, 800) : width,
     height: 400,
-    backgroundColor: "#1f2937",
+    backgroundColor: Colors.backgroundLight,
   },
   dotsContainer: {
     position: "absolute",
@@ -572,51 +568,51 @@ const styles = StyleSheet.create({
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    borderRadius: BorderRadius.xs,
+    marginHorizontal: Spacing.xs,
   },
   dotActive: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
     width: 24,
   },
   dotInactive: {
-    backgroundColor: "rgba(255,255,255,0.5)",
+    backgroundColor: Colors.whiteAlpha40,
   },
   contentContainer: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
     marginTop: -20,
-    paddingTop: 24,
-    paddingHorizontal: 20,
+    paddingTop: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
     paddingBottom: 100,
   },
   headerSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     marginTop: 5,
 
   },
   titleContainer: {
     flex: 1,
-    marginRight: 16,
+    marginRight: Spacing.lg,
   },
   title: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: "bold",
     color: Colors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     color: Colors.textSecondary,
   },
   howItWorksButton: {
     width: 35,
     height: 35,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
@@ -625,40 +621,40 @@ const styles = StyleSheet.create({
   },
   priceTag: {
     backgroundColor: Colors.backgroundLight,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
     alignItems: "center",
   },
   priceAmount: {
-    fontSize: 24,
+    ...Typography.heading1,
     fontWeight: "bold",
     color: Colors.secondary,
   },
   priceLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textSecondary,
     marginTop: 2,
   },
   quickInfoContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 24,
+    gap: Spacing.md,
+    marginBottom: Spacing.xxl,
   },
   headerButtons: {
     position: "absolute",
     top: Platform.OS === "ios" ? 50 : 40,
-    right: 20,
+    right: Spacing.xl,
     flexDirection: "row",
-    gap: 12,
+    gap: Spacing.md,
     zIndex: 20,
   },
   cartButtonHero: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
@@ -666,8 +662,8 @@ const styles = StyleSheet.create({
   heartButtonHero: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -675,33 +671,33 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: "#ef4444",
-    borderRadius: 10,
+    backgroundColor: Colors.error,
+    borderRadius: BorderRadius.sm,
     minWidth: 20,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: Spacing.xs,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: Colors.white,
   },
   cartBadgeText: {
-    color: "#fff",
-    fontSize: 11,
+    color: Colors.white,
+    ...Typography.tiny,
     fontWeight: "700",
   },
   quickInfoItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.xs,
   },
   quickInfoText: {
-    fontSize: 14,
-    color: "#374151",
+    ...Typography.small,
+    color: Colors.gray700,
     fontWeight: "500",
   },
   section: {
@@ -711,60 +707,59 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    ...Typography.large,
     color: Colors.textPrimary,
   },
   descriptionCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   descriptionText: {
-    fontSize: 16,
+    ...Typography.subheading,
     lineHeight: 26,
-    color: "#374151",
+    color: Colors.gray700,
     letterSpacing: 0.2,
   },
   addressContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   addressText: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     flex: 1,
   },
   mapContainer: {
     height: 220,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     overflow: "hidden",
     backgroundColor: Colors.border,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   webview: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
   },
   bottomCTA: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: Platform.OS === "ios" ? 32 : 16,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    paddingBottom: Platform.OS === "ios" ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    shadowColor: "#000",
+    borderTopColor: Colors.border,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -774,22 +769,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   quantityLabel: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: "600",
-    color: "#374151",
+    color: Colors.gray700,
   },
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Spacing.md,
   },
   quantityButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
@@ -800,15 +795,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   quantityButtonText: {
-    fontSize: 20,
-    fontWeight: "700",
+    ...Typography.large,
     color: Colors.secondary,
   },
   quantityButtonTextDisabled: {
     color: Colors.textMuted,
   },
   quantityValue: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: "700",
     color: Colors.textPrimary,
     minWidth: 30,
@@ -816,67 +810,35 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: Spacing.md,
   },
   addToCartButton: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
     alignItems: "center",
     borderWidth: 2,
     borderColor: Colors.secondary,
   },
   addToCartButtonText: {
     color: Colors.secondary,
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: "700",
   },
   buyNowButton: {
     flex: 1,
     backgroundColor: Colors.secondary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
     alignItems: "center",
   },
   buyNowButtonText: {
-    color: "#fff",
-    fontSize: 18,
+    color: Colors.white,
+    ...Typography.heading3,
     fontWeight: "700",
   },
   buttonDisabled: {
     opacity: 0.6,
-  },
-  zoomModalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.95)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  zoomCloseButton: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 50 : 40,
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  zoomCloseText: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "600",
-  },
-  zoomScrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  zoomableImage: {
-    width,
-    height: height * 0.8,
   },
 });

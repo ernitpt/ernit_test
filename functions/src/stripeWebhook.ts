@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import * as admin from "firebase-admin";
 import { getFirestore, Transaction } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
+import crypto from 'crypto';
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -47,7 +48,7 @@ export const stripeWebhook = onRequest(
             );
         } catch (err: any) {
             console.error("❌ Webhook signature verification failed:", err.message);
-            res.status(400).send(`Webhook Error: ${err.message}`);
+            res.status(400).send('Webhook signature verification failed');
             return;
         }
 
@@ -106,9 +107,26 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         throw new Error("Cart is empty or invalid");
     }
 
+    for (const item of cart) {
+        if (!item.experienceId || typeof item.experienceId !== 'string' || item.experienceId.length > 100) {
+            throw new Error("Invalid experienceId in cart");
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 50) {
+            throw new Error("Invalid quantity in cart");
+        }
+    }
+
     // ✅ Use transaction for idempotency (PRODUCTION DATABASE)
     const db = getDbProd();
     const processedRef = db.collection("processedPayments").doc(paymentIntentId);
+
+    // Pre-generate claim codes outside the transaction to avoid external reads inside transaction
+    const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const claimCodes: string[] = [];
+    for (let i = 0; i < totalQuantity; i++) {
+        claimCodes.push(await generateUniqueClaimCode());
+    }
+    let claimCodeIndex = 0;
 
     return await db.runTransaction(async (transaction: Transaction) => {
         const processedDoc = await transaction.get(processedRef);
@@ -137,7 +155,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
             // We create N gifts for quantity
             for (let i = 0; i < quantity; i++) {
                 const id = db.collection("experienceGifts").doc().id;
-                const claimCode = await generateUniqueClaimCode();
+                const claimCode = claimCodes[claimCodeIndex++];
 
                 // ✅ Set expiration date (365 days from now)
                 const expiresAt = new Date();
@@ -185,15 +203,16 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
  * 12 characters = ~3.2 quadrillion combinations
  */
 function generateClaimCode(): string {
-    const crypto = require('crypto');
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
 
     // Generate 12 random characters
     while (code.length < 12) {
         const bytes = crypto.randomBytes(1);
-        const randomIndex = bytes[0] % chars.length;
-        code += chars[randomIndex];
+        // Rejection sampling to eliminate modulo bias
+        // 252 is the largest multiple of 36 that fits in a byte (7 * 36 = 252)
+        if (bytes[0] >= 252) continue;
+        code += chars[bytes[0] % chars.length];
     }
 
     return code;

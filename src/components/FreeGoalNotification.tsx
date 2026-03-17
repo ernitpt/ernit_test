@@ -5,7 +5,9 @@ import {
     StyleSheet,
     TouchableOpacity,
     Image,
+    Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Heart, Gift, X, CheckCircle } from 'lucide-react-native';
 import { Notification } from '../types';
 import { notificationService } from '../services/NotificationService';
@@ -17,6 +19,8 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import MotivationModal from './MotivationModal';
 import EmpowerChoiceModal from './EmpowerChoiceModal';
+import Button from './Button';
+import { Avatar } from './Avatar';
 
 interface FreeGoalNotificationProps {
     notification: Notification;
@@ -64,6 +68,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     }, [data.goalId, state.user?.id]);
 
     const handleClear = async () => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             await notificationService.deleteNotification(notification.id!);
         } catch (error) {
@@ -89,24 +94,14 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     style={styles.clearButton}
                     onPress={handleClear}
                     activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                     <X color={Colors.textMuted} size={14} />
                 </TouchableOpacity>
 
                 {/* Header: Avatar + Title */}
                 <View style={styles.header}>
-                    {data.goalUserProfileImageUrl ? (
-                        <Image
-                            source={{ uri: data.goalUserProfileImageUrl }}
-                            style={styles.avatar}
-                        />
-                    ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Text style={styles.avatarText}>
-                                {(data.goalUserName || 'U')[0].toUpperCase()}
-                            </Text>
-                        </View>
-                    )}
+                    <Avatar uri={data.goalUserProfileImageUrl} name={data.goalUserName} size="md" />
                     <View style={styles.headerText}>
                         <Text style={styles.title} numberOfLines={2}>
                             {notification.title}
@@ -143,8 +138,8 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 {/* Category Badge (for category-only goals) */}
                 {!data.experienceTitle && data.preferredRewardCategory && (
                     <View style={styles.experienceRow}>
-                        <View style={[styles.experienceImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' }]}>
-                            <Text style={{ fontSize: 22 }}>
+                        <View style={[styles.experienceImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.backgroundLight }]}>
+                            <Text style={{ fontSize: Typography.heading2.fontSize }}>
                                 {data.preferredRewardCategory === 'adventure' ? '🏔️' : data.preferredRewardCategory === 'wellness' ? '🧘' : '🎨'}
                             </Text>
                         </View>
@@ -179,26 +174,26 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                             <Text style={styles.empoweredBadgeText}>Already Empowered</Text>
                         </View>
                     ) : (
-                        <TouchableOpacity
-                            style={styles.empowerButton}
+                        <Button
+                            title="Empower"
+                            variant="primary"
+                            size="sm"
                             onPress={() => setShowEmpowerModal(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Gift size={16} color={Colors.white} />
-                            <Text style={styles.empowerButtonText}>Empower</Text>
-                        </TouchableOpacity>
+                            icon={<Gift size={16} color={Colors.white} />}
+                            style={{ flex: 1 }}
+                        />
                     )}
 
                     {/* Only show Motivate for milestones (not completed) and if not already sent */}
                     {!isCompleted && !alreadySentMotivation && (
-                        <TouchableOpacity
-                            style={styles.motivateButton}
+                        <Button
+                            title="Motivate"
+                            variant="secondary"
+                            size="sm"
                             onPress={() => setShowMotivationModal(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Heart size={16} color={Colors.primary} />
-                            <Text style={styles.motivateButtonText}>Motivate</Text>
-                        </TouchableOpacity>
+                            icon={<Heart size={16} color={Colors.primary} />}
+                            style={{ flex: 1 }}
+                        />
                     )}
                 </View>
             </View>
@@ -233,22 +228,27 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: Colors.white,
         borderRadius: BorderRadius.lg,
-        marginBottom: Spacing.listItemGap,
+        marginBottom: Spacing.md,
         padding: Spacing.cardPadding,
         ...Shadows.sm,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        borderLeftWidth: 3,
+        borderLeftColor: Colors.secondary,
+        overflow: 'hidden',
     },
     cardUnread: {
-        borderWidth: 1,
-        borderColor: Colors.secondary,
+        borderColor: Colors.primaryBorder,
         backgroundColor: Colors.primarySurface,
     },
     clearButton: {
         position: 'absolute',
         top: Spacing.md,
         right: Spacing.md,
-        width: 44,
-        height: 44,
+        width: 32,
+        height: 32,
         borderRadius: BorderRadius.circle,
+        backgroundColor: Colors.backgroundLight,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1,
@@ -259,23 +259,6 @@ const styles = StyleSheet.create({
         gap: Spacing.md,
         marginBottom: Spacing.sm,
         paddingRight: Spacing.xxl,
-    },
-    avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-    },
-    avatarPlaceholder: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: Colors.primarySurface,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        ...Typography.heading3,
-        color: Colors.primary,
     },
     headerText: {
         flex: 1,
@@ -351,20 +334,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: Spacing.sm,
     },
-    empowerButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: Spacing.xs,
-        backgroundColor: Colors.secondary,
-        paddingVertical: Spacing.md,
-        borderRadius: BorderRadius.md,
-    },
-    empowerButtonText: {
-        ...Typography.smallBold,
-        color: Colors.white,
-    },
     empoweredBadge: {
         flex: 1,
         flexDirection: 'row',
@@ -378,22 +347,6 @@ const styles = StyleSheet.create({
         borderColor: Colors.primaryBorder,
     },
     empoweredBadgeText: {
-        ...Typography.smallBold,
-        color: Colors.primary,
-    },
-    motivateButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: Spacing.xs,
-        backgroundColor: Colors.primarySurface,
-        paddingVertical: Spacing.md,
-        borderRadius: BorderRadius.md,
-        borderWidth: 1,
-        borderColor: Colors.primaryBorder,
-    },
-    motivateButtonText: {
         ...Typography.smallBold,
         color: Colors.primary,
     },

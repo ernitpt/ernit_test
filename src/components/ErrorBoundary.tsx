@@ -1,9 +1,12 @@
 import React, { Component, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import Button from './Button';
 import { db } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { logger } from '../utils/logger';
 
 interface Props {
@@ -59,6 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             // Fallback: Save to localStorage so it can be retrieved later
             try {
+                if (typeof localStorage === 'undefined') throw new Error('No localStorage');
                 const existingErrors = JSON.parse(localStorage.getItem('ernit_error_log') || '[]');
                 existingErrors.push(errorData);
                 // Keep only last 10 errors
@@ -76,8 +80,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
     handleReset = () => {
         this.setState({ hasError: false, error: null });
-        // Reload the page to reset state
-        window.location.reload();
+        // On web, reload the page; on native, just reset the error state
+        if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
+            window.location.reload();
+        }
     };
 
     render() {
@@ -90,13 +96,11 @@ export class ErrorBoundary extends Component<Props, State> {
                         We're having trouble loading this page.{'\n'}
                         Please try refreshing.
                     </Text>
-                    <TouchableOpacity
-                        style={styles.button}
+                    <Button
+                        title="Try Again"
+                        variant="primary"
                         onPress={this.handleReset}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>Refresh Page</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             );
         }
@@ -110,41 +114,25 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
+        padding: Spacing.xl,
+        backgroundColor: Colors.white,
     },
     emoji: {
-        fontSize: 64,
-        marginBottom: 20,
+        fontSize: Typography.emojiLarge.fontSize,
+        marginBottom: Spacing.xl,
     },
     title: {
-        fontSize: 24,
+        ...Typography.heading1,
         fontWeight: '800',
-        color: '#1F2937',
-        marginBottom: 12,
+        color: Colors.textPrimary,
+        marginBottom: Spacing.md,
         textAlign: 'center',
     },
     message: {
-        fontSize: 16,
+        ...Typography.subheading,
         color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 24,
-        marginBottom: 32,
-    },
-    button: {
-        backgroundColor: Colors.secondary,
-        paddingHorizontal: 32,
-        paddingVertical: 16,
-        borderRadius: 12,
-        shadowColor: Colors.secondary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '700',
+        marginBottom: Spacing.xxxl,
     },
 });

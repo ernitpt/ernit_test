@@ -2,6 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../../config/colors';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Typography } from '../../../config/typography';
+import { Spacing } from '../../../config/spacing';
 import { Goal, isSelfGifted } from '../../../types';
 import { isGoalLocked, formatDurationDisplay, formatNextWeekDay, getApprovalBlockMessage } from '../goalCardUtils';
 import { config } from '../../../config/environment';
@@ -33,7 +36,7 @@ const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
   return (
     <Animated.View style={[styles.loggedTodayContainer, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={[Colors.primarySurface, '#FFFFFF']}
+        colors={[Colors.primarySurface, Colors.white]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.loggedTodayGradient}
@@ -131,8 +134,8 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
         </View>
       )}
       {showBanner1 && banner1Message && (
-        <View style={[styles.approvalMessageBox, { backgroundColor: '#ECFDF5', borderLeftColor: '#348048' }]}>
-          <Text style={[styles.approvalMessageText, { color: '#065F46' }]}>
+        <View style={[styles.approvalMessageBox, { backgroundColor: Colors.successLighter, borderLeftColor: Colors.successMedium }]}>
+          <Text style={[styles.approvalMessageText, { color: Colors.primaryDeep }]}>
             {banner1Message.message}
           </Text>
         </View>
@@ -165,103 +168,103 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
 
 const styles = StyleSheet.create({
   weekCompleteBox: {
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: '#ECFDF5',
-    borderRadius: 10,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.successLighter,
+    borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: Colors.successBorder,
     alignItems: 'center',
   },
   weekCompleteText: {
-    color: '#065F46',
-    fontSize: 15,
+    ...Typography.body,
+    color: Colors.primaryDeep,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   weekCompleteSub: {
-    color: '#047857',
-    fontSize: 13,
+    ...Typography.caption,
+    color: Colors.primaryDark,
     fontWeight: '500',
   },
   approvalMessageBox: {
-    padding: 12,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    marginBottom: 16,
+    padding: Spacing.md,
+    backgroundColor: Colors.warningLight,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: Colors.warning,
   },
   approvalMessageText: {
-    fontSize: 13,
-    color: '#78350f',
+    ...Typography.caption,
+    color: Colors.warningDeep,
     lineHeight: 18,
   },
   disabledStartContainer: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#E5E7EB',
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.border,
     alignItems: 'center',
   },
   disabledStartText: {
-    color: '#6B7280',
-    fontSize: 14,
+    ...Typography.small,
+    color: Colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
   },
-  startButton: { backgroundColor: Colors.secondary, paddingVertical: 14, borderRadius: 12 },
-  startButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  startButton: { backgroundColor: Colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  startButtonText: { ...Typography.subheading, color: Colors.white, textAlign: 'center' },
   sessionDurationText: {
-    marginTop: 8,
-    color: '#6B7280',
-    fontSize: 13,
+    marginTop: Spacing.sm,
+    color: Colors.textSecondary,
+    ...Typography.caption,
     textAlign: 'center',
   },
   hintIndicator: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.secondary,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
     opacity: 0.85,
   },
   // Already logged today (improved)
   loggedTodayContainer: {
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     overflow: 'hidden',
   },
   loggedTodayGradient: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
   loggedTodayCheck: {
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   loggedTodayCheckCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loggedTodayCheckText: {
-    color: '#fff',
-    fontSize: 20,
+    ...Typography.large,
+    color: Colors.white,
     fontWeight: '800',
   },
   loggedTodayTitle: {
+    ...Typography.subheading,
     color: Colors.primaryDark,
-    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   loggedTodaySub: {
+    ...Typography.caption,
     color: Colors.textSecondary,
-    fontSize: 13,
     fontWeight: '500',
   },
 });

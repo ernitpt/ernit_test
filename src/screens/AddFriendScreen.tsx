@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { TextInput } from '../components/TextInput';
 import { Avatar } from '../components/Avatar';
@@ -25,6 +26,9 @@ import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import * as Haptics from 'expo-haptics';
@@ -44,7 +48,6 @@ const AddFriendScreen: React.FC = () => {
   const currentUserName = state.user?.displayName || state.user?.profile?.name || 'User';
   const currentUserProfileImageUrl = state.user?.profile?.profileImageUrl;
 
-  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (searchTerm.length >= 2) {
@@ -75,7 +78,7 @@ const AddFriendScreen: React.FC = () => {
     }
   };
 
-  const handleSendFriendRequest = async (user: UserSearchResult) => {
+  const handleSendFriendRequest = useCallback(async (user: UserSearchResult) => {
     if (!currentUserId) return;
 
     // 1. Save current state for rollback
@@ -107,13 +110,14 @@ const AddFriendScreen: React.FC = () => {
       setSearchResults(previousResults);
       showError('Failed to send friend request. Please try again.');
     }
-  };
+  }, [currentUserId, currentUserName, currentUserProfileImageUrl, searchResults, showSuccess, showError, state.user?.profile?.country]);
 
-  const handleViewProfile = (userId: string) => {
+  const handleViewProfile = useCallback((userId: string) => {
+    Keyboard.dismiss();
     navigation.navigate('FriendProfile', { userId });
-  };
+  }, [navigation]);
 
-  const renderUserItem = ({ item }: { item: UserSearchResult }) => (
+  const renderUserItem = useCallback(({ item }: { item: UserSearchResult }) => (
     <View style={styles.userItem}>
       <TouchableOpacity
         style={styles.userInfo}
@@ -152,7 +156,7 @@ const AddFriendScreen: React.FC = () => {
         )}
       </View>
     </View>
-  );
+  ), [handleViewProfile, handleSendFriendRequest]);
   return (
     <ErrorBoundary screenName="AddFriendScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
@@ -171,12 +175,13 @@ const AddFriendScreen: React.FC = () => {
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
+          onSubmitEditing={handleSearch}
           accessibilityLabel="Search for friends by name or email"
           leftIcon={<Search size={18} color={Colors.textMuted} />}
           containerStyle={{ marginBottom: 0 }}
         />
         {isSearching && (
-          <View style={{ marginTop: 12, gap: 8 }}>
+          <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
             <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
@@ -229,39 +234,37 @@ const AddFriendScreen: React.FC = () => {
 const styles = StyleSheet.create({
   searchSection: {
     backgroundColor: Colors.white,
-    padding: 24,
-    marginBottom: 16,
+    padding: Spacing.xxl,
+    marginBottom: Spacing.lg,
   },
   searchLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   resultsSection: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xxl,
   },
   hintText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginTop: 32,
+    marginTop: Spacing.xxxl,
   },
   resultsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   resultsList: {
-    paddingBottom: 24,
+    paddingBottom: Spacing.xxl,
   },
   userItem: {
     backgroundColor: Colors.white,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: Colors.textPrimary,
@@ -275,70 +278,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarMargin: {
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   userDetails: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   userEmail: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   userCountry: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
   },
   actionButton: {
-    marginLeft: 12,
+    marginLeft: Spacing.md,
   },
   addButton: {
     backgroundColor: Colors.secondary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.xs,
   },
   addButtonText: {
     color: Colors.white,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
   },
   friendButton: {
     backgroundColor: Colors.secondary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.xs,
   },
   friendButtonText: {
     color: Colors.white,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
   },
   pendingButton: {
     backgroundColor: Colors.warning,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.xs,
   },
   pendingButtonText: {
     color: Colors.white,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
   },
   backButtonHero: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
 });
 

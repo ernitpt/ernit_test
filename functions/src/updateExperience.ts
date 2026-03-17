@@ -1,5 +1,5 @@
 // ✅ Firebase Functions v2 version
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -25,7 +25,7 @@ export const updateExperience = onCall(
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
         if (!auth?.uid) {
-            throw new Error("Unauthorized: User must be authenticated");
+            throw new HttpsError('unauthenticated', 'User must be authenticated');
         }
 
         const userId = auth.uid;
@@ -38,13 +38,13 @@ export const updateExperience = onCall(
 
         if (!partnerUserSnap.exists) {
             console.warn(`❌ User ${userId} is not a partner user`);
-            throw new Error("Unauthorized: User is not a partner");
+            throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
             console.warn(`❌ User ${userId} is not an admin`);
-            throw new Error("Unauthorized: User is not an admin");
+            throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
         console.log(`✅ Admin verified: ${userId}`);
@@ -61,18 +61,18 @@ export const updateExperience = onCall(
 
         // ✅ VALIDATION: Check experienceId
         if (!experienceId || typeof experienceId !== "string") {
-            throw new Error("experienceId is required");
+            throw new HttpsError('invalid-argument', 'experienceId is required');
         }
 
         // ✅ VALIDATION: Array length limits
         if (newImages && newImages.length > 10) {
-            throw new Error("Maximum 10 new images allowed");
+            throw new HttpsError('invalid-argument', 'Maximum 10 new images allowed');
         }
         if (deleteImageUrls && deleteImageUrls.length > 50) {
-            throw new Error("Maximum 50 images can be deleted at once");
+            throw new HttpsError('invalid-argument', 'Maximum 50 images can be deleted at once');
         }
         if (imageOrder && imageOrder.length > 50) {
-            throw new Error("Maximum 50 images in order array");
+            throw new HttpsError('invalid-argument', 'Maximum 50 images in order array');
         }
 
         // ✅ VALIDATION: Verify experience exists
@@ -81,7 +81,7 @@ export const updateExperience = onCall(
 
         if (!experienceSnap.exists) {
             console.warn(`❌ Experience ${experienceId} not found`);
-            throw new Error("Experience not found");
+            throw new HttpsError('not-found', 'Experience not found');
         }
 
         const currentExperience = experienceSnap.data();
@@ -93,30 +93,30 @@ export const updateExperience = onCall(
             // ✅ VALIDATE FIELDS (if provided)
             if (fields) {
                 if ('title' in fields && (typeof fields.title !== 'string' || fields.title.length > 200)) {
-                    throw new Error("Title must be a string under 200 characters");
+                    throw new HttpsError('invalid-argument', 'Title must be a string under 200 characters');
                 }
                 if ('subtitle' in fields && (typeof fields.subtitle !== 'string' || fields.subtitle.length > 300)) {
-                    throw new Error("Subtitle must be a string under 300 characters");
+                    throw new HttpsError('invalid-argument', 'Subtitle must be a string under 300 characters');
                 }
                 if ('description' in fields && (typeof fields.description !== 'string' || fields.description.length > 5000)) {
-                    throw new Error("Description must be a string under 5000 characters");
+                    throw new HttpsError('invalid-argument', 'Description must be a string under 5000 characters');
                 }
                 if ('status' in fields && !['published', 'draft'].includes(fields.status)) {
-                    throw new Error("Status must be 'published' or 'draft'");
+                    throw new HttpsError('invalid-argument', "Status must be 'published' or 'draft'");
                 }
 
                 // Validate category if being updated
                 if (fields.category) {
                     const validCategories = ["adventure", "creative", "wellness"];
                     if (!validCategories.includes(fields.category)) {
-                        throw new Error(`Invalid category. Must be one of: ${validCategories.join(", ")}`);
+                        throw new HttpsError('invalid-argument', `Invalid category. Must be one of: ${validCategories.join(", ")}`);
                     }
                 }
 
                 // Validate price if being updated
                 if (fields.price !== undefined) {
                     if (typeof fields.price !== "number" || fields.price <= 0) {
-                        throw new Error("Price must be greater than 0");
+                        throw new HttpsError('invalid-argument', 'Price must be greater than 0');
                     }
                 }
 
@@ -125,7 +125,7 @@ export const updateExperience = onCall(
                     const partnerRef = db.collection("partnerUsers").doc(fields.partnerId);
                     const partnerSnap = await partnerRef.get();
                     if (!partnerSnap.exists) {
-                        throw new Error("Partner not found");
+                        throw new HttpsError('not-found', 'Partner not found');
                     }
                 }
             }
@@ -187,18 +187,18 @@ export const updateExperience = onCall(
 
                     // Validate base64 format
                     if (typeof imageData !== "string" || !imageData.startsWith("data:image/")) {
-                        throw new Error(`Invalid image format at index ${i}`);
+                        throw new HttpsError('invalid-argument', `Invalid image format at index ${i}`);
                     }
 
                     // Extract base64 data and mime type
                     const matches = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
                     if (!matches) {
-                        throw new Error(`Invalid base64 image at index ${i}`);
+                        throw new HttpsError('invalid-argument', `Invalid base64 image at index ${i}`);
                     }
 
                     const mimeType = matches[1].toLowerCase();
                     if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-                        throw new Error(`Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+                        throw new HttpsError('invalid-argument', `Invalid image type "${mimeType}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
                     }
 
                     const base64Data = matches[2];
@@ -207,7 +207,7 @@ export const updateExperience = onCall(
                     // Validate file size (max 5MB)
                     const maxSize = 5 * 1024 * 1024; // 5MB
                     if (buffer.length > maxSize) {
-                        throw new Error(`Image ${i} exceeds 5MB limit`);
+                        throw new HttpsError('invalid-argument', `Image ${i} exceeds 5MB limit`);
                     }
 
                     // Generate unique filename
@@ -300,7 +300,7 @@ export const updateExperience = onCall(
                 }
             }
 
-            throw new Error(`Failed to update experience: ${error.message}`);
+            throw new HttpsError('internal', 'Failed to update experience');
         }
     }
 );

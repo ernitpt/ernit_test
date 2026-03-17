@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import {
     View,
@@ -16,6 +18,7 @@ import {
     Image,
     Animated,
     Modal,
+    GestureResponderEvent,
 } from 'react-native';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
@@ -40,10 +43,10 @@ const { width } = Dimensions.get('window');
 
 const GOAL_TYPES = [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: '#EC4899' },
+    { icon: '\u{1F9D8}', name: 'Yoga', color: Colors.categoryPink },
     { icon: '\u{1F3C3}', name: 'Run', color: Colors.accent },
-    { icon: '\u{1F4DA}', name: 'Read', color: '#F59E0B' },
-    { icon: '\u{1F6B6}', name: 'Walk', color: '#10B981' },
+    { icon: '\u{1F4DA}', name: 'Read', color: Colors.categoryAmber },
+    { icon: '\u{1F6B6}', name: 'Walk', color: Colors.secondary },
     { icon: '\u2728', name: 'Other', color: Colors.textSecondary },
 ];
 
@@ -64,9 +67,9 @@ const STEP_SUBTITLES = [
 ];
 
 const EXPERIENCE_CATEGORIES = [
-    { key: 'adventure', label: 'Adventure', emoji: '\u{1F3D4}\u{FE0F}', color: '#F59E0B', match: ['adventure'] },
-    { key: 'wellness', label: 'Wellness', emoji: '\u{1F9D8}', color: '#EC4899', match: ['relaxation', 'spa', 'health', 'wellness'] },
-    { key: 'creative', label: 'Creative', emoji: '\u{1F3A8}', color: '#8B5CF6', match: ['culture', 'arts', 'creative', 'workshop', 'food-culture'] },
+    { key: 'adventure', label: 'Adventure', emoji: '\u{1F3D4}\u{FE0F}', color: Colors.categoryAmber, match: ['adventure'] },
+    { key: 'wellness', label: 'Wellness', emoji: '\u{1F9D8}', color: Colors.categoryPink, match: ['relaxation', 'spa', 'health', 'wellness'] },
+    { key: 'creative', label: 'Creative', emoji: '\u{1F3A8}', color: Colors.categoryViolet, match: ['culture', 'arts', 'creative', 'workshop', 'food-culture'] },
 ];
 
 // Storage helpers (cross-platform)
@@ -86,7 +89,7 @@ const ModernSlider = ({
     onChange: (val: number) => void; leftLabel: string; rightLabel: string;
     unit?: string; unitPlural?: string;
 }) => {
-    const handlePress = (event: any) => {
+    const handlePress = (event: GestureResponderEvent) => {
         const { locationX } = event.nativeEvent;
         const trackWidth = width - 96;
         const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
@@ -234,12 +237,14 @@ export default function ChallengeSetupScreen() {
     // Pulse animation while submitting
     useEffect(() => {
         if (isSubmitting) {
-            Animated.loop(
+            const loop = Animated.loop(
                 Animated.sequence([
                     Animated.timing(pulseAnim, { toValue: 1.05, duration: 600, useNativeDriver: true }),
                     Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
                 ])
-            ).start();
+            );
+            loop.start();
+            return () => loop.stop();
         } else {
             pulseAnim.setValue(1);
         }
@@ -508,7 +513,7 @@ export default function ChallengeSetupScreen() {
             </View>
 
             {validationErrors.goal && (
-                <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: '500' }}>
+                <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
                     Please select a goal type
                 </Text>
             )}
@@ -532,7 +537,7 @@ export default function ChallengeSetupScreen() {
                         containerStyle={{ marginBottom: 0 }}
                     />
                     {validationErrors.goal && customGoal.trim() === '' && (
-                        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+                        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
                             Please enter a custom goal
                         </Text>
                     )}
@@ -615,7 +620,7 @@ export default function ChallengeSetupScreen() {
                     </View>
 
                     {validationErrors.time && (
-                        <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 8, fontWeight: '500' }}>
+                        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
                             Please set a time per session (at least 1 minute)
                         </Text>
                     )}
@@ -791,7 +796,7 @@ export default function ChallengeSetupScreen() {
                     </View>
                 </View>
                 {isSelected && (
-                    <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
+                    <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
                 )}
             </TouchableOpacity>
         );
@@ -866,7 +871,7 @@ export default function ChallengeSetupScreen() {
                     </View>
 
                     {loadingExperiences ? (
-                        <View style={{ marginVertical: 20, gap: 12 }}>
+                        <View style={{ marginVertical: Spacing.xl, gap: Spacing.md }}>
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
@@ -928,7 +933,7 @@ export default function ChallengeSetupScreen() {
                                                             </View>
                                                         </View>
                                                         {isSelected && (
-                                                            <View style={styles.checkBadge}><Check color="#fff" size={12} strokeWidth={3} /></View>
+                                                            <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
                                                         )}
                                                     </TouchableOpacity>
                                                 );
@@ -945,9 +950,9 @@ export default function ChallengeSetupScreen() {
 
         // Default view: category preference cards
         const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] = [
-            { key: 'adventure', emoji: '\u{1F3D4}\u{FE0F}', label: 'Adventure', tagline: 'Explore something new', color: '#F59E0B' },
-            { key: 'wellness', emoji: '\u{1F9D8}', label: 'Wellness', tagline: 'Treat yourself', color: '#EC4899' },
-            { key: 'creative', emoji: '\u{1F3A8}', label: 'Creative', tagline: 'Make something amazing', color: '#8B5CF6' },
+            { key: 'adventure', emoji: '\u{1F3D4}\u{FE0F}', label: 'Adventure', tagline: 'Explore something new', color: Colors.categoryAmber },
+            { key: 'wellness', emoji: '\u{1F9D8}', label: 'Wellness', tagline: 'Treat yourself', color: Colors.categoryPink },
+            { key: 'creative', emoji: '\u{1F3A8}', label: 'Creative', tagline: 'Make something amazing', color: Colors.categoryViolet },
         ];
 
         return (
@@ -991,7 +996,7 @@ export default function ChallengeSetupScreen() {
                                 </View>
                                 {isActive && (
                                     <View style={[styles.rewardCategoryCheck, { backgroundColor: cat.color }]}>
-                                        <Check color="#fff" size={14} strokeWidth={3} />
+                                        <Check color={Colors.white} size={14} strokeWidth={3} />
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -1043,7 +1048,7 @@ export default function ChallengeSetupScreen() {
                         </Text>
                     </View>
                     {buyNow === true && (
-                        <View style={styles.rewardChoiceCheck}><Check color="#fff" size={14} strokeWidth={3} /></View>
+                        <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
                     )}
                 </View>
             </TouchableOpacity>
@@ -1067,7 +1072,7 @@ export default function ChallengeSetupScreen() {
                         </Text>
                     </View>
                     {buyNow === false && (
-                        <View style={styles.rewardChoiceCheck}><Check color="#fff" size={14} strokeWidth={3} /></View>
+                        <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
                     )}
                 </View>
             </TouchableOpacity>
@@ -1094,7 +1099,7 @@ export default function ChallengeSetupScreen() {
         }
     };
 
-    const userId = state.user?.id || 'current_user';
+    const userId = state.user?.id || '';
 
     return (
         <ErrorBoundary screenName="ChallengeSetupScreen" userId={userId}>
@@ -1110,7 +1115,7 @@ export default function ChallengeSetupScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Go back"
                     >
-                        <ChevronLeft color="#1F2937" size={24} strokeWidth={2.5} />
+                        <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Create Your Challenge</Text>
                     <View style={styles.stepIndicator}>
@@ -1217,7 +1222,7 @@ export default function ChallengeSetupScreen() {
                                 <Text style={styles.createButtonText}>
                                     {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
                                 </Text>
-                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     ) : (
@@ -1230,7 +1235,7 @@ export default function ChallengeSetupScreen() {
                         >
                             <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>Next</Text>
-                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     )}
@@ -1353,8 +1358,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingTop: Platform.OS === 'ios' ? 56 : 40,
-        paddingBottom: 16,
-        paddingHorizontal: 20,
+        paddingBottom: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
         backgroundColor: Colors.white,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
@@ -1362,7 +1367,7 @@ const styles = StyleSheet.create({
     backButton: {
         width: 40,
         height: 40,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1373,32 +1378,31 @@ const styles = StyleSheet.create({
     },
     stepIndicator: {
         backgroundColor: Colors.primarySurface,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.md,
     },
     stepIndicatorText: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '700',
         color: Colors.primary,
     },
 
     // Progress bar
     progressBar: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.xl,
+        paddingVertical: Spacing.md,
         backgroundColor: Colors.white,
     },
     progressTrack: {
         height: 4,
-        borderRadius: 2,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.border,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        borderRadius: 2,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.secondary,
     },
 
@@ -1407,70 +1411,68 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 20,
+        paddingHorizontal: Spacing.xl,
+        paddingTop: Spacing.xxl,
+        paddingBottom: Spacing.xl,
     },
     stepTitle: {
         ...Typography.heading1,
-        fontSize: 24,
         fontWeight: '800',
         color: Colors.gray800,
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     stepSubtitle: {
         ...Typography.body,
         color: Colors.textSecondary,
-        marginBottom: 28,
+        marginBottom: Spacing.xxxl,
     },
     stepContent: {
         // Wrapper for step-specific content
     },
     section: {
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
 
     // Error
     errorBanner: {
-        backgroundColor: '#FEF2F2',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        marginBottom: 12,
+        backgroundColor: Colors.errorLight,
+        borderRadius: BorderRadius.md,
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: '#FECACA',
+        borderColor: Colors.errorBorder,
     },
     errorText: {
         ...Typography.smallBold,
-        color: '#DC2626',
+        color: Colors.error,
     },
 
     // Goal chips
     goalGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
-        marginTop: 4,
+        gap: Spacing.md,
+        marginTop: Spacing.xs,
     },
     goalChip: {
         width: '30%',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
-        paddingVertical: 14,
-        borderRadius: 16,
+        gap: Spacing.xs,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.lg,
         backgroundColor: Colors.white,
         borderWidth: 2,
         borderColor: Colors.border,
     },
     goalChipError: {
-        borderColor: '#FECACA',
-        backgroundColor: '#FEF2F2',
+        borderColor: Colors.errorBorder,
+        backgroundColor: Colors.errorLight,
     },
     goalIcon: {
         ...Typography.heading2,
-        fontSize: 22,
     },
     goalName: {
         ...Typography.bodyBold,
@@ -1480,34 +1482,33 @@ const styles = StyleSheet.create({
         color: Colors.white,
     },
     customGoalContainer: {
-        marginTop: 20,
+        marginTop: Spacing.xl,
     },
     customGoalIcon: {
         ...Typography.large,
-        fontSize: 20,
-        marginRight: 8,
+        marginRight: Spacing.sm,
     },
 
     // Sliders
     sliderContainer: {
         backgroundColor: Colors.white,
-        borderRadius: 20,
-        padding: 24,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xxl,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
     },
     sliderTitle: {
         ...Typography.smallBold,
         color: Colors.textSecondary,
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     sliderValueRow: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        marginBottom: 20,
-        gap: 8,
+        marginBottom: Spacing.xl,
+        gap: Spacing.sm,
     },
     sliderValue: {
         ...Typography.display,
@@ -1521,25 +1522,24 @@ const styles = StyleSheet.create({
     sliderLabels: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     sliderLabelText: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textMuted,
     },
     sliderTrack: {
         height: 8,
         backgroundColor: Colors.border,
-        borderRadius: 4,
+        borderRadius: BorderRadius.xs,
         position: 'relative',
         width: '100%',
     },
     sliderProgress: {
         height: '100%',
         backgroundColor: Colors.primary,
-        borderRadius: 4,
+        borderRadius: BorderRadius.xs,
     },
     sliderThumb: {
         position: 'absolute',
@@ -1547,7 +1547,7 @@ const styles = StyleSheet.create({
         marginLeft: -12,
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.white,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1560,28 +1560,28 @@ const styles = StyleSheet.create({
     sliderThumbInner: {
         width: 12,
         height: 12,
-        borderRadius: 6,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.primary,
     },
 
     // Time inputs
     timeRow: {
         flexDirection: 'row',
-        gap: 16,
+        gap: Spacing.lg,
     },
     timeInputGroup: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: Spacing.sm,
     },
     timeInput: {
         width: 60,
         borderWidth: 1,
         borderColor: Colors.border,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 18,
+        borderRadius: BorderRadius.md,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        ...Typography.heading3,
         fontWeight: '700',
         textAlign: 'center',
         backgroundColor: Colors.white,
@@ -1597,9 +1597,9 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
         borderWidth: 2,
         borderColor: Colors.border,
-        borderRadius: 16,
-        padding: 12,
-        marginRight: 12,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
+        marginRight: Spacing.md,
         width: 150,
         alignItems: 'center',
         position: 'relative',
@@ -1611,10 +1611,10 @@ const styles = StyleSheet.create({
     expIconBox: {
         width: '100%',
         height: 100,
-        borderRadius: 14,
+        borderRadius: BorderRadius.lg,
         backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     expImage: {
         width: '100%',
@@ -1627,8 +1627,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     expTitle: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '700',
         color: Colors.textSecondary,
         textAlign: 'center',
@@ -1639,8 +1638,8 @@ const styles = StyleSheet.create({
     expMeta: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginTop: 4,
+        gap: Spacing.xs,
+        marginTop: Spacing.xs,
     },
     expPrice: {
         ...Typography.captionBold,
@@ -1653,10 +1652,10 @@ const styles = StyleSheet.create({
     },
     viewDetailsBtn: {
         backgroundColor: Colors.primary,
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 10,
-        marginTop: 8,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.sm,
+        marginTop: Spacing.sm,
     },
     viewDetailsBtnText: {
         ...Typography.tiny,
@@ -1668,7 +1667,7 @@ const styles = StyleSheet.create({
         right: 8,
         width: 20,
         height: 20,
-        borderRadius: 10,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1680,9 +1679,9 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: 20,
-        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-        paddingTop: 16,
+        paddingHorizontal: Spacing.xl,
+        paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
+        paddingTop: Spacing.lg,
         backgroundColor: Colors.white,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
@@ -1691,7 +1690,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: -4 },
     },
     createButton: {
-        borderRadius: 16,
+        borderRadius: BorderRadius.lg,
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
@@ -1702,13 +1701,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 18,
-        borderRadius: 16,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.xl,
+        borderRadius: BorderRadius.lg,
     },
     createButtonText: {
         ...Typography.subheading,
-        fontSize: 17,
         fontWeight: '700',
         color: Colors.white,
     },
@@ -1716,9 +1714,9 @@ const styles = StyleSheet.create({
     // Footer hero card
     footerHeroCard: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 12,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
+        marginBottom: Spacing.md,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
         shadowColor: Colors.black,
@@ -1734,7 +1732,7 @@ const styles = StyleSheet.create({
     heroIconBox: {
         width: 56,
         height: 56,
-        borderRadius: 14,
+        borderRadius: BorderRadius.lg,
         backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',
     },
@@ -1744,36 +1742,34 @@ const styles = StyleSheet.create({
     },
     heroInfo: {
         flex: 1,
-        marginLeft: 16,
+        marginLeft: Spacing.lg,
     },
     footerHeroTitle: {
         ...Typography.subheading,
         fontWeight: '800',
         color: Colors.gray800,
-        marginBottom: 2,
+        marginBottom: Spacing.xxs,
     },
 
     heroContextRow: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.surface,
-        borderRadius: 10,
-        padding: 8,
-        marginTop: 10,
+        borderRadius: BorderRadius.sm,
+        padding: Spacing.sm,
+        marginTop: Spacing.sm,
         justifyContent: 'space-between',
     },
     contextBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: Spacing.xs,
     },
     contextEmoji: {
         ...Typography.small,
-        fontSize: 14,
     },
     contextText: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '700',
         color: Colors.gray600,
     },
@@ -1783,8 +1779,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.border,
     },
     contextLabel: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
     },
@@ -1792,11 +1787,11 @@ const styles = StyleSheet.create({
     // Modal
     modalBox: {
         backgroundColor: Colors.white,
-        borderRadius: 20,
+        borderRadius: BorderRadius.xl,
         width: '90%',
         maxWidth: 360,
-        paddingVertical: 24,
-        paddingHorizontal: 20,
+        paddingVertical: Spacing.xxl,
+        paddingHorizontal: Spacing.xl,
         ...Shadows.md,
         shadowColor: Colors.black,
         shadowOpacity: 0.15,
@@ -1805,51 +1800,50 @@ const styles = StyleSheet.create({
     modalTitle: {
         ...Typography.large,
         color: Colors.primaryDeep,
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     modalSubtitle: {
         ...Typography.small,
         color: Colors.textSecondary,
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
         textAlign: 'center',
     },
     modalDetails: {
         width: '100%',
         backgroundColor: Colors.surface,
-        borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        marginBottom: 12,
+        borderRadius: BorderRadius.md,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     modalRow: {
         ...Typography.body,
         color: Colors.gray700,
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     modalLabel: {
         fontWeight: '600',
         color: Colors.primaryDeep,
     },
     pledgeNote: {
-        ...Typography.small,
-        fontSize: 13,
-        color: '#16a34a',
+        ...Typography.caption,
+        color: Colors.successMedium,
         textAlign: 'center',
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
         fontStyle: 'italic',
     },
     modalButtons: {
         flexDirection: 'row',
         width: '100%',
         justifyContent: 'space-between',
-        gap: 10,
+        gap: Spacing.sm,
     },
     modalButton: {
         flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
     },
     cancelButton: {
@@ -1872,7 +1866,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 14,
+        marginBottom: Spacing.md,
     },
     filterScrollContainer: {
         position: 'relative',
@@ -1885,11 +1879,11 @@ const styles = StyleSheet.create({
         flexGrow: 0,
     },
     filterChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.xl,
         backgroundColor: Colors.backgroundLight,
-        marginLeft: 4,
+        marginLeft: Spacing.xs,
     },
     filterChipActive: {
         backgroundColor: Colors.gray800,
@@ -1920,12 +1914,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(249, 250, 251, 0.92)',
     },
     cardScroll: {
-        marginTop: 4,
+        marginTop: Spacing.xs,
     },
 
     // Stacked category sections
     stackedCategories: {
-        gap: 24,
+        gap: Spacing.xxl,
     },
     categorySection: {
         marginBottom: 0,
@@ -1933,12 +1927,11 @@ const styles = StyleSheet.create({
     categorySectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
-        gap: 8,
+        marginBottom: Spacing.sm,
+        gap: Spacing.sm,
     },
     categorySectionEmoji: {
         ...Typography.large,
-        fontSize: 20,
     },
     categorySectionTitle: {
         ...Typography.subheading,
@@ -1946,9 +1939,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     categorySectionBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xxs,
+        borderRadius: BorderRadius.sm,
     },
     categorySectionCount: {
         ...Typography.captionBold,
@@ -1957,8 +1950,8 @@ const styles = StyleSheet.create({
     // Inline calendar
     inlineCalendar: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
         borderWidth: 1,
         borderColor: Colors.border,
     },
@@ -1966,11 +1959,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     calNavBtn: {
-        padding: 8,
-        borderRadius: 8,
+        padding: Spacing.sm,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.backgroundLight,
     },
     calMonthYear: {
@@ -1979,7 +1972,7 @@ const styles = StyleSheet.create({
     },
     calWeekRow: {
         flexDirection: 'row',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     calWeekDay: {
         ...Typography.captionBold,
@@ -1996,8 +1989,8 @@ const styles = StyleSheet.create({
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 10,
-        marginVertical: 1,
+        borderRadius: BorderRadius.sm,
+        marginVertical: Spacing.xxs,
     },
     calSelectedDay: {
         backgroundColor: Colors.secondary,
@@ -2025,24 +2018,22 @@ const styles = StyleSheet.create({
 
     // End date info
     endDateContainer: {
-        backgroundColor: '#F0FDF4',
-        borderRadius: 14,
-        padding: 16,
-        marginTop: 16,
+        backgroundColor: Colors.successLighter,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        marginTop: Spacing.lg,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#BBF7D0',
+        borderColor: Colors.successBorder,
     },
     endDateLabel: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textSecondary,
         fontWeight: '500',
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     endDateValue: {
         ...Typography.subheading,
-        fontSize: 17,
         fontWeight: '700',
         color: Colors.primary,
         textAlign: 'center',
@@ -2050,25 +2041,25 @@ const styles = StyleSheet.create({
     endDateSublabel: {
         ...Typography.caption,
         color: Colors.textMuted,
-        marginTop: 4,
+        marginTop: Spacing.xs,
     },
 
     // Step 5: Secure your reward
     statCard: {
-        backgroundColor: '#F0FDF4',
-        borderRadius: 12,
-        padding: 12,
+        backgroundColor: Colors.successLighter,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#BBF7D0',
-        marginTop: 16,
+        borderColor: Colors.successBorder,
+        marginTop: Spacing.lg,
         marginBottom: 0,
     },
     statNumber: {
         ...Typography.heading2,
         fontWeight: '800',
         color: Colors.primary,
-        marginBottom: 2,
+        marginBottom: Spacing.xxs,
     },
     statText: {
         ...Typography.caption,
@@ -2076,27 +2067,26 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     statSource: {
-        ...Typography.tiny,
-        fontSize: 10,
+        ...Typography.caption,
         color: Colors.textMuted,
         fontStyle: 'italic',
-        marginTop: 4,
+        marginTop: Spacing.xs,
     },
     expPreview: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.surface,
-        borderRadius: 14,
-        padding: 12,
-        marginBottom: 20,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
+        marginBottom: Spacing.xl,
         borderWidth: 1,
         borderColor: Colors.border,
-        gap: 12,
+        gap: Spacing.md,
     },
     expPreviewImage: {
         width: 48,
         height: 48,
-        borderRadius: 10,
+        borderRadius: BorderRadius.sm,
     },
     expPreviewInfo: {
         flex: 1,
@@ -2108,15 +2098,15 @@ const styles = StyleSheet.create({
     expPreviewMeta: {
         ...Typography.caption,
         color: Colors.textSecondary,
-        marginTop: 2,
+        marginTop: Spacing.xxs,
     },
     rewardChoice: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
         borderWidth: 2,
         borderColor: Colors.border,
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     rewardChoiceActive: {
         borderColor: Colors.primary,
@@ -2125,40 +2115,37 @@ const styles = StyleSheet.create({
     rewardChoiceHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: Spacing.md,
     },
     rewardChoiceIcon: {
-        ...Typography.heading1,
-        fontSize: 28,
+        ...Typography.display,
     },
     rewardChoiceTitle: {
         ...Typography.subheading,
         color: Colors.gray800,
-        marginBottom: 2,
+        marginBottom: Spacing.xxs,
     },
     rewardChoiceTitleActive: {
         color: Colors.primary,
     },
     rewardChoiceDesc: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textSecondary,
         lineHeight: 18,
     },
     rewardChoiceCheck: {
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     rewardChoiceNote: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textMuted,
         textAlign: 'center',
-        marginTop: 4,
+        marginTop: Spacing.xs,
         fontStyle: 'italic',
     },
 
@@ -2167,9 +2154,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 12,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.xl,
+        marginBottom: Spacing.md,
         borderWidth: 1.5,
         borderColor: Colors.backgroundLight,
         ...Shadows.sm,
@@ -2178,14 +2165,13 @@ const styles = StyleSheet.create({
     },
     rewardCategoryEmoji: {
         ...Typography.display,
-        marginRight: 16,
+        marginRight: Spacing.lg,
     },
     rewardCategoryLabel: {
         ...Typography.subheading,
-        fontSize: 17,
         fontWeight: '700',
         color: Colors.gray800,
-        marginBottom: 2,
+        marginBottom: Spacing.xxs,
     },
     rewardCategoryTagline: {
         ...Typography.small,
@@ -2194,26 +2180,25 @@ const styles = StyleSheet.create({
     rewardCategoryCheck: {
         width: 26,
         height: 26,
-        borderRadius: 13,
+        borderRadius: BorderRadius.md,
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 12,
+        marginLeft: Spacing.md,
     },
     browseLink: {
         alignItems: 'center',
-        marginTop: 24,
-        paddingVertical: 12,
+        marginTop: Spacing.xxl,
+        paddingVertical: Spacing.md,
     },
     browseLinkText: {
-        ...Typography.small,
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textMuted,
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     browseLinkAction: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: Spacing.xs,
     },
     browseLinkActionText: {
         ...Typography.smallBold,
@@ -2222,8 +2207,8 @@ const styles = StyleSheet.create({
     browseBackButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
-        gap: 4,
+        marginBottom: Spacing.md,
+        gap: Spacing.xs,
     },
     browseBackText: {
         ...Typography.smallBold,

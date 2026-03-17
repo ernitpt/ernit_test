@@ -6,14 +6,17 @@ import {
   StyleSheet,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import Button from './Button';
 
 interface GoalApprovalNotificationProps {
   notification: Notification;
@@ -54,7 +57,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_approval_response',
-        '? Your goal has been approved!',
+        '✅ Your goal has been approved!',
         `Message from ${giverName}: ${approveMessage.trim()}` || `${giverName} approved your goal. You can now continue with all sessions!`,
         {
           goalId: notification.data.goalId,
@@ -71,6 +74,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         logger.warn('Could not delete original notification:', deleteError);
       }
 
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowApproveModal(false);
       setApproveMessage('');
       onActionTaken();
@@ -123,7 +127,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       const recipientName = await userService.getUserName(notification.data.recipientId || '');
       // The notification is for the giver, so notification.userId is the giver's ID
       // Also check if giverId exists in data as fallback (cast to any to access potentially missing field)
-      const giverIdForSuggestion = (notification.data as any).giverId || notification.userId;
+      const giverIdForSuggestion = notification.data?.giverId || notification.userId;
       const giverNameForSuggestion = await userService.getUserName(giverIdForSuggestion);
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
@@ -185,20 +189,20 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       </View>
 
       <View style={styles.buttons}>
-        <TouchableOpacity
-          style={[styles.button, styles.approveButton]}
+        <Button
+          variant="primary"
+          title="Approve"
           onPress={() => setShowApproveModal(true)}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Approve</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.suggestButton]}
+          loading={loading}
+          style={styles.buttonFlex}
+        />
+        <Button
+          variant="secondary"
+          title="Suggest Change"
           onPress={() => setShowSuggestModal(true)}
           disabled={loading}
-        >
-          <Text style={styles.buttonText}>Suggest Change</Text>
-        </TouchableOpacity>
+          style={styles.buttonFlex}
+        />
       </View>
 
       {/* Approve Modal */}
@@ -246,7 +250,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Approve</Text>
             )}
@@ -335,7 +339,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Suggest</Text>
             )}
@@ -349,99 +353,86 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.warning,
+    overflow: 'hidden',
   },
   content: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   message: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   details: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textMuted,
   },
   buttons: {
     flexDirection: 'row',
-    gap: 24,
+    gap: Spacing.xxl,
   },
-  button: {
+  buttonFlex: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  approveButton: {
-    backgroundColor: '#70b373ff',
-    marginLeft: 18,
-  },
-  suggestButton: {
-    backgroundColor: '#567cb1ff',
-    marginRight: 18,
-  },
-  buttonText: {
-    color: Colors.white,
-    fontWeight: '600',
-    fontSize: 14,
   },
   modalSubtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   inputGroup: {
     flex: 1,
   },
   inputLabel: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.gray700,
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
     fontWeight: '500',
   },
   numberInput: {
     borderWidth: 1,
     borderColor: Colors.gray300,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    ...Typography.subheading,
   },
   messageInput: {
     borderWidth: 1,
     borderColor: Colors.gray300,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    ...Typography.small,
     minHeight: 80,
     textAlignVertical: 'top',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
   },
   cancelButton: {
@@ -453,24 +444,24 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: Colors.gray700,
     fontWeight: '600',
-    fontSize: 15,
+    ...Typography.body,
   },
   confirmButtonText: {
     color: Colors.white,
     fontWeight: '600',
-    fontSize: 15,
+    ...Typography.body,
   },
   errorBox: {
     backgroundColor: Colors.errorLight,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
     borderLeftWidth: 4,
     borderLeftColor: Colors.error,
   },
   errorText: {
     color: Colors.errorDark,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
   },
 });

@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Easing } from 'react-native';
 import { Gift, X, Sparkles, ShoppingBag } from 'lucide-react-native';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
+import Button from './Button';
 
 // ─── Inline CTA (shown post-session in DetailedGoalCard) ──────────────────
 
@@ -74,33 +78,41 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = ({
                 <View style={inlineStyles.experienceInfo}>
                     <Text style={inlineStyles.experienceTitle} numberOfLines={1}>{experience.title}</Text>
                     {experience.price != null && experience.price > 0 && (
-                        <Text style={inlineStyles.experiencePrice}>${experience.price}</Text>
+                        <Text style={inlineStyles.experiencePrice}>€{experience.price}</Text>
                     )}
                 </View>
             </View>
 
             {/* CTA button */}
-            <TouchableOpacity style={inlineStyles.giftButton} onPress={onGift} activeOpacity={0.8}>
-                <ShoppingBag size={16} color="#fff" />
-                <Text style={inlineStyles.giftButtonText}>Buy This Experience</Text>
-            </TouchableOpacity>
+            <Button
+                variant="primary"
+                title="Buy This Experience"
+                icon={<ShoppingBag size={16} color={Colors.white} />}
+                onPress={onGift}
+                style={inlineStyles.giftButton}
+                fullWidth
+            />
 
-            <TouchableOpacity onPress={onDismiss} style={inlineStyles.later}>
-                <Text style={inlineStyles.laterText}>Maybe Later</Text>
-            </TouchableOpacity>
+            <Button
+                variant="ghost"
+                title="Maybe Later"
+                onPress={onDismiss}
+                style={inlineStyles.later}
+                fullWidth
+            />
         </Animated.View>
     );
 };
 
 const inlineStyles = StyleSheet.create({
     container: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        marginTop: 16,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        marginTop: Spacing.lg,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOpacity: 0.06,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 3 },
@@ -111,42 +123,42 @@ const inlineStyles = StyleSheet.create({
         top: 10,
         right: 10,
         zIndex: 1,
-        padding: 4,
+        padding: Spacing.xs,
     },
     statArea: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: 6,
-        marginBottom: 4,
-        paddingRight: 24,
+        gap: Spacing.xs,
+        marginBottom: Spacing.xs,
+        paddingRight: Spacing.xxl,
     },
     statText: {
         flex: 1,
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.textPrimary,
         lineHeight: 20,
     },
     statSource: {
-        fontSize: 11,
+        ...Typography.tiny,
         color: Colors.textMuted,
-        marginBottom: 12,
+        marginBottom: Spacing.md,
         marginLeft: 20,
         fontStyle: 'italic',
     },
     experienceRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: Spacing.sm,
         backgroundColor: Colors.surface,
-        borderRadius: 10,
-        padding: 10,
-        marginBottom: 12,
+        borderRadius: BorderRadius.sm,
+        padding: Spacing.sm,
+        marginBottom: Spacing.md,
     },
     thumb: {
         width: 40,
         height: 40,
-        borderRadius: 8,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.border,
     },
     thumbPlaceholder: {
@@ -157,12 +169,12 @@ const inlineStyles = StyleSheet.create({
         flex: 1,
     },
     experienceTitle: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.textPrimary,
     },
     experiencePrice: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '700',
         color: Colors.primary,
         marginTop: 1,
@@ -171,22 +183,22 @@ const inlineStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
+        gap: Spacing.xs,
         backgroundColor: Colors.secondary,
-        paddingVertical: 12,
-        borderRadius: 10,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.sm,
     },
     giftButtonText: {
-        color: '#fff',
-        fontSize: 15,
+        color: Colors.white,
+        ...Typography.body,
         fontWeight: '700',
     },
     later: {
         alignItems: 'center',
-        paddingTop: 10,
+        paddingTop: Spacing.sm,
     },
     laterText: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textMuted,
         fontWeight: '500',
     },

@@ -26,27 +26,46 @@ export type HintCategory =
   | 'sensory'
   | 'activity_level'
   | 'location_type'
-  | 'geographic_clues';
+  | 'geographic_clues'
+  | 'duration_hints';
 
 export type SessionDoc = {
   sessionNumber: number;
   hint?: string;
   style?: HintStyle;
   category?: HintCategory;
-  completedAt?: any;
+  completedAt?: Date | { toDate(): Date } | number | string;
   timeElapsedSec?: number;
 };
 
 // 🔹 Local cache for fast reuse
 const LOCAL_HINT_CACHE_KEY = "local_hint_cache_v1";
-let localCache: Record<string, string> = {};
+let localCache: Record<string, { hint: string; cachedAt: number }> = {};
 
 async function loadLocalCache() {
   if (Object.keys(localCache).length > 0) return;
 
   try {
     const stored = await AsyncStorage.getItem(LOCAL_HINT_CACHE_KEY);
-    if (stored) localCache = JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const now = Date.now();
+      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+      // Filter expired entries and migrate old format (plain string → new format)
+      const entries = Object.entries(parsed)
+        .map(([key, value]) => {
+          if (typeof value === 'string') {
+            return [key, { hint: value, cachedAt: now }] as const;
+          }
+          return [key, value as { hint: string; cachedAt: number }] as const;
+        })
+        .filter(([, entry]) => now - entry.cachedAt < THIRTY_DAYS);
+
+      // Cap at 100 entries (keep newest)
+      const sorted = entries.sort((a, b) => b[1].cachedAt - a[1].cachedAt).slice(0, 100);
+      localCache = Object.fromEntries(sorted);
+    }
   } catch { }
 }
 
@@ -95,7 +114,7 @@ export const aiHintService = {
 
     // ✅ Check local cache first
     if (localCache[cacheKey]) {
-      return { hint: localCache[cacheKey] };
+      return { hint: localCache[cacheKey].hint };
     }
 
     // ✅ Check Firestore stored hint (previous sessions)
@@ -105,7 +124,7 @@ export const aiHintService = {
       const existing = snap.data() as SessionDoc | undefined;
 
       if (existing?.hint) {
-        localCache[cacheKey] = existing.hint;
+        localCache[cacheKey] = { hint: existing.hint, cachedAt: Date.now() };
         saveLocalCache();
         return { hint: existing.hint, category: existing.category };
       }
@@ -140,7 +159,7 @@ export const aiHintService = {
     const style = styleForSession(sessionNumber);
 
     const callable = httpsCallable(functions, "aiGenerateHint");
-    const res: any = await callable({
+    const res = await callable({
       experienceType,
       experienceDescription,
       experienceCategory,
@@ -180,8 +199,16 @@ export const aiHintService = {
       // Continue anyway - hint is still in local cache
     }
 
-    // ✅ Cache locally
-    localCache[cacheKey] = hint;
+    // ✅ Cache locally (bounded to prevent unbounded memory growth)
+    const MAX_CACHE_SIZE = 100;
+    const cacheKeys = Object.keys(localCache);
+    if (cacheKeys.length >= MAX_CACHE_SIZE) {
+      // Evict oldest entries by cachedAt timestamp
+      const sorted = cacheKeys.sort((a, b) => localCache[a].cachedAt - localCache[b].cachedAt);
+      const keysToRemove = sorted.slice(0, cacheKeys.length - MAX_CACHE_SIZE + 1);
+      keysToRemove.forEach(k => delete localCache[k]);
+    }
+    localCache[cacheKey] = { hint, cachedAt: Date.now() };
     saveLocalCache();
 
     return { hint, category };
@@ -201,7 +228,7 @@ export const aiHintService = {
 
     // Check local cache first
     if (localCache[cacheKey]) {
-      return { hint: localCache[cacheKey] };
+      return { hint: localCache[cacheKey].hint };
     }
 
     // Check Firestore stored hint
@@ -210,7 +237,7 @@ export const aiHintService = {
       const snap = await getDoc(ref);
       const existing = snap.data() as SessionDoc | undefined;
       if (existing?.hint) {
-        localCache[cacheKey] = existing.hint;
+        localCache[cacheKey] = { hint: existing.hint, cachedAt: Date.now() };
         saveLocalCache();
         return { hint: existing.hint, category: existing.category };
       }
@@ -234,7 +261,7 @@ export const aiHintService = {
 
     // Call Cloud Function with goalId — it resolves experience details server-side
     const callable = httpsCallable(functions, "aiGenerateHint");
-    const res: any = await callable({
+    const res = await callable({
       goalId,
       sessionNumber,
       totalSessions,
@@ -263,7 +290,7 @@ export const aiHintService = {
       logger.warn('Failed to save mystery hint to Firestore:', err);
     }
 
-    localCache[cacheKey] = hint;
+    localCache[cacheKey] = { hint, cachedAt: Date.now() };
     saveLocalCache();
     return { hint, category };
   },
@@ -273,7 +300,7 @@ export const aiHintService = {
     await loadLocalCache();
 
     const cacheKey = `${goalId}_${sessionNumber}`;
-    if (localCache[cacheKey]) return localCache[cacheKey];
+    if (localCache[cacheKey]) return localCache[cacheKey].hint;
 
     const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
     const snap = await getDoc(ref);

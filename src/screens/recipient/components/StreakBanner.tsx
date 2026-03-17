@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native
 import { MotiView } from 'moti';
 import { Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Colors from '../../../config/colors';
+import { Typography } from '../../../config/typography';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Spacing } from '../../../config/spacing';
 
 // ─── Color Interpolation ────────────────────────────────────────────
 
@@ -316,16 +320,16 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
 
 const styles = StyleSheet.create({
   banner: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   bannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 16,
+    gap: Spacing.md,
+    padding: Spacing.lg,
   },
   flameContainer: {
-    borderRadius: 28,
+    borderRadius: BorderRadius.xl,
     width: 56,
     height: 56,
     justifyContent: 'center',
@@ -337,20 +341,20 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
-    marginBottom: 2,
+    gap: Spacing.xs,
+    marginBottom: Spacing.xxs,
   },
   streakNumber: {
-    fontSize: 26,
+    ...Typography.heading1,
     fontWeight: '800',
   },
   titleText: {
-    fontSize: 17,
+    ...Typography.heading3,
     fontWeight: '700',
   },
   subtitle: {
-    fontSize: 13,
-    color: '#92400E',
+    ...Typography.caption,
+    color: Colors.warningDark,
     lineHeight: 18,
   },
   spark: {

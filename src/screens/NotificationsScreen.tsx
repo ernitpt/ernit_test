@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useRef } from 'react';
+﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Image,
   RefreshControl,
   Alert,
@@ -30,11 +29,11 @@ import { GoalProgressNotification } from '../components/GoalProgressNotification
 import FreeGoalNotification from '../components/FreeGoalNotification';
 import { NotificationSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import { Bell, Calendar, TrendingUp, Heart, Gift } from 'lucide-react-native';
-import Colors from '../config/colors';
+import { Bell, TrendingUp, Heart, Gift, X } from 'lucide-react-native';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import * as Haptics from 'expo-haptics';
@@ -47,7 +46,7 @@ type NotificationNavigationProp = NativeStackNavigationProp<
 >;
 
 // Format notification date (shared utility)
-const formatNotificationDate = (createdAt: any) => {
+const formatNotificationDate = (createdAt: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!createdAt) return '';
 
   // Handle Firestore Timestamp or Date
@@ -93,20 +92,17 @@ const NotificationsScreen = () => {
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigation = useNavigation<NotificationNavigationProp>();
 
-  // Pre-compute latest goal_progress notification per goal (avoids O(n²) in renderItem)
+  // Pre-compute latest goal_progress notification per goal (single-pass O(n))
   const latestGoalProgressMap = useMemo(() => {
     const map: Record<string, string> = {}; // goalId -> notificationId of latest
+    const sessionNums: Record<string, number> = {}; // goalId -> highest sessionNumber seen
     for (const n of notifications) {
       if (n.type !== 'goal_progress' || !n.data?.goalId) continue;
       const goalId = n.data.goalId;
-      if (!map[goalId]) {
+      const sessionNumber = n.data?.sessionNumber || 0;
+      if (!map[goalId] || sessionNumber > (sessionNums[goalId] || 0)) {
         map[goalId] = n.id!;
-      } else {
-        // Compare session numbers - keep the highest
-        const existing = notifications.find(x => x.id === map[goalId]);
-        if ((n.data?.sessionNumber || 0) > (existing?.data?.sessionNumber || 0)) {
-          map[goalId] = n.id!;
-        }
+        sessionNums[goalId] = sessionNumber;
       }
     }
     return map;
@@ -168,7 +164,7 @@ const NotificationsScreen = () => {
     setRefreshing(true);
     refreshTimeoutRef.current = setTimeout(() => {
       setRefreshing(false);
-    }, 500);
+    }, 1000);
   };
 
   useEffect(() => {
@@ -178,6 +174,7 @@ const NotificationsScreen = () => {
   }, []);
 
   const handlePress = async (n: Notification) => {
+    if (!userId) return;
     analyticsService.trackEvent('notification_tapped', 'engagement', { type: n.type }, 'NotificationsScreen');
     await notificationService.markAsRead(n.id!);
 
@@ -277,9 +274,9 @@ const NotificationsScreen = () => {
   };
 
 
-  const handleFriendRequestHandled = () => {
+  const handleFriendRequestHandled = useCallback(() => {
     // No-op: the real-time onSnapshot listener in useEffect handles updates automatically
-  };
+  }, []);
 
 
   const handleClearAll = () => {
@@ -317,48 +314,67 @@ const NotificationsScreen = () => {
       return;
     }
 
-    try {
-      await notificationService.deleteNotification(notificationId);
-      // No toast needed - the notification just disappears
-    } catch (error) {
-      logger.error('Error clearing notification:', error);
-      showError('Failed to clear notification. Please try again.');
-    }
+    Alert.alert(
+      'Clear Notification',
+      'Remove this notification?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await notificationService.deleteNotification(notificationId);
+              // No toast needed - the notification just disappears
+            } catch (error) {
+              logger.error('Error clearing notification:', error);
+              showError('Failed to clear notification. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
 
-  const handleApprovalActionTaken = () => {
+  const handleApprovalActionTaken = useCallback(() => {
     // No-op: the real-time onSnapshot listener in useEffect handles updates automatically
-  };
+  }, []);
 
-  const renderItem = ({ item }: { item: Notification }) => {
+  const renderItem = useCallback(({ item, index }: { item: Notification; index: number }) => {
     // Handle friend request notifications specially
     if (item.type === 'friend_request') {
       return (
-        <FriendRequestNotification
-          notification={item}
-          onRequestHandled={handleFriendRequestHandled}
-        />
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <FriendRequestNotification
+            notification={item}
+            onRequestHandled={handleFriendRequestHandled}
+          />
+        </Animated.View>
       );
     }
 
     // Handle goal approval request notifications
     if (item.type === 'goal_approval_request') {
       return (
-        <GoalApprovalNotification
-          notification={item}
-          onActionTaken={handleApprovalActionTaken}
-        />
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <GoalApprovalNotification
+            notification={item}
+            onActionTaken={handleApprovalActionTaken}
+          />
+        </Animated.View>
       );
     }
 
     // Handle goal change suggestion notifications
     if (item.type === 'goal_change_suggested') {
       return (
-        <GoalChangeSuggestionNotification
-          notification={item}
-          onActionTaken={handleApprovalActionTaken}
-        />
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <GoalChangeSuggestionNotification
+            notification={item}
+            onActionTaken={handleApprovalActionTaken}
+          />
+        </Animated.View>
       );
     }
 
@@ -368,16 +384,22 @@ const NotificationsScreen = () => {
         ? latestGoalProgressMap[item.data.goalId] === item.id
         : true;
 
-      return <GoalProgressNotification notification={item} isLatest={isLatest} />;
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <GoalProgressNotification notification={item} isLatest={isLatest} />
+        </Animated.View>
+      );
     }
 
     // Handle free goal milestone/completion notifications with Empower + Motivate buttons
     if (item.type === 'free_goal_milestone' || item.type === 'free_goal_completed') {
       return (
-        <FreeGoalNotification
-          notification={item}
-          onActionComplete={handleFriendRequestHandled}
-        />
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <FreeGoalNotification
+            notification={item}
+            onActionComplete={handleFriendRequestHandled}
+          />
+        </Animated.View>
       );
     }
 
@@ -386,146 +408,163 @@ const NotificationsScreen = () => {
       const mostRecentReaction = (item.data?.mostRecentReaction as 'muscle' | 'heart' | 'like') || 'like';
 
       return (
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={[
-            styles.reactionCard,
-            !item.read && styles.reactionCardUnread
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.message}. Tap to view post`}
-        >
-          <View style={styles.reactionCardContent}>
-            {/* Profile Image or Placeholder */}
-            <Avatar
-              uri={item.data?.reactorProfileImageUrl}
-              name={item.data?.reactorNames?.[0]}
-              size="lg"
-            />
-
-            {/* Content */}
-            <View style={styles.reactionContent}>
-              <View style={styles.reactionHeader}>
-                <Text style={styles.reactionMessage} numberOfLines={2}>
-                  {item.message}
-                </Text>
-                {!item.read && <View style={styles.reactionUnreadDot} />}
-              </View>
-
-              <Text style={styles.reactionDate}>
-                {formatNotificationDate(item.createdAt)}
-              </Text>
-
-              <Text style={styles.reactionCta}>
-                Tap to view →
-              </Text>
-            </View>
-          </View>
-
-          {/* Simple Reaction Emoji Badge */}
-          <Animated.View
-            entering={ZoomIn.springify().damping(12)}
-            style={styles.reactionBadge}
-          >
-            <Image
-              source={
-                mostRecentReaction === 'muscle'
-                  ? require('../assets/reactions/muscle.png')
-                  : mostRecentReaction === 'heart'
-                    ? require('../assets/reactions/heart.png')
-                    : require('../assets/reactions/like.png')
-              }
-              style={styles.reactionBadgeImage}
-              resizeMode="contain"
-              accessible={false}
-            />
-          </Animated.View>
-
-          {/* Clear button */}
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
-            style={styles.reactionClearButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleClearNotification(item.id!);
-            }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+            ]}
             accessibilityRole="button"
-            accessibilityLabel="Clear this notification"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={`${item.message}. Tap to view post`}
           >
-            <Text style={styles.reactionClearText}>×</Text>
+            <View style={styles.reactionCardContent}>
+              {/* Profile Image or Placeholder */}
+              <Avatar
+                uri={item.data?.reactorProfileImageUrl}
+                name={item.data?.reactorNames?.[0]}
+                size="lg"
+              />
+
+              {/* Content */}
+              <View style={styles.reactionContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reactionMessage} numberOfLines={2}>
+                    {item.message}
+                  </Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+
+                <Text style={styles.reactionDate}>
+                  {formatNotificationDate(item.createdAt)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Simple Reaction Emoji Badge */}
+            <Animated.View
+              entering={ZoomIn.springify().damping(12)}
+              style={styles.reactionBadge}
+            >
+              <Image
+                source={
+                  mostRecentReaction === 'muscle'
+                    ? require('../assets/reactions/muscle.png')
+                    : mostRecentReaction === 'heart'
+                      ? require('../assets/reactions/heart.png')
+                      : require('../assets/reactions/like.png')
+                }
+                style={styles.reactionBadgeImage}
+                resizeMode="contain"
+                accessible={false}
+              />
+            </Animated.View>
+
+            {/* Clear button */}
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleClearNotification(item.id!);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Animated.View>
       );
     }
 
     // Handle motivation received notifications
     if (item.type === 'motivation_received') {
       return (
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
-        >
-          <View style={styles.reminderCardContent}>
-            <View style={[styles.reminderIconContainer, { backgroundColor: '#fdf2f8' }]}>
-              {item.data?.senderProfileImageUrl ? (
-                <Image
-                  source={{ uri: item.data.senderProfileImageUrl }}
-                  style={styles.reminderIconImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Heart size={24} color="#ec4899" />
-              )}
-            </View>
-            <View style={styles.reminderTextContent}>
-              <View style={styles.reactionHeader}>
-                <Text style={styles.reminderTitle}>{item.title}</Text>
-                {!item.read && <View style={styles.reactionUnreadDot} />}
-              </View>
-              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
-            </View>
-          </View>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
-            style={styles.reactionClearButton}
-            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.pink },
+            ]}
           >
-            <Text style={styles.reactionClearText}>×</Text>
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.pinkLight }]}>
+                {item.data?.senderProfileImageUrl ? (
+                  <Image
+                    source={{ uri: item.data.senderProfileImageUrl }}
+                    style={styles.reminderIconImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Heart size={24} color={Colors.pink} />
+                )}
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Animated.View>
       );
     }
 
     // Handle session reminder notifications
     if (item.type === 'session_reminder') {
       return (
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
-        >
-          <View style={styles.reminderCardContent}>
-            <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
-              <Bell size={24} color={Colors.primary} />
-            </View>
-            <View style={styles.reminderTextContent}>
-              <View style={styles.reactionHeader}>
-                <Text style={styles.reminderTitle}>{item.title}</Text>
-                {!item.read && <View style={styles.reactionUnreadDot} />}
-              </View>
-              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
-            </View>
-          </View>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
-            style={styles.reactionClearButton}
-            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+            ]}
           >
-            <Text style={styles.reactionClearText}>×</Text>
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
+                <Bell size={24} color={Colors.primary} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Animated.View>
       );
     }
 
@@ -536,70 +575,88 @@ const NotificationsScreen = () => {
       const progressPercent = required > 0 ? Math.min(100, Math.round((completed / required) * 100)) : 0;
 
       return (
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
-        >
-          <View style={styles.reminderCardContent}>
-            <View style={[styles.reminderIconContainer, { backgroundColor: '#f0fdf4' }]}>
-              <TrendingUp size={24} color={Colors.secondary} />
-            </View>
-            <View style={styles.reminderTextContent}>
-              <View style={styles.reactionHeader}>
-                <Text style={styles.reminderTitle}>{item.title || 'Weekly Recap'}</Text>
-                {!item.read && <View style={styles.reactionUnreadDot} />}
-              </View>
-              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-              {required > 0 && (
-                <View style={styles.recapProgressContainer}>
-                  <View style={styles.recapProgressBar}>
-                    <View style={[styles.recapProgressFill, { width: `${progressPercent}%` }]} />
-                  </View>
-                  <Text style={styles.recapProgressText}>{completed}/{required} sessions</Text>
-                </View>
-              )}
-              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
-            </View>
-          </View>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
-            style={styles.reactionClearButton}
-            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.success },
+            ]}
           >
-            <Text style={styles.reactionClearText}>×</Text>
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.successLight }]}>
+                <TrendingUp size={24} color={Colors.secondary} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title || 'Weekly Recap'}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                {required > 0 && (
+                  <View style={styles.recapProgressContainer}>
+                    <View style={styles.recapProgressBar}>
+                      <View style={[styles.recapProgressFill, { width: `${progressPercent}%` }]} />
+                    </View>
+                    <Text style={styles.recapProgressText}>{completed}/{required} sessions</Text>
+                  </View>
+                )}
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Animated.View>
       );
     }
 
     // Handle experience booking reminder notifications
     if (item.type === 'experience_booking_reminder') {
       return (
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={[styles.reminderCard, !item.read && styles.reminderCardUnread]}
-        >
-          <View style={styles.reminderCardContent}>
-            <View style={[styles.reminderIconContainer, { backgroundColor: '#fef3c7' }]}>
-              <Gift size={24} color="#f59e0b" />
-            </View>
-            <View style={styles.reminderTextContent}>
-              <View style={styles.reactionHeader}>
-                <Text style={styles.reminderTitle}>{item.title}</Text>
-                {!item.read && <View style={styles.reactionUnreadDot} />}
-              </View>
-              <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-              <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
-            </View>
-          </View>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
-            style={styles.reactionClearButton}
-            onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+            ]}
           >
-            <Text style={styles.reactionClearText}>×</Text>
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.warningLight }]}>
+                <Gift size={24} color={Colors.warning} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Animated.View>
       );
     }
 
@@ -609,48 +666,51 @@ const NotificationsScreen = () => {
     }
 
     return (
-      <View style={[styles.card, !item.read && styles.unreadCard]}>
-        <TouchableOpacity
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-          style={styles.cardContent}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            {!item.read && <View style={styles.unreadDot} />}
-          </View>
-
-
-          <Text style={styles.cardMessage} numberOfLines={3}>{item.message}</Text>
-
-
-          <View style={styles.cardFooter}>
-            <Text style={styles.cardDate}>{formatNotificationDate(item.createdAt)}</Text>
-            {item.type === 'personalized_hint_left' && !userGoals[item.data?.goalId || ''] && (
-              <Text style={styles.hintText}>Tap to view goal</Text>
-            )}
-          </View>
-        </TouchableOpacity>
-
-
-        {item.clearable !== false && (
+      <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <View style={[
+          styles.notificationCard,
+          !item.read && styles.notificationCardUnread,
+          { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+        ]}>
           <TouchableOpacity
-            style={styles.clearNotificationButton}
-            onPress={() => handleClearNotification(item.id!)}
-            accessibilityRole="button"
-            accessibilityLabel="Clear this notification"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={styles.cardContent}
           >
-            <Text style={styles.clearNotificationText}>×</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              {!item.read && <View style={styles.unreadDot} />}
+            </View>
+
+            <Text style={styles.cardMessage} numberOfLines={3}>{item.message}</Text>
+
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardDate}>{formatNotificationDate(item.createdAt)}</Text>
+              {item.type === 'personalized_hint_left' && !userGoals[item.data?.goalId || ''] && (
+                <Text style={styles.hintText}>Tap to view goal</Text>
+              )}
+            </View>
           </TouchableOpacity>
-        )}
-      </View>
+
+          {item.clearable !== false && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => handleClearNotification(item.id!)}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
     );
-  };
+  }, [handleFriendRequestHandled, handleApprovalActionTaken, handlePress, handleClearNotification, latestGoalProgressMap, userGoals]);
 
   return (
     <ErrorBoundary screenName="NotificationsScreen" userId={userId}>
-      <MainScreen activeRoute="Goals">
+      <MainScreen activeRoute="Profile">
         <StatusBar style="light" />
         <SharedHeader
           title="Notifications"
@@ -719,68 +779,60 @@ const NotificationsScreen = () => {
 const styles = StyleSheet.create({
   clearAllButton: {
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xs,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
   clearAllButtonText: {
     color: Colors.primary,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
   },
   listContainer: {
-    padding: 20,
+    padding: Spacing.xl,
   },
-  card: {
+  // Unified card base — all notification types
+  notificationCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: Colors.black,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    overflow: 'hidden',
   },
+  notificationCardUnread: {
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySurface,
+  },
+  // Default card inner layout (default / personalized_hint_left types)
   cardContent: {
     flex: 1,
-    padding: 16,
-  },
-  unreadCard: {
-    borderColor: Colors.secondary,
-    backgroundColor: Colors.primarySurface,
+    padding: Spacing.lg,
+    paddingRight: Spacing.xxl + Spacing.lg, // reserve space for clear button
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
     flex: 1,
   },
-  unreadDot: {
-    width: 10,
-    height: 10,
-    backgroundColor: Colors.secondary,
-    borderRadius: 5,
-  },
   cardMessage: {
     color: Colors.gray600,
-    fontSize: 14,
-    marginBottom: 6,
+    ...Typography.small,
+    marginBottom: Spacing.xs,
     lineHeight: 20,
   },
   cardDate: {
     color: Colors.textMuted,
-    fontSize: 12,
+    ...Typography.caption,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -789,98 +841,63 @@ const styles = StyleSheet.create({
   },
   hintText: {
     color: Colors.secondary,
-    fontSize: 11,
-    fontWeight: '600',
+    ...Typography.tiny,
     fontStyle: 'italic',
   },
-  clearNotificationButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.border,
+  // Unified clear button
+  clearButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: BorderRadius.circle,
+    backgroundColor: Colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 8,
   },
-  clearNotificationText: {
-    color: Colors.textMuted,
-    fontSize: 18,
-    fontWeight: 'bold',
+  // Unified unread dot (8px)
+  unreadDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.circle,
+    marginTop: Spacing.xs,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    marginTop: 50,
-    fontSize: 16,
-  },
-  // Enhanced reaction notification styles
-  reactionCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: Colors.black,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  reactionCardUnread: {
-    shadowColor: Colors.secondary,
-    shadowOpacity: 0.15,
-    elevation: 4,
-  },
+  // Reaction card content layout
   reactionCardContent: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 14,
+    padding: Spacing.lg,
+    paddingRight: Spacing.xxl + Spacing.lg, // reserve space for clear button
+    gap: Spacing.md,
     alignItems: 'flex-start',
   },
   reactionContent: {
     flex: 1,
-    gap: 8,
+    gap: Spacing.sm,
   },
   reactionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: Spacing.sm,
   },
   reactionMessage: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
     color: Colors.textPrimary,
     lineHeight: 20,
     flex: 1,
   },
-  reactionUnreadDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: Colors.secondary,
-    borderRadius: 4,
-    marginTop: 6,
-  },
-  reactionFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   reactionDate: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
-    marginBottom: 4,
-  },
-  reactionCta: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.secondary,
+    marginBottom: Spacing.xs,
   },
   reactionBadge: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: Spacing.md,
+    right: Spacing.md,
     width: 32,
     height: 32,
     justifyContent: 'center',
@@ -890,49 +907,18 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
   },
-  reactionClearButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reactionClearText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Reminder / Recap notification styles
-  reminderCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: Colors.black,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  reminderCardUnread: {
-    shadowColor: Colors.secondary,
-    shadowOpacity: 0.15,
-    elevation: 4,
-  },
+  // Reminder / Recap card content layout
   reminderCardContent: {
     flexDirection: 'row' as const,
-    padding: 16,
-    gap: 14,
+    padding: Spacing.lg,
+    paddingRight: Spacing.xxl + Spacing.lg, // reserve space for clear button
+    gap: Spacing.md,
     alignItems: 'flex-start' as const,
   },
   reminderIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: BorderRadius.xxl,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     overflow: 'hidden' as const,
@@ -940,43 +926,43 @@ const styles = StyleSheet.create({
   reminderIconImage: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: BorderRadius.xxl,
   },
   reminderTextContent: {
     flex: 1,
-    gap: 4,
+    gap: Spacing.xs,
   },
   reminderTitle: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600' as const,
     color: Colors.textPrimary,
     flex: 1,
   },
   reminderMessage: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     lineHeight: 20,
   },
   recapProgressContainer: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
-    marginTop: 4,
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   recapProgressBar: {
     flex: 1,
     height: 6,
     backgroundColor: Colors.border,
-    borderRadius: 3,
+    borderRadius: BorderRadius.xs,
     overflow: 'hidden' as const,
   },
   recapProgressFill: {
     height: '100%' as const,
     backgroundColor: Colors.secondary,
-    borderRadius: 3,
+    borderRadius: BorderRadius.xs,
   },
   recapProgressText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600' as const,
     color: Colors.textSecondary,
   },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Image,
@@ -8,14 +8,17 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { LogIn, UserPlus, X } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
+import Button from './Button';
 
 type LoginPromptNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -32,6 +35,11 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 }) => {
   const navigation = useNavigation<LoginPromptNavigationProp>();
   const slideAnim = useModalAnimation(visible);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handleClose = () => {
     onClose();
@@ -39,14 +47,14 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
   const handleLogin = () => {
     onClose();
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       navigation.navigate('Auth', { mode: 'signin' });
     }, 100);
   };
 
   const handleSignUp = () => {
     onClose();
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       navigation.navigate('Auth', { mode: 'signup' });
     }, 100);
   };
@@ -59,7 +67,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
       onRequestClose={handleClose}
     >
       <TouchableOpacity
-        style={[commonStyles.modalOverlay, { padding: 20 }]}
+        style={[commonStyles.modalOverlay, { padding: Spacing.xl }]}
         activeOpacity={1}
         onPress={handleClose}
       >
@@ -82,9 +90,10 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
                 style={styles.closeButton}
                 onPress={handleClose}
                 activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <View style={styles.closeButtonInner}>
-                  <X color="#6B7280" size={20} />
+                  <X color={Colors.textSecondary} size={20} />
                 </View>
               </TouchableOpacity>
 
@@ -101,42 +110,33 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
               {/* Buttons */}
               <View style={styles.buttonContainer}>
-                {/* Sign Up Button with gradient */}
-                <TouchableOpacity
-                  style={styles.primaryButtonWrapper}
+                <Button
+                  title="Sign Up Free"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  gradient
                   onPress={handleSignUp}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    colors={Colors.gradientTriple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.primaryButton}
-                  >
-                    <UserPlus color="white" size={20} strokeWidth={2.5} />
-                    <Text style={styles.primaryButtonText}>Sign Up</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Login Button */}
-                <TouchableOpacity
-                  style={styles.secondaryButton}
+                  icon={<UserPlus color={Colors.white} size={20} strokeWidth={2.5} />}
+                />
+                <Button
+                  title="Log In"
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
                   onPress={handleLogin}
-                  activeOpacity={0.8}
-                >
-                  <LogIn color={Colors.primary} size={20} strokeWidth={2.5} />
-                  <Text style={styles.secondaryButtonText}>Log In</Text>
-                </TouchableOpacity>
+                  icon={<LogIn color={Colors.primary} size={20} strokeWidth={2.5} />}
+                />
               </View>
 
               {/* Cancel link */}
-              <TouchableOpacity
-                style={styles.cancelLink}
+              <Button
+                title="Maybe Later"
+                variant="ghost"
+                size="sm"
                 onPress={handleClose}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelLinkText}>Maybe later</Text>
-              </TouchableOpacity>
+                style={styles.cancelLink}
+              />
             </View>
           </TouchableOpacity>
         </Animated.View>
@@ -151,9 +151,9 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modal: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: Colors.surfaceFrosted,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxxl,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
@@ -168,82 +168,38 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   closeButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.circle,
     backgroundColor: Colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: 28,
+    ...Typography.heading1,
     fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 32,
+    ...Typography.subheading,
+    color: Colors.gray600,
+    marginBottom: Spacing.xxxl,
     textAlign: 'center',
     lineHeight: 24,
   },
   buttonContainer: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  primaryButtonWrapper: {
-    borderRadius: 12,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 17,
-    letterSpacing: 0.3,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: Colors.primarySurface,
-    borderWidth: 2,
-    borderColor: Colors.primaryTint,
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 17,
-    letterSpacing: 0.3,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   cancelLink: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  cancelLinkText: {
-    color: Colors.textMuted,
-    fontSize: 15,
-    fontWeight: '600',
+    alignSelf: 'center',
+    marginTop: Spacing.sm,
   },
 });
 

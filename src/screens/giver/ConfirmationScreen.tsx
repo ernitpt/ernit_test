@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
 import { Copy, CheckCircle, Gift, ArrowRight } from 'lucide-react-native';
-import { ExperienceGift } from '../../types';
+import { ExperienceGift, Experience } from '../../types';
 import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
@@ -28,7 +28,11 @@ import { logErrorToFirestore } from '../../utils/errorLogger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import * as Haptics from 'expo-haptics';
 
 const ConfirmationScreen = () => {
   const navigation = useGiverNavigation();
@@ -67,6 +71,7 @@ const ConfirmationScreen = () => {
   }, [hasValidData, navigation]);
 
   useEffect(() => {
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -82,12 +87,14 @@ const ConfirmationScreen = () => {
     ]).start();
   }, []);
 
-  const [experience, setExperience] = useState<any>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [personalizedMessage, setPersonalizedMessage] = useState(experienceGift?.personalizedMessage || '');
   const [charCount, setCharCount] = useState((experienceGift?.personalizedMessage || '').length);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(!!experienceGift?.personalizedMessage);
   const [isCopied, setIsCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     if (!experienceGift?.experienceId) return;
@@ -103,6 +110,7 @@ const ConfirmationScreen = () => {
           userId: state.user?.id || 'unknown',
           additionalData: { experienceId: experienceGift.experienceId },
         });
+        setLoadError(true);
         showError("Could not load experience details.");
       }
     };
@@ -138,6 +146,8 @@ const ConfirmationScreen = () => {
               isMystery,
             },
           );
+          // Mark goal as having a pending gift to prevent duplicate purchases
+          await goalService.markEmpowerPending(goalId);
           logger.log('Empower notification sent to goal owner', empowerContext.userId);
         } catch (error) {
           logger.error('Failed to send empower notification:', error);
@@ -172,12 +182,19 @@ const ConfirmationScreen = () => {
     }
   }, [goalId, experienceGift?.id]);
 
+  // Cleanup copy timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
+
   // Early return if data is invalid
   if (!hasValidData || !experienceGift) {
     return (
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
     );
@@ -216,9 +233,11 @@ const ConfirmationScreen = () => {
   };
 
   const handleCopyCode = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await Clipboard.setStringAsync(experienceGift.claimCode);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleShareCode = async () => {
@@ -243,8 +262,9 @@ Earn it. Unlock it. Enjoy it 🚀
       } else if (result.action === Share.dismissedAction) {
         logger.log('Share dismissed');
       }
-    } catch (error: any) {
-      showError(error.message || 'Failed to share the code');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      showError(message || 'Failed to share the code');
     }
   };
 
@@ -255,10 +275,45 @@ Earn it. Unlock it. Enjoy it 🚀
     });
   };
 
+  // Show error state if fetch failed
+  if (loadError && !experience) {
+    return (
+      <MainScreen activeRoute="Home">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
+          <Text style={{ ...Typography.heading3, color: Colors.textPrimary, textAlign: 'center' }}>
+            Could not load experience details
+          </Text>
+          <Text style={{ ...Typography.body, color: Colors.textSecondary, textAlign: 'center' }}>
+            Please check your connection and try again.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: Colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
+            onPress={() => {
+              setLoadError(false);
+              if (experienceGift?.experienceId) {
+                experienceService.getExperienceById(experienceGift.experienceId)
+                  .then(setExperience)
+                  .catch(async (err) => {
+                    setLoadError(true);
+                    showError('Could not load experience details.');
+                  });
+              }
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading experience"
+          >
+            <Text style={{ ...Typography.subheading, color: Colors.white }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </MainScreen>
+    );
+  }
+
   // Show loading state
   if (!experience) {
     return (
-      <View style={{ padding: 20, gap: 12 }}>
+      <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
         <ExperienceCardSkeleton />
         <SkeletonBox width="100%" height={48} borderRadius={12} />
       </View>
@@ -285,7 +340,7 @@ Earn it. Unlock it. Enjoy it 🚀
               },
             ]}
           >
-            <CheckCircle color="#10b981" size={64} strokeWidth={2.5} />
+            <CheckCircle color={Colors.secondary} size={64} strokeWidth={2.5} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -310,7 +365,7 @@ Earn it. Unlock it. Enjoy it 🚀
             accessibilityLabel={`${experience.title} experience image`}
           />
           <View style={styles.experienceOverlay}>
-            <Gift color="#fff" size={24} />
+            <Gift color={Colors.white} size={24} />
           </View>
 
           <View style={styles.experienceContent}>
@@ -366,7 +421,7 @@ Earn it. Unlock it. Enjoy it 🚀
               )}
               {messageSent && (
                 <View style={styles.messageSentBadge}>
-                  <CheckCircle color="#10b981" size={16} />
+                  <CheckCircle color={Colors.secondary} size={16} />
                   <Text style={styles.messageSentText}>Message sent!</Text>
                 </View>
               )}
@@ -396,7 +451,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 accessibilityRole="button"
                 accessibilityLabel="Copy gift code"
               >
-                <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
+                <Copy color={isCopied ? Colors.secondary : Colors.textSecondary} size={20} />
                 <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                   {isCopied ? 'Copied!' : 'Copy Code'}
                 </Text>
@@ -410,7 +465,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 accessibilityLabel="Share gift code"
               >
                 <Text style={styles.shareCodeText}>Share</Text>
-                <ArrowRight color="#fff" size={20} />
+                <ArrowRight color={Colors.white} size={20} />
               </TouchableOpacity>
             </View>
           </View>
@@ -497,35 +552,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   heroSection: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingBottom: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
   },
   successIcon: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   heroTitle: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: '800',
     color: Colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   heroSubtitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   experienceCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -542,79 +597,77 @@ const styles = StyleSheet.create({
     right: 16,
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(139, 92, 246, 0.9)',
+    borderRadius: BorderRadius.xxl,
+    backgroundColor: Colors.primaryOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   experienceContent: {
-    padding: 20,
+    padding: Spacing.xl,
   },
   experienceTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...Typography.heading2,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   experienceSubtitle: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   priceTag: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xl,
   },
   priceAmount: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...Typography.heading1,
     color: Colors.secondary,
   },
   messageSection: {
-    marginTop: 16,
+    marginTop: Spacing.lg,
   },
   messageSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   messageLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   charCounter: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
     fontWeight: '500',
   },
   messageSubtitle: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   messageInput: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 15,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    ...Typography.body,
     color: Colors.textPrimary,
     minHeight: 100,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   sendMessageButton: {
     backgroundColor: Colors.secondary,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -622,44 +675,42 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sendMessageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.white,
+    ...Typography.subheading,
   },
   messageSentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   messageSentText: {
-    fontSize: 14,
-    color: '#10b981',
+    ...Typography.small,
+    color: Colors.secondary,
     fontWeight: '600',
   },
   codeSection: {
-    marginHorizontal: 20,
-    marginTop: 24,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
   },
   codeSectionHeader: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   codeSectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...Typography.large,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   codeSectionSubtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
   },
   codeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -667,16 +718,16 @@ const styles = StyleSheet.create({
   },
   codeDisplay: {
     backgroundColor: Colors.backgroundLight,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
     borderWidth: 2,
     borderColor: Colors.border,
     borderStyle: 'dashed',
   },
   codeText: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: '800',
     color: Colors.secondary,
     textAlign: 'center',
@@ -684,67 +735,64 @@ const styles = StyleSheet.create({
   },
   codeActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   copyCodeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primarySurface,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
   },
   copyCodeText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.secondary,
   },
   copiedText: {
-    color: '#10b981',
+    color: Colors.secondary,
   },
   shareCodeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.secondary,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
   },
   shareCodeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    ...Typography.subheading,
+    color: Colors.white,
   },
   howItWorksSection: {
-    marginHorizontal: 20,
-    marginTop: 32,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxxl,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   howItWorksTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...Typography.large,
     color: Colors.textPrimary,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   stepsContainer: {
-    gap: 4,
+    gap: Spacing.xs,
   },
   stepItem: {
     flexDirection: 'row',
-    gap: 16,
+    gap: Spacing.lg,
   },
   stepIndicator: {
     alignItems: 'center',
@@ -752,13 +800,13 @@ const styles = StyleSheet.create({
   stepCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: BorderRadius.xl,
     backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepNumber: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.secondary,
   },
@@ -766,21 +814,20 @@ const styles = StyleSheet.create({
     width: 2,
     flex: 1,
     backgroundColor: Colors.primaryTint,
-    marginVertical: 4,
+    marginVertical: Spacing.xs,
   },
   stepContent: {
     flex: 1,
-    paddingVertical: 8,
-    paddingBottom: 20,
+    paddingVertical: Spacing.sm,
+    paddingBottom: Spacing.xl,
   },
   stepTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   stepDesc: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     lineHeight: 20,
   },
@@ -789,13 +836,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -803,14 +850,14 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     backgroundColor: Colors.secondary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   homeButtonText: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.white,
   },
 });
 

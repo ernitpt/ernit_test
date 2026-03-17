@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import type { ReactionType } from '../types';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import * as Haptics from 'expo-haptics';
 
 interface ReactionBarProps {
@@ -62,17 +65,17 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        gap: 8,
-        paddingVertical: 8,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.sm,
     },
     reactionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.backgroundLight,
-        gap: 4,
+        gap: Spacing.xs,
         minHeight: 44,
         justifyContent: 'center',
     },
@@ -82,10 +85,10 @@ const styles = StyleSheet.create({
         borderColor: Colors.secondary,
     },
     emoji: {
-        fontSize: 18,
+        fontSize: Typography.heading3.fontSize,
     },
     count: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.textSecondary,
     },

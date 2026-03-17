@@ -72,6 +72,11 @@ export const sendBookingReminders = functions.onSchedule(
 
             let notificationsSent = 0;
 
+            // Use batch writes for efficiency (Firestore limit: 500 ops per batch)
+            let batch = db.batch();
+            let batchCount = 0;
+            const MAX_BATCH_OPS = 498; // 2 ops per iteration (set + update), safety margin
+
             for (const goalDoc of goalsSnap.docs) {
                 const goal = goalDoc.data();
 
@@ -111,7 +116,7 @@ export const sendBookingReminders = functions.onSchedule(
                             .collection("experienceGifts")
                             .doc(goal.experienceGiftId)
                             .get();
-                        if (giftDoc.exists()) {
+                        if (giftDoc.exists) {
                             const giftData = giftDoc.data();
                             if (giftData?.experience?.name) {
                                 experienceName = giftData.experience.name;
@@ -120,8 +125,8 @@ export const sendBookingReminders = functions.onSchedule(
                                     .collection("experiences")
                                     .doc(giftData.experienceId)
                                     .get();
-                                if (expDoc.exists()) {
-                                    experienceName = expDoc.data()?.name || experienceName;
+                                if (expDoc.exists) {
+                                    experienceName = expDoc.data()?.title || experienceName;
                                 }
                             }
                         }
@@ -136,9 +141,18 @@ export const sendBookingReminders = functions.onSchedule(
                 const content = getReminderContent(daysSinceCompletion, experienceName);
                 if (!content) continue;
 
-                // Create notification
+                // Stage notification and goal update in the batch
                 try {
-                    await db.collection("notifications").add({
+                    // Flush batch if approaching the 500-op limit (2 ops per iteration)
+                    if (batchCount >= MAX_BATCH_OPS) {
+                        await batch.commit();
+                        batch = db.batch();
+                        batchCount = 0;
+                        console.log("🔄 [PROD] Committed intermediate batch, starting new batch");
+                    }
+
+                    const notifRef = db.collection("notifications").doc();
+                    batch.set(notifRef, {
                         userId: goal.userId,
                         type: "experience_booking_reminder",
                         title: content.title,
@@ -154,20 +168,27 @@ export const sendBookingReminders = functions.onSchedule(
                     });
 
                     // Mark this reminder day as sent on the goal doc
-                    await goalDoc.ref.update({
+                    batch.update(goalDoc.ref, {
                         bookingReminderDays: admin.firestore.FieldValue.arrayUnion(daysSinceCompletion),
                     });
 
+                    batchCount += 2;
                     notificationsSent++;
                     console.log(
-                        `✅ [PROD] Sent day-${daysSinceCompletion} booking reminder to user ${goal.userId} for goal ${goalDoc.id}`
+                        `✅ [PROD] Staged day-${daysSinceCompletion} booking reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
                 } catch (notifError) {
                     console.error(
-                        `❌ [PROD] Failed to create booking reminder for goal ${goalDoc.id}:`,
+                        `❌ [PROD] Failed to stage booking reminder for goal ${goalDoc.id}:`,
                         notifError
                     );
                 }
+            }
+
+            // Commit any remaining batch operations
+            if (batchCount > 0) {
+                await batch.commit();
+                console.log(`🔄 [PROD] Committed final batch (${batchCount} ops)`);
             }
 
             console.log(

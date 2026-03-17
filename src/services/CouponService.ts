@@ -16,12 +16,19 @@ export interface PartnerCoupon {
   goalId: string;
 }
 
-/** Generate a unique 12-character alphanumeric code */
+/** Generate a unique 12-character alphanumeric code using a CSPRNG with rejection sampling */
 function generateUniqueCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  return Array.from({ length: 12 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join('');
+  // Rejection sampling to eliminate modulo bias
+  // 252 = 7 * 36, the largest multiple of 36 that fits in a byte (0-255)
+  const bytes = new Uint8Array(1);
+  let code = '';
+  while (code.length < 12) {
+    crypto.getRandomValues(bytes);
+    if (bytes[0] >= 252) continue;
+    code += chars[bytes[0] % 36];
+  }
+  return code;
 }
 
 /**
@@ -33,6 +40,7 @@ export async function generateCouponForGoal(
   goalId: string,
   userId: string,
   partnerId: string,
+  retryCount: number = 0,
 ): Promise<string> {
   const goalRef = doc(db, 'goals', goalId);
 
@@ -45,6 +53,15 @@ export async function generateCouponForGoal(
 
       // Check if coupon already exists (atomic check)
       if (goalData.couponCode) {
+        // Validate that the existing coupon has not expired before returning it
+        if (goalData.couponGeneratedAt) {
+          const validUntilCheck = goalData.validUntil
+            ? (goalData.validUntil.toDate ? goalData.validUntil.toDate() : new Date(goalData.validUntil))
+            : null;
+          if (validUntilCheck && new Date() > new Date(validUntilCheck)) {
+            throw new Error('This coupon has expired');
+          }
+        }
         logger.log('Found existing coupon:', goalData.couponCode);
         return goalData.couponCode as string;
       }
@@ -90,10 +107,13 @@ export async function generateCouponForGoal(
     });
 
     return couponCode;
-  } catch (error: any) {
-    if (error.message === 'CODE_COLLISION') {
-      logger.log('Retrying coupon generation due to collision...');
-      return generateCouponForGoal(goalId, userId, partnerId);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'CODE_COLLISION') {
+      if (retryCount >= 5) {
+        throw new Error('Failed to generate unique coupon code after 5 attempts');
+      }
+      logger.log(`Retrying coupon generation due to collision (attempt ${retryCount + 1}/5)...`);
+      return generateCouponForGoal(goalId, userId, partnerId, retryCount + 1);
     }
     throw error;
   }

@@ -1,7 +1,7 @@
 ﻿// screens/ExperienceCheckoutScreen.tsx
 // ✅ Final version: supports multiple gifts via cartItems, with personal message
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -41,6 +41,9 @@ import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Spacing } from '../../config/spacing';
+import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
@@ -108,7 +111,6 @@ const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGif
     if (!response.ok) return [];
 
     const gifts = await response.json();
-    logger.log('gifts', gifts)
     if (!Array.isArray(gifts)) return [];
 
     return gifts.map((gift: any) => ({
@@ -128,9 +130,12 @@ const pollForGifts = async (
   paymentIntentId: string,
   expectedCount: number,
   maxAttempts: number = 12,
-  delayMs: number = 1000
+  delayMs: number = 1000,
+  cancelledRef?: React.MutableRefObject<boolean>
 ): Promise<ExperienceGift[]> => {
   for (let i = 0; i < maxAttempts; i++) {
+    if (cancelledRef?.current) return [];
+
     const gifts = await checkGiftCreation(paymentIntentId);
 
     if (gifts.length === expectedCount) {
@@ -161,6 +166,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(false);
+  const processingRef = useRef(false);
+  const pollCancelledRef = useRef(false);
 
   /** Clear cart both client-side and in Firestore */
   const clearCartEverywhere = async () => {
@@ -204,7 +211,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
         if (paymentIntent?.status === "succeeded") {
           logger.log("💰 Payment succeeded after redirect, checking gifts...");
-          const gifts = await pollForGifts(paymentIntent.id, totalQuantity);
+          const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 12, 1000, pollCancelledRef);
 
           if (gifts.length === 1) {
             dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
@@ -233,7 +240,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         } else if (paymentIntent?.status === "requires_action") {
           showInfo("Additional action is required to complete your payment.");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error("Error handling redirect return:", err);
         await logErrorToFirestore(err, {
           screenName: 'ExperienceCheckoutScreen',
@@ -251,13 +258,16 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     };
 
     const timer = setTimeout(() => checkRedirectReturn(), 500);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      pollCancelledRef.current = true;
+    };
   }, [stripe, clientSecret, navigation, dispatch, totalQuantity]);
 
   const handlePurchase = async () => {
-    // Prevent double-submit: guard against rapid clicks before React re-renders
-    if (isProcessing) return;
-
+    // Prevent double-submit: synchronous ref check + async state check
+    if (processingRef.current || isProcessing) return;
+    processingRef.current = true;
     if (!stripe || !elements) {
       showInfo("Please wait a few seconds and try again.");
       return;
@@ -274,7 +284,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           return_url:
             Platform.OS === "web"
               ? window.location.href
-              : "https://ernit-nine.vercel.app/payment-success",
+              : `${process.env.EXPO_PUBLIC_APP_URL || 'https://ernit-nine.vercel.app'}/payment-success`,
         },
         redirect: "if_required",
       });
@@ -285,7 +295,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       if (paymentIntent.status === "succeeded") {
         logger.log("💰 Payment succeeded immediately, checking gifts...");
         analyticsService.trackEvent('payment_completed', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
-        const gifts = await pollForGifts(paymentIntent.id, totalQuantity);
+        const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 12, 1000, pollCancelledRef);
 
         if (gifts.length === 1) {
           dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
@@ -305,9 +315,9 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         showInfo("Your payment is being processed. You will receive confirmation shortly.");
       }
       // If redirect happens, the useEffect above will handle it
-    } catch (err: any) {
+    } catch (err: unknown) {
       await removeStorageItem(`pending_payment_${clientSecret}`);
-      const errorMessage = err.message || "Something went wrong.";
+      const errorMessage = (err instanceof Error ? err.message : String(err)) || "Something went wrong.";
 
       await logErrorToFirestore(err, {
         screenName: 'ExperienceCheckoutScreen',
@@ -324,6 +334,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       showError(errorMessage);
       logger.error("Payment error:", err);
     } finally {
+      processingRef.current = false;
       setIsProcessing(false);
     }
   };
@@ -346,11 +357,11 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <ChevronLeft color="#111827" size={24} />
+              <ChevronLeft color={Colors.textPrimary} size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
             <View style={styles.lockIcon}>
-              <Lock color="#10b981" size={20} />
+              <Lock color={Colors.secondary} size={20} />
             </View>
           </View>
 
@@ -407,7 +418,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
             {/* Security note */}
             <View style={styles.securityNotice}>
-              <Lock color="#6b7280" size={16} />
+              <Lock color={Colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
                 Your payment information is encrypted and secure
               </Text>
@@ -431,7 +442,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               accessibilityLabel="Complete purchase"
             >
               {isProcessing ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.white} />
               ) : (
                 <Text style={styles.payButtonText}>Complete Purchase</Text>
               )}
@@ -553,7 +564,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
 
         setClientSecret(response.clientSecret);
         setPaymentIntentId(response.paymentIntentId);
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error("Error creating payment intent:", err);
         await logErrorToFirestore(err, {
           screenName: 'ExperienceCheckoutScreen',
@@ -563,7 +574,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
             itemCount: cartItems.length
           }
         });
-        showError(err.message || "Failed to initialize payment.");
+        const errMessage = err instanceof Error ? err.message : String(err);
+        showError(errMessage || "Failed to initialize payment.");
         initRef.current = false; // Allow retry
         if (navigation.canGoBack()) navigation.goBack();
         else navigation.navigate('CategorySelection');
@@ -646,9 +658,9 @@ const ExperienceCheckoutScreen: React.FC = () => {
           theme: "stripe",
           variables: {
             colorPrimary: Colors.secondary,
-            colorBackground: "#ffffff",
-            colorText: "#111827",
-            colorDanger: "#ef4444",
+            colorBackground: Colors.white,
+            colorText: Colors.textPrimary,
+            colorDanger: Colors.error,
             fontFamily: "system-ui, -apple-system, sans-serif",
             spacingUnit: "4px",
             borderRadius: "8px",
@@ -679,24 +691,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.xl,
     paddingTop: Platform.OS === "ios" ? 50 : 40,
-    paddingBottom: 16,
-    backgroundColor: "#fff",
+    paddingBottom: Spacing.lg,
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: BorderRadius.xl,
     backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    ...Typography.large,
     color: Colors.textPrimary,
     flex: 1,
     textAlign: "center",
@@ -704,83 +715,82 @@ const styles = StyleSheet.create({
   lockIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f0fdf4",
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.successLighter,
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollView: { flex: 1, paddingHorizontal: 20 },
+  scrollView: { flex: 1, paddingHorizontal: Spacing.xl },
 
   summaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 24,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xxl,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: "#000",
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
   summaryLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   summaryInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   summaryTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    ...Typography.subheading,
     color: Colors.textPrimary,
   },
-  subtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 2 },
+  subtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
   quantityText: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#4b5563",
+    marginTop: Spacing.xs,
+    ...Typography.caption,
+    color: Colors.gray600,
   },
   priceLine: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 16,
+    paddingTop: Spacing.lg,
   },
-  priceLabel: { fontSize: 16, color: Colors.textSecondary, fontWeight: "600" },
-  priceAmount: { fontSize: 18, fontWeight: "700", color: Colors.secondary },
+  priceLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
+  priceAmount: { ...Typography.heading3, fontWeight: "700", color: Colors.secondary },
 
   section: { marginBottom: 28 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: Colors.textPrimary },
-  sectionSubtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 12 },
+  sectionTitle: { ...Typography.heading3, fontWeight: "700", color: Colors.textPrimary },
+  sectionSubtitle: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.md },
 
   paymentBox: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: "#000",
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -790,27 +800,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     backgroundColor: Colors.surface,
-    borderRadius: 8,
-    marginBottom: 20,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.xl,
   },
-  securityText: { fontSize: 13, color: Colors.textSecondary, fontWeight: "500" },
+  securityText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: "500" },
 
   bottomBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === "ios" ? 32 : 16,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Platform.OS === "ios" ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    shadowColor: "#000",
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -820,14 +830,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  totalLabel: { fontSize: 16, color: Colors.textSecondary, fontWeight: "600" },
-  totalAmount: { fontSize: 28, fontWeight: "700", color: Colors.textPrimary },
+  totalLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
+  totalAmount: { ...Typography.display, fontWeight: "700", color: Colors.textPrimary },
   payButton: {
     backgroundColor: Colors.secondary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
     alignItems: "center",
     shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
@@ -836,7 +846,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   payButtonDisabled: { opacity: 0.6 },
-  payButtonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  payButtonText: { color: Colors.white, ...Typography.heading3, fontWeight: "700" },
 
   loadingContainer: {
     flex: 1,
@@ -844,25 +854,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.surface,
   },
-  loadingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary },
-  errorText: { fontSize: 18, color: Colors.error, marginBottom: 16 },
+  loadingText: { marginTop: Spacing.md, ...Typography.subheading, color: Colors.textSecondary },
+  errorText: { ...Typography.heading3, color: Colors.error, marginBottom: Spacing.lg },
   retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.md,
     backgroundColor: Colors.secondary,
-    borderRadius: 8,
+    borderRadius: BorderRadius.sm,
   },
-  retryButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  retryButtonText: { color: Colors.white, ...Typography.subheading, fontWeight: "600" },
   processingOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: Colors.surfaceFrosted,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
   },
-  processingText: { marginTop: 12, fontSize: 16, color: Colors.textSecondary, fontWeight: "500" },
+  processingText: { marginTop: Spacing.md, ...Typography.subheading, color: Colors.textSecondary, fontWeight: "500" },
 });

@@ -178,6 +178,8 @@ export class NotificationService {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
       })) as Notification[];
       callback(notifications);
+    }, (error) => {
+      logger.error('[NotificationService] Notification snapshot error:', error.message);
     });
 
     return unsubscribe;

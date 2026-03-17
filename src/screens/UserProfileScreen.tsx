@@ -11,15 +11,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  RefreshControl,
+  Dimensions,
+  Alert,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { TextInput } from '../components/TextInput';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { commonStyles } from '../styles/commonStyles';
-import { Edit2, Users, Award, Gift, Heart } from 'lucide-react-native';
+import { Edit2, Users, Award, Gift, Heart, Target } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Goal, UserProfile, Experience, User } from '../types';
+import { Goal, UserProfile, Experience, User, ExperienceGift } from '../types';
 import { useRootNavigation } from '../types/navigation';
 import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
@@ -35,15 +39,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { experienceService } from '../services/ExperienceService';
 import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
+import { toJSDate } from '../utils/GoalHelpers';
 import { serializeNav } from '../utils/serializeNav';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
+import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import ClaimExperienceModal from '../components/ClaimExperienceModal';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import { MotiView } from 'moti';
 
 // =========================
 // Goal Card (Active goals)
@@ -53,9 +61,9 @@ const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => (
     style={{
       flex: 1,
       height: 8,
-      borderRadius: 50,
+      borderRadius: BorderRadius.pill,
       backgroundColor: filled ? Colors.primary : Colors.border,
-      marginHorizontal: 2,
+      marginHorizontal: Spacing.xxs,
     }}
   />
 );
@@ -99,7 +107,7 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       )}
 
       {/* Sessions this week */}
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
           <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
           <Text style={styles.progressHeaderValue}>
@@ -115,7 +123,7 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       </View>
 
       {/* Weeks completed */}
-      <View style={{ marginTop: 14 }}>
+      <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
           <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
           <Text style={styles.progressHeaderValue}>
@@ -142,7 +150,6 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           style={styles.browseButton}
           activeOpacity={0.7}
         >
-          <Gift color={Colors.secondary} size={16} />
           <Text style={styles.browseButtonText}>Browse Experiences</Text>
         </TouchableOpacity>
       )}
@@ -179,7 +186,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const navigation = useRootNavigation();
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>('Partner');
-  const [gift, setGift] = useState<any>(null);
+  const [gift, setGift] = useState<ExperienceGift | null>(null);
   const [loadingCard, setLoadingCard] = useState<boolean>(true);
   const [showClaimModal, setShowClaimModal] = useState(false);
 
@@ -190,8 +197,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const getEffectiveDeadline = (): Date | null => {
     if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
     if (goal.completedAt) {
-      const d = new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
-        ? (goal.completedAt as any).toDate() : goal.completedAt);
+      const d = new Date(toJSDate(goal.completedAt) ?? goal.completedAt as unknown as Date);
       d.setDate(d.getDate() + 30);
       return d;
     }
@@ -252,7 +258,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       <TouchableOpacity onPress={handlePress} activeOpacity={0.8}
         style={styles.achievementCard}>
         <View style={styles.achSelfBanner}>
-          <Text style={{ fontSize: 28 }}>🏆</Text>
+          <Text style={{ ...Typography.display }}>🏆</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.achSelfLabel}>Self-Achievement</Text>
             <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
@@ -299,7 +305,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           </View>
         ) : (
           <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
-            <Text style={{ fontSize: 36 }}>🎁</Text>
+            <Text style={{ ...Typography.display }}>🎁</Text>
             <View style={styles.achCompletedBadge}>
               <Text style={styles.achCompletedBadgeText}>Completed</Text>
             </View>
@@ -351,7 +357,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
         </View>
       ) : (
         <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
-          <Text style={{ fontSize: 36 }}>🎁</Text>
+          <Text style={{ ...Typography.display }}>🎁</Text>
           <View style={styles.achCompletedBadge}>
             <Text style={styles.achCompletedBadgeText}>Completed</Text>
           </View>
@@ -443,6 +449,7 @@ const UserProfileScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'goals' | 'achievements' | 'wishlist'>('goals');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
   const [activeGoals, setActiveGoals] = useState<Goal[]>([]);
   const [wishlist, setWishlist] = useState<Experience[]>([]);
@@ -456,19 +463,17 @@ const UserProfileScreen: React.FC = () => {
   });
   const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
 
-  const userId = state.user?.id || 'current_user';
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const userId = state.user?.id || '';
   const slideAnim = useModalAnimation(isEditModalVisible);
+  const tabScrollRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = Dimensions.get('window');
+  const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   useFocusEffect(
     React.useCallback(() => {
       loadProfileAndGoals();
     }, [userId])
   );
-
-  useEffect(() => {
-    if (userProfile) animateContent();
-  }, [activeTab]);
 
   useEffect(() => {
     if (!userId) return;
@@ -481,16 +486,8 @@ const UserProfileScreen: React.FC = () => {
     return unsubscribe;
   }, [userId]);
 
-  const animateContent = () => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
   const loadProfileAndGoals = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
       setError(false);
@@ -522,6 +519,12 @@ const UserProfileScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadProfileAndGoals();
+    setRefreshing(false);
   };
 
   // ✅ Unified image picker and upload for all platforms
@@ -629,6 +632,7 @@ const UserProfileScreen: React.FC = () => {
     // 4. Close modal and show success immediately
     setIsEditModalVisible(false);
     showSuccess('Profile updated!');
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // 5. Call API in background
     try {
@@ -651,31 +655,44 @@ const UserProfileScreen: React.FC = () => {
       return;
     }
 
-    try {
-      const userRef = doc(db, 'users', state.user.id);
-      await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
+    Alert.alert(
+      'Remove from Wishlist',
+      'Are you sure you want to remove this experience from your wishlist?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userRef = doc(db, 'users', state.user!.id);
+              await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
 
-      // Update local state
-      setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
+              // Update local state
+              setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
 
-      // Update context if needed
-      if (state.user) {
-        // Filter based on Experience type having an id property
-        const updatedWishlist = (state.user.wishlist || []).filter((exp) =>
-          typeof exp === 'string' ? exp !== experienceId : exp.id !== experienceId
-        );
-        dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
-      }
-    } catch (error) {
-      logger.error('Error removing from wishlist:', error);
-      showError('Failed to remove item from wishlist. Please try again.');
-    }
+              // Update context if needed
+              if (state.user) {
+                // Filter based on Experience type having an id property
+                const updatedWishlist = (state.user.wishlist || []).filter((exp) =>
+                  typeof exp === 'string' ? exp !== experienceId : exp.id !== experienceId
+                );
+                dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
+              }
+            } catch (error) {
+              logger.error('Error removing from wishlist:', error);
+              showError('Failed to remove item from wishlist. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const renderContent = () => {
+  const renderTabContent = (tab: typeof activeTab) => {
     if (loading) {
       return (
-        <View style={{ marginTop: 20, gap: 16, paddingHorizontal: 20 }}>
+        <View style={{ marginTop: Spacing.xl, gap: Spacing.lg, paddingHorizontal: Spacing.xl }}>
           <SkeletonBox width="100%" height={80} borderRadius={12} />
           <SkeletonBox width="60%" height={20} borderRadius={8} />
           <SkeletonBox width="100%" height={120} borderRadius={12} />
@@ -688,19 +705,35 @@ const UserProfileScreen: React.FC = () => {
       return <ErrorRetry message="Could not load profile data" onRetry={loadProfileAndGoals} />;
     }
 
-    if (activeTab === 'goals') {
+    if (tab === 'goals') {
       if (!activeGoals.length) {
         return <EmptyState icon="🎯" title="No Goals Yet" message="Start a goal to track your progress!" />;
       }
-      return activeGoals.map((goal) => <GoalCard key={goal.id} goal={goal} />);
+      return activeGoals.map((goal, index) => (
+        <MotiView
+          key={goal.id}
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+        >
+          <GoalCard goal={goal} />
+        </MotiView>
+      ));
     }
 
-    if (activeTab === 'achievements') {
+    if (tab === 'achievements') {
       if (!completedGoals.length) {
         return <EmptyState icon="🏆" title="No Achievements Yet" message="Complete goals to earn achievements!" />;
       }
-      return completedGoals.map((goal) => (
-        <AchievementCard key={goal.id} goal={goal} />
+      return completedGoals.map((goal, index) => (
+        <MotiView
+          key={goal.id}
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+        >
+          <AchievementCard goal={goal} />
+        </MotiView>
       ));
     }
 
@@ -709,15 +742,33 @@ const UserProfileScreen: React.FC = () => {
       return <EmptyState icon="⭐" title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
     }
 
-    return wishlist.map((exp) => (
-      <ExperienceCard key={exp.id} experience={exp} onRemoveFromWishlist={handleRemoveFromWishlist} />
+    return wishlist.map((exp, index) => (
+      <MotiView
+        key={exp.id}
+        from={{ opacity: 0, translateY: 12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+      >
+        <ExperienceCard experience={exp} onRemoveFromWishlist={handleRemoveFromWishlist} />
+      </MotiView>
     ));
   };
 
   return (
     <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
       <MainScreen activeRoute="Profile">
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.container}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
+        >
           {/* Hero Section */}
           <View style={styles.heroSection}>
             <View style={styles.profileImageContainer}>
@@ -753,15 +804,15 @@ const UserProfileScreen: React.FC = () => {
 
             {/* Stats */}
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
+              <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{activeGoals.length}</Text>
                 <Text style={styles.statLabel}>Active</Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{completedGoals.length}</Text>
                 <Text style={styles.statLabel}>Completed</Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{wishlist.length}</Text>
                 <Text style={styles.statLabel}>Wishlist</Text>
               </View>
@@ -787,13 +838,17 @@ const UserProfileScreen: React.FC = () => {
           {/* Tabs */}
           <View style={styles.tabsContainer}>
             {([
-              { key: 'goals' as const, label: 'Goals', icon: Gift },
+              { key: 'goals' as const, label: 'Goals', icon: Target },
               { key: 'achievements' as const, label: 'Achievements', icon: Award },
-              { key: 'wishlist' as const, label: 'Wishlist', icon: Gift },
+              { key: 'wishlist' as const, label: 'Wishlist', icon: Heart },
             ] as const).map((tab) => (
               <TouchableOpacity
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => {
+                  const index = TAB_KEYS.indexOf(tab.key);
+                  setActiveTab(tab.key);
+                  tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+                }}
                 style={[
                   styles.tabButton,
                   activeTab === tab.key && styles.tabButtonActive,
@@ -813,23 +868,31 @@ const UserProfileScreen: React.FC = () => {
             ))}
           </View>
 
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [
-                {
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
+          <ScrollView
+            ref={tabScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={100}
+            onScroll={(e) => {
+              const x = e.nativeEvent.contentOffset.x;
+              const index = Math.round(x / screenWidth);
+              if (index >= 0 && index < TAB_KEYS.length && TAB_KEYS[index] !== activeTab) {
+                setActiveTab(TAB_KEYS[index]);
+              }
             }}
+            style={{ flex: 1 }}
           >
-            {renderContent()}
-          </Animated.View>
-
-          <View style={{ height: 80 }} />
+            <View style={{ width: screenWidth, paddingBottom: 80 }}>
+              {renderTabContent('goals')}
+            </View>
+            <View style={{ width: screenWidth, paddingBottom: 80 }}>
+              {renderTabContent('achievements')}
+            </View>
+            <View style={{ width: screenWidth, paddingBottom: 80 }}>
+              {renderTabContent('wishlist')}
+            </View>
+          </ScrollView>
         </ScrollView>
 
         {/* Edit Modal */}
@@ -850,8 +913,9 @@ const UserProfileScreen: React.FC = () => {
                 {
                   transform: [{ translateY: slideAnim }],
                   marginTop: 50, // Top offset
-                  borderTopLeftRadius: 24,
-                  borderTopRightRadius: 24,
+                  width: '100%',
+                  borderTopLeftRadius: BorderRadius.xxl,
+                  borderTopRightRadius: BorderRadius.xxl,
                   overflow: 'hidden',
                 },
               ]}
@@ -942,20 +1006,21 @@ const UserProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   heroSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.backgroundLight,
+    // TODO: replace with `paddingTop: insets.top + Spacing.lg` using useSafeAreaInsets() for proper safe-area handling
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingBottom: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: BorderRadius.xxl,
+    borderBottomRightRadius: BorderRadius.xxl,
   },
 
   // progress headers (for mini capsules in goals)
   progressHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   progressHeaderLabel: {
     ...Typography.small,
@@ -967,30 +1032,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  profileImageContainer: { position: 'relative', marginBottom: 16 },
+  profileImageContainer: { position: 'relative', marginBottom: Spacing.lg },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: Colors.backgroundLight,
+    width: 110,
+    height: 110,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 3,
+    borderColor: Colors.primaryBorder,
   },
   placeholderImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 110,
+    height: 110,
+    borderRadius: BorderRadius.pill,
     backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: 40, fontWeight: '700', color: Colors.white },
+  placeholderText: { fontSize: Typography.displayLarge.fontSize, fontWeight: '700', color: Colors.white },
   editIconButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: BorderRadius.xl,
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -999,26 +1064,34 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
     shadowOpacity: 0.1,
   },
-  userName: { ...Typography.heading1, color: Colors.textPrimary, marginBottom: 4 },
+  userName: { ...Typography.heading1, color: Colors.textPrimary, marginBottom: Spacing.xs },
   userDescription: {
     ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    marginBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
   },
-  statsRow: { flexDirection: 'row', gap: 32, marginBottom: 24 },
-  statItem: { alignItems: 'center' },
-  statNumber: { ...Typography.heading1, color: Colors.secondary, marginBottom: 4 },
-  statLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: '500' },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xxl, paddingHorizontal: Spacing.sm },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    alignItems: 'center',
+    gap: Spacing.xs,
+    ...Shadows.sm,
+  },
+  statNumber: { ...Typography.heading2, color: Colors.primary },
+  statLabel: { ...Typography.caption, color: Colors.textSecondary },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
     position: 'relative',
@@ -1029,7 +1102,7 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     backgroundColor: Colors.error,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
@@ -1038,36 +1111,49 @@ const styles = StyleSheet.create({
     borderColor: Colors.white,
   },
   badgeText: { color: Colors.white, ...Typography.tiny },
-  tabsContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16, gap: 8 },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.white,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  tabButtonActive: { backgroundColor: Colors.secondary },
+  tabButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
   tabText: { ...Typography.smallBold, color: Colors.textSecondary },
   tabTextActive: { color: Colors.white },
 
   // Active goal card
   goalCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     ...Shadows.sm,
   },
-  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: 4 },
-  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
+  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: Spacing.xs },
+  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: Spacing.xs },
 
   // Wishlist card
   experienceCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     overflow: 'hidden',
     ...Shadows.sm,
   },
@@ -1079,25 +1165,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    padding: 6,
-    borderRadius: 20,
+    backgroundColor: Colors.overlay,
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.xl,
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  experienceContent: { padding: 16 },
-  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  experienceDescription: { ...Typography.small, color: Colors.textSecondary, marginBottom: 8 },
+  experienceContent: { padding: Spacing.lg },
+  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
+  experienceDescription: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.sm },
   experiencePrice: { ...Typography.heading3, color: Colors.secondary },
 
   // ACHIEVEMENT CARD
   achievementCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     overflow: 'hidden',
     ...Shadows.md,
     shadowOpacity: 0.06,
@@ -1108,21 +1194,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
   },
   achievementContent: {
-    padding: 14,
+    padding: Spacing.md,
   },
   achievementTitle: {
     ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
 
   // Stats row
   achStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.backgroundLight,
   },
@@ -1139,7 +1225,7 @@ const styles = StyleSheet.create({
     ...Typography.tiny,
     fontWeight: '500',
     color: Colors.textMuted,
-    marginTop: 1,
+    marginTop: Spacing.xxs,
   },
   achStatDivider: {
     width: 1,
@@ -1151,10 +1237,10 @@ const styles = StyleSheet.create({
   achSelfBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.primaryBorder,
   },
@@ -1168,7 +1254,7 @@ const styles = StyleSheet.create({
     ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Completed badge overlay
@@ -1176,10 +1262,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'rgba(5, 150, 105, 0.9)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    backgroundColor: Colors.primaryOverlay,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xl,
   },
   achCompletedBadgeText: {
     ...Typography.tiny,
@@ -1199,25 +1285,25 @@ const styles = StyleSheet.create({
     ...Typography.small,
     fontWeight: '500',
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Partner label
   achPartnerLabel: {
     ...Typography.captionBold,
     color: Colors.primary,
-    marginTop: 4,
-    marginBottom: 2,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xxs,
   },
 
   // Skeleton loading
   achSkeletonContainer: {
-    gap: 8,
+    gap: Spacing.sm,
   },
   achSkeletonLine: {
     height: 14,
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 4,
+    borderRadius: BorderRadius.xs,
   },
 
 
@@ -1226,10 +1312,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    gap: Spacing.xs,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.primarySurface,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
@@ -1244,10 +1330,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.primarySurface,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
@@ -1263,23 +1349,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  modalCancelButton: { paddingVertical: 8 },
+  modalCancelButton: { paddingVertical: Spacing.sm },
   modalCancelText: { ...Typography.subheading, color: Colors.secondary },
   modalTitle: { ...Typography.heading3, color: Colors.textPrimary },
-  modalSaveButton: { paddingVertical: 8 },
+  modalSaveButton: { paddingVertical: Spacing.sm },
   modalSaveText: { ...Typography.subheading, color: Colors.secondary },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: Colors.textMuted },
-  modalContent: { flex: 1, padding: 20 },
-  imageSection: { alignItems: 'center', marginBottom: 32 },
-  imagePickerButton: { position: 'relative', marginBottom: 12 },
-  editProfileImage: { width: 100, height: 100, borderRadius: 50 },
+  modalContent: { flex: 1, padding: Spacing.xl },
+  imageSection: { alignItems: 'center', marginBottom: Spacing.xxxl },
+  imagePickerButton: { position: 'relative', marginBottom: Spacing.md },
+  editProfileImage: { width: 110, height: 110, borderRadius: BorderRadius.pill },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -1287,7 +1373,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,

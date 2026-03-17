@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
+import * as admin from 'firebase-admin';
 import { allowedOrigins } from "./cors";
 
 // Define secrets for email credentials
@@ -19,6 +20,19 @@ interface ContactSubmission {
         platform: string;
         appVersion: string;
     };
+}
+
+/**
+ * Escapes user-controlled strings before injecting them into HTML email bodies.
+ * Prevents HTML injection / stored XSS attacks.
+ */
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**
@@ -42,10 +56,41 @@ export const sendContactEmail = onCall(
             );
         }
 
+        // Rate limit: max 5 emails per hour per user
+        const db = admin.firestore();
+        const rateLimitRef = db.collection('rateLimits').doc(`contact_${request.auth.uid}`);
+        const rateLimitDoc = await rateLimitRef.get();
+        const now = Date.now();
+        const ONE_HOUR = 3600000;
+
+        if (rateLimitDoc.exists) {
+            const rateLimitData = rateLimitDoc.data();
+            const windowStart = rateLimitData?.windowStart || 0;
+            const count = rateLimitData?.count || 0;
+
+            if (now - windowStart < ONE_HOUR && count >= 5) {
+                throw new HttpsError('resource-exhausted', 'Too many messages sent. Please try again later.');
+            }
+
+            if (now - windowStart >= ONE_HOUR) {
+                // Reset window
+                await rateLimitRef.set({ windowStart: now, count: 1 });
+            } else {
+                await rateLimitRef.update({ count: count + 1 });
+            }
+        } else {
+            await rateLimitRef.set({ windowStart: now, count: 1 });
+        }
+
         const data = request.data as ContactSubmission;
         const { type, subject, message, userMetadata } = data;
 
-        console.log(`Request from user: ${userMetadata.userId}, type: ${type}`);
+        // SECURITY: Use server-verified identity, not client-supplied values
+        const verifiedUserId = request.auth!.uid;
+        const verifiedEmail = request.auth!.token.email || userMetadata?.email || 'unknown';
+        const verifiedDisplayName = userMetadata?.displayName || 'Unknown User';
+
+        console.log(`Request from user: ${verifiedUserId}, type: ${type}`);
 
         // Validate input
         if (!type || !subject || !message) {
@@ -123,21 +168,21 @@ export const sendContactEmail = onCall(
     </div>
     <div class="content">
       <div class="user-info">
-        <p><span class="label">From:</span> ${userMetadata.displayName}</p>
-        <p><span class="label">Email:</span> ${userMetadata.email}</p>
-        <p><span class="label">User ID:</span> ${userMetadata.userId}</p>
+        <p><span class="label">From:</span> ${escapeHtml(verifiedDisplayName)}</p>
+        <p><span class="label">Email:</span> ${escapeHtml(verifiedEmail)}</p>
+        <p><span class="label">User ID:</span> ${escapeHtml(verifiedUserId)}</p>
       </div>
-      
+
       <div class="message-box">
-        <h2>${subject}</h2>
-        <p style="white-space: pre-wrap;">${message}</p>
+        <h2>${escapeHtml(subject)}</h2>
+        <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
       </div>
-      
+
       <div class="metadata">
         <p><strong>Metadata:</strong></p>
-        <p>⏰ Timestamp: ${userMetadata.timestamp}</p>
-        <p>📱 Platform: ${userMetadata.platform}</p>
-        <p>📦 App Version: ${userMetadata.appVersion}</p>
+        <p>⏰ Timestamp: ${escapeHtml(userMetadata?.timestamp || '')}</p>
+        <p>📱 Platform: ${escapeHtml(userMetadata?.platform || '')}</p>
+        <p>📦 App Version: ${escapeHtml(userMetadata?.appVersion || '')}</p>
       </div>
     </div>
   </div>
@@ -147,8 +192,8 @@ export const sendContactEmail = onCall(
             const mailOptions = {
                 from: `Ernit App <redirect@ernit.app>`, // Send from redirect so it arrives as unread
                 to: recipientEmail,
-                replyTo: userMetadata.email,
-                subject: `[${type.toUpperCase()}] ${subject}`,
+                replyTo: verifiedEmail,
+                subject: `[${type.toUpperCase()}] ${escapeHtml(subject)}`,
                 html: emailHtml,
             };
 
@@ -163,15 +208,13 @@ export const sendContactEmail = onCall(
             return {
                 success: true,
                 message: 'Email sent successfully',
-                messageId: info.messageId,
-                duration,
             };
         } catch (error) {
             console.error('=== ERROR in sendContactEmail ===');
             console.error('Error details:', error);
             throw new HttpsError(
                 'internal',
-                `Failed to send email: ${error}`
+                'Failed to send email. Please try again later.'
             );
         }
     }

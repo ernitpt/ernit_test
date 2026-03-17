@@ -4,15 +4,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
-import { Notification } from '../types';
+import { Notification, Goal } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import GoalChangeSuggestionModal from './GoalChangeSuggestionModal';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import Button from './Button';
 
 interface GoalChangeSuggestionNotificationProps {
   notification: Notification;
@@ -26,7 +26,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [goal, setGoal] = useState<any>(null);
+  const [goal, setGoal] = useState<Goal | null>(null);
 
   const suggestedWeeks = notification.data?.suggestedTargetCount || 0;
   const suggestedSessions = notification.data?.suggestedSessionsPerWeek || 0;
@@ -71,7 +71,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       // Get recipient ID: use notification.userId (the recipient, since the notification is for them) or goal.userId or notification.data.recipientId
       const recipientId = currentGoal.userId || notification.userId || notification.data.recipientId || '';
       // Get giver ID from notification data or use senderId as fallback
-      const giverIdForNotification = (notification.data as any).giverId || notification.data.senderId || '';
+      const giverIdForNotification = notification.data?.giverId || notification.data?.senderId || '';
       const receiverName = await userService.getUserName(recipientId);
       await notificationService.createNotification(
         giverIdForNotification,
@@ -93,9 +93,9 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       }
 
       onActionTaken();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error accepting suggestion:', error);
-      setError(error?.message || 'Failed to accept suggestion. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to accept suggestion. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -118,13 +118,13 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       } else {
         setShowModal(true);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error loading goal:', error);
       setError('Could not load goal. Please try again.');
     }
   };
 
-  const handleGoalUpdated = async (updatedGoal: any) => {
+  const handleGoalUpdated = async (_updatedGoal: Goal) => {
     // Delete the notification after goal is updated (force delete after action is taken)
     if (notification.id) {
       try {
@@ -186,24 +186,20 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
         </View>
 
         <View style={styles.buttons}>
-          <TouchableOpacity
-            style={[styles.button, styles.acceptButton]}
+          <Button
+            variant="primary"
+            title="Accept"
             onPress={handleAcceptSuggestion}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Accept</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.changeButton]}
+            loading={loading}
+            style={styles.buttonFlex}
+          />
+          <Button
+            variant="secondary"
+            title="Change"
             onPress={handleOpenModal}
             disabled={loading}
-          >
-            <Text style={styles.buttonText}>Change</Text>
-          </TouchableOpacity>
+            style={styles.buttonFlex}
+          />
         </View>
       </View>
 
@@ -222,87 +218,74 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    overflow: 'hidden',
   },
   content: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.subheading,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   message: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   messageBox: {
-    backgroundColor: '#eaf0f5ff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    marginTop: 8,
+    backgroundColor: Colors.infoLight,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
     borderLeftWidth: 4,
-    borderLeftColor: '#6a53f1ff',
+    borderLeftColor: Colors.accent,
   },
   messageLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#6a53f1ff',
-    marginBottom: 4,
+    color: Colors.accent,
+    marginBottom: Spacing.xs,
   },
   messageText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
     fontStyle: 'italic',
   },
   details: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textMuted,
-    marginTop: 8,
+    marginTop: Spacing.sm,
   },
   errorBox: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: Colors.errorLight,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
     borderLeftWidth: 4,
     borderLeftColor: Colors.error,
   },
   errorText: {
-    color: '#991b1b',
-    fontSize: 13,
+    color: Colors.errorDark,
+    ...Typography.caption,
     fontWeight: '500',
   },
   buttons: {
     flexDirection: 'row',
-    gap: 24,
+    gap: Spacing.xxl,
   },
-  button: {
+  buttonFlex: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  acceptButton: {
-    backgroundColor: '#70b373ff',
-    marginLeft: 18,
-  },
-  changeButton: {
-    backgroundColor: '#567cb1ff',
-    marginRight: 18,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
   },
 });
 

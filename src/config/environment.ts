@@ -20,6 +20,10 @@ const envValue = rawEnvValue?.trim().replace(/['"]/g, ''); // Remove quotes and 
 
 const APP_ENV: Environment = envValue === 'production' ? 'production' : 'test';
 
+if (envValue !== undefined && envValue !== 'production' && envValue !== 'test') {
+    logger.warn(`⚠️ Unrecognized EXPO_PUBLIC_APP_ENV value: "${envValue}". Defaulting to 'test'.`);
+}
+
 
 interface EnvironmentConfig {
     name: Environment;
@@ -32,6 +36,12 @@ interface EnvironmentConfig {
         updatePaymentIntentMetadata: string;
         getGiftsByPaymentIntent: string;
         webhook: string;
+    };
+
+    // Gift flow function names
+    giftFunctions: {
+        createFreeGift: string;
+        createDeferredGift: string;
     };
 
     // Debug settings
@@ -49,6 +59,10 @@ const configs: Record<Environment, EnvironmentConfig> = {
             getGiftsByPaymentIntent: 'getGiftsByPaymentIntent_Test',
             webhook: 'stripeWebhook_Test',
         },
+        giftFunctions: {
+            createFreeGift: 'createFreeGift_Test',
+            createDeferredGift: 'createDeferredGift_Test',
+        },
         debugEnabled: true,
     },
     production: {
@@ -60,6 +74,10 @@ const configs: Record<Environment, EnvironmentConfig> = {
             updatePaymentIntentMetadata: 'updatePaymentIntentMetadata',
             getGiftsByPaymentIntent: 'getGiftsByPaymentIntent',
             webhook: 'stripeWebhook',
+        },
+        giftFunctions: {
+            createFreeGift: 'createFreeGift',
+            createDeferredGift: 'createDeferredGift',
         },
         debugEnabled: false,
     },

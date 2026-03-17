@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { Share, X } from 'lucide-react-native';
+import { BaseModal } from './BaseModal';
+import Button from './Button';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 
@@ -17,6 +22,8 @@ export const PWAInstaller: React.FC = () => {
     const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const { state } = useApp();
+    const iosPromptTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+    const androidPromptTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
     useEffect(() => {
         // Only run on web platform
@@ -65,7 +72,7 @@ export const PWAInstaller: React.FC = () => {
         // iOS: Show manual installation prompt if not installed
         if (isIOS && !isStandalone) {
             // Show after a short delay to not overwhelm the user
-            setTimeout(() => setShowIOSPrompt(true), 2000);
+            iosPromptTimeoutRef.current = setTimeout(() => setShowIOSPrompt(true), 2000);
         }
 
         // Android: Listen for install prompt event
@@ -73,13 +80,15 @@ export const PWAInstaller: React.FC = () => {
             e.preventDefault();
             setDeferredPrompt(e as BeforeInstallPromptEvent);
             // Show after a short delay
-            setTimeout(() => setShowAndroidPrompt(true), 2000);
+            androidPromptTimeoutRef.current = setTimeout(() => setShowAndroidPrompt(true), 2000);
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            if (iosPromptTimeoutRef.current) clearTimeout(iosPromptTimeoutRef.current);
+            if (androidPromptTimeoutRef.current) clearTimeout(androidPromptTimeoutRef.current);
         };
     }, [state.user?.id, state.goals?.length]);
 
@@ -123,13 +132,10 @@ export const PWAInstaller: React.FC = () => {
     // iOS Installation Modal
     if (showIOSPrompt) {
         return (
-            <Modal
+            <BaseModal
                 visible={true}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={handleIOSDismiss}
+                onClose={handleIOSDismiss}
             >
-                <View style={styles.overlay}>
                     <View style={styles.modalContainer}>
                         {/* Close button */}
                         <TouchableOpacity
@@ -197,30 +203,26 @@ export const PWAInstaller: React.FC = () => {
                         </View>
 
                         {/* Dismiss button */}
-                        <TouchableOpacity
-                            style={styles.dismissButton}
+                        <Button
+                            variant="ghost"
+                            title="Maybe Later"
                             onPress={handleIOSDismiss}
-                        >
-                            <Text style={styles.dismissButtonText}>Maybe Later</Text>
-                        </TouchableOpacity>
+                            style={styles.dismissButton}
+                            fullWidth
+                        />
                     </View>
-                </View>
-            </Modal>
+            </BaseModal>
         );
     }
 
     // Android Installation Modal
     if (showAndroidPrompt && deferredPrompt) {
         return (
-            <Modal
+            <BaseModal
                 visible={true}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={handleAndroidDismiss}
+                onClose={handleAndroidDismiss}
             >
-                <View style={styles.overlay}>
                     <View style={styles.modalContainer}>
-                        {/* Close button */}
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={handleAndroidDismiss}
@@ -243,23 +245,24 @@ export const PWAInstaller: React.FC = () => {
                         </View>
 
                         {/* Install button */}
-                        <TouchableOpacity
-                            style={styles.installButton}
+                        <Button
+                            variant="primary"
+                            title="Install App"
                             onPress={handleAndroidInstall}
-                        >
-                            <Text style={styles.installButtonText}>Install App</Text>
-                        </TouchableOpacity>
+                            style={styles.installButton}
+                            fullWidth
+                        />
 
                         {/* Dismiss button */}
-                        <TouchableOpacity
-                            style={styles.dismissButton}
+                        <Button
+                            variant="ghost"
+                            title="Not Now"
                             onPress={handleAndroidDismiss}
-                        >
-                            <Text style={styles.dismissButtonText}>Not Now</Text>
-                        </TouchableOpacity>
+                            style={styles.dismissButton}
+                            fullWidth
+                        />
                     </View>
-                </View>
-            </Modal>
+            </BaseModal>
         );
     }
 
@@ -269,15 +272,15 @@ export const PWAInstaller: React.FC = () => {
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: Colors.overlayHeavy,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: Spacing.xl,
     },
     modalContainer: {
-        backgroundColor: '#1F2937',
-        borderRadius: 24,
-        padding: 24,
+        backgroundColor: Colors.gray800,
+        borderRadius: BorderRadius.xxl,
+        padding: Spacing.xxl,
         width: '100%',
         maxWidth: 400,
         position: 'relative',
@@ -287,102 +290,100 @@ const styles = StyleSheet.create({
         top: 16,
         right: 16,
         zIndex: 10,
-        padding: 8,
+        padding: Spacing.sm,
     },
     header: {
         alignItems: 'center',
-        marginBottom: 24,
-        gap: 16,
+        marginBottom: Spacing.xxl,
+        gap: Spacing.lg,
     },
     title: {
-        fontSize: 24,
+        ...Typography.heading1,
         fontWeight: 'bold',
-        color: '#FFFFFF',
-        marginBottom: 8,
+        color: Colors.white,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textMuted,
         textAlign: 'center',
     },
     instructions: {
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     step: {
         flexDirection: 'row',
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
     stepNumber: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: BorderRadius.circle,
         backgroundColor: Colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     stepNumberText: {
-        color: '#FFFFFF',
-        fontSize: 16,
+        color: Colors.white,
+        ...Typography.subheading,
         fontWeight: 'bold',
     },
     stepContent: {
         flex: 1,
     },
     stepTitle: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '600',
-        color: '#FFFFFF',
-        marginBottom: 4,
+        color: Colors.white,
+        marginBottom: Spacing.xxs,
     },
     stepDescription: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textMuted,
-        lineHeight: 20,
     },
     shareIconDemo: {
-        marginVertical: 8,
-        padding: 8,
-        backgroundColor: '#374151',
-        borderRadius: 8,
+        marginVertical: Spacing.sm,
+        padding: Spacing.sm,
+        backgroundColor: Colors.gray700,
+        borderRadius: BorderRadius.sm,
         alignSelf: 'flex-start',
     },
     benefits: {
-        backgroundColor: '#374151',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
+        backgroundColor: Colors.gray700,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        marginBottom: Spacing.xl,
     },
     benefitsTitle: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: '#FFFFFF',
-        marginBottom: 12,
+        color: Colors.white,
+        marginBottom: Spacing.md,
     },
     benefit: {
-        fontSize: 14,
-        color: '#D1D5DB',
-        marginBottom: 8,
-        lineHeight: 20,
+        ...Typography.small,
+        color: Colors.gray300,
+        marginBottom: Spacing.sm,
     },
     installButton: {
         backgroundColor: Colors.secondary,
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     installButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
+        color: Colors.white,
+        ...Typography.subheading,
         fontWeight: '600',
     },
     dismissButton: {
-        padding: 12,
+        padding: Spacing.md,
         alignItems: 'center',
     },
     dismissButtonText: {
         color: Colors.textMuted,
-        fontSize: 14,
+        ...Typography.small,
     },
 });

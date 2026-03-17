@@ -233,6 +233,8 @@ class FeedService {
                 }
 
                 callback(posts.slice(0, limitCount));
+            }, (error) => {
+                logger.error('[FeedService] Feed snapshot error:', error.message);
             });
         }).catch(error => {
             logger.error('❌ Error setting up feed listener:', error);

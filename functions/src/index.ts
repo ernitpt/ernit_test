@@ -12,6 +12,9 @@ import { sendSessionReminders_Test } from "./scheduled/sendSessionReminders_Test
 import { sendInactivityNudges_Test } from "./scheduled/sendInactivityNudges_Test";
 import { sendWeeklyRecap_Test } from "./scheduled/sendWeeklyRecap_Test";
 import { sendBookingReminders_Test } from "./scheduled/sendBookingReminders_Test";
+import { createFreeGift_Test } from "./createFreeGift_Test";
+import { createDeferredGift_Test } from "./createDeferredGift_Test";
+import { chargeDeferredGift_Test } from "./triggers/chargeDeferredGift_Test";
 // Production functions
 import { stripeCreatePaymentIntent } from "./stripeCreatePaymentIntent";
 import { getGiftsByPaymentIntent } from "./getGiftsByPaymentIntent";
@@ -24,6 +27,9 @@ import { sendInactivityNudges } from "./scheduled/sendInactivityNudges";
 import { sendWeeklyRecap } from "./scheduled/sendWeeklyRecap";
 import { sendBookingReminders } from "./scheduled/sendBookingReminders";
 import { sendContactEmail } from "./sendContactEmail";
+import { createFreeGift } from "./createFreeGift";
+import { createDeferredGift } from "./createDeferredGift";
+import { chargeDeferredGift } from "./triggers/chargeDeferredGift";
 
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
@@ -55,6 +61,9 @@ export {
     sendInactivityNudges_Test,
     sendWeeklyRecap_Test,
     sendBookingReminders_Test,
+    createFreeGift_Test,
+    createDeferredGift_Test,
+    chargeDeferredGift_Test,
     // Production
     stripeCreatePaymentIntent,
     getGiftsByPaymentIntent,
@@ -66,6 +75,9 @@ export {
     sendInactivityNudges,
     sendWeeklyRecap,
     sendBookingReminders,
+    createFreeGift,
+    createDeferredGift,
+    chargeDeferredGift,
 };
 
 // Admin functions

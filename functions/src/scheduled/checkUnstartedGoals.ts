@@ -81,6 +81,18 @@ export const checkUnstartedGoals = functions.onSchedule(
                     continue;
                 }
 
+                // Dedup check: skip if we already sent a notification for this day
+                const sentDays: number[] = Array.isArray(goal.sentUnstartedNotificationDays)
+                    ? goal.sentUnstartedNotificationDays
+                    : [];
+
+                if (sentDays.includes(daysSincePlanned)) {
+                    console.log(
+                        `⏭️ [PROD] Goal ${goalDoc.id}: already sent day-${daysSincePlanned} notification, skipping`
+                    );
+                    continue;
+                }
+
                 // Create notification
                 try {
                     await db.collection("notifications").add({
@@ -94,6 +106,11 @@ export const checkUnstartedGoals = functions.onSchedule(
                             goalId: goalDoc.id,
                         },
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+
+                    // Track that this day's notification has been sent
+                    await goalDoc.ref.update({
+                        sentUnstartedNotificationDays: admin.firestore.FieldValue.arrayUnion(daysSincePlanned),
                     });
 
                     notificationsSent++;

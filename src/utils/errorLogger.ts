@@ -72,8 +72,11 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
     } catch (firestoreError) {
         logger.warn('⚠️ Failed to log to Firestore:', firestoreError);
 
-        // Fallback: Save to localStorage
+        // Fallback: Save to localStorage (web only)
         try {
+            if (typeof localStorage === 'undefined') {
+                throw new Error('No localStorage available');
+            }
             const existingErrors = JSON.parse(localStorage.getItem('ernit_error_log') || '[]');
             existingErrors.push({
                 ...errorData,

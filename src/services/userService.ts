@@ -3,8 +3,8 @@
   setDoc,
   getDoc,
   updateDoc,
-  collection,
-  addDoc,
+  arrayUnion,
+  serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 
@@ -45,7 +45,7 @@ export class UserService {
   }
 
   /** Parse Firestore / string dates */
-  private parseDate(value: any): Date {
+  private parseDate(value: unknown): Date {
     if (value instanceof Timestamp) return value.toDate();
     if (typeof value === 'string') {
       const parsed = new Date(value);
@@ -138,7 +138,7 @@ export class UserService {
         updatedAt: new Date().toISOString(),
       };
 
-      const userUpdates: any = {
+      const userUpdates: Record<string, unknown> = {
         profile: profileUpdates,
         updatedAt: new Date().toISOString(),
       };
@@ -152,19 +152,15 @@ export class UserService {
       return;
     }
 
-    // Normal update
-    await updateDoc(userRef, {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-  }
+    // Normal update — restrict to whitelisted fields to prevent unintended overwrites
+    const allowedFields = ['profile', 'displayName', 'settings', 'wishlist', 'cart', 'reminderTime', 'reminderEnabled'];
+    const sanitizedUpdates = Object.keys(updates)
+      .filter(key => allowedFields.includes(key))
+      .reduce((obj, key) => ({ ...obj, [key]: updates[key as keyof typeof updates] }), {} as Partial<typeof updates>);
 
-  /** Add a goal to user's subcollection */
-  async addUserGoal(userId: string, goal: Goal): Promise<void> {
-    const goalsRef = collection(db, 'users', userId, 'goals');
-    await addDoc(goalsRef, {
-      ...goal,
-      createdAt: goal.createdAt.toISOString(),
+    await updateDoc(userRef, {
+      ...sanitizedUpdates,
+      updatedAt: new Date().toISOString(),
     });
   }
 
@@ -180,30 +176,9 @@ export class UserService {
   /** Add item to cart */
   async addToCart(userId: string, cartItem: CartItem): Promise<void> {
     const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) throw new Error('User not found');
-
-    const currentCart = (userSnap.data().cart as CartItem[]) || [];
-    const existingIdx = currentCart.findIndex(
-      (item) => item.experienceId === cartItem.experienceId
-    );
-
-    let newCart: CartItem[];
-
-    if (existingIdx >= 0) {
-      newCart = currentCart.map((item, index) =>
-        index === existingIdx
-          ? { ...item, quantity: item.quantity + cartItem.quantity }
-          : item
-      );
-    } else {
-      newCart = [...currentCart, cartItem];
-    }
-
     await updateDoc(userRef, {
-      cart: newCart,
-      updatedAt: new Date().toISOString(),
+      cart: arrayUnion(cartItem),
+      updatedAt: serverTimestamp(),
     });
   }
 

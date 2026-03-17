@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
@@ -46,9 +46,13 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     }, []);
 
     // Save timers to AsyncStorage whenever they change (but only after initial load)
+    // Debounced to at most once every 5 seconds to avoid excessive AsyncStorage writes
     useEffect(() => {
         if (hasLoaded.current) {
-            saveTimers();
+            const debounceTimer = setTimeout(() => {
+                saveTimers();
+            }, 5000);
+            return () => clearTimeout(debounceTimer);
         }
     }, [timers]);
 
@@ -106,11 +110,11 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
         }
     };
 
-    const getTimerState = (goalId: string): TimerState | null => {
+    const getTimerState = useCallback((goalId: string): TimerState | null => {
         return timers[goalId] || null;
-    };
+    }, [timers]);
 
-    const startTimer = (goalId: string, pendingHint: string | null = null) => {
+    const startTimer = useCallback((goalId: string, pendingHint: string | null = null) => {
         setTimers(prev => ({
             ...prev,
             [goalId]: {
@@ -120,17 +124,17 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
                 pendingHint,
             },
         }));
-    };
+    }, []);
 
-    const stopTimer = (goalId: string) => {
+    const stopTimer = useCallback((goalId: string) => {
         setTimers(prev => {
             const updated = { ...prev };
             delete updated[goalId];
             return updated;
         });
-    };
+    }, []);
 
-    const updateElapsed = (goalId: string, elapsed: number) => {
+    const updateElapsed = useCallback((goalId: string, elapsed: number) => {
         setTimers(prev => {
             if (!prev[goalId]) return prev;
             return {
@@ -141,10 +145,14 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
                 },
             };
         });
-    };
+    }, []);
+
+    const contextValue = useMemo(() => ({
+        getTimerState, startTimer, stopTimer, updateElapsed,
+    }), [getTimerState, startTimer, stopTimer, updateElapsed]);
 
     return (
-        <TimerContext.Provider value={{ getTimerState, startTimer, stopTimer, updateElapsed }}>
+        <TimerContext.Provider value={contextValue}>
             {children}
         </TimerContext.Provider>
     );

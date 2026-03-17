@@ -1,15 +1,21 @@
 // screens/GoalDetailScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Goal } from '../types';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import ErrorRetry from '../components/ErrorRetry';
 import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
+import { Shadows } from '../config/shadows';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -21,6 +27,8 @@ const GoalDetailScreen: React.FC = () => {
   const { state } = useApp();
   const { goalId } = route.params as { goalId: string };
   const [goal, setGoal] = useState<(Goal & { sessionsPerWeek: number }) | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   // Redirect if goalId is missing
   useEffect(() => {
@@ -32,13 +40,25 @@ const GoalDetailScreen: React.FC = () => {
     }
   }, [goalId, navigation]);
 
-  useEffect(() => {
-    if (!goalId) return;
-    (async () => {
-      const g = await goalService.getGoalById(goalId);
-      if (g) setGoal(g as Goal & { sessionsPerWeek: number });
-    })();
-  }, [goalId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!goalId) return;
+      setLoadError(false);
+      const fetchGoal = async () => {
+        try {
+          const g = await goalService.getGoalById(goalId);
+          if (g) {
+            setGoal(g as Goal & { sessionsPerWeek: number });
+          } else {
+            setLoadError(true);
+          }
+        } catch {
+          setLoadError(true);
+        }
+      };
+      fetchGoal();
+    }, [goalId, retryKey])
+  );
 
   const weeklyPct = useMemo(() => {
     if (!goal) return 0;
@@ -64,7 +84,7 @@ const GoalDetailScreen: React.FC = () => {
     const todayIdx = (today.getDay() + 6) % 7; // Monday=0..Sunday=6
 
     return (
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: Spacing.sm }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           {DAY_LETTERS.map((d, i) => {
             const isToday = i === todayIdx;
@@ -91,7 +111,15 @@ const GoalDetailScreen: React.FC = () => {
       <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <View style={styles.loading}>
-          <GoalCardSkeleton />
+          {loadError ? (
+            <ErrorRetry onRetry={() => {
+              setLoadError(false);
+              setGoal(null);
+              setRetryKey(k => k + 1);
+            }} />
+          ) : (
+            <GoalCardSkeleton />
+          )}
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -101,7 +129,7 @@ const GoalDetailScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      <StatusBar style="dark" />
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -116,13 +144,13 @@ const GoalDetailScreen: React.FC = () => {
         <Text style={styles.headerTitle} accessibilityRole="header">Goal Details</Text>
       </View>
 
-      <ScrollView style={{ flex: 1, padding: 16 }}>
+      <ScrollView style={{ flex: 1, padding: Spacing.lg }}>
         <View style={styles.card}>
           <Text style={styles.title}>{goal.title}</Text>
           <Text style={styles.desc}>{goal.description}</Text>
 
           {/* This week */}
-          <View style={{ marginBottom: 16 }}>
+          <View style={{ marginBottom: Spacing.lg }}>
             <View style={styles.rowBetween}>
               <Text style={styles.label}>This Week</Text>
               <Text style={styles.value}>
@@ -163,51 +191,48 @@ const GoalDetailScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    // paddingTop: 34,
-    paddingBottom: 10,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xxxl,
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { fontSize: 16, color: Colors.secondary, fontWeight: '500' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary, marginTop: 6 },
+  backText: { ...Typography.subheading, color: Colors.secondary, fontWeight: '500' },
+  headerTitle: { ...Typography.heading1, fontWeight: '700', color: Colors.textPrimary, marginTop: Spacing.xs },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xl,
+    ...Shadows.sm,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 8 },
-  desc: { fontSize: 16, color: Colors.textSecondary, marginBottom: 16 },
+  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  desc: { ...Typography.subheading, color: Colors.textSecondary, marginBottom: Spacing.lg },
 
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  label: { fontSize: 14, color: '#4b5563', fontWeight: '600' },
-  value: { fontSize: 14, color: Colors.textPrimary, fontWeight: '600' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  label: { ...Typography.small, color: Colors.gray600, fontWeight: '600' },
+  value: { ...Typography.small, color: Colors.textPrimary, fontWeight: '600' },
 
-  progressBg: { backgroundColor: Colors.border, borderRadius: 8, height: 12 },
-  progressFill: { backgroundColor: Colors.secondary, height: 12, borderRadius: 8 },
-  progressFillAlt: { backgroundColor: '#10b981', height: 12, borderRadius: 8 },
+  progressBg: { backgroundColor: Colors.border, borderRadius: BorderRadius.sm, height: 12 },
+  progressFill: { backgroundColor: Colors.secondary, height: 12, borderRadius: BorderRadius.sm },
+  progressFillAlt: { backgroundColor: Colors.secondary, height: 12, borderRadius: BorderRadius.sm },
 
   completedBox: {
-    backgroundColor: '#10b981',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
+    backgroundColor: Colors.secondary,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.lg,
     alignItems: 'center',
   },
-  completedText: { color: '#fff', fontWeight: '600' },
+  completedText: { color: Colors.white, fontWeight: '600' },
 
   dayLetter: { color: Colors.textSecondary, fontWeight: '600' },
   dayLetterToday: { color: Colors.primary, textDecorationLine: 'underline' },
-  weekWindowText: { marginTop: 6, fontSize: 12, color: '#374151' },
-  weekWindowTextDim: { marginTop: 6, fontSize: 12, color: Colors.textMuted },
+  weekWindowText: { marginTop: Spacing.xs, ...Typography.caption, color: Colors.gray700 },
+  weekWindowTextDim: { marginTop: Spacing.xs, ...Typography.caption, color: Colors.textMuted },
 });
 
 export default GoalDetailScreen;

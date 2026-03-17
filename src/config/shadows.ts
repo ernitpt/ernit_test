@@ -16,7 +16,7 @@ export const Shadows: {
 } = {
     /** Subtle — cards, list items */
     sm: {
-        shadowColor: '#000',
+        shadowColor: '#000000',
         shadowOpacity: 0.08,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
@@ -25,7 +25,7 @@ export const Shadows: {
 
     /** Medium — modals, popovers, floating elements */
     md: {
-        shadowColor: '#000',
+        shadowColor: '#000000',
         shadowOpacity: 0.12,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 3 },
@@ -34,7 +34,7 @@ export const Shadows: {
 
     /** Heavy — FABs, prominent CTAs */
     lg: {
-        shadowColor: '#000',
+        shadowColor: '#000000',
         shadowOpacity: 0.18,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },

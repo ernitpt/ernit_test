@@ -9,6 +9,10 @@ import {
 } from 'react-native';
 import StreakBanner from './recipient/components/StreakBanner';
 import Colors from '../config/colors';
+import { Typography } from '../config/typography';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 const AnimationPreviewScreen = () => {
   const [sessions, setSessions] = useState(0);
@@ -36,6 +40,7 @@ const AnimationPreviewScreen = () => {
   const adjust = (delta: number) => setSessions((prev) => Math.max(0, prev + delta));
 
   return (
+    <ErrorBoundary screenName="AnimationPreviewScreen">
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Animation Preview</Text>
@@ -110,6 +115,7 @@ const AnimationPreviewScreen = () => {
         <View style={{ height: 60 }} />
       </ScrollView>
     </SafeAreaView>
+    </ErrorBoundary>
   );
 };
 
@@ -119,97 +125,97 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a2e',
   },
   scroll: {
-    padding: 16,
+    padding: Spacing.lg,
   },
   title: {
-    fontSize: 24,
+    ...Typography.heading1,
     fontWeight: '800',
-    color: '#fff',
-    marginBottom: 4,
+    color: Colors.white,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: '#8888aa',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   sectionHeader: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   controlRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
     flexWrap: 'wrap',
   },
   navBtn: {
     minWidth: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f5',
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.backgroundLight,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.sm,
   },
   navBtnText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '700',
-    color: '#333',
+    color: Colors.gray800,
   },
   playbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   playBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f5',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.backgroundLight,
   },
   playBtnActive: {
     backgroundColor: Colors.primary,
   },
   playBtnText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.gray800,
   },
   playBtnTextActive: {
-    color: '#fff',
+    color: Colors.white,
   },
   speedBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f5',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.backgroundLight,
   },
   speedBtnActive: {
     backgroundColor: Colors.primarySurface,
   },
   speedBtnText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.textSecondary,
   },
   speedBtnTextActive: {
     color: Colors.primary,
   },
   emptyText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
-    paddingVertical: 20,
+    paddingVertical: Spacing.xl,
   },
 });
 

@@ -21,6 +21,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Goal,
   ExperienceGift,
+  Experience,
+  PartnerUser,
 } from '../../types';
 import { useRecipientNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
@@ -35,6 +37,9 @@ import { generateCouponForGoal } from '../../services/CouponService';
 import { logger } from '../../utils/logger';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import { useToast } from '../../context/ToastContext';
 import { captureRef } from 'react-native-view-shot';
@@ -62,9 +67,13 @@ const CompletionScreen = () => {
   const floatAnim2 = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<any>(null);
   const couponRequestedRef = useRef(false);
+  const animTimeoutRef = useRef<NodeJS.Timeout>();
+  const copyTimeoutRef = useRef<NodeJS.Timeout>();
+  const phoneTimeoutRef = useRef<NodeJS.Timeout>();
+  const emailTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { goal?: any; experienceGift?: any } | undefined;
+  const routeParams = route.params as { goal?: Goal; experienceGift?: ExperienceGift } | undefined;
   const rawGoal = routeParams?.goal;
   const rawGift = routeParams?.experienceGift;
 
@@ -85,8 +94,8 @@ const CompletionScreen = () => {
   }, [hasValidData, navigation]);
 
 
-  const [experience, setExperience] = useState<any>(null);
-  const [partner, setPartner] = useState<any>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
   const [userName, setUserName] = useState<string>('User');
 
   // Streak & goals state
@@ -104,22 +113,23 @@ const CompletionScreen = () => {
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
 
 
-  const toDate = (value: any): Date | undefined => {
+  const toDate = (value: unknown): Date | undefined => {
     if (!value) return undefined;
-    if (value?.seconds) return new Date(value.seconds * 1000);
-    const date = new Date(value);
+    if (typeof value === 'object' && value !== null && 'seconds' in value) {
+      return new Date((value as { seconds: number }).seconds * 1000);
+    }
+    const date = new Date(value as string | number);
     return isNaN(date.getTime()) ? undefined : date;
   };
 
   const goal: Goal | null = hasValidData
     ? {
       ...rawGoal,
-      startDate: toDate(rawGoal.startDate)!,
-      endDate: toDate(rawGoal.endDate)!,
-      createdAt: toDate(rawGoal.createdAt)!,
-      updatedAt: toDate(rawGoal.updatedAt),
-      completedAt: toDate(rawGoal.completedAt),
-    }
+      startDate: toDate(rawGoal!.startDate)!,
+      endDate: toDate(rawGoal!.endDate)!,
+      createdAt: toDate(rawGoal!.createdAt)!,
+      completedAt: toDate(rawGoal!.completedAt),
+    } as Goal
     : null;
 
   const experienceGift: ExperienceGift | null = hasReward
@@ -144,7 +154,7 @@ const CompletionScreen = () => {
         }
         const allGoals = await goalService.getUserGoals(goal.userId);
         const activeOthers = allGoals.filter(
-          (g: any) => g.id !== goal.id && !g.isCompleted
+          (g: Goal) => g.id !== goal.id && !g.isCompleted
         );
         setOtherActiveGoals(activeOthers.length);
       } catch (error) {
@@ -202,7 +212,7 @@ const CompletionScreen = () => {
 
     // ???? EPIC CELEBRATION SEQUENCE
     // Fire confetti after brief delay
-    setTimeout(() => {
+    animTimeoutRef.current = setTimeout(() => {
       confettiRef.current?.start();
     }, 300);
 
@@ -222,7 +232,7 @@ const CompletionScreen = () => {
     ]).start();
 
     // ?? Trophy pulsing with glow
-    Animated.loop(
+    const trophyLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(trophyPulse, {
           toValue: 1.12,
@@ -235,10 +245,11 @@ const CompletionScreen = () => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    trophyLoop.start();
 
     // ? Sparkles twinkle
-    Animated.loop(
+    const sparkleLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(sparkleAnim, {
           toValue: 1,
@@ -251,24 +262,35 @@ const CompletionScreen = () => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    sparkleLoop.start();
 
     // ?? Floating particles
-    Animated.loop(
+    const floatLoop1 = Animated.loop(
       Animated.timing(floatAnim1, {
         toValue: 1,
         duration: 3000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    floatLoop1.start();
 
-    Animated.loop(
+    const floatLoop2 = Animated.loop(
       Animated.timing(floatAnim2, {
         toValue: 1,
         duration: 4000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    floatLoop2.start();
+
+    return () => {
+      clearTimeout(animTimeoutRef.current);
+      trophyLoop.stop();
+      sparkleLoop.stop();
+      floatLoop1.stop();
+      floatLoop2.stop();
+    };
 
     // Only fetch/generate coupon after experience is loaded
     if (experience && !couponRequestedRef.current && !couponCode) {
@@ -276,6 +298,15 @@ const CompletionScreen = () => {
       fetchExistingCoupon();
     }
   }, [experience, couponCode]);
+
+  // Cleanup copy timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+      if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
+    };
+  }, []);
 
   // ? SECURITY FIX: Use Firestore transaction to prevent race conditions
   const fetchExistingCoupon = async () => {
@@ -310,7 +341,8 @@ const CompletionScreen = () => {
     if (!couponCode) return;
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleScheduleExperience = () => {
@@ -391,7 +423,8 @@ const CompletionScreen = () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
-    setTimeout(() => setIsPhoneCopied(false), 2000);
+    if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+    phoneTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
   };
 
   const handleCopyEmail = async () => {
@@ -399,7 +432,8 @@ const CompletionScreen = () => {
     if (!contactEmail) return;
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
-    setTimeout(() => setIsEmailCopied(false), 2000);
+    if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
+    emailTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   };
 
   // New handlers for booking with date selection
@@ -502,7 +536,7 @@ const CompletionScreen = () => {
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -530,7 +564,7 @@ const CompletionScreen = () => {
         autoStart={false}
         fadeOut={true}
         fallSpeed={3000}
-        colors={['#fbbf24', '#f59e0b', '#10b981', Colors.secondary, '#ec4899']}
+        colors={[Colors.celebrationGold, Colors.warning, Colors.secondary, Colors.secondary, Colors.categoryPink]}
       />
 
       {/* Off-screen Share Card for capture */}
@@ -540,12 +574,12 @@ const CompletionScreen = () => {
           style={{
             width: 1080,
             height: shareFormat === 'story' ? 1920 : 1080,
-            backgroundColor: '#0891b2',
+            backgroundColor: Colors.cyan,
           }}
           collapsable={false}
         >
           <LinearGradient
-            colors={['#10b981', '#0891b2', Colors.secondary]}
+            colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
@@ -556,48 +590,48 @@ const CompletionScreen = () => {
                 style={{
                   width: 600,
                   height: shareFormat === 'story' ? 400 : 300,
-                  borderRadius: 40,
+                  borderRadius: BorderRadius.pill,
                   marginBottom: 60,
                 }}
                 resizeMode="cover"
               />
             ) : null}
 
-            <Trophy color="#fef3c7" size={120} strokeWidth={2.5} fill="#fbbf24" />
+            <Trophy color={Colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={Colors.celebrationGold} />
 
-            <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff', textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+            <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
               Goal Completed!
             </Text>
 
-            <Text style={{ fontSize: 42, fontWeight: '700', color: '#d1fae5', textAlign: 'center', marginBottom: 60 }}>
+            <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: Colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
               {goal?.title || goal?.description || ''}
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{totalSessions}</Text>
-                <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SESSIONS</Text>
+                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{totalSessions}</Text>
+                <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{goal?.targetCount || 0}</Text>
-                <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>WEEKS</Text>
+                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{goal?.targetCount || 0}</Text>
+                <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
               </View>
             </View>
 
             {sessionStreak >= 3 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 30, gap: 12, marginBottom: 40 }}>
-                <Text style={{ fontSize: 36 }}>🔥</Text>
-                <Text style={{ fontSize: 36, fontWeight: '800', color: '#fef3c7' }}>{sessionStreak}-session streak</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.blackAlpha20, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.huge, borderRadius: BorderRadius.pill, gap: Spacing.md, marginBottom: Spacing.huge }}>
+                <Text style={{ ...Typography.display }}>🔥</Text>
+                <Text style={{ ...Typography.display, fontWeight: '800', color: Colors.warningLight }}>{sessionStreak}-session streak</Text>
               </View>
             )}
 
             <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
               <Image
                 source={require('../../assets/favicon.png')}
-                style={{ width: 60, height: 60, marginBottom: 12 }}
+                style={{ width: 60, height: 60, marginBottom: Spacing.md }}
                 resizeMode="contain"
               />
-              <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
+              <Text style={{ ...Typography.display, fontWeight: '600', color: Colors.overlayLight }}>
                 Earned with Ernit
               </Text>
             </View>
@@ -608,7 +642,7 @@ const CompletionScreen = () => {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section - EPIC CELEBRATION */}
         <LinearGradient
-          colors={['#10b981', '#0891b2', Colors.secondary]}
+          colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroSection}
@@ -635,7 +669,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Star color="#fbbf24" size={20} fill="#fbbf24" />
+            <Star color={Colors.celebrationGold} size={20} fill={Colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View
@@ -659,7 +693,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Zap color="#f59e0b" size={24} fill="#f59e0b" />
+            <Zap color={Colors.warning} size={24} fill={Colors.warning} />
           </Animated.View>
 
           {/* ? Enhanced sparkle effects */}
@@ -673,7 +707,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Sparkles color="#fef3c7" size={32} />
+            <Sparkles color={Colors.celebrationGoldLight} size={32} />
           </Animated.View>
           <Animated.View
             style={[
@@ -688,7 +722,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Sparkles color="#fde68a" size={28} />
+            <Sparkles color={Colors.celebrationGoldBorder} size={28} />
           </Animated.View>
 
           {/* Larger trophy with glow */}
@@ -703,7 +737,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Trophy color="#fef3c7" size={100} strokeWidth={2.5} fill="#fbbf24" />
+            <Trophy color={Colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={Colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -735,7 +769,7 @@ const CompletionScreen = () => {
         {/* Stats Card - Enhanced */}
         <View style={styles.statsCard}>
           <View style={styles.statsHeader}>
-            <CheckCircle color="#10b981" size={24} />
+            <CheckCircle color={Colors.secondary} size={24} />
             <Text style={styles.statsTitle}>Your Achievement</Text>
           </View>
 
@@ -743,7 +777,7 @@ const CompletionScreen = () => {
           <Text style={styles.goalDesc}>{goal.description}</Text>
 
           <View style={styles.statsBadge}>
-            <Sparkles color="#fbbf24" size={20} />
+            <Sparkles color={Colors.celebrationGold} size={20} />
             <Text style={styles.statsNumber}>{totalSessions}</Text>
             <Text style={styles.statsLabel}>Sessions Completed</Text>
           </View>
@@ -759,8 +793,10 @@ const CompletionScreen = () => {
             <TouchableOpacity
               style={styles.noRewardCtaButton}
               onPress={() => navigation.navigate('CategorySelection')}
+              accessibilityRole="button"
+              accessibilityLabel="Browse experiences"
             >
-              <Gift color="#fff" size={20} />
+              <Gift color={Colors.white} size={20} />
               <Text style={styles.noRewardCtaButtonText}>Browse Experiences</Text>
             </TouchableOpacity>
           </View>
@@ -790,7 +826,7 @@ const CompletionScreen = () => {
                   <Text style={styles.experienceDescription}>{experience.description}</Text>
                 </>
               ) : (
-                <View style={{ padding: 20, gap: 12 }}>
+                <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
                   <ExperienceCardSkeleton />
                   <SkeletonBox width="100%" height={48} borderRadius={12} />
                 </View>
@@ -811,7 +847,7 @@ const CompletionScreen = () => {
           </Text>
 
           {isLoading ? (
-            <View style={{ padding: 20, gap: 12 }}>
+            <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
               <SkeletonBox width="100%" height={80} borderRadius={12} />
               <SkeletonBox width="100%" height={48} borderRadius={12} />
             </View>
@@ -830,7 +866,7 @@ const CompletionScreen = () => {
                     accessibilityRole="button"
                     accessibilityLabel="Copy coupon code"
                   >
-                    <Copy color={isCopied ? "#10b981" : Colors.secondary} size={20} />
+                    <Copy color={isCopied ? Colors.secondary : Colors.secondary} size={20} />
                     <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                       {isCopied ? 'Copied!' : 'Copy Code'}
                     </Text>
@@ -839,7 +875,7 @@ const CompletionScreen = () => {
               </View>
 
               <View style={styles.validityBox}>
-                <CheckCircle color="#10b981" size={18} />
+                <CheckCircle color={Colors.secondary} size={18} />
                 <Text style={styles.validityText}>
                   Valid for 1 year from today
                 </Text>
@@ -847,7 +883,7 @@ const CompletionScreen = () => {
 
               {/* Contact Info & Schedule Buttons */}
               {partner && (partner.phone || partner.contactEmail || partner.email) && (
-                <View style={{ marginTop: 20 }}>
+                <View style={{ marginTop: Spacing.xl }}>
                   <View style={styles.contactInfoSection}>
                     <Text style={styles.contactInfoTitle}>Partner Contact</Text>
 
@@ -865,9 +901,9 @@ const CompletionScreen = () => {
                           accessibilityLabel="Copy phone number"
                         >
                           {isPhoneCopied ? (
-                            <CheckCircle size={18} color="#10b981" />
+                            <CheckCircle size={18} color={Colors.secondary} />
                           ) : (
-                            <Copy size={18} color="#6B7280" />
+                            <Copy size={18} color={Colors.gray600} />
                           )}
                         </TouchableOpacity>
                       </View>
@@ -877,7 +913,7 @@ const CompletionScreen = () => {
                       <View style={styles.contactInfoRow}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.contactInfoLabel}>Email</Text>
-                          <Text style={[styles.contactInfoValue, { fontSize: 13 }]}>
+                          <Text style={[styles.contactInfoValue, { ...Typography.caption }]}>
                             {partner.contactEmail || partner.email}
                           </Text>
                         </View>
@@ -889,9 +925,9 @@ const CompletionScreen = () => {
                           accessibilityLabel="Copy email address"
                         >
                           {isEmailCopied ? (
-                            <CheckCircle size={18} color="#10b981" />
+                            <CheckCircle size={18} color={Colors.secondary} />
                           ) : (
-                            <Copy size={18} color="#6B7280" />
+                            <Copy size={18} color={Colors.gray600} />
                           )}
                         </TouchableOpacity>
                       </View>
@@ -911,12 +947,12 @@ const CompletionScreen = () => {
                         accessibilityLabel="Schedule via WhatsApp"
                       >
                         <LinearGradient
-                          colors={['#25D366', '#1ebe57']}
+                          colors={[Colors.whatsappGreen, Colors.whatsappGreenDark]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.scheduleButton}
                         >
-                          <MessageCircle color="#FFFFFF" size={24} />
+                          <MessageCircle color={Colors.white} size={24} />
                           <Text style={styles.scheduleButtonText}>Schedule via WhatsApp</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -939,7 +975,7 @@ const CompletionScreen = () => {
                           end={{ x: 1, y: 1 }}
                           style={styles.scheduleButton}
                         >
-                          <Mail color="#FFFFFF" size={24} />
+                          <Mail color={Colors.white} size={24} />
                           <Text style={styles.scheduleButtonText}>Schedule via Email</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -970,6 +1006,8 @@ const CompletionScreen = () => {
             <TouchableOpacity
               style={[styles.shareFormatOption, shareFormat === 'story' && styles.shareFormatActive]}
               onPress={() => setShareFormat('story')}
+              accessibilityRole="button"
+              accessibilityLabel="Share as story format"
             >
               <Text style={[styles.shareFormatText, shareFormat === 'story' && styles.shareFormatTextActive]}>
                 Story (9:16)
@@ -978,6 +1016,8 @@ const CompletionScreen = () => {
             <TouchableOpacity
               style={[styles.shareFormatOption, shareFormat === 'square' && styles.shareFormatActive]}
               onPress={() => setShareFormat('square')}
+              accessibilityRole="button"
+              accessibilityLabel="Share as square format"
             >
               <Text style={[styles.shareFormatText, shareFormat === 'square' && styles.shareFormatTextActive]}>
                 Square (1:1)
@@ -989,8 +1029,10 @@ const CompletionScreen = () => {
             style={styles.shareButton}
             onPress={handleShare}
             disabled={isSharing}
+            accessibilityRole="button"
+            accessibilityLabel="Share your achievement"
           >
-            <ShareIcon color="#fff" size={20} />
+            <ShareIcon color={Colors.white} size={20} />
             <Text style={styles.shareButtonText}>
               {isSharing ? 'Preparing...' : 'Share'}
             </Text>
@@ -1001,7 +1043,7 @@ const CompletionScreen = () => {
         <View style={styles.streakCtaSection}>
           {sessionStreak >= 3 && (
             <View style={styles.streakBadge}>
-              <Flame color="#f59e0b" size={28} fill="#f59e0b" />
+              <Flame color={Colors.warning} size={28} fill={Colors.warning} />
               <Text style={styles.streakCount}>{sessionStreak}</Text>
               <Text style={styles.streakLabel}>session streak</Text>
             </View>
@@ -1022,12 +1064,16 @@ const CompletionScreen = () => {
               <TouchableOpacity
                 style={styles.streakCtaPrimary}
                 onPress={() => navigation.navigate('CategorySelection')}
+                accessibilityRole="button"
+                accessibilityLabel="Browse experiences"
               >
                 <Text style={styles.streakCtaPrimaryText}>Browse Experiences</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.streakCtaSecondary}
                 onPress={() => navigation.navigate('Goals')}
+                accessibilityRole="button"
+                accessibilityLabel="Back to goals"
               >
                 <Text style={styles.streakCtaSecondaryText}>Back to Goals</Text>
               </TouchableOpacity>
@@ -1047,6 +1093,8 @@ const CompletionScreen = () => {
               <TouchableOpacity
                 style={styles.streakCtaPrimary}
                 onPress={() => navigation.navigate('Goals')}
+                accessibilityRole="button"
+                accessibilityLabel="Back to goals"
               >
                 <Text style={styles.streakCtaPrimaryText}>Back to Goals</Text>
               </TouchableOpacity>
@@ -1064,16 +1112,16 @@ const CompletionScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.backgroundLight,
   },
   heroSection: {
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingBottom: 60,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
@@ -1083,52 +1131,52 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   trophyContainer: {
-    marginVertical: 24,
-    padding: 24,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#fbbf24',
+    marginVertical: Spacing.xxl,
+    padding: Spacing.xxl,
+    borderRadius: BorderRadius.circle,
+    backgroundColor: Colors.blackAlpha20,
+    shadowColor: Colors.warning,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 30,
     elevation: 15,
   },
   heroTitle: {
-    fontSize: 42,
+    fontSize: Typography.heroSub.fontSize,
     fontWeight: '900',
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
-    marginBottom: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    marginBottom: Spacing.md,
+    textShadowColor: Colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
     letterSpacing: 0.5,
   },
   celebrationMessage: {
-    fontSize: 32,
+    ...Typography.display,
     fontWeight: '800',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
     textAlign: 'center',
-    color: '#fef3c7',
+    color: Colors.warningLight,
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: Colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
   heroSubtitle: {
-    fontSize: 16,
-    color: '#d1fae5',
+    ...Typography.subheading,
+    color: Colors.primaryTint,
     textAlign: 'center',
     lineHeight: 24,
   },
   statsCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1137,52 +1185,51 @@ const styles = StyleSheet.create({
   statsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   statsTitle: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   goalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...Typography.heading1,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   goalDesc: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   statsBadge: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: Colors.warningLight,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   statsNumber: {
-    fontSize: 36,
+    ...Typography.display,
     fontWeight: '800',
-    color: '#f59e0b',
+    color: Colors.warning,
   },
   statsLabel: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '600',
-    color: '#92400e',
+    color: Colors.warningDark,
   },
   experienceCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1191,46 +1238,45 @@ const styles = StyleSheet.create({
   experienceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 20,
-    paddingBottom: 16,
+    gap: Spacing.md,
+    padding: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   experienceHeaderText: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   experienceImage: {
     width: '100%',
     height: 220,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: Colors.border,
   },
   experienceContent: {
-    padding: 20,
+    padding: Spacing.xl,
   },
   experienceTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...Typography.heading1,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   experienceSubtitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     color: Colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   experienceDescription: {
-    fontSize: 15,
-    color: '#374151',
+    ...Typography.body,
+    color: Colors.gray700,
     lineHeight: 22,
   },
   couponSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1239,19 +1285,19 @@ const styles = StyleSheet.create({
   couponHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
+    gap: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   couponHeaderText: {
-    fontSize: 24,
+    ...Typography.heading1,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
   couponInstructions: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
     textAlign: 'center',
   },
   loadingBox: {
@@ -1259,33 +1305,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 15,
+    marginTop: Spacing.lg,
+    ...Typography.body,
     color: Colors.textSecondary,
   },
   couponCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   couponDisplay: {
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: Colors.backgroundLight,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     borderStyle: 'dashed',
   },
   couponCode: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: '800',
     color: Colors.secondary,
     textAlign: 'center',
@@ -1293,52 +1339,52 @@ const styles = StyleSheet.create({
   },
   couponActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   copyCodeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primarySurface,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: Colors.primaryTint,
   },
   copyCodeText: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '600',
     color: Colors.secondary,
   },
   copiedText: {
-    color: '#10b981',
+    color: Colors.secondary,
   },
   validityBox: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: Colors.successLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   validityText: {
-    fontSize: 14,
-    color: '#166534',
+    ...Typography.small,
+    color: Colors.primaryDeep,
     fontWeight: '600',
   },
   // Enhanced Schedule Buttons
   scheduleButtonsContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
   },
   scheduleButtonWrapper: {
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -1348,59 +1394,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xxl,
   },
   scheduleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: Colors.white,
+    ...Typography.subheading,
     fontWeight: '700',
   },
   scheduleButtonHalf: {
     flex: 1,
   },
   contactInfoSection: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: Colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
   },
   contactInfoTitle: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   contactInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.border,
   },
   contactInfoLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
+    color: Colors.gray600,
+    marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   contactInfoValue: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
   smallCopyButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
   },
   // Enhanced sparkle and decoration styles
   sparkle: {
@@ -1409,29 +1455,29 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 20,
+    marginTop: Spacing.xxl,
+    backgroundColor: Colors.whiteAlpha15,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: Colors.blackAlpha20,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 36,
+    ...Typography.display,
     fontWeight: '900',
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    color: Colors.white,
+    textShadowColor: Colors.blackAlpha20,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   statLabel: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 4,
+    ...Typography.caption,
+    color: Colors.whiteAlpha90,
+    marginTop: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     fontWeight: '600',
@@ -1439,94 +1485,94 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 2,
     height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 1,
+    backgroundColor: Colors.whiteAlpha25,
+    borderRadius: BorderRadius.xs,
   },
   // No-reward CTA
   noRewardCta: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
   },
   noRewardCtaTitle: {
-    fontSize: 20,
+    ...Typography.large,
     fontWeight: '700' as const,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   noRewardCtaMessage: {
-    fontSize: 15,
+    ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   noRewardCtaButton: {
     backgroundColor: Colors.secondary,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 14,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
+    borderRadius: BorderRadius.lg,
   },
   noRewardCtaButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: Colors.white,
+    ...Typography.subheading,
     fontWeight: '700' as const,
   },
   // Share section
   shareSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
   },
   shareSectionTitle: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '700' as const,
     color: Colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   shareFormatToggle: {
     flexDirection: 'row' as const,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
+    backgroundColor: Colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xs,
+    marginBottom: Spacing.lg,
     width: '100%' as any,
   },
   shareFormatOption: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     alignItems: 'center' as const,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   shareFormatText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600' as const,
     color: Colors.textSecondary,
   },
@@ -1538,26 +1584,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 14,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
+    borderRadius: BorderRadius.lg,
     width: '100%' as any,
   },
   shareButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: Colors.white,
+    ...Typography.subheading,
     fontWeight: '700' as const,
   },
   // Streak CTA section
   streakCtaSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1566,56 +1612,56 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
-    backgroundColor: '#fef3c7',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginBottom: 16,
+    gap: Spacing.sm,
+    backgroundColor: Colors.warningLight,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
   },
   streakCount: {
-    fontSize: 28,
+    ...Typography.display,
     fontWeight: '800' as const,
-    color: '#f59e0b',
+    color: Colors.warning,
   },
   streakLabel: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600' as const,
-    color: '#92400e',
+    color: Colors.warningDark,
   },
   streakCtaTitle: {
-    fontSize: 20,
+    ...Typography.large,
     fontWeight: '700' as const,
     color: Colors.textPrimary,
     textAlign: 'center' as const,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   streakCtaMessage: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   streakCtaPrimary: {
     backgroundColor: Colors.secondary,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    marginTop: 8,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.sm,
     width: '100%' as any,
     alignItems: 'center' as const,
   },
   streakCtaPrimaryText: {
-    color: '#fff',
-    fontSize: 16,
+    color: Colors.white,
+    ...Typography.subheading,
     fontWeight: '700' as const,
   },
   streakCtaSecondary: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    marginTop: 8,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.sm,
     width: '100%' as any,
     alignItems: 'center' as const,
     borderWidth: 1,
@@ -1623,7 +1669,7 @@ const styles = StyleSheet.create({
   },
   streakCtaSecondaryText: {
     color: Colors.textSecondary,
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '600' as const,
   },
 });

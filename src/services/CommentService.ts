@@ -11,6 +11,8 @@
     updateDoc,
     writeBatch,
     increment,
+    arrayUnion,
+    arrayRemove,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Comment } from '../types';
@@ -33,7 +35,7 @@ class CommentService {
             const sanitizedUserName = sanitizeText(comment.userName, 100);
 
             // Filter out undefined values
-            const commentData: any = {
+            const commentData: Record<string, unknown> = {
                 postId,
                 userId: comment.userId,
                 userName: sanitizedUserName,
@@ -106,6 +108,7 @@ class CommentService {
                     text: data.text,
                     createdAt: data.createdAt?.toDate() || new Date(),
                     updatedAt: data.updatedAt?.toDate(),
+                    likedBy: data.likedBy || [],
                 } as Comment;
             });
         } catch (error) {
@@ -130,6 +133,36 @@ class CommentService {
             logger.log('✅ Comment deleted');
         } catch (error) {
             logger.error('❌ Error deleting comment:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Like a comment
+     */
+    async likeComment(postId: string, commentId: string, userId: string): Promise<void> {
+        try {
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            await updateDoc(commentRef, {
+                likedBy: arrayUnion(userId),
+            });
+        } catch (error) {
+            logger.error('❌ Error liking comment:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unlike a comment
+     */
+    async unlikeComment(postId: string, commentId: string, userId: string): Promise<void> {
+        try {
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            await updateDoc(commentRef, {
+                likedBy: arrayRemove(userId),
+            });
+        } catch (error) {
+            logger.error('❌ Error unliking comment:', error);
             throw error;
         }
     }

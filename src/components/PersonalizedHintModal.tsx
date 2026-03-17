@@ -1,5 +1,5 @@
 ﻿
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -13,14 +13,17 @@ import {
     ScrollView,
     Image,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Audio } from 'expo-av';
-import * as ImagePicker from 'expo-image-picker';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { useMediaComposer, EXAMPLE_MESSAGES, MAX_AUDIO_DURATION } from '../hooks/useMediaComposer';
 import { commonStyles } from '../styles/commonStyles';
 import { Trash2, Mic, Square, Play, Pause, Image as ImageIcon, X } from 'lucide-react-native';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
 
 export interface HintSubmission {
@@ -40,16 +43,6 @@ interface PersonalizedHintModalProps {
 }
 
 const MAX_HINT_LENGTH = 100;
-const MAX_AUDIO_DURATION = 30; // seconds
-
-const EXAMPLE_HINTS = [
-    "You're doing amazing! Keep up the great work! 💪",
-    "I'm so proud of your progress!",
-    "Each session brings you closer to your goal!",
-    "Your dedication is truly inspiring! ✨",
-    "Remember why you started - you've got this!",
-    "Can't wait to see you achieve this! 🌟",
-];
 
 export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     visible,
@@ -58,176 +51,14 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     onClose,
     onSubmit,
 }) => {
-    const { showInfo, showError } = useToast();
+    const { showError } = useToast();
     const [mode, setMode] = useState<'text' | 'voice'>('text');
     const [hintText, setHintText] = useState('');
-    const [imageUri, setImageUri] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [showExamples, setShowExamples] = useState(false);
 
-    // Audio State
-    const [recording, setRecording] = useState<Audio.Recording | null>(null);
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
-    const [audioUri, setAudioUri] = useState<string | null>(null);
-    const [isRecording, setIsRecording] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [recordingDuration, setRecordingDuration] = useState(0);
-    const [playbackPosition, setPlaybackPosition] = useState(0);
-    const [soundDuration, setSoundDuration] = useState(0);
-
+    const media = useMediaComposer(visible);
     const slideAnim = useModalAnimation(visible);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        if (!visible) {
-            resetState();
-        }
-        return () => {
-            if (recording) {
-                stopRecording();
-            }
-            if (sound) {
-                sound.unloadAsync();
-            }
-        };
-    }, [visible]);
-
-    const resetState = () => {
-        setHintText('');
-        setImageUri(null);
-        setAudioUri(null);
-        setRecording(null);
-        setSound(null);
-        setIsRecording(false);
-        setIsPlaying(false);
-        setRecordingDuration(0);
-        setPlaybackPosition(0);
-        setSoundDuration(0);
-        setMode('text');
-        setShowExamples(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-    };
-
-    // --- Audio Logic ---
-    const startRecording = async () => {
-        try {
-            const permission = await Audio.requestPermissionsAsync();
-            if (permission.status !== 'granted') {
-                showInfo('Please grant microphone permission to record voice hints.');
-                return;
-            }
-
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-            });
-
-            const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
-
-            setRecording(recording);
-            setIsRecording(true);
-            setRecordingDuration(0);
-
-            timerRef.current = setInterval(() => {
-                setRecordingDuration(prev => {
-                    const newDuration = prev + 1;
-                    if (newDuration >= MAX_AUDIO_DURATION) {
-                        // Stop recording on next tick to avoid calling async function in setState
-                        setTimeout(() => stopRecording(), 0);
-                    }
-                    return newDuration;
-                });
-            }, 1000);
-        } catch (err) {
-            logger.error('Failed to start recording', err);
-        }
-    };
-
-    const stopRecording = async () => {
-        if (!recording) return;
-
-        if (timerRef.current) clearInterval(timerRef.current);
-        setIsRecording(false);
-
-        try {
-            await recording.stopAndUnloadAsync();
-            const uri = recording.getURI();
-            setAudioUri(uri);
-            setRecording(null);
-        } catch (error) {
-            logger.error('Failed to stop recording', error);
-        }
-    };
-
-    const playSound = async () => {
-        if (!audioUri) return;
-
-        try {
-            if (sound) {
-                await sound.playAsync();
-                setIsPlaying(true);
-            } else {
-                const { sound: newSound } = await Audio.Sound.createAsync(
-                    { uri: audioUri },
-                    { shouldPlay: true }
-                );
-                setSound(newSound);
-                setIsPlaying(true);
-
-                newSound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded) {
-                        setPlaybackPosition(status.positionMillis / 1000);
-                        setSoundDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
-                        if (status.didJustFinish) {
-                            setIsPlaying(false);
-                            newSound.setPositionAsync(0);
-                        }
-                    }
-                });
-            }
-        } catch (error) {
-            logger.error('Error playing sound', error);
-        }
-    };
-
-    const pauseSound = async () => {
-        if (sound) {
-            await sound.pauseAsync();
-            setIsPlaying(false);
-        }
-    };
-
-    const deleteRecording = async () => {
-        if (sound) {
-            await sound.unloadAsync();
-        }
-        setSound(null);
-        setAudioUri(null);
-        setRecordingDuration(0);
-        setPlaybackPosition(0);
-    };
-
-    // --- Image Logic ---
-    const pickImage = async () => {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permission.status !== 'granted') {
-            showInfo('Please grant photo library permission to attach images.');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            setImageUri(result.assets[0].uri);
-        }
-    };
 
     // --- Submission ---
     const handleSubmit = async () => {
@@ -238,29 +69,32 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
             let submission: HintSubmission;
 
             if (mode === 'voice') {
-                if (!audioUri) {
+                if (!media.audioUri) {
                     setSubmitting(false);
                     return;
                 }
                 submission = {
                     type: 'audio',
-                    audioUri,
-                    duration: recordingDuration || soundDuration,
+                    audioUri: media.audioUri,
+                    duration: media.recordingDuration || media.soundDuration,
                 };
             } else {
-                if (!hintText.trim() && !imageUri) {
+                if (!hintText.trim() && !media.imageUri) {
                     showError('Please enter a hint message');
                     setSubmitting(false);
                     return;
                 }
                 submission = {
-                    type: imageUri ? (hintText.trim() ? 'mixed' : 'image') : 'text',
+                    type: media.imageUri ? (hintText.trim() ? 'mixed' : 'image') : 'text',
                     text: hintText.trim(),
-                    imageUri: imageUri || undefined,
+                    imageUri: media.imageUri || undefined,
                 };
             }
 
             await onSubmit(submission);
+            if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
             onClose();
         } catch (error) {
             logger.error('Error submitting hint:', error);
@@ -271,8 +105,8 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
     };
 
     const canSubmit = mode === 'voice'
-        ? !!audioUri
-        : (hintText.trim().length > 0 || !!imageUri);
+        ? !!media.audioUri
+        : (hintText.trim().length > 0 || !!media.imageUri);
 
     const remainingChars = MAX_HINT_LENGTH - hintText.length;
 
@@ -340,7 +174,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                         <TextInput
                                             style={styles.textInput}
                                             placeholder="Your encouraging hint..."
-                                            placeholderTextColor="#9CA3AF"
+                                            placeholderTextColor={Colors.textMuted}
                                             value={hintText}
                                             onChangeText={setHintText}
                                             multiline
@@ -354,18 +188,18 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
 
                                     {/* Image Attachment */}
                                     <View style={styles.attachmentContainer}>
-                                        {imageUri ? (
+                                        {media.imageUri ? (
                                             <View style={styles.imagePreview}>
-                                                <Image source={{ uri: imageUri }} style={styles.attachedImage} />
+                                                <Image source={{ uri: media.imageUri }} style={styles.attachedImage} />
                                                 <TouchableOpacity
                                                     style={styles.removeImageButton}
-                                                    onPress={() => setImageUri(null)}
+                                                    onPress={() => media.setImageUri(null)}
                                                 >
-                                                    <X size={16} color="#fff" />
+                                                    <X size={16} color={Colors.white} />
                                                 </TouchableOpacity>
                                             </View>
                                         ) : (
-                                            <TouchableOpacity style={styles.attachButton} onPress={pickImage}>
+                                            <TouchableOpacity style={styles.attachButton} onPress={media.pickImage}>
                                                 <ImageIcon size={20} color={Colors.primary} />
                                                 <Text style={styles.attachButtonText}>Add Photo</Text>
                                             </TouchableOpacity>
@@ -384,7 +218,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
 
                                     {showExamples && (
                                         <View style={styles.examplesContainer}>
-                                            {EXAMPLE_HINTS.map((example, index) => (
+                                            {EXAMPLE_MESSAGES.map((example, index) => (
                                                 <TouchableOpacity
                                                     key={index}
                                                     style={styles.exampleCard}
@@ -399,39 +233,39 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                             ) : (
                                 /* Voice Mode */
                                 <View style={styles.voiceContainer}>
-                                    {!audioUri ? (
+                                    {!media.audioUri ? (
                                         <View style={styles.recordingControls}>
                                             <Text style={styles.timerText}>
-                                                00:{recordingDuration.toString().padStart(2, '0')} / 00:{MAX_AUDIO_DURATION}
+                                                00:{media.recordingDuration.toString().padStart(2, '0')} / 00:{MAX_AUDIO_DURATION}
                                             </Text>
                                             <TouchableOpacity
-                                                style={[styles.recordButton, isRecording && styles.recordingActive]}
-                                                onPress={isRecording ? stopRecording : startRecording}
+                                                style={[styles.recordButton, media.isRecording && styles.recordingActive]}
+                                                onPress={media.isRecording ? media.stopRecording : media.startRecording}
                                             >
-                                                {isRecording ? (
-                                                    <Square size={32} color="#fff" fill="#fff" />
+                                                {media.isRecording ? (
+                                                    <Square size={32} color={Colors.white} fill={Colors.white} />
                                                 ) : (
-                                                    <Mic size={32} color="#fff" />
+                                                    <Mic size={32} color={Colors.white} />
                                                 )}
                                             </TouchableOpacity>
                                             <Text style={styles.recordingStatus}>
-                                                {isRecording ? 'Recording...' : 'Tap to Record'}
+                                                {media.isRecording ? 'Recording...' : 'Tap to Record'}
                                             </Text>
                                         </View>
                                     ) : (
                                         <View style={styles.playbackControls}>
-                                            <TouchableOpacity onPress={isPlaying ? pauseSound : playSound}>
-                                                {isPlaying ? (
+                                            <TouchableOpacity onPress={media.isPlaying ? media.pauseSound : media.playSound}>
+                                                {media.isPlaying ? (
                                                     <Pause size={40} color={Colors.primary} fill={Colors.primary} />
                                                 ) : (
                                                     <Play size={40} color={Colors.primary} fill={Colors.primary} />
                                                 )}
                                             </TouchableOpacity>
                                             <View style={styles.waveformPlaceholder}>
-                                                <View style={[styles.progressBar, { width: `${(playbackPosition / (soundDuration || 1)) * 100}%` }]} />
+                                                <View style={[styles.progressBar, { width: `${(media.playbackPosition / (media.soundDuration || 1)) * 100}%` }]} />
                                             </View>
-                                            <TouchableOpacity onPress={deleteRecording} style={styles.deleteButton}>
-                                                <Trash2 size={24} color="#EF4444" />
+                                            <TouchableOpacity onPress={media.deleteRecording} style={styles.deleteButton}>
+                                                <Trash2 size={24} color={Colors.error} />
                                             </TouchableOpacity>
                                         </View>
                                     )}
@@ -464,7 +298,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                                     colors={
                                         canSubmit && !submitting
                                             ? Colors.gradientPrimary
-                                            : ['#9CA3AF', '#6B7280']
+                                            : Colors.gradientDisabled
                                     }
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}
@@ -488,38 +322,37 @@ const styles = StyleSheet.create({
         width: '90%',
         maxWidth: 500,
         maxHeight: '85%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.xl,
         overflow: 'hidden',
         elevation: 10,
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 10,
     },
     header: {
-        padding: 20,
+        padding: Spacing.xl,
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 4,
+        ...Typography.large,
+        color: Colors.white,
+        marginBottom: Spacing.xs,
     },
     headerSubtitle: {
-        fontSize: 14,
-        color: '#FFFFFF',
+        ...Typography.small,
+        color: Colors.white,
         opacity: 0.9,
     },
     tabs: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.border,
     },
     tab: {
         flex: 1,
-        paddingVertical: 16,
+        paddingVertical: Spacing.lg,
         alignItems: 'center',
     },
     activeTab: {
@@ -527,57 +360,57 @@ const styles = StyleSheet.create({
         borderBottomColor: Colors.secondary,
     },
     tabText: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.gray600,
     },
     activeTabText: {
         color: Colors.secondary,
     },
     contentContainer: {
-        padding: 20,
+        padding: Spacing.xl,
     },
     inputContainer: {
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     textInput: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#111827',
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        ...Typography.subheading,
+        color: Colors.textPrimary,
         minHeight: 120,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
     },
     charCount: {
-        fontSize: 12,
-        color: '#9CA3AF',
+        ...Typography.caption,
+        color: Colors.textMuted,
         textAlign: 'right',
-        marginTop: 8,
+        marginTop: Spacing.sm,
     },
     attachmentContainer: {
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     attachButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 8,
+        padding: Spacing.md,
+        backgroundColor: Colors.backgroundLight,
+        borderRadius: BorderRadius.sm,
         alignSelf: 'flex-start',
-        gap: 8,
+        gap: Spacing.sm,
     },
     attachButtonText: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: '#4B5563',
+        color: Colors.gray700,
     },
     imagePreview: {
         position: 'relative',
         width: 100,
         height: 100,
-        borderRadius: 8,
+        borderRadius: BorderRadius.sm,
         overflow: 'hidden',
     },
     attachedImage: {
@@ -588,80 +421,79 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 4,
         right: 4,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 12,
-        padding: 4,
+        backgroundColor: Colors.overlay,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.xs,
     },
     examplesToggle: {
-        paddingVertical: 8,
+        paddingVertical: Spacing.sm,
     },
     examplesToggleText: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.secondary,
         fontWeight: '600',
     },
     examplesContainer: {
-        marginTop: 8,
-        gap: 8,
+        marginTop: Spacing.sm,
+        gap: Spacing.sm,
     },
     exampleCard: {
-        backgroundColor: '#F3F4F6',
-        borderRadius: 8,
-        padding: 12,
+        backgroundColor: Colors.backgroundLight,
+        borderRadius: BorderRadius.sm,
+        padding: Spacing.md,
     },
     exampleText: {
-        fontSize: 14,
-        color: '#4B5563',
+        ...Typography.small,
+        color: Colors.gray700,
     },
     voiceContainer: {
         alignItems: 'center',
-        paddingVertical: 20,
+        paddingVertical: Spacing.xl,
     },
     recordingControls: {
         alignItems: 'center',
-        gap: 16,
+        gap: Spacing.lg,
     },
     timerText: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#111827',
+        ...Typography.heading1,
+        color: Colors.textPrimary,
         fontVariant: ['tabular-nums'],
     },
     recordButton: {
         width: 72,
         height: 72,
-        borderRadius: 36,
-        backgroundColor: '#EF4444',
+        borderRadius: BorderRadius.circle,
+        backgroundColor: Colors.error,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 4,
-        shadowColor: '#EF4444',
+        shadowColor: Colors.error,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
     },
     recordingActive: {
         transform: [{ scale: 1.1 }],
-        borderRadius: 24, // Square-ish when recording
+        borderRadius: BorderRadius.xxl, // Square-ish when recording
     },
     recordingStatus: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...Typography.small,
+        color: Colors.gray600,
         fontWeight: '500',
     },
     playbackControls: {
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        gap: 16,
-        backgroundColor: '#F3F4F6',
-        padding: 16,
-        borderRadius: 12,
+        gap: Spacing.lg,
+        backgroundColor: Colors.backgroundLight,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
     },
     waveformPlaceholder: {
         flex: 1,
         height: 4,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.border,
         borderRadius: 2,
         overflow: 'hidden',
     },
@@ -670,48 +502,47 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.secondary,
     },
     deleteButton: {
-        padding: 8,
+        padding: Spacing.sm,
     },
     voiceNote: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        marginTop: 16,
+        ...Typography.caption,
+        color: Colors.textMuted,
+        marginTop: Spacing.lg,
     },
     buttons: {
         flexDirection: 'row',
-        padding: 20,
-        gap: 12,
+        padding: Spacing.xl,
+        gap: Spacing.md,
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
+        borderTopColor: Colors.border,
     },
     cancelButton: {
         flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
         alignItems: 'center',
     },
     cancelButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#6B7280',
+        ...Typography.subheading,
+        color: Colors.gray600,
     },
     submitButton: {
         flex: 1,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         overflow: 'hidden',
     },
     submitButtonDisabled: {
         opacity: 0.6,
     },
     submitButtonGradient: {
-        paddingVertical: 14,
+        paddingVertical: Spacing.md,
         alignItems: 'center',
     },
     submitButtonText: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: Colors.white,
     },
 });

@@ -7,9 +7,24 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
-import { collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { Goal, SessionRecord, Motivation } from '../../types';
+import { Goal, SessionRecord, Motivation, PersonalizedHint, Experience, PartnerUser } from '../../types';
+
+type HintEntry = PersonalizedHint | {
+  id?: string;
+  session: number;
+  hint?: string;
+  date: number;
+  text?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  giverName?: string;
+  createdAt?: Date;
+  type?: PersonalizedHint['type'];
+  duration?: number;
+  forSessionNumber?: number;
+};
 import { useRootNavigation } from '../../types/navigation';
 import { isSelfGifted } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -28,15 +43,92 @@ import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { logger } from '../../utils/logger';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle } from 'lucide-react-native';
 
-const toDate = (value: any): Date | undefined => {
+// ─────────────────────────────────────────────────────────────
+// HintItem - extracted to module level to prevent unmount/remount on every render
+// ─────────────────────────────────────────────────────────────
+const fmtDateTime = (ts: number) =>
+  new Date(ts).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+
+interface HintItemProps {
+  hint: HintEntry;
+  index: number;
+  onImagePress: (uri: string) => void;
+}
+
+const HintItem = React.memo(({ hint, index, onImagePress }: HintItemProps) => {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 350,
+      delay: index * 100,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+  const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
+  const text = hint.text || hint.hint;
+
+  let dateMs = 0;
+  if (hint.createdAt) {
+    if (typeof hint.createdAt.toMillis === 'function') {
+      dateMs = hint.createdAt.toMillis();
+    } else if (hint.createdAt instanceof Date) {
+      dateMs = hint.createdAt.getTime();
+    } else {
+      dateMs = new Date(hint.createdAt).getTime();
+    }
+  } else if (hint.date) {
+    dateMs = hint.date;
+  }
+
+  return (
+    <Animated.View style={{
+      opacity: anim,
+      transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+      paddingVertical: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Colors.border,
+    }}>
+      <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+        {fmtDateTime(dateMs)}
+      </Text>
+      {hasImage && hint.imageUrl && (
+        <TouchableOpacity onPress={() => onImagePress(hint.imageUrl!)} activeOpacity={0.9}>
+          <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
+        </TouchableOpacity>
+      )}
+      {text && (
+        <Text style={{ color: Colors.gray700, ...Typography.body, marginBottom: isAudio ? 8 : 0 }}>
+          {text}
+        </Text>
+      )}
+      {isAudio && hint.audioUrl && (
+        <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+      )}
+    </Animated.View>
+  );
+});
+
+const toDate = (value: unknown): Date | undefined => {
   if (!value) return undefined;
-  if (value?.seconds) return new Date(value.seconds * 1000);
-  const date = new Date(value);
+  if (typeof value === 'object' && value !== null && 'seconds' in value) {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+  const date = new Date(value as string | number);
   return isNaN(date.getTime()) ? undefined : date;
 };
 
@@ -77,7 +169,7 @@ const SessionCard = ({
   };
 
   const toggleMotivations = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
 
@@ -111,7 +203,7 @@ const SessionCard = ({
             <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
             {session.mediaType === 'video' && (
               <View style={sessStyles.videoOverlay}>
-                <PlayCircle size={18} color="#fff" />
+                <PlayCircle size={18} color={Colors.white} />
               </View>
             )}
           </View>
@@ -176,13 +268,13 @@ const SessionCard = ({
 // sessStyles - copy exactly from JourneyScreen
 const sessStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.backgroundLight,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -198,50 +290,49 @@ const sessStyles = StyleSheet.create({
   badge: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   badgeText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '800',
     color: Colors.primary,
   },
   details: { flex: 1 },
   date: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
   },
   metaText: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   weekBadge: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...Typography.tiny,
     color: Colors.primary,
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: BorderRadius.xs,
     overflow: 'hidden',
   },
   thumb: {
     width: 48,
     height: 48,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
     overflow: 'hidden',
-    marginLeft: 8,
+    marginLeft: Spacing.sm,
   },
   thumbImg: {
     width: '100%',
@@ -250,50 +341,50 @@ const sessStyles = StyleSheet.create({
   },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: Colors.overlayLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motivationToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingTop: 10,
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
   motivationToggleText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
   },
   motivationList: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
   },
   motivationItem: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primarySurface,
-    padding: 10,
-    borderRadius: 10,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
   motivationAvatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
   },
   motivationAvatarPlaceholder: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motivationAvatarText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
   },
@@ -304,27 +395,27 @@ const sessStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   motivationAuthor: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   motivationDate: {
-    fontSize: 11,
+    ...Typography.tiny,
     color: Colors.textMuted,
   },
   motivationMessage: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
     lineHeight: 18,
   },
   motivationImage: {
     width: '100%',
     height: 150,
-    borderRadius: 8,
-    marginTop: 8,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
   },
 });
@@ -338,7 +429,7 @@ const AchievementDetailScreen = () => {
   const { state } = useApp();
   const { showError, showInfo } = useToast();
 
-  const routeParams = route.params as { goal?: any } | undefined;
+  const routeParams = route.params as { goal?: Goal } | undefined;
   const rawGoal = routeParams?.goal;
   const goal: Goal | null = rawGoal ? {
     ...rawGoal,
@@ -350,8 +441,8 @@ const AchievementDetailScreen = () => {
   } : null;
 
   // Experience & partner data
-  const [experience, setExperience] = useState<any>(null);
-  const [partner, setPartner] = useState<any>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
   const [userName, setUserName] = useState<string>('User');
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -373,6 +464,7 @@ const AchievementDetailScreen = () => {
   const shareCardRef = useRef<View>(null);
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Booking
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
@@ -403,11 +495,20 @@ const AchievementDetailScreen = () => {
     : goal?.pledgedExperience?.coverImageUrl || null;
 
   // Format completion date
-  const rawDate = goal?.completedAt as any;
-  const parsedDate = rawDate?.toDate ? rawDate.toDate() : rawDate ? new Date(rawDate) : null;
+  const completedAtValue = goal?.completedAt;
+  const parsedDate = completedAtValue instanceof Timestamp
+    ? completedAtValue.toDate()
+    : completedAtValue ? new Date(completedAtValue as Date) : null;
   const completedDate = parsedDate && !isNaN(parsedDate.getTime())
     ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
+
+  // Cleanup copy timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   // ───── Data fetching - 3 useEffects ─────
 
@@ -503,14 +604,16 @@ const AchievementDetailScreen = () => {
     if (!couponCode) return;
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleCopyPhone = async () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
-    setTimeout(() => setIsPhoneCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
   };
 
   const handleCopyEmail = async () => {
@@ -518,7 +621,8 @@ const AchievementDetailScreen = () => {
     if (!contactEmail) return;
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
-    setTimeout(() => setIsEmailCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   };
 
   const handleEmailFallback = (url: string) => {
@@ -676,69 +780,10 @@ const AchievementDetailScreen = () => {
     }
   };
 
-  // ───── HintItem (inline component) ─────
-  const fmtDateTime = (ts: number) =>
-    new Date(ts).toLocaleString(undefined, {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: 'numeric', minute: '2-digit',
-    });
-
-  const HintItem = ({ hint, index }: { hint: any; index: number }) => {
-    const anim = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 350,
-        delay: index * 100,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
-    const isAudio = hint.type === 'audio' || hint.type === 'mixed';
-    const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
-    const text = hint.text || hint.hint;
-
-    let dateMs = 0;
-    if (hint.createdAt) {
-      if (typeof hint.createdAt.toMillis === 'function') {
-        dateMs = hint.createdAt.toMillis();
-      } else if (hint.createdAt instanceof Date) {
-        dateMs = hint.createdAt.getTime();
-      } else {
-        dateMs = new Date(hint.createdAt).getTime();
-      }
-    } else if (hint.date) {
-      dateMs = hint.date;
-    }
-
-    return (
-      <Animated.View style={{
-        opacity: anim,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
-        paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: Colors.border,
-      }}>
-        <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 }}>
-          {fmtDateTime(dateMs)}
-        </Text>
-        {hasImage && hint.imageUrl && (
-          <TouchableOpacity onPress={() => setSelectedImageUri(hint.imageUrl)} activeOpacity={0.9}>
-            <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} />
-          </TouchableOpacity>
-        )}
-        {text && (
-          <Text style={{ color: '#374151', fontSize: 15, lineHeight: 22, marginBottom: isAudio ? 8 : 0 }}>
-            {text}
-          </Text>
-        )}
-        {isAudio && hint.audioUrl && (
-          <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
-        )}
-      </Animated.View>
-    );
-  };
+  // ───── HintItem callback ─────
+  const handleHintImagePress = useCallback((uri: string) => {
+    setSelectedImageUri(uri);
+  }, []);
 
   // ───── Null/loading guard ─────
   if (!goal) {
@@ -748,7 +793,7 @@ const AchievementDetailScreen = () => {
           <StatusBar style="light" />
           <SharedHeader title="Achievement" showBack />
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+            <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
           </View>
         </MainScreen>
       </ErrorBoundary>
@@ -763,35 +808,35 @@ const AchievementDetailScreen = () => {
         <SharedHeader title="Achievement" showBack />
 
         {/* Off-screen Share Card */}
-        <View style={{ position: 'absolute', left: -9999 }}>
-          <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: '#0891b2' }} collapsable={false}>
-            <LinearGradient colors={['#10b981', '#0891b2', Colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ position: 'absolute', left: -9999, overflow: 'hidden', height: 0 }}>
+          <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: Colors.cyan }} collapsable={false}>
+            <LinearGradient colors={[Colors.secondary, Colors.cyan, Colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}>
               {experienceImage ? (
-                <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: 40, marginBottom: 60 }} resizeMode="cover" />
+                <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: BorderRadius.pill, marginBottom: 60 }} resizeMode="cover" />
               ) : null}
-              <Trophy color="#fef3c7" size={120} strokeWidth={2.5} fill="#fbbf24" />
-              <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff', textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
-              <Text style={{ fontSize: 42, fontWeight: '700', color: '#d1fae5', textAlign: 'center', marginBottom: 60 }}>{goal.title || goal.description || ''}</Text>
+              <Trophy color={Colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={Colors.celebrationGold} />
+              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
+              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: Colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>{goal.title || goal.description || ''}</Text>
               <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{totalSessions}</Text>
-                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SESSIONS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{totalSessions}</Text>
+                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{goal.targetCount || 0}</Text>
-                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>WEEKS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{goal.targetCount || 0}</Text>
+                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
                 </View>
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image source={require('../../assets/favicon.png')} style={{ width: 60, height: 60, marginBottom: 12 }} resizeMode="contain" />
-                <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>Earned with Ernit</Text>
+                <Text style={{ ...Typography.display, fontWeight: '600', color: Colors.whiteAlpha40 }}>Earned with Ernit</Text>
               </View>
             </LinearGradient>
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 20, paddingBottom: 40, alignItems: 'center' }}>
-          <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: Spacing.xl, paddingBottom: Spacing.huge, alignItems: 'center' }}>
+          <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: Spacing.lg }}>
 
             {/* ─── 1. Completion Header ─── */}
             <View style={cStyles.headerCard}>
@@ -811,18 +856,18 @@ const AchievementDetailScreen = () => {
 
             {/* ─── 2. Achievement Info ─── */}
             <View style={cStyles.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <CheckCircle color="#10b981" size={20} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
+                <CheckCircle color={Colors.secondary} size={20} />
                 <Text style={cStyles.sectionTitle}>Your Achievement</Text>
               </View>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6 }}>{goal.title}</Text>
+              <Text style={{ ...Typography.large, color: Colors.textPrimary, marginBottom: Spacing.xs }}>{goal.title}</Text>
               {goal.description ? (
-                <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 14 }}>{goal.description}</Text>
+                <Text style={{ ...Typography.small, color: Colors.textSecondary, lineHeight: 20, marginBottom: Spacing.md }}>{goal.description}</Text>
               ) : null}
-              <View style={{ backgroundColor: '#fef3c7', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <Sparkles color="#fbbf24" size={18} />
-                <Text style={{ fontSize: 24, fontWeight: '800', color: '#f59e0b' }}>{totalSessions}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#92400e' }}>Sessions Completed</Text>
+              <View style={{ backgroundColor: Colors.warningLight, borderRadius: BorderRadius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm }}>
+                <Sparkles color={Colors.celebrationGold} size={18} />
+                <Text style={{ ...Typography.heading1, fontWeight: '800', color: Colors.warning }}>{totalSessions}</Text>
+                <Text style={{ ...Typography.small, fontWeight: '600', color: Colors.warningDark }}>Sessions Completed</Text>
               </View>
             </View>
 
@@ -837,7 +882,7 @@ const AchievementDetailScreen = () => {
                 {(goal.pledgedExperience?.coverImageUrl || experienceImage) && (
                   <Image
                     source={{ uri: experienceImage || goal.pledgedExperience?.coverImageUrl }}
-                    style={{ width: '100%', height: 180, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: Colors.backgroundLight }}
+                    style={{ width: '100%', height: 180, borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, backgroundColor: Colors.backgroundLight }}
                   />
                 )}
 
@@ -853,7 +898,7 @@ const AchievementDetailScreen = () => {
                         <Text style={cStyles.experienceSubtitle}>{goal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
                       ) : null}
                       {experience?.description ? (
-                        <Text style={{ fontSize: 14, color: '#374151', lineHeight: 20, marginTop: 8 }}>{experience.description}</Text>
+                        <Text style={{ ...Typography.small, color: Colors.gray700, lineHeight: 20, marginTop: Spacing.sm }}>{experience.description}</Text>
                       ) : null}
                     </>
                   )}
@@ -874,14 +919,14 @@ const AchievementDetailScreen = () => {
                             <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                           </View>
                           <TouchableOpacity style={cStyles.copyButton} onPress={handleCopy} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
-                            {isCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.primary} />}
-                            <Text style={[cStyles.copyText, isCopied && { color: '#10b981' }]}>
+                            {isCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.primary} />}
+                            <Text style={[cStyles.copyText, isCopied && { color: Colors.secondary }]}>
                               {isCopied ? 'Copied!' : 'Copy Code'}
                             </Text>
                           </TouchableOpacity>
                         </View>
                       ) : isLoading ? (
-                        <View style={{ padding: 10 }}><ExperienceCardSkeleton /></View>
+                        <View style={{ padding: Spacing.sm }}><ExperienceCardSkeleton /></View>
                       ) : null}
 
                       {/* Partner contact */}
@@ -895,7 +940,7 @@ const AchievementDetailScreen = () => {
                                 <Text style={cStyles.contactValue}>{partner.phone}</Text>
                               </View>
                               <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
-                                {isPhoneCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
+                                {isPhoneCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
                           )}
@@ -903,23 +948,23 @@ const AchievementDetailScreen = () => {
                             <View style={cStyles.contactRow}>
                               <View style={{ flex: 1 }}>
                                 <Text style={cStyles.contactLabel}>Email</Text>
-                                <Text style={[cStyles.contactValue, { fontSize: 13 }]}>{partner.contactEmail || partner.email}</Text>
+                                <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                               </View>
                               <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
-                                {isEmailCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
+                                {isEmailCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
                           )}
                           <View style={cStyles.scheduleRow}>
                             {partner.phone && (
                               <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookNowWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via WhatsApp">
-                                <MessageCircle size={16} color="#fff" />
+                                <MessageCircle size={16} color={Colors.white} />
                                 <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
                               </TouchableOpacity>
                             )}
                             {(partner.contactEmail || partner.email) && (
                               <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookNowEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via Email">
-                                <Mail size={16} color="#fff" />
+                                <Mail size={16} color={Colors.white} />
                                 <Text style={cStyles.scheduleBtnText}>Email</Text>
                               </TouchableOpacity>
                             )}
@@ -938,7 +983,7 @@ const AchievementDetailScreen = () => {
                 Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
               </Text>
               {sessionsLoading && sessions.length === 0 ? (
-                <View style={{ gap: 10 }}>
+                <View style={{ gap: Spacing.sm }}>
                   <SessionCardSkeleton />
                   <SessionCardSkeleton />
                   <SessionCardSkeleton />
@@ -966,13 +1011,13 @@ const AchievementDetailScreen = () => {
                 <View>
                   {hintsArray
                     .slice()
-                    .sort((a: any, b: any) => {
-                      const sessionA = a.forSessionNumber || a.session || 0;
-                      const sessionB = b.forSessionNumber || b.session || 0;
+                    .sort((a: HintEntry, b: HintEntry) => {
+                      const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;
+                      const sessionB = ('forSessionNumber' in b ? b.forSessionNumber : undefined) || ('session' in b ? b.session : 0) || 0;
                       return Number(sessionB) - Number(sessionA);
                     })
-                    .map((h: any, i: number) => {
-                      const session = h.forSessionNumber || h.session || 0;
+                    .map((h: HintEntry, i: number) => {
+                      const session = ('forSessionNumber' in h ? h.forSessionNumber : undefined) || ('session' in h ? h.session : 0) || 0;
                       let dateMs = 0;
                       if (h.createdAt) {
                         if (h.createdAt && typeof h.createdAt === 'object' && 'toMillis' in h.createdAt && typeof h.createdAt.toMillis === 'function') {
@@ -985,7 +1030,7 @@ const AchievementDetailScreen = () => {
                       } else if (h.date) {
                         dateMs = h.date;
                       }
-                      return <HintItem key={`${session}-${dateMs}`} hint={h} index={i} />;
+                      return <HintItem key={`${session}-${dateMs}`} hint={h} index={i} onImagePress={handleHintImagePress} />;
                     })}
                 </View>
               </View>
@@ -1013,7 +1058,7 @@ const AchievementDetailScreen = () => {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.shareButton} onPress={handleShare} disabled={isSharing}>
-                <ShareIcon color="#fff" size={20} />
+                <ShareIcon color={Colors.white} size={20} />
                 <Text style={styles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
               </TouchableOpacity>
             </View>
@@ -1044,14 +1089,14 @@ const AchievementDetailScreen = () => {
 // ─────────────────────────────────────────────────────────────
 const cStyles = StyleSheet.create({
   headerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 24,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -1060,83 +1105,83 @@ const cStyles = StyleSheet.create({
   trophyCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: BorderRadius.pill,
     backgroundColor: Colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.textPrimary, marginBottom: 8 },
-  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  statText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  statDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.textMuted },
-  completedDate: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', marginTop: 2 },
-  section: { marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 },
-  countBadge: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  headerTitle: { ...Typography.heading2, fontWeight: '800', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+  statText: { ...Typography.small, fontWeight: '600', color: Colors.textSecondary },
+  statDot: { width: 4, height: 4, borderRadius: BorderRadius.xs, backgroundColor: Colors.textMuted },
+  completedDate: { ...Typography.caption, color: Colors.textMuted, fontWeight: '500', marginTop: Spacing.xxs },
+  section: { marginBottom: Spacing.lg },
+  sectionTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  countBadge: { ...Typography.caption, fontWeight: '700', color: Colors.primary },
   experienceBody: {
-    backgroundColor: '#fff',
-    padding: 14,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderBottomLeftRadius: BorderRadius.lg,
+    borderBottomRightRadius: BorderRadius.lg,
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: Colors.border,
   },
-  experienceName: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  experienceSubtitle: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
-  rewardDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 14 },
+  experienceName: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
+  experienceSubtitle: { ...Typography.small, color: Colors.textSecondary, fontWeight: '500' },
+  rewardDivider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
   couponCard: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  couponRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  couponLabel: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
+  couponRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  couponLabel: { ...Typography.caption, fontWeight: '700', color: Colors.textPrimary },
   couponCodeBox: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
-  couponCodeText: { fontSize: 20, fontWeight: '900', letterSpacing: 3, color: Colors.textPrimary },
-  copyButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  copyText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
+  couponCodeText: { ...Typography.large, fontWeight: '900', letterSpacing: 3, color: Colors.textPrimary },
+  copyButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm },
+  copyText: { ...Typography.small, fontWeight: '600', color: Colors.primary },
   contactCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  contactTitle: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 },
+  contactTitle: { ...Typography.small, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.md },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  contactLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  contactValue: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginTop: 2 },
-  smallCopyBtn: { padding: 6 },
-  scheduleRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  contactLabel: { ...Typography.tiny, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  contactValue: { ...Typography.small, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.xxs },
+  smallCopyBtn: { padding: Spacing.xs },
+  scheduleRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
   whatsappBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 10,
+    gap: Spacing.xs, backgroundColor: Colors.whatsappGreen, paddingVertical: Spacing.md, borderRadius: BorderRadius.sm,
   },
   emailBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: Colors.secondary, paddingVertical: 12, borderRadius: 10,
+    gap: Spacing.xs, backgroundColor: Colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.sm,
   },
-  scheduleBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  scheduleBtnText: { color: Colors.white, ...Typography.caption, fontWeight: '700' },
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1146,46 +1191,46 @@ const styles = StyleSheet.create({
   hintImage: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
   },
-  emptyContainer: { alignItems: 'center', paddingVertical: 30 },
-  emptyIcon: { fontSize: 40, marginBottom: 6 },
-  emptyText: { color: Colors.textSecondary, fontSize: 16, fontWeight: '600' },
+  emptyContainer: { alignItems: 'center', paddingVertical: Spacing.xxxl },
+  emptyIcon: { fontSize: Typography.displayLarge.fontSize, marginBottom: Spacing.xs },
+  emptyText: { color: Colors.textSecondary, ...Typography.subheading, fontWeight: '600' },
   shareFormatToggle: {
     flexDirection: 'row',
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 12,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xxs,
+    marginBottom: Spacing.md,
   },
   shareFormatOption: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  shareFormatText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  shareFormatText: { ...Typography.small, fontWeight: '600', color: Colors.textMuted },
   shareFormatTextActive: { color: Colors.primaryDark },
   shareButton: {
     backgroundColor: Colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
-  shareButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  shareButtonText: { color: Colors.white, ...Typography.body, fontWeight: '700' },
 });
 
 export default AchievementDetailScreen;

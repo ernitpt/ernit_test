@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ViewStyle, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
 import { Colors } from '../config/colors';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -23,20 +24,26 @@ export const EmptyState = React.memo<EmptyStateProps>(({
   style,
 }) => {
   return (
-    <View style={[styles.container, style]}>
-      {icon && <Text style={styles.icon}>{icon}</Text>}
-      <Text style={styles.title}>{title}</Text>
-      {message && <Text style={styles.message}>{message}</Text>}
-      {actionLabel && onAction && (
-        <Button
-          variant="secondary"
-          size="sm"
-          title={actionLabel}
-          onPress={onAction}
-          style={styles.action}
-        />
-      )}
-    </View>
+    <MotiView
+      from={{ opacity: 0, translateY: 8 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 400 }}
+    >
+      <View style={[styles.container, style]}>
+        {icon && <Text style={styles.icon}>{icon}</Text>}
+        <Text style={styles.title}>{title}</Text>
+        {message && <Text style={styles.message}>{message}</Text>}
+        {actionLabel && onAction && (
+          <Button
+            variant="secondary"
+            size="sm"
+            title={actionLabel}
+            onPress={onAction}
+            style={styles.action}
+          />
+        )}
+      </View>
+    </MotiView>
   );
 });
 
@@ -50,7 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   icon: {
-    fontSize: 48,
+    fontSize: Typography.emoji.fontSize,
     marginBottom: Spacing.md,
   },
   title: {

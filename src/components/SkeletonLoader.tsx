@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { MotiView } from 'moti';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
 
 interface SkeletonLoaderProps {
     width?: number | string;
     height?: number;
     borderRadius?: number;
-    style?: any;
+    style?: StyleProp<ViewStyle>;
 }
 
 export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
@@ -42,25 +44,25 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
 // Feed Post Skeleton
 export const FeedPostSkeleton: React.FC = () => {
     return (
-        <View style={styles.feedPostSkeleton}>
+        <View style={styles.feedPostSkeleton} accessibilityLabel="Loading">
             {/* Header */}
             <View style={styles.header}>
                 <SkeletonBox width={48} height={48} borderRadius={24} />
                 <View style={styles.headerInfo}>
-                    <SkeletonBox width="70%" height={16} style={{ marginBottom: 8 }} />
+                    <SkeletonBox width="70%" height={16} style={{ marginBottom: Spacing.sm }} />
                     <SkeletonBox width="40%" height={12} />
                 </View>
             </View>
 
             {/* Content */}
             <View style={styles.content}>
-                <SkeletonBox width="100%" height={12} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="100%" height={12} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="85%" height={12} />
             </View>
 
             {/* Progress bars */}
-            <View style={{ marginTop: 16 }}>
-                <SkeletonBox width="100%" height={8} style={{ marginBottom: 12 }} />
+            <View style={{ marginTop: Spacing.lg }}>
+                <SkeletonBox width="100%" height={8} style={{ marginBottom: Spacing.md }} />
                 <SkeletonBox width="100%" height={8} />
             </View>
 
@@ -76,13 +78,13 @@ export const FeedPostSkeleton: React.FC = () => {
 // Goal Card Skeleton
 export const GoalCardSkeleton: React.FC = () => {
     return (
-        <View style={styles.goalCardSkeleton}>
+        <View style={styles.goalCardSkeleton} accessibilityLabel="Loading">
             <View style={styles.goalHeader}>
-                <SkeletonBox width="60%" height={20} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="60%" height={20} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="40%" height={14} />
             </View>
-            <View style={{ marginVertical: 16 }}>
-                <SkeletonBox width="100%" height={8} style={{ marginBottom: 8 }} />
+            <View style={{ marginVertical: Spacing.lg }}>
+                <SkeletonBox width="100%" height={8} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="100%" height={8} />
             </View>
             <View style={styles.goalFooter}>
@@ -96,11 +98,11 @@ export const GoalCardSkeleton: React.FC = () => {
 // Experience Card Skeleton - Matches CategorySelectionScreen card dimensions
 export const ExperienceCardSkeleton: React.FC = () => {
     return (
-        <View style={styles.experienceCardSkeleton}>
+        <View style={styles.experienceCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={175} height={100} borderRadius={12} style={{ marginBottom: 0 }} />
             <View style={{ padding: 10 }}>
                 <SkeletonBox width="80%" height={15} style={{ marginBottom: 6 }} />
-                <SkeletonBox width="60%" height={13} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="60%" height={13} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="40%" height={14} />
             </View>
         </View>
@@ -110,10 +112,10 @@ export const ExperienceCardSkeleton: React.FC = () => {
 // List Item Skeleton
 export const ListItemSkeleton: React.FC = () => {
     return (
-        <View style={styles.listItemSkeleton}>
+        <View style={styles.listItemSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={48} height={48} borderRadius={24} />
             <View style={styles.listItemContent}>
-                <SkeletonBox width="70%" height={16} style={{ marginBottom: 8 }} />
+                <SkeletonBox width="70%" height={16} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="50%" height={12} />
             </View>
         </View>
@@ -123,7 +125,7 @@ export const ListItemSkeleton: React.FC = () => {
 // Notification Skeleton
 export const NotificationSkeleton: React.FC = () => {
     return (
-        <View style={styles.notificationSkeleton}>
+        <View style={styles.notificationSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
             <View style={styles.notificationContent}>
                 <SkeletonBox width="90%" height={14} style={{ marginBottom: 6 }} />
@@ -137,11 +139,11 @@ export const NotificationSkeleton: React.FC = () => {
 // Comment Skeleton - for CommentModal loading state
 export const CommentSkeleton: React.FC = () => {
     return (
-        <View style={styles.commentSkeleton}>
+        <View style={styles.commentSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
             <View style={styles.commentSkeletonContent}>
                 <SkeletonBox width="40%" height={14} style={{ marginBottom: 6 }} />
-                <SkeletonBox width="90%" height={12} style={{ marginBottom: 4 }} />
+                <SkeletonBox width="90%" height={12} style={{ marginBottom: Spacing.xs }} />
                 <SkeletonBox width="60%" height={12} />
             </View>
         </View>
@@ -151,9 +153,9 @@ export const CommentSkeleton: React.FC = () => {
 // Reaction Item Skeleton - for ReactionViewerModal loading state
 export const ReactionSkeleton: React.FC = () => {
     return (
-        <View style={styles.reactionSkeleton}>
+        <View style={styles.reactionSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={44} height={44} borderRadius={22} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: Spacing.md }}>
                 <SkeletonBox width="50%" height={15} />
             </View>
             <SkeletonBox width={24} height={24} borderRadius={12} />
@@ -164,12 +166,12 @@ export const ReactionSkeleton: React.FC = () => {
 // Gift Card Skeleton - for PurchasedGiftsScreen
 export const GiftCardSkeleton: React.FC = () => {
     return (
-        <View style={styles.giftCardSkeleton}>
+        <View style={styles.giftCardSkeleton} accessibilityLabel="Loading">
             <View style={styles.giftCardRow}>
                 <SkeletonBox width="55%" height={18} />
                 <SkeletonBox width={70} height={24} borderRadius={8} />
             </View>
-            <SkeletonBox width="65%" height={14} style={{ marginTop: 8 }} />
+            <SkeletonBox width="65%" height={14} style={{ marginTop: Spacing.sm }} />
             <SkeletonBox width="40%" height={14} style={{ marginTop: 6 }} />
         </View>
     );
@@ -178,7 +180,7 @@ export const GiftCardSkeleton: React.FC = () => {
 // Cart Item Skeleton - horizontal card for CartScreen
 export const CartItemSkeleton: React.FC = () => {
     return (
-        <View style={styles.cartItemSkeleton}>
+        <View style={styles.cartItemSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={120} height={120} borderRadius={0} />
             <View style={styles.cartItemSkeletonContent}>
                 <SkeletonBox width="80%" height={16} style={{ marginBottom: 6 }} />
@@ -196,14 +198,14 @@ export const CartItemSkeleton: React.FC = () => {
 // Experience Detail Skeleton — hero image + info sections
 export const ExperienceDetailSkeleton: React.FC = () => {
     return (
-        <View style={styles.experienceDetailSkeleton}>
+        <View style={styles.experienceDetailSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width="100%" height={250} borderRadius={0} />
-            <View style={{ padding: 20 }}>
+            <View style={{ padding: Spacing.xl }}>
                 <SkeletonBox width="70%" height={22} style={{ marginBottom: 10 }} />
-                <SkeletonBox width="50%" height={16} style={{ marginBottom: 20 }} />
-                <SkeletonBox width="100%" height={14} style={{ marginBottom: 8 }} />
-                <SkeletonBox width="90%" height={14} style={{ marginBottom: 8 }} />
-                <SkeletonBox width="75%" height={14} style={{ marginBottom: 24 }} />
+                <SkeletonBox width="50%" height={16} style={{ marginBottom: Spacing.xl }} />
+                <SkeletonBox width="100%" height={14} style={{ marginBottom: Spacing.sm }} />
+                <SkeletonBox width="90%" height={14} style={{ marginBottom: Spacing.sm }} />
+                <SkeletonBox width="75%" height={14} style={{ marginBottom: Spacing.xxl }} />
                 <SkeletonBox width="100%" height={48} borderRadius={12} />
             </View>
         </View>
@@ -213,12 +215,12 @@ export const ExperienceDetailSkeleton: React.FC = () => {
 // Checkout Summary Skeleton
 export const CheckoutSkeleton: React.FC = () => {
     return (
-        <View style={styles.checkoutSkeleton}>
-            <SkeletonBox width="100%" height={120} borderRadius={12} style={{ marginBottom: 16 }} />
-            <SkeletonBox width="60%" height={18} style={{ marginBottom: 12 }} />
-            <SkeletonBox width="100%" height={14} style={{ marginBottom: 8 }} />
-            <SkeletonBox width="80%" height={14} style={{ marginBottom: 24 }} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={styles.checkoutSkeleton} accessibilityLabel="Loading">
+            <SkeletonBox width="100%" height={120} borderRadius={12} style={{ marginBottom: Spacing.lg }} />
+            <SkeletonBox width="60%" height={18} style={{ marginBottom: Spacing.md }} />
+            <SkeletonBox width="100%" height={14} style={{ marginBottom: Spacing.sm }} />
+            <SkeletonBox width="80%" height={14} style={{ marginBottom: Spacing.xxl }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg }}>
                 <SkeletonBox width="45%" height={16} />
                 <SkeletonBox width="25%" height={16} />
             </View>
@@ -230,9 +232,9 @@ export const CheckoutSkeleton: React.FC = () => {
 // Session Card Skeleton — for JourneyScreen session list
 export const SessionCardSkeleton: React.FC = () => {
     return (
-        <View style={styles.sessionCardSkeleton}>
+        <View style={styles.sessionCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: Spacing.md }}>
                 <SkeletonBox width="50%" height={16} style={{ marginBottom: 6 }} />
                 <SkeletonBox width="70%" height={12} />
             </View>
@@ -244,13 +246,13 @@ export const SessionCardSkeleton: React.FC = () => {
 // Profile Skeleton — avatar + name + stats + goal cards
 export const ProfileSkeleton: React.FC = () => {
     return (
-        <View style={styles.profileSkeleton}>
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
-                <SkeletonBox width={80} height={80} borderRadius={40} style={{ marginBottom: 12 }} />
-                <SkeletonBox width={140} height={20} style={{ marginBottom: 8 }} />
+        <View style={styles.profileSkeleton} accessibilityLabel="Loading">
+            <View style={{ alignItems: 'center', marginBottom: Spacing.xxl }}>
+                <SkeletonBox width={80} height={80} borderRadius={40} style={{ marginBottom: Spacing.md }} />
+                <SkeletonBox width={140} height={20} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width={200} height={14} />
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.xxl }}>
                 <SkeletonBox width={60} height={50} borderRadius={8} />
                 <SkeletonBox width={60} height={50} borderRadius={8} />
                 <SkeletonBox width={60} height={50} borderRadius={8} />
@@ -266,11 +268,11 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.border,
     },
     feedPostSkeleton: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        marginBottom: Spacing.md,
+        shadowColor: Colors.black,
         shadowOpacity: 0.05,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -279,46 +281,46 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 14,
+        marginBottom: Spacing.md,
     },
     headerInfo: {
-        marginLeft: 12,
+        marginLeft: Spacing.md,
         flex: 1,
     },
     content: {
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     reactions: {
         flexDirection: 'row',
-        gap: 12,
-        marginTop: 12,
+        gap: Spacing.md,
+        marginTop: Spacing.md,
     },
     goalCardSkeleton: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        shadowColor: '#000',
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.xl,
+        marginBottom: Spacing.lg,
+        shadowColor: Colors.black,
         shadowOpacity: 0.05,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
     goalHeader: {
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     goalFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 16,
+        marginTop: Spacing.lg,
     },
     experienceCardSkeleton: {
         width: 175,
         height: 200,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        marginRight: 12,
-        shadowColor: '#000',
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.md,
+        marginRight: Spacing.md,
+        shadowColor: Colors.black,
         shadowOpacity: 0.05,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -328,31 +330,31 @@ const styles = StyleSheet.create({
     listItemSkeleton: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        marginBottom: 8,
+        padding: Spacing.lg,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.md,
+        marginBottom: Spacing.sm,
     },
     listItemContent: {
-        marginLeft: 12,
+        marginLeft: Spacing.md,
         flex: 1,
     },
     notificationSkeleton: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        padding: 16,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        marginBottom: 8,
+        padding: Spacing.lg,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.md,
+        marginBottom: Spacing.sm,
     },
     notificationContent: {
-        marginLeft: 12,
+        marginLeft: Spacing.md,
         flex: 1,
     },
     commentSkeleton: {
         flexDirection: 'row',
-        marginBottom: 16,
-        gap: 12,
+        marginBottom: Spacing.lg,
+        gap: Spacing.md,
         alignItems: 'flex-start',
     },
     commentSkeletonContent: {
@@ -361,17 +363,17 @@ const styles = StyleSheet.create({
     reactionSkeleton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: Spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
     },
     giftCardSkeleton: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        marginBottom: 12,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.md,
+        marginBottom: Spacing.md,
         borderWidth: 1,
         borderColor: Colors.border,
-        padding: 16,
+        padding: Spacing.lg,
     },
     giftCardRow: {
         flexDirection: 'row',
@@ -379,12 +381,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cartItemSkeleton: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        marginBottom: 16,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.lg,
+        marginBottom: Spacing.lg,
         overflow: 'hidden',
         flexDirection: 'row',
-        shadowColor: '#000',
+        shadowColor: Colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -392,35 +394,35 @@ const styles = StyleSheet.create({
     },
     cartItemSkeletonContent: {
         flex: 1,
-        padding: 16,
+        padding: Spacing.lg,
         justifyContent: 'space-between',
     },
     cartItemSkeletonFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 12,
+        marginTop: Spacing.md,
     },
     experienceDetailSkeleton: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
     },
     checkoutSkeleton: {
-        padding: 20,
-        backgroundColor: '#fff',
+        padding: Spacing.xl,
+        backgroundColor: Colors.white,
     },
     sessionCardSkeleton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 10,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        marginBottom: Spacing.sm,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     profileSkeleton: {
-        padding: 20,
+        padding: Spacing.xl,
     },
 });
 

@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, isSupported, Messaging, MessagePayload } from 'firebase/messaging';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,7 +7,7 @@ import { db } from './firebase';
 import { logger } from '../utils/logger';
 
 class PushNotificationService {
-    private messaging: any = null;
+    private messaging: Messaging | null = null;
     private isInitialized = false;
 
     /**
@@ -160,7 +160,7 @@ class PushNotificationService {
      * Listen for foreground messages (when app is open)
      * @param callback - Function to call when a message is received
      */
-    listenForMessages(callback: (payload: any) => void) {
+    listenForMessages(callback: (payload: MessagePayload) => void) {
         if (!this.isInitialized || !this.messaging) {
             logger.warn('🔔 Cannot listen for messages: Messaging not initialized');
             return () => { };
@@ -442,9 +442,20 @@ class PushNotificationService {
 
             if (storedId) {
                 if (Platform.OS === 'web') {
-                    // Web: Clear the timeout
-                    clearTimeout(Number(storedId));
-                    logger.log(`🔔 Cancelled session timeout for goal ${goalId}`);
+                    // Parse stored notification data and send cancel to service worker
+                    try {
+                        const notifData = JSON.parse(storedId);
+                        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({
+                                type: 'CANCEL_SESSION_NOTIFICATION',
+                                payload: { messageId: notifData.messageId, goalId },
+                            });
+                        }
+                    } catch {
+                        // Fallback: try as numeric timeout ID for backward compatibility
+                        clearTimeout(Number(storedId));
+                    }
+                    logger.log(`🔔 Cancelled session notification for goal ${goalId}`);
                 } else {
                     // Native: Cancel scheduled notification
                     await Notifications.cancelScheduledNotificationAsync(storedId);

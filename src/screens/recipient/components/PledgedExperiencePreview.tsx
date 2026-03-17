@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Gift, Check } from 'lucide-react-native';
 import Colors from '../../../config/colors';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Typography } from '../../../config/typography';
+import { Spacing } from '../../../config/spacing';
 
 interface PledgedExperiencePreviewProps {
     experience: {
@@ -65,7 +68,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
                 {/* Status indicator */}
                 {isGiftReceived && (
                     <View style={styles.checkBadge}>
-                        <Check size={12} color="#fff" strokeWidth={3} />
+                        <Check size={12} color={Colors.white} strokeWidth={3} />
                     </View>
                 )}
             </View>
@@ -76,8 +79,8 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
 const styles = StyleSheet.create({
     container: {
         backgroundColor: Colors.primarySurface,
-        borderRadius: 10,
-        marginTop: 12,
+        borderRadius: BorderRadius.sm,
+        marginTop: Spacing.md,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
@@ -93,15 +96,15 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        gap: 10,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.sm,
+        gap: Spacing.sm,
     },
     thumb: {
         width: 32,
         height: 32,
-        borderRadius: 6,
-        backgroundColor: '#e5e7eb',
+        borderRadius: BorderRadius.xs,
+        backgroundColor: Colors.border,
     },
     thumbFallback: {
         alignItems: 'center',
@@ -112,12 +115,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textPrimary,
     },
     subtitle: {
-        fontSize: 11,
+        ...Typography.tiny,
         fontWeight: '500',
         color: Colors.textMuted,
         marginTop: 1,
@@ -125,7 +128,7 @@ const styles = StyleSheet.create({
     checkBadge: {
         width: 20,
         height: 20,
-        borderRadius: 10,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',

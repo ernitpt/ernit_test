@@ -29,7 +29,11 @@ import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { analyticsService } from '../../services/AnalyticsService';
+import { friendService } from '../../services/FriendService';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Spacing } from '../../config/spacing';
+import { Typography } from '../../config/typography';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -51,9 +55,17 @@ const CouponEntryScreen = () => {
 
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const continueTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Modal animation values
   const slideAnim = useModalAnimation(showPersonalizedMessage);
+
+  // Cleanup timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (continueTimeoutRef.current) clearTimeout(continueTimeoutRef.current);
+    };
+  }, []);
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -138,8 +150,8 @@ const CouponEntryScreen = () => {
             claimedAt: new Date(),
           });
         });
-      } catch (txError: any) {
-        if (txError?.message === 'ALREADY_CLAIMED') {
+      } catch (txError: unknown) {
+        if (txError instanceof Error && txError.message === 'ALREADY_CLAIMED') {
           setErrorMessage('This code has already been claimed');
           triggerShake();
           return;
@@ -149,6 +161,22 @@ const CouponEntryScreen = () => {
 
       analyticsService.trackEvent('coupon_redeemed', 'conversion', { giftId: giftDoc.id }, 'CouponEntryScreen');
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
+
+      // Auto-add giver as friend on redeem
+      if (experienceGift.giverId && state.user?.id && experienceGift.giverId !== state.user.id) {
+        try {
+          await friendService.sendFriendRequest(
+            state.user.id,
+            state.user.displayName || '',
+            experienceGift.giverId,
+            experienceGift.giverName || '',
+          );
+          logger.log('🤝 Auto-friend request sent to giver:', experienceGift.giverId);
+        } catch (friendError) {
+          // Don't block redemption if friend request fails (may already be friends)
+          logger.warn('Auto-friend request failed (may already exist):', friendError);
+        }
+      }
 
       // If there's a personalized message, show it in a popup first
       if (experienceGift.personalizedMessage && experienceGift.personalizedMessage.trim()) {
@@ -181,7 +209,7 @@ const CouponEntryScreen = () => {
   const handleContinueFromMessage = () => {
     setShowPersonalizedMessage(false);
     // Small delay to let animation complete
-    setTimeout(() => {
+    continueTimeoutRef.current = setTimeout(() => {
       if (pendingExperienceGift) {
         navigation.reset({
           index: 0,
@@ -216,11 +244,11 @@ const CouponEntryScreen = () => {
                   flex: 1,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  paddingHorizontal: 32,
+                  paddingHorizontal: Spacing.xxxl,
                 }}
               >
                 {/* Favicon Logo */}
-                <View style={{ marginBottom: 24, alignItems: 'center' }}>
+                <View style={{ marginBottom: Spacing.xxl, alignItems: 'center' }}>
                   <Image
                     source={require('../../assets/favicon.png')}
                     style={{ width: 80, height: 80 }}
@@ -230,33 +258,33 @@ const CouponEntryScreen = () => {
                 </View>
 
                 {/* Header */}
-                <View style={{ marginBottom: 36, alignItems: 'center' }}>
+                <View style={{ marginBottom: Spacing.huge, alignItems: 'center' }}>
                   <Text
                     style={{
-                      fontSize: 40,
-                      fontWeight: 'bold',
+                      fontSize: Typography.displayLarge.fontSize,
+                      fontWeight: '700',
                       color: 'white',
                       textAlign: 'center',
-                      marginBottom: 20,
+                      marginBottom: Spacing.xl,
                     }}
                   >
                     Claim your
                   </Text>
                   <Text
                     style={{
-                      fontSize: 40,
-                      fontWeight: 'bold',
+                      fontSize: Typography.displayLarge.fontSize,
+                      fontWeight: '700',
                       color: 'white',
                       textAlign: 'center',
                       marginTop: -28,
-                      marginBottom: 12,
+                      marginBottom: Spacing.md,
                     }}
                   >
                     Ernit
                   </Text>
                   <Text
                     style={{
-                      fontSize: 18,
+                      ...Typography.heading3,
                       color: Colors.primaryTint,
                       textAlign: 'center',
                       maxWidth: 300,
@@ -277,13 +305,13 @@ const CouponEntryScreen = () => {
                     <TextInput
                       style={{
                         backgroundColor: 'white',
-                        borderRadius: 16,
-                        paddingHorizontal: 20,
-                        paddingVertical: 16,
-                        fontSize: 18,
+                        borderRadius: BorderRadius.lg,
+                        paddingHorizontal: Spacing.xl,
+                        paddingVertical: Spacing.lg,
+                        ...Typography.heading3,
                         textAlign: 'center',
                         letterSpacing: 4,
-                        shadowColor: '#000',
+                        shadowColor: Colors.black,
                         shadowOffset: { width: 0, height: 2 },
                         shadowOpacity: 0.1,
                         shadowRadius: 8,
@@ -317,12 +345,12 @@ const CouponEntryScreen = () => {
                   </Animated.View>
 
                   {/* Error message (fixed height to avoid layout jump and overlap) */}
-                  <View style={{ height: 40, marginTop: 12, marginBottom: 8, justifyContent: 'center' }}>
+                  <View style={{ height: 40, marginTop: Spacing.md, marginBottom: Spacing.sm, justifyContent: 'center' }}>
                     {errorMessage ? (
                       <Text
                         style={{
                           color: 'white',
-                          fontSize: 14,
+                          ...Typography.small,
                           textAlign: 'center',
                           fontWeight: '500',
                         }}
@@ -336,15 +364,17 @@ const CouponEntryScreen = () => {
                     onPress={() => handleClaimCode()}
                     disabled={isLoading || claimCode.length < 6}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Claim reward"
                     style={{
                       width: '100%',
                       backgroundColor:
-                        isLoading || claimCode.length < 6 ? '#D1D5DB' : 'white',
-                      paddingVertical: 18,
-                      borderRadius: 16,
+                        isLoading || claimCode.length < 6 ? Colors.disabled : Colors.white,
+                      paddingVertical: Spacing.xl,
+                      borderRadius: BorderRadius.lg,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      shadowColor: '#000',
+                      shadowColor: Colors.black,
                       shadowOffset: { width: 0, height: 4 },
                       shadowOpacity: 0.2,
                       shadowRadius: 6,
@@ -357,8 +387,8 @@ const CouponEntryScreen = () => {
                       <Text
                         style={{
                           color: Colors.primary,
-                          fontSize: 18,
-                          fontWeight: 'bold',
+                          ...Typography.heading3,
+                          fontWeight: '700',
                         }}
                       >
                         Claim Reward
@@ -370,43 +400,43 @@ const CouponEntryScreen = () => {
                 {/* Info Box */}
                 <View
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: 20,
-                    padding: 24,
+                    backgroundColor: Colors.whiteAlpha25,
+                    borderRadius: BorderRadius.xl,
+                    padding: Spacing.xxl,
                     width: '100%',
                     maxWidth: 400,
-                    marginTop: 36,
+                    marginTop: Spacing.huge,
                   }}
                 >
                   <Text
                     style={{
                       color: 'white',
-                      fontSize: 18,
-                      fontWeight: 'bold',
-                      marginBottom: 16,
+                      ...Typography.heading3,
+                      fontWeight: '700',
+                      marginBottom: Spacing.lg,
                       textAlign: 'center',
                     }}
                   >
                     How it works:
                   </Text>
-                  <View style={{ gap: 8 }}>
+                  <View style={{ gap: Spacing.sm }}>
                     <Text
-                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       1. Enter your claim code
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       2. Set personal goals to earn the reward
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       3. Receive hints as you progress
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, fontSize: 16, textAlign: 'center' }}
+                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       4. Achieve your goals and claim your reward!
                     </Text>
@@ -425,10 +455,8 @@ const CouponEntryScreen = () => {
         animationType="fade"
         onRequestClose={handleContinueFromMessage}
       >
-        <TouchableOpacity
+        <View
           style={commonStyles.modalOverlay}
-          activeOpacity={1}
-          onPress={handleContinueFromMessage}
         >
           <Animated.View
             style={[
@@ -460,7 +488,7 @@ const CouponEntryScreen = () => {
               </View>
             </TouchableOpacity>
           </Animated.View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </MainScreen>
     </ErrorBoundary>
@@ -472,12 +500,12 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 400,
     alignSelf: 'center',
-    marginHorizontal: 20,
+    marginHorizontal: Spacing.xl,
   },
   modalContent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: Colors.surfaceFrosted,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxxl,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
@@ -485,39 +513,39 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   modalTitle: {
-    fontSize: 22,
+    ...Typography.heading2,
     fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     textAlign: 'center',
   },
   messageBox: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xxl,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   messageText: {
-    fontSize: 16,
+    ...Typography.subheading,
     lineHeight: 24,
-    color: '#374151',
+    color: Colors.gray700,
     fontStyle: 'italic',
     textAlign: 'center',
   },
   signatureText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'right',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     marginTop: -8,
   },
   continueButton: {
     backgroundColor: Colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
@@ -526,9 +554,9 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: Colors.white,
     fontWeight: '700',
-    fontSize: 17,
+    ...Typography.heading3,
     letterSpacing: 0.3,
   },
 });

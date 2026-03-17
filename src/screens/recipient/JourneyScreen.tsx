@@ -1,20 +1,35 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity,
-  Platform, Linking, LayoutAnimation,
+  Platform, Linking, LayoutAnimation, RefreshControl, Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
-import { doc, onSnapshot, getDoc, collection, getDocs, query, limit } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, collection, getDocs, query, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import type { Goal, ExperienceGift, SessionRecord, Motivation, Experience } from '../../types';
+import type { Goal, ExperienceGift, SessionRecord, Motivation, Experience, PersonalizedHint, PartnerUser } from '../../types';
+
+type HintEntry = PersonalizedHint | {
+  id?: string;
+  session: number;
+  hint?: string;
+  date: number;
+  text?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  giverName?: string;
+  createdAt?: Date;
+  type?: PersonalizedHint['type'];
+  duration?: number;
+  forSessionNumber?: number;
+};
 import { useRecipientNavigation } from '../../types/navigation';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
 import DetailedGoalCard from './DetailedGoalCard';
-import { goalService } from '../../services/GoalService';
+import { goalService, normalizeGoal } from '../../services/GoalService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { experienceService } from '../../services/ExperienceService';
 import { partnerService } from '../../services/PartnerService';
@@ -30,6 +45,9 @@ import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle,
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { Video, ResizeMode } from 'expo-av';
 import { MotiView } from 'moti';
@@ -42,7 +60,7 @@ const TAB_SESSIONS = 'Sessions';
 const TAB_HINTS = 'Hints';
 type TabKey = typeof TAB_SESSIONS | typeof TAB_HINTS;
 
-const SegmentedControl = ({
+const SegmentedControl = React.memo(({
   activeTab,
   onTabChange,
 }: {
@@ -94,15 +112,15 @@ const SegmentedControl = ({
       ))}
     </View>
   );
-};
+});
 
 const segStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xxs,
+    marginBottom: Spacing.lg,
     position: 'relative',
   },
   slider: {
@@ -110,9 +128,9 @@ const segStyles = StyleSheet.create({
     top: 3,
     bottom: 3,
     width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.sm,
+    shadowColor: Colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
@@ -120,12 +138,12 @@ const segStyles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
     zIndex: 1,
   },
   tabLabel: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textMuted,
   },
@@ -135,7 +153,7 @@ const segStyles = StyleSheet.create({
 });
 
 // ─── Session Card ────────────────────────────────────────────────────────────
-const SessionCard = ({
+const SessionCard = React.memo(({
   session,
   index,
   motivations = [],
@@ -178,12 +196,12 @@ const SessionCard = ({
   };
 
   const handleCardTap = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onToggleExpand();
   };
 
   const toggleMotivations = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setMotivationsExpanded(!motivationsExpanded);
   };
 
@@ -229,7 +247,7 @@ const SessionCard = ({
               <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
               {session.mediaType === 'video' && (
                 <View style={sessStyles.videoOverlay}>
-                  <PlayCircle size={18} color="#fff" />
+                  <PlayCircle size={18} color={Colors.white} />
                 </View>
               )}
             </View>
@@ -344,17 +362,17 @@ const SessionCard = ({
       )}
     </Animated.View>
   );
-};
+});
 
 const sessStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.backgroundLight,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -370,50 +388,49 @@ const sessStyles = StyleSheet.create({
   badge: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   badgeText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '800',
     color: Colors.primary,
   },
   details: { flex: 1 },
   date: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
   },
   metaText: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   weekBadge: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...Typography.tiny,
     color: Colors.primary,
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: BorderRadius.xs,
     overflow: 'hidden',
   },
   thumb: {
     width: 48,
     height: 48,
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
     overflow: 'hidden',
-    marginLeft: 8,
+    marginLeft: Spacing.sm,
   },
   thumbImg: {
     width: '100%',
@@ -422,50 +439,50 @@ const sessStyles = StyleSheet.create({
   },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: Colors.overlayLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motivationToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingTop: 10,
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
   motivationToggleText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
   },
   motivationList: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
   },
   motivationItem: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primarySurface,
-    padding: 10,
-    borderRadius: 10,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
   motivationAvatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
   },
   motivationAvatarPlaceholder: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motivationAvatarText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
   },
@@ -476,33 +493,33 @@ const sessStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   motivationAuthor: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   motivationDate: {
-    fontSize: 11,
+    ...Typography.tiny,
     color: Colors.textMuted,
   },
   motivationMessage: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
     lineHeight: 18,
   },
   motivationImage: {
     width: '100%',
     height: 150,
-    borderRadius: 8,
-    marginTop: 8,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
   },
   expandedDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border,
-    marginVertical: 12,
+    marginVertical: Spacing.md,
   },
   expandedMediaContainer: {
     width: '100%',
@@ -511,25 +528,112 @@ const sessStyles = StyleSheet.create({
   expandedMedia: {
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundLight,
   },
   notesContainer: {
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
   },
   notesLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
   },
   notesText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     lineHeight: 20,
   },
+});
+
+// ─── Hint Item ───────────────────────────────────────────────────────────────
+const HintItem = React.memo(({
+  hint,
+  index,
+  fmtDateTime: fmt,
+  onImagePress,
+}: {
+  hint: HintEntry;
+  index: number;
+  fmtDateTime: (ts: number) => string;
+  onImagePress: (uri: string) => void;
+}) => {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 350,
+      delay: index * 100,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+  const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
+  const text = hint.text || hint.hint;
+
+  let dateMs = 0;
+  if (hint.createdAt) {
+    if (typeof hint.createdAt.toMillis === 'function') {
+      dateMs = hint.createdAt.toMillis();
+    } else if (hint.createdAt instanceof Date) {
+      dateMs = hint.createdAt.getTime();
+    } else {
+      dateMs = new Date(hint.createdAt).getTime();
+    }
+  } else if (hint.date) {
+    dateMs = hint.date;
+  }
+
+  return (
+    <Animated.View
+      style={{
+        opacity: anim,
+        transform: [
+          { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+        ],
+        paddingVertical: Spacing.md,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: Colors.border,
+      }}
+    >
+      <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+        {fmt(dateMs)}
+      </Text>
+
+      {hasImage && hint.imageUrl && (
+        <TouchableOpacity
+          onPress={() => onImagePress(hint.imageUrl!)}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="View hint image"
+        >
+          <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} accessibilityLabel="Hint image" />
+        </TouchableOpacity>
+      )}
+
+      {text && (
+        <Text
+          style={{
+            color: Colors.gray700,
+            ...Typography.body,
+            marginBottom: isAudio ? 8 : 0,
+          }}
+        >
+          {text}
+        </Text>
+      )}
+
+      {isAudio && hint.audioUrl && (
+        <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+      )}
+    </Animated.View>
+  );
 });
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -542,9 +646,11 @@ const JourneyScreen = () => {
   const [currentGoal, setCurrentGoal] = useState<Goal | null>(passedGoal || null);
   const [experienceGift, setExperienceGift] = useState<ExperienceGift | null>(null);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [allImageUris, setAllImageUris] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>(TAB_SESSIONS);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [motivations, setMotivations] = useState<Motivation[]>([]);
   const [recommendedExperiences, setRecommendedExperiences] = useState<Experience[]>([]);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -555,14 +661,20 @@ const JourneyScreen = () => {
   const [isPhoneCopied, setIsPhoneCopied] = useState(false);
   const [isEmailCopied, setIsEmailCopied] = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
-  const [partner, setPartner] = useState<any>(null);
-  const [experience, setExperience] = useState<any>(null);
+  const [partner, setPartner] = useState<PartnerUser | null>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
   const [userName, setUserName] = useState<string>('User');
   const [showCalendar, setShowCalendar] = useState(false);
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const couponRequestedRef = useRef(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout>();
+  const phoneTimeoutRef = useRef<NodeJS.Timeout>();
+  const emailTimeoutRef = useRef<NodeJS.Timeout>();
+  const bookingTimeoutRef = useRef<NodeJS.Timeout>();
   const shareCardRef = useRef<View>(null);
+  const tabScrollRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = Dimensions.get('window');
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
@@ -575,13 +687,26 @@ const JourneyScreen = () => {
     }
   }, [passedGoal, navigation]);
 
+  // Cleanup copy/booking timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+      if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
+      if (bookingTimeoutRef.current) clearTimeout(bookingTimeoutRef.current);
+    };
+  }, []);
+
   // Keep goal synced with Firestore
   useEffect(() => {
     if (!currentGoal?.id) return;
+    let isMounted = true;
     const ref = doc(db, 'goals', currentGoal.id);
     const unsub = onSnapshot(ref, async (snap) => {
+      if (!isMounted) return;
       if (snap.exists()) {
-        const updatedGoal = { id: snap.id, ...snap.data() } as Goal;
+        const updatedGoal = normalizeGoal({ id: snap.id, ...snap.data() });
+        if (!isMounted) return;
         setCurrentGoal(updatedGoal);
         if (
           updatedGoal.approvalStatus === 'pending' &&
@@ -593,8 +718,10 @@ const JourneyScreen = () => {
           }
         }
       }
+    }, (error) => {
+      logger.error('[JourneyScreen] Goal snapshot error:', error.message);
     });
-    return () => unsub();
+    return () => { isMounted = false; unsub(); };
   }, [currentGoal?.id]);
 
   // Fetch experience gift
@@ -627,6 +754,12 @@ const JourneyScreen = () => {
       setSessionsLoading(false);
     }
   }, [currentGoal?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadSessions();
+    setRefreshing(false);
+  }, [loadSessions]);
 
   useEffect(() => {
     if (activeTab === TAB_SESSIONS || currentGoal?.isCompleted) {
@@ -736,12 +869,15 @@ const JourneyScreen = () => {
   }, [currentGoal, experience]);
 
   const handleGenerateCoupon = useCallback(async () => {
+    if (couponRequestedRef.current) return; // Prevent duplicate requests
+    couponRequestedRef.current = true;
     setCouponLoading(true);
     try {
       await generateCouponWithTransaction();
     } catch (err) {
       logger.error('Coupon generation failed:', err);
       showError('Could not generate your coupon. Please try again.');
+      couponRequestedRef.current = false; // Allow retry on error
     } finally {
       setCouponLoading(false);
     }
@@ -751,14 +887,16 @@ const JourneyScreen = () => {
     if (!couponCode) return;
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
   }, [couponCode]);
 
   const handleCopyPhone = useCallback(async () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
-    setTimeout(() => setIsPhoneCopied(false), 2000);
+    if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+    phoneTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
   }, [partner]);
 
   const handleCopyEmail = useCallback(async () => {
@@ -766,7 +904,8 @@ const JourneyScreen = () => {
     if (!email) return;
     await Clipboard.setStringAsync(email);
     setIsEmailCopied(true);
-    setTimeout(() => setIsEmailCopied(false), 2000);
+    if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
+    emailTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   }, [partner]);
 
   const handleWhatsAppSchedule = useCallback(() => {
@@ -812,18 +951,15 @@ const JourneyScreen = () => {
   const handleConfirmBooking = useCallback((date: Date) => {
     setPreferredDate(date);
     setShowCalendar(false);
-    setTimeout(() => {
+    bookingTimeoutRef.current = setTimeout(() => {
       if (bookingMethod === 'whatsapp') handleWhatsAppSchedule();
       else if (bookingMethod === 'email') handleEmailSchedule();
     }, 100);
   }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
   const handleCancelBooking = useCallback(() => {
-    setPreferredDate(null);
     setShowCalendar(false);
-    if (bookingMethod === 'whatsapp') handleWhatsAppSchedule();
-    else if (bookingMethod === 'email') handleEmailSchedule();
-  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
+  }, []);
 
   const handleShare = async () => {
     if (!shareCardRef.current) return;
@@ -894,89 +1030,12 @@ const JourneyScreen = () => {
       minute: '2-digit',
     });
 
-  // ─── Hint Item subcomponent ──────────────────────────────────────────────
-  const HintItem = ({ hint, index, fmtDateTime: fmt }: any) => {
-    const anim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 350,
-        delay: index * 100,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
-    const isAudio = hint.type === 'audio' || hint.type === 'mixed';
-    const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
-    const text = hint.text || hint.hint;
-
-    let dateMs = 0;
-    if (hint.createdAt) {
-      if (typeof hint.createdAt.toMillis === 'function') {
-        dateMs = hint.createdAt.toMillis();
-      } else if (hint.createdAt instanceof Date) {
-        dateMs = hint.createdAt.getTime();
-      } else {
-        dateMs = new Date(hint.createdAt).getTime();
-      }
-    } else if (hint.date) {
-      dateMs = hint.date;
-    }
-
-    return (
-      <Animated.View
-        style={{
-          opacity: anim,
-          transform: [
-            { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
-          ],
-          paddingVertical: 12,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: Colors.border,
-        }}
-      >
-        <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 }}>
-          {fmt(dateMs)}
-        </Text>
-
-        {hasImage && hint.imageUrl && (
-          <TouchableOpacity
-            onPress={() => setSelectedImageUri(hint.imageUrl)}
-            activeOpacity={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="View hint image"
-          >
-            <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} accessibilityLabel="Hint image" />
-          </TouchableOpacity>
-        )}
-
-        {text && (
-          <Text
-            style={{
-              color: '#374151',
-              fontSize: 15,
-              lineHeight: 22,
-              marginBottom: isAudio ? 8 : 0,
-            }}
-          >
-            {text}
-          </Text>
-        )}
-
-        {isAudio && hint.audioUrl && (
-          <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
-        )}
-      </Animated.View>
-    );
-  };
 
   // ─── Sessions Tab Content ────────────────────────────────────────────────
   const renderSessionsTab = () => {
     if (sessionsLoading && sessions.length === 0) {
       return (
-        <View style={{ padding: 20, gap: 10 }}>
+        <View style={{ padding: Spacing.xl, gap: Spacing.sm }}>
           <SessionCardSkeleton />
           <SessionCardSkeleton />
           <SessionCardSkeleton />
@@ -1007,10 +1066,14 @@ const JourneyScreen = () => {
             motivations={motivationsBySession[s.sessionNumber] || []}
             isExpanded={expandedSessionId === s.id}
             onToggleExpand={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setExpandedSessionId(prev => prev === s.id ? null : s.id);
             }}
-            onImagePress={(uri) => setSelectedImageUri(uri)}
+            onImagePress={(uri) => {
+              const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'image').map(s => s.mediaUrl!);
+              setAllImageUris(sessionImages);
+              setSelectedImageUri(uri);
+            }}
           />
         ))}
       </View>
@@ -1035,13 +1098,13 @@ const JourneyScreen = () => {
       <View style={styles.timeline}>
         {hintsArray
           .slice()
-          .sort((a: any, b: any) => {
-            const sessionA = a.forSessionNumber || a.session || 0;
-            const sessionB = b.forSessionNumber || b.session || 0;
+          .sort((a: HintEntry, b: HintEntry) => {
+            const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;
+            const sessionB = ('forSessionNumber' in b ? b.forSessionNumber : undefined) || ('session' in b ? b.session : 0) || 0;
             return Number(sessionB) - Number(sessionA);
           })
-          .map((h: any, i) => {
-            const session = h.forSessionNumber || h.session || 0;
+          .map((h: HintEntry, i) => {
+            const session = ('forSessionNumber' in h ? h.forSessionNumber : undefined) || ('session' in h ? h.session : 0) || 0;
             let dateMs = 0;
             if (h.createdAt) {
               if (
@@ -1065,6 +1128,7 @@ const JourneyScreen = () => {
                 hint={h}
                 index={i}
                 fmtDateTime={fmtDateTime}
+                onImagePress={setSelectedImageUri}
               />
             );
           })}
@@ -1079,7 +1143,7 @@ const JourneyScreen = () => {
         <StatusBar style="light" />
         <SharedHeader title="Journey" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
     );
@@ -1088,8 +1152,10 @@ const JourneyScreen = () => {
   // ─── Helper: 2-week window check ──────────────────────────────────────────
   const isWithinBuyWindow = () => {
     if (!currentGoal.completedAt) return false;
-    const raw = currentGoal.completedAt as any;
-    const completedDate = raw?.toDate ? raw.toDate() : new Date(raw);
+    const completedAtVal = currentGoal.completedAt;
+    const completedDate = completedAtVal instanceof Timestamp
+      ? completedAtVal.toDate()
+      : new Date(completedAtVal as Date);
     if (isNaN(completedDate.getTime())) return false;
     const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
     return Date.now() - completedDate.getTime() < twoWeeksMs;
@@ -1098,8 +1164,10 @@ const JourneyScreen = () => {
   // ─── Render: Completed Goal Layout ────────────────────────────────────────
   const renderCompletedLayout = () => {
     const totalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
-    const rawDate = currentGoal.completedAt as any;
-    const parsedDate = rawDate?.toDate ? rawDate.toDate() : rawDate ? new Date(rawDate) : null;
+    const completedAtRaw = currentGoal.completedAt;
+    const parsedDate = completedAtRaw instanceof Timestamp
+      ? completedAtRaw.toDate()
+      : completedAtRaw ? new Date(completedAtRaw as Date) : null;
     const completedDate = parsedDate && !isNaN(parsedDate.getTime())
       ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
       : null;
@@ -1120,12 +1188,12 @@ const JourneyScreen = () => {
             style={{
               width: 1080,
               height: shareFormat === 'story' ? 1920 : 1080,
-              backgroundColor: '#0891b2',
+              backgroundColor: Colors.cyan,
             }}
             collapsable={false}
           >
             <LinearGradient
-              colors={['#10b981', '#0891b2', Colors.secondary]}
+              colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
@@ -1136,27 +1204,27 @@ const JourneyScreen = () => {
                   style={{
                     width: 600,
                     height: shareFormat === 'story' ? 400 : 300,
-                    borderRadius: 40,
+                    borderRadius: BorderRadius.pill,
                     marginBottom: 60,
                   }}
                   resizeMode="cover"
                 />
               ) : null}
-              <Trophy color="#fef3c7" size={120} strokeWidth={2.5} fill="#fbbf24" />
-              <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff', textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+              <Trophy color={Colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={Colors.celebrationGold} />
+              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
                 Goal Completed!
               </Text>
-              <Text style={{ fontSize: 42, fontWeight: '700', color: '#d1fae5', textAlign: 'center', marginBottom: 60 }}>
+              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: Colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
                 {currentGoal.title || currentGoal.description || ''}
               </Text>
               <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{totalSessions}</Text>
-                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SESSIONS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{totalSessions}</Text>
+                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 72, fontWeight: '900', color: '#fff' }}>{currentGoal.targetCount || 0}</Text>
-                  <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>WEEKS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{currentGoal.targetCount || 0}</Text>
+                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
                 </View>
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
@@ -1165,7 +1233,7 @@ const JourneyScreen = () => {
                   style={{ width: 60, height: 60, marginBottom: 12 }}
                   resizeMode="contain"
                 />
-                <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
+                <Text style={{ ...Typography.display, fontWeight: '600', color: Colors.overlayLight }}>
                   Earned with Ernit
                 </Text>
               </View>
@@ -1178,7 +1246,7 @@ const JourneyScreen = () => {
           <View style={cStyles.heroInner}>
             <View style={cStyles.heroTopRow}>
               <View style={cStyles.heroTrophyCircle}>
-                <Trophy size={28} color="#f59e0b" strokeWidth={2.5} fill="#fbbf24" />
+                <Trophy size={28} color={Colors.warning} strokeWidth={2.5} fill={Colors.celebrationGold} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={cStyles.heroTitle}>Challenge Complete!</Text>
@@ -1241,8 +1309,8 @@ const JourneyScreen = () => {
                       <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                     </View>
                     <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
-                      {isCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.primary} />}
-                      <Text style={[cStyles.copyText, isCopied && { color: '#10b981' }]}>
+                      {isCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.primary} />}
+                      <Text style={[cStyles.copyText, isCopied && { color: Colors.secondary }]}>
                         {isCopied ? 'Copied!' : 'Copy Code'}
                       </Text>
                     </TouchableOpacity>
@@ -1256,7 +1324,7 @@ const JourneyScreen = () => {
                     accessibilityRole="button"
                     accessibilityLabel="Generate redemption code"
                   >
-                    <Ticket size={16} color="#fff" />
+                    <Ticket size={16} color={Colors.white} />
                     <Text style={cStyles.generateCouponText}>
                       {couponLoading ? 'Generating...' : 'Generate Redemption Code'}
                     </Text>
@@ -1275,7 +1343,7 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactValue}>{partner.phone}</Text>
                         </View>
                         <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
-                          {isPhoneCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
+                          {isPhoneCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1284,10 +1352,10 @@ const JourneyScreen = () => {
                       <View style={cStyles.contactRow}>
                         <View style={{ flex: 1 }}>
                           <Text style={cStyles.contactLabel}>Email</Text>
-                          <Text style={[cStyles.contactValue, { fontSize: 13 }]}>{partner.contactEmail || partner.email}</Text>
+                          <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                         </View>
                         <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
-                          {isEmailCopied ? <CheckCircle size={16} color="#10b981" /> : <Copy size={16} color={Colors.textSecondary} />}
+                          {isEmailCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1296,13 +1364,13 @@ const JourneyScreen = () => {
                     <View style={cStyles.scheduleRow}>
                       {partner.phone && (
                         <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via WhatsApp">
-                          <MessageCircle size={16} color="#fff" />
+                          <MessageCircle size={16} color={Colors.white} />
                           <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
                         </TouchableOpacity>
                       )}
                       {(partner.contactEmail || partner.email) && (
                         <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via Email">
-                          <Mail size={16} color="#fff" />
+                          <Mail size={16} color={Colors.white} />
                           <Text style={cStyles.scheduleBtnText}>Email</Text>
                         </TouchableOpacity>
                       )}
@@ -1319,14 +1387,14 @@ const JourneyScreen = () => {
                   <Text style={cStyles.buyCTATitle}>You've earned this!</Text>
                   <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
                   <TouchableOpacity
-                    style={[styles.buyButton, { marginTop: 8 }]}
+                    style={[styles.buyButton, { marginTop: Spacing.sm }]}
                     activeOpacity={0.8}
                     onPress={() => navigation.navigate('ExperienceCheckout', {
                       cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
                       goalId: currentGoal.id,
                     })}
                   >
-                    <ShoppingBag size={15} color="#fff" />
+                    <ShoppingBag size={15} color={Colors.white} />
                     <Text style={styles.buyButtonText}>
                       {currentGoal.pledgedExperience!.price > 0
                         ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
@@ -1391,7 +1459,7 @@ const JourneyScreen = () => {
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={cStyles.shareButton} onPress={handleShare} disabled={isSharing}>
-            <ShareIcon color="#fff" size={20} />
+            <ShareIcon color={Colors.white} size={20} />
             <Text style={cStyles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
           </TouchableOpacity>
         </View>
@@ -1409,14 +1477,22 @@ const JourneyScreen = () => {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: 20,
-          paddingBottom: currentGoal.isCompleted ? 8 : 20,
+          paddingTop: Spacing.xl,
+          paddingBottom: currentGoal.isCompleted ? Spacing.sm : Spacing.xl,
           alignItems: 'center',
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
       >
         {currentGoal.isCompleted ? (
           /* ─── COMPLETED GOAL ─────────────────────────────── */
-          <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: 16 }}>
+          <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: Spacing.lg }}>
             {renderCompletedLayout()}
           </View>
         ) : (
@@ -1448,12 +1524,12 @@ const JourneyScreen = () => {
                   {currentGoal.isMystery ? (
                     <>
                       <View style={styles.mysteryShowcaseBanner}>
-                        <Sparkles color="#f59e0b" size={20} />
+                        <Sparkles color={Colors.warning} size={20} />
                         <Text style={styles.mysteryShowcaseText}>?</Text>
                       </View>
                       <View style={styles.experienceInlineBody}>
                         <View style={styles.experienceHeader}>
-                          <Text style={[styles.experienceLabel, { color: '#92400e' }]}>Mystery Reward</Text>
+                          <Text style={[styles.experienceLabel, { color: Colors.warningDark }]}>Mystery Reward</Text>
                         </View>
                         <Text style={styles.experienceTitle} numberOfLines={2}>
                           Complete your challenge to reveal it!
@@ -1465,7 +1541,7 @@ const JourneyScreen = () => {
                           return (
                             <View style={styles.experienceProgressArea}>
                               <View style={styles.experienceProgressTrack}>
-                                <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: '#f59e0b' }]} />
+                                <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: Colors.warning }]} />
                               </View>
                               <Text style={styles.experienceProgressLabel}>
                                 {done}/{total} sessions to reveal
@@ -1521,7 +1597,7 @@ const JourneyScreen = () => {
                               goalId: currentGoal.id,
                             })}
                           >
-                            <ShoppingBag size={15} color="#fff" />
+                            <ShoppingBag size={15} color={Colors.white} />
                             <Text style={styles.buyButtonText}>
                               {currentGoal.pledgedExperience!.price > 0
                                 ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
@@ -1548,7 +1624,7 @@ const JourneyScreen = () => {
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 4 }}
+                    contentContainerStyle={{ paddingHorizontal: Spacing.xs }}
                   >
                     {recommendedExperiences.map((exp) => (
                       <TouchableOpacity
@@ -1564,7 +1640,7 @@ const JourneyScreen = () => {
                             resizeMode="cover"
                           />
                         ) : (
-                          <View style={[styles.recommendedImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                          <View style={[styles.recommendedImage, { backgroundColor: Colors.backgroundLight, justifyContent: 'center', alignItems: 'center' }]}>
                             <Gift size={20} color={Colors.textMuted} />
                           </View>
                         )}
@@ -1594,13 +1670,42 @@ const JourneyScreen = () => {
             <View style={styles.sectionDivider} />
             <View style={styles.tabSectionInline}>
               {currentGoal && !isSelfGifted(currentGoal) && (
-                <SegmentedControl activeTab={activeTab} onTabChange={setActiveTab} />
+                <SegmentedControl
+                  activeTab={activeTab}
+                  onTabChange={(tab) => {
+                    setActiveTab(tab);
+                    const index = tab === TAB_SESSIONS ? 0 : 1;
+                    tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+                  }}
+                />
               )}
 
               <View>
-                {currentGoal && isSelfGifted(currentGoal)
-                  ? renderSessionsTab()
-                  : activeTab === TAB_SESSIONS ? renderSessionsTab() : renderHintsTab()}
+                {currentGoal && isSelfGifted(currentGoal) ? (
+                  renderSessionsTab()
+                ) : (
+                  <ScrollView
+                    ref={tabScrollRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    scrollEventThrottle={100}
+                    onScroll={(e) => {
+                      const x = e.nativeEvent.contentOffset.x;
+                      const index = Math.round(x / screenWidth);
+                      const newTab = index === 0 ? TAB_SESSIONS : TAB_HINTS;
+                      if (newTab !== activeTab) setActiveTab(newTab);
+                    }}
+                    nestedScrollEnabled
+                  >
+                    <View style={{ width: screenWidth }}>
+                      {renderSessionsTab()}
+                    </View>
+                    <View style={{ width: screenWidth }}>
+                      {renderHintsTab()}
+                    </View>
+                  </ScrollView>
+                )}
               </View>
             </View>
           </View>
@@ -1612,7 +1717,9 @@ const JourneyScreen = () => {
         <ImageViewer
           visible={!!selectedImageUri}
           imageUri={selectedImageUri}
-          onClose={() => setSelectedImageUri(null)}
+          imageUris={allImageUris.length > 1 ? allImageUris : undefined}
+          initialIndex={allImageUris.length > 1 ? allImageUris.indexOf(selectedImageUri!) : 0}
+          onClose={() => { setSelectedImageUri(null); setAllImageUris([]); }}
         />
       )}
 
@@ -1631,31 +1738,31 @@ const JourneyScreen = () => {
 
 const styles = StyleSheet.create({
   messageSection: {
-    paddingBottom: 16,
-    marginBottom: 4,
+    paddingBottom: Spacing.lg,
+    marginBottom: Spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   messageText: {
-    fontSize: 17,
-    color: '#4c1d95',
-    lineHeight: 26,
+    ...Typography.heading3,
     fontWeight: '500',
+    color: Colors.violet,
+    lineHeight: 26,
   },
   messageFrom: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.primaryDeep,
-    marginTop: 10,
+    marginTop: Spacing.sm,
     fontWeight: '600',
   },
   unifiedCard: {
     width: '100%',
     maxWidth: 380,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    shadowColor: Colors.black,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -1664,106 +1771,105 @@ const styles = StyleSheet.create({
   sectionDivider: {
     height: 1,
     backgroundColor: Colors.border,
-    marginVertical: 16,
+    marginVertical: Spacing.lg,
   },
   experienceInline: {
     overflow: 'hidden',
   },
   experienceInlineBody: {
-    paddingTop: 12,
+    paddingTop: Spacing.md,
   },
   experienceCoverInline: {
     width: '100%',
     height: 180,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundLight,
   },
   experienceCover: {
     width: '100%',
     height: 140,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
     backgroundColor: Colors.backgroundLight,
   },
   tabSectionInline: {
     // no card styling needed — inside unified card
   },
   tabContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: Spacing.xxxl,
   },
   emptyIcon: {
-    fontSize: 40,
-    marginBottom: 6,
+    fontSize: Typography.displayLarge.fontSize,
+    marginBottom: Spacing.xs,
   },
   emptyText: {
     color: Colors.textSecondary,
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '600',
   },
   emptySubText: {
     color: Colors.textMuted,
-    fontSize: 14,
+    ...Typography.small,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: Spacing.xs,
     maxWidth: 240,
   },
   timeline: {
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
   hintImage: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
   },
   experienceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   experienceLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...Typography.tiny,
     color: Colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   experiencePrice: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
   experienceTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
     lineHeight: 22,
   },
   experienceProgressArea: {
-    gap: 4,
+    gap: Spacing.xs,
   },
   experienceProgressTrack: {
     height: 6,
     backgroundColor: Colors.border,
-    borderRadius: 3,
+    borderRadius: BorderRadius.xs,
     overflow: 'hidden',
   },
   experienceProgressFill: {
     height: '100%',
     backgroundColor: Colors.primary,
-    borderRadius: 3,
+    borderRadius: BorderRadius.xs,
   },
   experienceProgressLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -1771,31 +1877,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.xs,
     backgroundColor: Colors.secondary,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 10,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
   },
   buyButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: Colors.white,
+    ...Typography.small,
     fontWeight: '700',
   },
   giftReceivedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.xs,
     backgroundColor: Colors.primarySurface,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginTop: 10,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
   giftReceivedText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
   },
@@ -1803,73 +1909,73 @@ const styles = StyleSheet.create({
     height: 120,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    backgroundColor: '#fef3c7',
+    backgroundColor: Colors.warningLight,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: Spacing.sm,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#fde68a',
+    borderColor: Colors.warningBorder,
   },
   mysteryShowcaseText: {
-    fontSize: 40,
+    fontSize: Typography.displayLarge.fontSize,
     fontWeight: '800',
-    color: '#f59e0b',
+    color: Colors.warning,
   },
   // Recommended experiences
   recommendedSection: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
   },
   recommendedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
   },
   recommendedTitle: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.gray800,
   },
   recommendedCard: {
     width: 140,
-    marginRight: 10,
-    borderRadius: 12,
-    backgroundColor: '#fff',
+    marginRight: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: Colors.backgroundLight,
     overflow: 'hidden',
   },
   recommendedImage: {
     width: '100%',
     height: 90,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: BorderRadius.md,
+    borderTopRightRadius: BorderRadius.md,
   },
   recommendedName: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#1F2937',
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 4,
+    color: Colors.gray800,
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
   recommendedPrice: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   browseAllLink: {
     alignItems: 'center',
-    marginTop: 12,
-    paddingVertical: 8,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   browseAllText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
   },
@@ -1878,92 +1984,92 @@ const styles = StyleSheet.create({
 // ─── Completed Goal Styles ──────────────────────────────────────────────────
 const cStyles = StyleSheet.create({
   heroContainer: {
-    marginBottom: 16,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   heroInner: {
-    padding: 16,
+    padding: Spacing.lg,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
   },
   heroTrophyCircle: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FEF3C7',
+    borderRadius: BorderRadius.xxl,
+    backgroundColor: Colors.warningLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 18,
+    ...Typography.heading3,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
   heroGoalTitle: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   heroStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.sm,
   },
   heroStatPill: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    borderRadius: BorderRadius.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
   },
   heroStatNumber: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '800',
     color: Colors.primary,
   },
   heroStatLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
   heroDateText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '500',
     color: Colors.textMuted,
     marginLeft: 'auto',
   },
   section: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   countBadge: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.primary,
   },
   experienceBody: {
-    backgroundColor: '#fff',
-    padding: 14,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     borderWidth: 1,
@@ -1971,59 +2077,59 @@ const cStyles = StyleSheet.create({
     borderColor: Colors.border,
   },
   experienceName: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   experiencePrice: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '800',
     color: Colors.primary,
   },
   experienceSubtitle: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
   rewardDivider: {
     height: 1,
     backgroundColor: Colors.border,
-    marginVertical: 14,
+    marginVertical: Spacing.md,
   },
   redemptionArea: {
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   couponCard: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   couponRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   couponLabel: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   couponCodeBox: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   couponCodeText: {
-    fontSize: 20,
+    ...Typography.large,
     fontWeight: '900',
     letterSpacing: 3,
     color: Colors.textPrimary,
@@ -2032,11 +2138,11 @@ const cStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
   },
   copyText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.primary,
   },
@@ -2044,148 +2150,147 @@ const cStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 12,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
   },
   generateCouponText: {
-    color: '#fff',
-    fontSize: 14,
+    color: Colors.white,
+    ...Typography.small,
     fontWeight: '700',
   },
   contactCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   contactTitle: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   contactLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...Typography.tiny,
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   contactValue: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   smallCopyBtn: {
-    padding: 6,
+    padding: Spacing.xs,
   },
   scheduleRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
   },
   whatsappBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#25D366',
-    paddingVertical: 12,
-    borderRadius: 10,
+    gap: Spacing.xs,
+    backgroundColor: Colors.whatsappGreen,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
   },
   emailBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.xs,
     backgroundColor: Colors.secondary,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
   },
   scheduleBtnText: {
-    color: '#fff',
-    fontSize: 13,
+    color: Colors.white,
+    ...Typography.caption,
     fontWeight: '700',
   },
   buyCTACard: {
     backgroundColor: Colors.primarySurface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   buyCTATitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   buyCTASubtext: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   expiredCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 12,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
     alignItems: 'center',
   },
   expiredText: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textMuted,
     fontWeight: '500',
   },
   shareFormatToggle: {
     flexDirection: 'row',
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 12,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xxs,
+    marginBottom: Spacing.md,
   },
   shareFormatOption: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  shareFormatText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  shareFormatText: { ...Typography.small, fontWeight: '600', color: Colors.textMuted },
   shareFormatTextActive: { color: Colors.primaryDark },
   shareButton: {
     backgroundColor: Colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
-  shareButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  shareButtonText: { color: Colors.white, ...Typography.body, fontWeight: '700' },
 });
 
 export default JourneyScreen;

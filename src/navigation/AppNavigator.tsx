@@ -42,6 +42,8 @@ import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
 import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
+// GiftLanding now uses ChallengeLandingScreen with mode='gift' param
+import GiftFlowScreen from '../screens/GiftFlowScreen';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 
@@ -134,6 +136,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         pathname.includes('/checkout') ||
         pathname.includes('/recipient/redeem/') ||
         pathname.includes('/challenge') ||
+        pathname.includes('/gift') ||
         hasQueryParams;
 
       if (!shouldNotReset) {
@@ -197,8 +200,10 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         PurchasedGifts: 'purchased-gifts',
         GoalSetting: 'goal-setting',
         FreeGoalCompletion: 'free-goal-completion',
-        ChallengeLanding: '',
+        GiftLanding: 'gift',
+        GiftFlow: 'gift/create',
         ChallengeSetup: 'challenge/create',
+        ChallengeLanding: '',
         MysteryChoice: 'mystery-choice',
         AchievementDetail: 'achievement',
         AnimationPreview: 'animation-preview',
@@ -246,6 +251,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="Cart" component={CartScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
+        <RootStack.Screen name="GiftLanding" component={ChallengeLandingScreen} initialParams={{ mode: 'gift' }} />
+        <RootStack.Screen name="GiftFlow" component={GiftFlowScreen} />
         <RootStack.Screen name="AnimationPreview" component={AnimationPreviewScreen} />
 
         {/* PROTECTED ROUTES */}

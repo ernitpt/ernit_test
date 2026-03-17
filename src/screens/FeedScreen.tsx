@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
     FlatList,
     StyleSheet,
-    ActivityIndicator,
     RefreshControl,
     Animated,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MainScreen from './MainScreen';
 import SharedHeader from '../components/SharedHeader';
 import FeedPost from '../components/FeedPost';
@@ -22,6 +25,8 @@ import { useApp } from '../context/AppContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { useToast } from '../context/ToastContext';
@@ -34,15 +39,20 @@ type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 const FeedScreen: React.FC = () => {
     const { state } = useApp();
     const route = useRoute<FeedScreenRouteProp>();
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { showError } = useToast();
     const [posts, setPosts] = useState<FeedPostType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
     const highlightAnim = React.useRef(new Animated.Value(0)).current;
     const flatListRef = React.useRef<FlatList>(null);
     const scrollRetryCount = React.useRef(0);
+    const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | undefined>(undefined);
+    const FEED_PAGE_SIZE = 15;
 
     // Handle highlight parameter from navigation
     useEffect(() => {
@@ -105,39 +115,68 @@ const FeedScreen: React.FC = () => {
         }, [state.user?.id])
     );
 
-    const loadFeed = async () => {
+    const loadFeed = async (loadMore = false) => {
         if (!state.user?.id) {
             setIsLoading(false);
             return;
         }
 
+        if (loadMore && !hasMore) return;
+
         try {
-            setIsLoading(true);
-            setError(false);
-            const { posts: loadedPosts } = await feedService.getFriendsFeed(state.user.id);
-            setPosts(loadedPosts);
+            if (!loadMore) {
+                setIsLoading(true);
+                setError(false);
+            }
+            const cursor = loadMore ? lastDocRef.current : undefined;
+            const { posts: loadedPosts, lastDoc } = await feedService.getFriendsFeed(
+                state.user.id,
+                FEED_PAGE_SIZE,
+                cursor
+            );
+
+            if (loadMore) {
+                setPosts(prev => [...prev, ...loadedPosts]);
+            } else {
+                setPosts(loadedPosts);
+            }
+
+            lastDocRef.current = lastDoc;
+            setHasMore(loadedPosts.length >= FEED_PAGE_SIZE);
         } catch (error) {
             logger.error('Error loading feed:', error);
-            setError(true);
-            showError('Could not load feed. Pull to refresh to try again.');
+            if (!loadMore) {
+                setError(true);
+                showError('Could not load feed. Pull to refresh to try again.');
+            }
         } finally {
             setIsLoading(false);
+            setIsLoadingMore(false);
         }
     };
 
     const handleRefresh = async () => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setIsRefreshing(true);
+        lastDocRef.current = undefined;
+        setHasMore(true);
         await loadFeed();
         setIsRefreshing(false);
     };
 
-    const renderPost = ({ item }: { item: FeedPostType }) => {
+    const handleLoadMore = useCallback(() => {
+        if (isLoadingMore || !hasMore || isLoading) return;
+        setIsLoadingMore(true);
+        loadFeed(true);
+    }, [isLoadingMore, hasMore, isLoading]);
+
+    const renderPost = useCallback(({ item }: { item: FeedPostType }) => {
         const isHighlighted = item.id === highlightedPostId;
 
         const borderColor = isHighlighted
             ? highlightAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: ['rgba(139, 92, 246, 0)', 'rgba(139, 92, 246, 1)'],
+                outputRange: ['rgba(5, 150, 105, 0)', 'rgba(5, 150, 105, 1)'],
             })
             : 'transparent';
 
@@ -158,14 +197,14 @@ const FeedScreen: React.FC = () => {
                     borderWidth: 2,
                     borderColor,
                     transform: [{ scale }],
-                    borderRadius: 12,
-                    marginBottom: 16,
+                    borderRadius: BorderRadius.md,
+                    marginBottom: Spacing.lg,
                 }}>
                     <FeedPost post={item} />
                 </Animated.View>
             </MotiView>
         );
-    };
+    }, [highlightedPostId, highlightAnim]);
 
     const renderEmpty = () => {
         if (isLoading) return null;
@@ -179,6 +218,8 @@ const FeedScreen: React.FC = () => {
                 icon="👥"
                 title="No Activity Yet"
                 message="Add friends to see their goal progress and celebrate together!"
+                actionLabel="Add Friends"
+                onAction={() => navigation.navigate('AddFriend')}
             />
         );
     };
@@ -206,11 +247,18 @@ const FeedScreen: React.FC = () => {
                         renderItem={renderPost}
                         contentContainerStyle={styles.list}
                         ListEmptyComponent={renderEmpty}
+                        ListFooterComponent={isLoadingMore ? (
+                            <View style={styles.loadingMore}>
+                                <ActivityIndicator size="small" color={Colors.secondary} />
+                            </View>
+                        ) : null}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         removeClippedSubviews={Platform.OS !== 'web'}
                         maxToRenderPerBatch={10}
                         windowSize={5}
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.5}
                         onScrollToIndexFailed={(info) => {
                             if (scrollRetryCount.current >= 3) return;
                             scrollRetryCount.current += 1;
@@ -238,13 +286,12 @@ const FeedScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     list: {
-        padding: 16,
+        padding: Spacing.lg,
+    },
+    loadingMore: {
+        paddingVertical: Spacing.xl,
+        alignItems: 'center',
     },
 });
 

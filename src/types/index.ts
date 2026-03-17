@@ -134,6 +134,32 @@ export interface ExperienceGift {
   partnerId?: string;
   paymentIntentId?: string;
   updatedAt?: Date;
+  // Gift flow fields (set by createFreeGift / createDeferredGift)
+  challengeType?: GiftChallengeType;
+  revealMode?: GiftRevealMode;
+  isMystery?: boolean;
+  setupIntentId?: string;
+  deferredAmount?: number;
+  deferredCurrency?: string;
+  pledgedExperience?: {
+    experienceId: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    category: string;
+    price: number;
+    coverImageUrl: string;
+    imageUrl: string[];
+    partnerId: string;
+    location: string;
+  };
+  togetherData?: {
+    goalName: string;
+    duration: string;
+    frequency: string;
+    sessionTime: string;
+    sameExperienceForBoth: boolean;
+  };
 }
 
 /** Core goal identity and description */
@@ -145,7 +171,7 @@ export interface GoalCore {
   description: string;
   frequency: 'daily' | 'weekly' | 'monthly';
   duration: number;
-  startDate: Date;
+  startDate: Date | Timestamp;
   endDate: Date;
   isActive: boolean;
   isCompleted: boolean;
@@ -158,7 +184,7 @@ export interface GoalCore {
   couponCode?: string;
   couponGeneratedAt?: Date;
   createdAt: Date;
-  completedAt?: Date;
+  completedAt?: Date | Timestamp;
 }
 
 /** Weekly session tracking fields */
@@ -171,6 +197,7 @@ export interface GoalWeeklyTracking {
   isWeekCompleted?: boolean;
   weekStartAt?: Date | null;
   plannedStartDate?: Date | null;
+  lastNudgeLevel?: number;
 }
 
 /** Giver approval workflow fields */
@@ -219,6 +246,7 @@ export interface GoalFreeGoal {
   pledgedAt?: Date;
   giftAttachedAt?: Date;
   giftAttachDeadline?: Date;
+  empowerPending?: boolean;
 }
 
 export interface PersonalizedHint {
@@ -391,6 +419,7 @@ export interface Comment {
   text: string;
   createdAt: Date;
   updatedAt?: Date;
+  likedBy?: string[];
 }
 
 
@@ -510,6 +539,32 @@ export interface ChallengeSetupPrefill {
   preferredRewardCategory?: ExperienceCategory;
 }
 
+// Gift flow types
+export type GiftChallengeType = 'solo' | 'shared';
+export type GiftRevealMode = 'revealed' | 'secret';
+export type GiftPaymentChoice = 'payNow' | 'payLater' | 'free';
+
+export interface GiftFlowData {
+  challengeType: GiftChallengeType;
+  experience: Experience;
+  revealMode: GiftRevealMode;
+  paymentChoice: GiftPaymentChoice;
+  // Together mode only:
+  goalName?: string;
+  duration?: string;
+  durationWeeks?: number;
+  frequency?: string;
+  sessionsPerWeek?: number;
+  sessionTime?: string;
+  targetHours?: number;
+  targetMinutes?: number;
+  sameExperienceForBoth?: boolean;
+}
+
+export interface GiftFlowPrefill extends Partial<GiftFlowData> {
+  currentStep: number;
+}
+
 // Navigation types
 export type RootStackParamList = {
   Landing: undefined;
@@ -538,9 +593,11 @@ export type RootStackParamList = {
   LoginPromptModal: undefined;
   FreeGoalCompletion: { goal: Goal };
   AchievementDetail: { goal: Goal };
-  ChallengeLanding: undefined;
+  ChallengeLanding: { mode?: 'self' | 'gift' } | undefined;
   MysteryChoice: { experience: Experience };
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
+  GiftLanding: { mode?: 'self' | 'gift' } | undefined;
+  GiftFlow: { prefill?: GiftFlowPrefill } | undefined;
   AnimationPreview: undefined;
 };
 

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DateHelper } from '../utils/DateHelper';
+import { isoDateOnly, addDaysSafe, normalizeGoal } from '../utils/GoalHelpers';
 import { db } from './firebase';
 import {
   collection,
@@ -24,36 +25,6 @@ import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { analyticsService } from './AnalyticsService';
 
-// ===== Helpers (duplicated from GoalService to avoid circular dependency) =====
-const isoDateOnly = (d: Date) => {
-  const y = d.getFullYear();
-  const m = `${d.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${d.getDate()}`.padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-};
-
-const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
-
-function toJSDate(value: any): Date | null {
-  if (!value) return null;
-
-  // Firestore Timestamp - proper type guard
-  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-
-  const d = new Date(value);
-  return isValidDate(d) ? d : null;
-}
-
-function addDaysSafe(base: Date | null | undefined, days: number): Date {
-  const b = isValidDate(base as any) ? (base as Date) : DateHelper.now();
-  const x = new Date(b);
-  x.setDate(b.getDate() + days);
-  x.setHours(0, 0, 0, 0); // Normalize to midnight so week boundaries align with calendar dates
-  return x;
-}
-
 const TIMER_STORAGE_KEY = 'global_timer_state';
 
 /** Check if a goal has an active timer that started within the current week and < 24h ago */
@@ -74,49 +45,6 @@ async function hasActiveSessionInCurrentWeek(goalId: string, weekStartAt: Date):
   } catch {
     return false; // If we can't read timer state, don't block sweep
   }
-}
-
-/** Ensure all date-like fields are valid Dates (or null) and fix missing arrays/numbers */
-function normalizeGoal(g: any): Goal {
-  const startDate = toJSDate(g.startDate) ?? DateHelper.now();
-  const endDate = toJSDate(g.endDate) ?? addDaysSafe(startDate, 7);
-  const weekStartAt = toJSDate(g.weekStartAt);
-  const plannedStartDate = toJSDate(g.plannedStartDate);
-  const approvalRequestedAt = toJSDate(g.approvalRequestedAt);
-  const approvalDeadline = toJSDate(g.approvalDeadline);
-
-  return {
-    ...g,
-    startDate,
-    endDate,
-    weekStartAt: weekStartAt ?? null,
-    plannedStartDate: plannedStartDate ?? null,
-    targetCount: typeof g.targetCount === 'number' ? g.targetCount : 1,
-    weeklyCount: typeof g.weeklyCount === 'number' ? g.weeklyCount : 0,
-    weeklyLogDates: Array.isArray(g.weeklyLogDates) ? g.weeklyLogDates : [],
-    currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
-    sessionsPerWeek: typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1,
-    isCompleted: !!g.isCompleted,
-    isWeekCompleted: !!g.isWeekCompleted,
-    updatedAt: toJSDate(g.updatedAt) ?? DateHelper.now(),
-    // Approval fields
-    approvalStatus: g.approvalStatus || (g.isFreeGoal ? 'approved' : 'pending'),
-    initialTargetCount: typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
-    initialSessionsPerWeek: typeof g.initialSessionsPerWeek === 'number' ? g.initialSessionsPerWeek : g.sessionsPerWeek,
-    suggestedTargetCount: typeof g.suggestedTargetCount === 'number' ? g.suggestedTargetCount : null,
-    suggestedSessionsPerWeek: typeof g.suggestedSessionsPerWeek === 'number' ? g.suggestedSessionsPerWeek : null,
-    approvalRequestedAt: approvalRequestedAt ?? null,
-    approvalDeadline: approvalDeadline ?? null,
-    giverMessage: g.giverMessage || null,
-    receiverMessage: g.receiverMessage || null,
-    giverActionTaken: !!g.giverActionTaken,
-    // Free Goal fields
-    isFreeGoal: !!g.isFreeGoal,
-    pledgedExperience: g.pledgedExperience || null,
-    pledgedAt: toJSDate(g.pledgedAt) ?? null,
-    giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
-    giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
-  } as Goal;
 }
 
 export class GoalSessionService {
@@ -168,6 +96,7 @@ export class GoalSessionService {
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
+      (g as any).lastNudgeLevel = 0;
     }
 
     // Only write to Firestore if weeks were actually swept
@@ -177,13 +106,27 @@ export class GoalSessionService {
       anchor.setHours(0, 0, 0, 0);
       g.weekStartAt = anchor;
       const ref = doc(db, 'goals', g.id);
-      const sweepUpdate: any = {
+
+      // Re-read to avoid concurrent sweep conflict (e.g. multiple tabs)
+      const freshSnap = await getDoc(ref);
+      if (freshSnap.exists()) {
+        const freshData = freshSnap.data();
+        const freshWeekStartAt = freshData.weekStartAt?.toDate?.() ?? (freshData.weekStartAt ? new Date(freshData.weekStartAt) : null);
+        const originalWeekStartAt = goal.weekStartAt ? new Date(goal.weekStartAt) : null;
+        if (freshWeekStartAt && originalWeekStartAt && freshWeekStartAt.getTime() !== originalWeekStartAt.getTime()) {
+          // Another tab/instance already swept — use fresh data
+          return normalizeGoal({ id: freshSnap.id, ...freshData });
+        }
+      }
+
+      const sweepUpdate: Record<string, unknown> = {
         currentCount: g.currentCount,
         weekStartAt: anchor,
         weeklyCount: g.weeklyCount,
         weeklyLogDates: [],
         isWeekCompleted: false,
         isCompleted: !!g.isCompleted,
+        lastNudgeLevel: 0,
         updatedAt: serverTimestamp(),
       };
       if (g.isCompleted) {
@@ -299,7 +242,7 @@ export class GoalSessionService {
       }
 
       // Persist atomically via transaction
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         weeklyCount: g.weeklyCount,
         weeklyLogDates: g.weeklyLogDates,
         isWeekCompleted: g.isWeekCompleted || false,
@@ -402,6 +345,10 @@ export class GoalSessionService {
             // STANDARD GOAL: fetch from gift
             try {
               const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
+              if (!experienceGift) {
+                logger.warn(`Experience gift ${g.experienceGiftId} not found for goal ${g.id}`);
+                return;
+              }
               const experience = await experienceService.getExperienceById(experienceGift.experienceId);
 
               experienceTitle = experience?.title;

@@ -1,19 +1,22 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Trophy, Gift } from 'lucide-react-native';
-import type { FeedPost as FeedPostType } from '../../types';
-import Colors from '../../config/colors';
+import Button from '../Button';
+import type { FeedPost as FeedPostType, RootStackParamList } from '../../types';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../config';
 
 interface FeedPostContentProps {
     post: FeedPostType;
     currentUserId?: string;
+    goalHasGift?: boolean;
     onEmpowerContext: () => void;
-    onNavigate: (screen: string, params?: any) => void;
+    onNavigate: <S extends keyof RootStackParamList>(screen: S, params?: RootStackParamList[S]) => void;
 }
 
 const FeedPostContent: React.FC<FeedPostContentProps> = ({
     post,
     currentUserId,
+    goalHasGift,
     onEmpowerContext,
     onNavigate,
 }) => {
@@ -69,7 +72,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
             {post.type === 'goal_completed' && post.experienceTitle && !(post.isFreeGoal && !post.experienceGiftId) ? (
                 <View style={styles.experienceSection}>
                     {post.isMystery ? (
-                        <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: '#fef3c7' }]}>
+                        <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: Colors.warningLight }]}>
                             <Text style={styles.experienceImagePlaceholderText}>?</Text>
                         </View>
                     ) : post.experienceImageUrl ? (
@@ -113,18 +116,19 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                             )}
                         </View>
                     </View>
-                    {post.userId !== currentUserId && !post.isFreeGoal && (
-                        <TouchableOpacity
-                            style={styles.congratsGiftButton}
+                    {post.userId !== currentUserId && !post.isFreeGoal && !goalHasGift && (
+                        <Button
+                            title="Gift an Experience"
                             onPress={() => {
                                 onEmpowerContext();
                                 onNavigate('CategorySelection');
                             }}
-                            activeOpacity={0.8}
-                        >
-                            <Gift size={15} color="#fff" />
-                            <Text style={styles.congratsGiftText}>Gift an Experience</Text>
-                        </TouchableOpacity>
+                            variant="primary"
+                            size="sm"
+                            fullWidth
+                            icon={<Gift size={15} color={Colors.white} />}
+                            style={{ marginTop: Spacing.md }}
+                        />
                     )}
                 </View>
             ) : post.type !== 'session_progress' ? (
@@ -140,30 +144,30 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
 
 const styles = StyleSheet.create({
     content: {
-        paddingHorizontal: 16,
-        marginBottom: 10,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
     },
     activityText: {
-        fontSize: 15,
+        ...Typography.body,
         lineHeight: 22,
-        color: '#374151',
+        color: Colors.gray700,
     },
     progressBlock: {
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     progressHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     progressLabel: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textSecondary,
         fontWeight: '500',
     },
     progressText: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textPrimary,
         fontWeight: '600',
     },
@@ -174,15 +178,15 @@ const styles = StyleSheet.create({
     capsule: {
         flex: 1,
         height: 8,
-        borderRadius: 50,
+        borderRadius: BorderRadius.pill,
     },
     experienceSection: {
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         overflow: 'hidden',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
         borderWidth: 1,
         borderColor: Colors.border,
-        marginTop: 8,
+        marginTop: Spacing.sm,
     },
     experienceImage: {
         width: '100%',
@@ -194,43 +198,45 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     experienceImagePlaceholderText: {
-        fontSize: 40,
+        fontSize: Typography.displayLarge.fontSize,
         opacity: 0.5,
     },
     experienceContent: {
-        padding: 12,
+        padding: Spacing.md,
     },
     experienceTitle: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '700',
         color: Colors.textPrimary,
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     partnerName: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textSecondary,
-        marginBottom: 4,
+        marginBottom: Spacing.xs,
     },
     goalDescriptionText: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textSecondary,
         marginBottom: 6,
     },
     experienceMeta: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textMuted,
     },
     achievementCard: {
         backgroundColor: Colors.primarySurface,
-        borderRadius: 12,
-        padding: 14,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
+        borderLeftWidth: 3,
+        borderLeftColor: Colors.primary,
     },
     achievementIconRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: Spacing.md,
     },
     achievementIcon: {
         width: 36,
@@ -241,30 +247,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     achievementGoal: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
         color: Colors.textPrimary,
         lineHeight: 20,
     },
     achievementStats: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
-        marginTop: 2,
-    },
-    congratsGiftButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        backgroundColor: Colors.secondary,
-        paddingVertical: 10,
-        borderRadius: 10,
-        marginTop: 12,
-    },
-    congratsGiftText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
+        marginTop: Spacing.xxs,
     },
 });
 

@@ -10,9 +10,11 @@ import {
   Animated,
   Platform,
   Modal,
+  RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare, Heart, Gift } from 'lucide-react-native';
 import { RootStackParamList, UserProfile, Goal, Experience } from '../types';
@@ -20,7 +22,6 @@ import EmpowerChoiceModal from '../components/EmpowerChoiceModal';
 import MotivationModal from '../components/MotivationModal';
 import { userService } from '../services/userService';
 import { friendService } from '../services/FriendService';
-import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import MainScreen from './MainScreen';
@@ -32,10 +33,14 @@ import ImageViewer from '../components/ImageViewer';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { logger } from '../utils/logger';
+import { toJSDate } from '../utils/GoalHelpers';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
+import { Spacing } from '../config/spacing';
 import { EmptyState } from '../components/EmptyState';
+import { MotiView } from 'moti';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -52,9 +57,9 @@ const CapsuleMini = ({ filled }: { filled: boolean }) => (
     style={{
       flex: 1,
       height: 8,
-      borderRadius: 50,
+      borderRadius: BorderRadius.pill,
       backgroundColor: filled ? Colors.primary : Colors.border,
-      marginHorizontal: 2,
+      marginHorizontal: Spacing.xxs,
     }}
   />
 );
@@ -96,7 +101,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       )}
 
       {/* Sessions this week */}
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
           <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
           <Text style={styles.progressHeaderValue}>
@@ -112,7 +117,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       </View>
 
       {/* Weeks completed */}
-      <View style={{ marginTop: 14 }}>
+      <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
           <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
           <Text style={styles.progressHeaderValue}>
@@ -128,12 +133,14 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       </View>
 
       {/* Action Buttons: Empower + Motivate */}
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
         {!hasExperience && (
           <TouchableOpacity
             onPress={() => setShowEmpowerModal(true)}
             style={styles.empowerActionButton}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Empower this goal"
           >
             <Gift color={Colors.white} size={16} />
             <Text style={styles.empowerActionButtonText}>Empower</Text>
@@ -143,6 +150,8 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
           onPress={() => setShowMotivateModal(true)}
           style={styles.motivateActionButton}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Send motivation"
         >
           <Heart color={Colors.primary} size={16} />
           <Text style={styles.motivateActionButtonText}>Motivate</Text>
@@ -154,15 +163,17 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
         <TouchableOpacity
           onPress={() => setShowHintHistory(true)}
           style={{
-            marginTop: 8,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
+            marginTop: Spacing.sm,
+            paddingVertical: Spacing.sm,
+            paddingHorizontal: Spacing.lg,
+            borderRadius: BorderRadius.sm,
             backgroundColor: Colors.backgroundLight,
             borderWidth: 1,
             borderColor: Colors.border,
           }}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="View hint history"
         >
           <Text style={{ ...Typography.smallBold, color: Colors.textSecondary, textAlign: 'center' }}>
             View Hint History
@@ -183,18 +194,27 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
             activeOpacity={1}
             onPress={() => setShowHintHistory(false)}
           >
-            <View style={historyModalStyles.modalContainer}>
+            <MotiView
+              from={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              style={historyModalStyles.modalContainer}
+            >
               <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
                 <View style={historyModalStyles.modalHeader}>
                   <Text style={historyModalStyles.modalTitle}>Hint History</Text>
-                  <TouchableOpacity onPress={() => setShowHintHistory(false)}>
+                  <TouchableOpacity
+                    onPress={() => setShowHintHistory(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close hint history"
+                  >
                     <Text style={historyModalStyles.closeButton}>×</Text>
                   </TouchableOpacity>
                 </View>
 
                 <ScrollView style={historyModalStyles.scrollView}>
                   {goal?.hints && goal.hints.length > 0 ? (
-                    [...goal.hints].reverse().map((hint: any, index: number) => {
+                    [...goal.hints].reverse().map((hint, index: number) => {
                       const isAudio = hint.type === 'audio' || hint.type === 'mixed';
                       const hasImage = hint.imageUrl;
                       const text = hint.text || hint.hint;
@@ -255,7 +275,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
                   )}
                 </ScrollView>
               </TouchableOpacity>
-            </View>
+            </MotiView>
           </TouchableOpacity>
         </Modal>
       )}
@@ -307,8 +327,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   const getEffectiveDeadline = (): Date | null => {
     if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
     if (goal.completedAt) {
-      const d = new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
-        ? (goal.completedAt as any).toDate() : goal.completedAt);
+      const d = new Date(toJSDate(goal.completedAt) ?? goal.completedAt as unknown as Date);
       d.setDate(d.getDate() + 30);
       return d;
     }
@@ -353,7 +372,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
     return (
       <View style={styles.achievementCard}>
         <View style={styles.achSelfBanner}>
-          <Text style={{ fontSize: 28 }}>🏆</Text>
+          <Text style={{ ...Typography.display }}>🏆</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.achSelfLabel}>Self-Achievement</Text>
             <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
@@ -368,6 +387,8 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
               onPress={() => setShowEmpowerModal(true)}
               style={styles.empowerButton}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Empower this achievement"
             >
               <Gift color={Colors.white} size={16} />
               <Text style={styles.empowerButtonText}>Empower</Text>
@@ -411,6 +432,8 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
               onPress={() => setShowEmpowerModal(true)}
               style={styles.empowerButton}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Empower this achievement"
             >
               <Gift color={Colors.white} size={16} />
               <Text style={styles.empowerButtonText}>Empower</Text>
@@ -537,6 +560,7 @@ const FriendProfileScreen: React.FC = () => {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
 
   // Popup animation states
@@ -544,7 +568,9 @@ const FriendProfileScreen: React.FC = () => {
   const removeAnim = useRef(new Animated.Value(0)).current;
   const removeScale = useRef(new Animated.Value(0.9)).current;
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabScrollRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = Dimensions.get('window');
+  const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   // Redirect if userId is missing (e.g., after bad navigation)
   useEffect(() => {
@@ -556,24 +582,15 @@ const FriendProfileScreen: React.FC = () => {
     }
   }, [userId, navigation]);
 
-  if (!userId) return null; // Early return to avoid render errors
+  useFocusEffect(
+    React.useCallback(() => {
+      if (userId) {
+        loadFriendProfile();
+      }
+    }, [userId])
+  );
 
-  useEffect(() => {
-    loadFriendProfile();
-  }, [userId]);
-
-  useEffect(() => {
-    if (userProfile) animateContent();
-  }, [activeTab]);
-
-  const animateContent = () => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
+  if (!userId) return null; // Early return AFTER all hooks
 
   const openRemovePopup = () => {
     setShowRemovePopup(true);
@@ -601,8 +618,8 @@ const FriendProfileScreen: React.FC = () => {
       setUserName(name);
 
       // Fetch goals and wishlist separately with error handling
-      let allGoals: any[] = [];
-      let wishlistData: any[] = [];
+      let allGoals: Goal[] = [];
+      let wishlistData: Experience[] = [];
 
       // Fetch goals directly without sweep (read-only for other users)
       // The sweep would try to update documents which we don't have permission for
@@ -610,7 +627,7 @@ const FriendProfileScreen: React.FC = () => {
         const goalsRef = collection(db, 'goals');
         const q = query(goalsRef, where('userId', '==', userId));
         const snapshot = await getDocs(q);
-        allGoals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allGoals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
       } catch (goalError) {
         logger.log('Note: Could not load goals for this user', goalError);
         allGoals = [];
@@ -644,39 +661,52 @@ const FriendProfileScreen: React.FC = () => {
     }
   };
 
-  const renderData = () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadFriendProfile();
+    setRefreshing(false);
+  };
+
+  const renderTabContent = (tab: 'goals' | 'achievements' | 'wishlist') => {
     if (isLoading)
       return (
         <ProfileSkeleton />
       );
 
     const data =
-      activeTab === 'goals'
+      tab === 'goals'
         ? activeGoals
-        : activeTab === 'achievements'
+        : tab === 'achievements'
           ? completedGoals
           : wishlist;
 
     if (data.length === 0) {
-      const icon = activeTab === 'goals' ? '🎯' : activeTab === 'achievements' ? '🏆' : '⭐';
-      const title = `No ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Yet`;
-      const message = activeTab === 'goals'
+      const icon = tab === 'goals' ? '🎯' : tab === 'achievements' ? '🏆' : '⭐';
+      const title = `No ${tab.charAt(0).toUpperCase() + tab.slice(1)} Yet`;
+      const message = tab === 'goals'
         ? 'No active goals at the moment'
-        : activeTab === 'achievements'
+        : tab === 'achievements'
           ? 'No achievements earned yet'
           : 'No wishlist items yet';
       return <EmptyState icon={icon} title={title} message={message} />;
     }
 
-    return data.map((item: any) =>
-      activeTab === 'wishlist' ? (
-        <ExperienceCard key={item.id} experience={item} />
-      ) : activeTab === 'goals' ? (
-        <GoalCard key={item.id} goal={item} currentUserId={currentUserId} userName={userName} />
-      ) : (
-        <AchievementCard key={item.id} goal={item} userName={userName} />
-      )
-    );
+    return data.map((item, index) => (
+      <MotiView
+        key={item.id}
+        from={{ opacity: 0, translateY: 12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+      >
+        {tab === 'wishlist' ? (
+          <ExperienceCard experience={item} />
+        ) : tab === 'goals' ? (
+          <GoalCard goal={item} currentUserId={currentUserId} userName={userName} />
+        ) : (
+          <AchievementCard goal={item} userName={userName} />
+        )}
+      </MotiView>
+    ));
   };
 
   if (isLoading && !userProfile) {
@@ -692,7 +722,18 @@ const FriendProfileScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -701,6 +742,8 @@ const FriendProfileScreen: React.FC = () => {
               else navigation.navigate('FriendsList');
             }}
             style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <ChevronLeft color={Colors.textPrimary} size={24} />
           </TouchableOpacity>
@@ -749,12 +792,14 @@ const FriendProfileScreen: React.FC = () => {
           <View style={styles.friendButtonContainer}>
             {isFriend ? (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: "#f8d6d6" }]}
+                style={[styles.friendButton, { backgroundColor: Colors.errorLight }]}
                 onPress={openRemovePopup}
                 disabled={isActionLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Remove friend"
               >
-                <UserMinus color="#9e2c2c" size={16} />
-                <Text style={[styles.friendButtonText, { color: "#9e2c2c" }]}>
+                <UserMinus color={Colors.errorDark} size={16} />
+                <Text style={[styles.friendButtonText, { color: Colors.errorDark }]}>
                   {isActionLoading ? "Removing..." : "Remove"}
                 </Text>
               </TouchableOpacity>
@@ -783,6 +828,8 @@ const FriendProfileScreen: React.FC = () => {
                   }
                 }}
                 disabled={isActionLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Add friend"
               >
                 <UserPlus color={Colors.white} size={16} />
                 <Text style={styles.friendButtonText}>
@@ -802,7 +849,11 @@ const FriendProfileScreen: React.FC = () => {
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
-              onPress={() => setActiveTab(tab.key as any)}
+              onPress={() => {
+                const index = TAB_KEYS.indexOf(tab.key as any);
+                setActiveTab(tab.key as any);
+                tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+              }}
               style={[
                 styles.tabButton,
                 activeTab === tab.key && styles.tabButtonActive,
@@ -823,23 +874,31 @@ const FriendProfileScreen: React.FC = () => {
         </View>
 
         {/* Content */}
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
+        <ScrollView
+          ref={tabScrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={100}
+          onScroll={(e) => {
+            const x = e.nativeEvent.contentOffset.x;
+            const index = Math.round(x / screenWidth);
+            if (index >= 0 && index < TAB_KEYS.length && TAB_KEYS[index] !== activeTab) {
+              setActiveTab(TAB_KEYS[index]);
+            }
           }}
+          style={{ flex: 1 }}
         >
-          {renderData()}
-        </Animated.View>
-
-        <View style={{ height: 80 }} />
+          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+            {renderTabContent('goals')}
+          </View>
+          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+            {renderTabContent('achievements')}
+          </View>
+          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+            {renderTabContent('wishlist')}
+          </View>
+        </ScrollView>
       </ScrollView>
 
       {/* Remove Friend Popup */}
@@ -862,6 +921,8 @@ const FriendProfileScreen: React.FC = () => {
                 onPress={closeRemovePopup}
                 style={[styles.modalButton, styles.cancelButtonPopup]}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel remove friend"
               >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -879,6 +940,8 @@ const FriendProfileScreen: React.FC = () => {
                 }}
                 style={[styles.modalButton, styles.confirmButton]}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm remove friend"
               >
                 <Text style={styles.confirmText}>Yes, remove</Text>
               </TouchableOpacity>
@@ -908,8 +971,8 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -918,72 +981,71 @@ const styles = StyleSheet.create({
   heroSection: {
     backgroundColor: Colors.white,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingBottom: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: BorderRadius.xxl,
+    borderBottomRightRadius: BorderRadius.xxl,
   },
   profileImage: {
     width: 100,
     height: 100,
-    borderRadius: 50,
+    borderRadius: BorderRadius.pill,
     borderWidth: 4,
     borderColor: Colors.backgroundLight,
   },
   placeholderImage: {
     width: 100,
     height: 100,
-    borderRadius: 50,
+    borderRadius: BorderRadius.pill,
     backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { ...Typography.display, fontSize: 40, color: Colors.white },
+  placeholderText: { ...Typography.display, fontSize: Typography.displayLarge.fontSize, color: Colors.white },
   userName: {
     ...Typography.heading1,
-    fontSize: 24,
     color: Colors.textPrimary,
-    marginBottom: 4,
-    marginTop: 14,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.md,
   },
   userDescription: {
     ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    marginBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
   },
 
   // STATS
-  statsRow: { flexDirection: 'row', gap: 32, marginBottom: 20 },
+  statsRow: { flexDirection: 'row', gap: 32, marginBottom: Spacing.xl },
   statItem: { alignItems: 'center' },
-  statNumber: { ...Typography.heading1, fontSize: 24, color: Colors.secondary, marginBottom: 4 },
-  statLabel: { ...Typography.small, fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
+  statNumber: { ...Typography.heading1, color: Colors.secondary, marginBottom: Spacing.xs },
+  statLabel: { ...Typography.caption, fontWeight: '500', color: Colors.textSecondary },
 
   // Friend buttons
   friendButtonContainer: { flexDirection: 'row', justifyContent: 'center' },
   friendButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 10,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
   friendButtonText: { ...Typography.smallBold, color: Colors.white },
 
   // TABS
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 8,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.white,
     alignItems: 'center',
   },
@@ -994,56 +1056,56 @@ const styles = StyleSheet.create({
   // NEW GOAL CARD STYLES (copied from user profile)
   goalCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     ...Shadows.sm,
     shadowColor: Colors.textPrimary,
   },
-  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: 4 },
-  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
+  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: Spacing.xs },
+  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: Spacing.xs },
 
   progressHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
-  progressHeaderLabel: { ...Typography.small, fontSize: 13, color: Colors.textSecondary },
-  progressHeaderValue: { ...Typography.small, fontSize: 13, fontWeight: "600", color: Colors.textPrimary },
+  progressHeaderLabel: { ...Typography.caption, color: Colors.textSecondary },
+  progressHeaderValue: { ...Typography.caption, fontWeight: "600", color: Colors.textPrimary },
 
   // Wishlist card
   experienceCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     overflow: 'hidden',
     ...Shadows.sm,
     shadowColor: Colors.textPrimary,
   },
   experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
-  experienceContent: { padding: 16 },
-  experienceTitle: { ...Typography.subheading, fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  experienceContent: { padding: Spacing.lg },
+  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
   experienceDescription: {
     ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   experiencePrice: { ...Typography.heading3, color: Colors.secondary },
 
   emptyStateText: {
     ...Typography.subheading,
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: Spacing.huge,
     color: Colors.textMuted,
   },
   // ACHIEVEMENT CARD (copied from UserProfileScreen)
   achievementCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 12,
+    borderRadius: BorderRadius.lg,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
     overflow: "hidden",
     ...Shadows.sm,
     shadowColor: Colors.textPrimary,
@@ -1058,11 +1120,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   achievementImagePlaceholderText: {
-    fontSize: 40,
+    fontSize: Typography.displayLarge.fontSize,
     opacity: 0.5,
   },
   achievementContent: {
-    padding: 16,
+    padding: Spacing.lg,
   },
   achievementLoadingText: {
     ...Typography.small,
@@ -1070,20 +1132,19 @@ const styles = StyleSheet.create({
   },
   achievementTitle: {
     ...Typography.subheading,
-    fontSize: 17,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   achievementPartner: {
     ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   achievementGoal: {
     ...Typography.small,
     color: Colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
   },
   achievementMeta: {
     ...Typography.small,
@@ -1096,10 +1157,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.xs,
     backgroundColor: Colors.secondary,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
   },
   empowerActionButtonText: {
     ...Typography.smallBold,
@@ -1110,10 +1171,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.xs,
     backgroundColor: Colors.primarySurface,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
@@ -1126,10 +1187,10 @@ const styles = StyleSheet.create({
   achSelfBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
     backgroundColor: Colors.primarySurface,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.primaryBorder,
   },
@@ -1142,7 +1203,7 @@ const styles = StyleSheet.create({
   achSelfTitle: {
     ...Typography.subheading,
     color: Colors.textPrimary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Empower button on AchievementCard
@@ -1150,10 +1211,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 12,
-    borderRadius: 10,
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.secondary,
   },
   empowerButtonText: {
@@ -1163,7 +1224,7 @@ const styles = StyleSheet.create({
 
   // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { ...Typography.subheading, marginTop: 12, color: Colors.textSecondary },
+  loadingText: { ...Typography.subheading, marginTop: Spacing.md, color: Colors.textSecondary },
 
   // Popup overlay
   modalOverlay: {
@@ -1171,17 +1232,17 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    padding: Spacing.xxl,
+    backgroundColor: Colors.overlay,
     zIndex: 999,
   },
   modalBox: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
+    borderRadius: BorderRadius.xl,
     width: '85%',
     maxWidth: 360,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
     shadowColor: Colors.textPrimary,
     shadowOpacity: 0.5,
     shadowRadius: 12,
@@ -1190,25 +1251,25 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...Typography.large,
-    color: '#4c1d95',
-    marginBottom: 8,
+    color: Colors.primaryDeeper,
+    marginBottom: Spacing.sm,
   },
   modalSubtitle: {
     ...Typography.body,
     color: Colors.gray700,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    gap: 10,
+    gap: Spacing.sm,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   cancelButtonPopup: {
@@ -1230,13 +1291,13 @@ const styles = StyleSheet.create({
 const historyModalStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContainer: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     maxWidth: 500,
     width: '90%',
     maxHeight: '80%',
@@ -1248,7 +1309,7 @@ const historyModalStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -1263,20 +1324,20 @@ const historyModalStyles = StyleSheet.create({
   },
   scrollView: {
     maxHeight: 500,
-    padding: 20,
+    padding: Spacing.xl,
   },
   hintItem: {
-    marginBottom: 20,
-    padding: 16,
+    marginBottom: Spacing.xl,
+    padding: Spacing.lg,
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   hintHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   sessionLabel: {
     ...Typography.smallBold,
@@ -1289,20 +1350,20 @@ const historyModalStyles = StyleSheet.create({
   hintImage: {
     width: '100%',
     height: 150,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.sm,
     backgroundColor: Colors.border,
   },
   hintText: {
     ...Typography.body,
     color: Colors.gray700,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   audioContainer: {
-    marginTop: 8,
-    padding: 12,
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
     backgroundColor: Colors.backgroundLight,
-    borderRadius: 8,
+    borderRadius: BorderRadius.sm,
   },
   audioText: {
     ...Typography.small,
@@ -1312,7 +1373,7 @@ const historyModalStyles = StyleSheet.create({
     ...Typography.body,
     textAlign: 'center',
     color: Colors.textMuted,
-    paddingVertical: 40,
+    paddingVertical: Spacing.huge,
   },
 });
 

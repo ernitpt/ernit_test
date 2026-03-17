@@ -36,6 +36,8 @@ export const stripeService = {
       const idToken = await currentUser.getIdToken();
 
       const data = await withRetry(async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         const response = await fetch(`${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.createPaymentIntent}`, {
           method: "POST",
           headers: {
@@ -50,7 +52,9 @@ export const stripeService = {
             cart: cartItems,
             personalizedMessage: personalizedMessage || "",
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
@@ -68,22 +72,23 @@ export const stripeService = {
         clientSecret: data.clientSecret,
         paymentIntentId,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error creating payment intent:", error);
+      const err = error instanceof Error ? error : new Error('Unknown error');
 
       // Log to Firestore with full context
-      await logErrorToFirestore(error, {
+      await logErrorToFirestore(err, {
         feature: 'PaymentIntent',
         additionalData: {
           amount,
           giverId,
           partnerId,
           cartItemsCount: cartItems?.length || 0,
-          errorType: error.name,
+          errorType: err.name,
         },
       });
 
-      throw new Error(error.message || "Failed to create payment intent");
+      throw new Error(err.message || "Failed to create payment intent");
     }
   },
 
@@ -103,6 +108,8 @@ export const stripeService = {
 
       const idToken = await currentUser.getIdToken();
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       const response = await fetch(`${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.updatePaymentIntentMetadata}`, {
         method: "POST",
         headers: {
@@ -113,16 +120,19 @@ export const stripeService = {
           paymentIntentId,
           personalizedMessage,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(errorData.error || "Failed to update payment intent");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error updating payment intent:", error);
       // Don't throw - this is not critical for payment flow
-      if (error.message === "User not authenticated") {
+      const errMsg = error instanceof Error ? error.message : '';
+      if (errMsg === "User not authenticated") {
         logger.warn("⚠️ User not authenticated when trying to update payment metadata");
       }
     }
@@ -132,7 +142,7 @@ export const stripeService = {
    * Check if a gift was created for a payment intent
    * ✅ SECURITY FIX: Added authentication
    */
-  getGiftByPaymentIntent: async (paymentIntentId: string): Promise<any | null> => {
+  getGiftByPaymentIntent: async (paymentIntentId: string): Promise<Record<string, unknown> | null> => {
     try {
       // ✅ SECURITY: Get authentication token
       const currentUser = auth.currentUser;
@@ -143,14 +153,18 @@ export const stripeService = {
       const idToken = await currentUser.getIdToken();
 
       const gift = await withRetry(async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         const response = await fetch(
           `${STRIPE_FUNCTIONS_URL}/${FUNCTIONS.getGiftsByPaymentIntent}?paymentIntentId=${paymentIntentId}`,
           {
             headers: {
               "Authorization": `Bearer ${idToken}`,
             },
+            signal: controller.signal,
           }
         );
+        clearTimeout(timeoutId);
 
         if (response.status === 404) {
           return null;
@@ -172,7 +186,7 @@ export const stripeService = {
         deliveryDate: new Date(gift.deliveryDate),
         updatedAt: new Date(gift.updatedAt),
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error fetching gift:", error);
       return null;
     }

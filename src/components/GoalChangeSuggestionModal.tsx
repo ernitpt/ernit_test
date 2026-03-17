@@ -5,15 +5,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  ActivityIndicator,
+  Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
+import Button from './Button';
 import { Goal } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
 
 interface GoalChangeSuggestionModalProps {
   visible: boolean;
@@ -151,10 +156,13 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       }
 
       onGoalUpdated(updated);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error responding to suggestion:', error);
-      setError(error?.message || 'Failed to update goal. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to update goal. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -300,24 +308,22 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       />
 
       <View style={styles.modalButtons}>
-        <TouchableOpacity
-          style={[styles.modalButton, styles.cancelButton]}
+        <Button
+          title="Cancel"
+          variant="ghost"
+          size="md"
           onPress={onClose}
           disabled={loading}
-        >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modalButton, styles.acceptButton]}
+          style={{ flex: 1 }}
+        />
+        <Button
+          title="Accept Changes"
+          variant="primary"
+          size="md"
           onPress={handleAccept}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.acceptButtonText}>Accept</Text>
-          )}
-        </TouchableOpacity>
+          loading={loading}
+          style={{ flex: 1 }}
+        />
       </View>
     </BaseModal>
   );
@@ -325,79 +331,78 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
 const styles = StyleSheet.create({
   messageBox: {
-    backgroundColor: '#eaf0f5ff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: Colors.infoLight,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: '#6a53f1ff',
+    borderLeftColor: Colors.info,
   },
   messageLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#6a53f1ff',
-    marginBottom: 4,
+    color: Colors.info,
+    marginBottom: Spacing.xs,
   },
   messageText: {
-    fontSize: 14,
+    ...Typography.small,
     color: Colors.gray700,
     fontStyle: 'italic',
   },
   goalInfo: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   infoLabel: {
-    fontSize: 13,
+    ...Typography.caption,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   infoText: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
   selectorContainer: {
-    marginVertical: 20,
+    marginVertical: Spacing.xl,
   },
   selectorLabel: {
-    fontSize: 15,
+    ...Typography.body,
     fontWeight: '600',
     color: Colors.gray700,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   selectorValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...Typography.heading3,
     color: Colors.primary,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   rangeInfo: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   rangeText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Colors.textMuted,
     textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   inputLabel: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
     color: Colors.gray700,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   numberInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   adjustButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -408,7 +413,7 @@ const styles = StyleSheet.create({
   },
   adjustButtonText: {
     color: Colors.white,
-    fontSize: 20,
+    fontSize: Typography.large.fontSize,
     fontWeight: '600',
   },
   adjustButtonTextDisabled: {
@@ -418,61 +423,38 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: Colors.gray300,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    ...Typography.subheading,
     textAlign: 'center',
   },
   messageInput: {
     borderWidth: 1,
     borderColor: Colors.gray300,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    ...Typography.small,
     minHeight: 80,
     textAlignVertical: 'top',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  acceptButton: {
-    backgroundColor: Colors.primary,
-  },
-  cancelButton: {
-    backgroundColor: Colors.backgroundLight,
-    marginRight: 12,
-  },
-  acceptButtonText: {
-    color: Colors.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  cancelButtonText: {
-    color: Colors.gray700,
-    fontWeight: '600',
-    fontSize: 16,
+    gap: Spacing.md,
   },
   errorBox: {
     backgroundColor: Colors.errorLight,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
     borderLeftWidth: 4,
     borderLeftColor: Colors.error,
   },
   errorText: {
     color: Colors.errorDark,
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
   },
 });

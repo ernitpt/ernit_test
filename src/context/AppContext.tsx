@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useReducer, useMemo, useEffect, ReactNode } from 'react';
 import { User, ExperienceGift, Goal, Hint, CartItem } from '../types';
 import { logger } from '../utils/logger';
 
@@ -69,15 +69,38 @@ const initialState: AppState = {
   debugMode: false,
 };
 
+/** Merge guest cart items into user cart, summing quantities for duplicates */
+function mergeGuestCart(guestCart?: CartItem[], userCart?: CartItem[]): CartItem[] {
+  const merged = new Map<string, number>();
+  for (const item of userCart || []) {
+    merged.set(item.experienceId, (merged.get(item.experienceId) || 0) + item.quantity);
+  }
+  for (const item of guestCart || []) {
+    merged.set(item.experienceId, (merged.get(item.experienceId) || 0) + item.quantity);
+  }
+  return Array.from(merged.entries()).map(([experienceId, quantity]) => ({
+    experienceId,
+    quantity: Math.min(quantity, 10), // Cap at max quantity
+  }));
+}
+
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
-    case 'SET_USER':
-      return { 
-        ...state, 
+    case 'SET_USER': {
+      if (action.payload && state.guestCart?.length) {
+        const mergedCart = mergeGuestCart(state.guestCart, action.payload.cart);
+        return {
+          ...state,
+          user: { ...action.payload, cart: mergedCart },
+          guestCart: undefined,
+        };
+      }
+      return {
+        ...state,
         user: action.payload,
-        // Clear guest cart when user logs in (it will be merged)
         guestCart: action.payload ? undefined : state.guestCart,
       };
+    }
 
     case 'SET_EXPERIENCE_GIFT':
       return { ...state, currentExperienceGift: action.payload };
@@ -184,19 +207,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         };
       }
       
-      // For guest users, store cart in state and save to local storage immediately
-      // Save synchronously for web, async for native
-      if (typeof window !== 'undefined') {
-        // Web: save immediately
-        try {
-          localStorage.setItem('guest_cart', JSON.stringify(newCart));
-        } catch (error) {
-          logger.error('Error saving guest cart:', error);
-        }
-      } else {
-        // Native: will be saved by useEffect in components
-      }
-      
+      // For guest users, store cart in state (persistence handled by useEffect in AppProvider)
       return {
         ...state,
         guestCart: newCart,
@@ -217,15 +228,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             cart: newCart,
           },
         };
-      }
-      
-      // Save guest cart immediately for web
-      if (!state.user && typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('guest_cart', JSON.stringify(newCart));
-        } catch (error) {
-          logger.error('Error saving guest cart:', error);
-        }
       }
       
       return {
@@ -250,15 +252,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             cart: newCart,
           },
         };
-      }
-      
-      // Save guest cart immediately for web
-      if (!state.user && typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('guest_cart', JSON.stringify(newCart));
-        } catch (error) {
-          logger.error('Error saving guest cart:', error);
-        }
       }
       
       return {
@@ -295,15 +288,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         };
       }
       
-      // Save guest cart immediately for web
-      if (!state.user && typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('guest_cart', JSON.stringify(action.payload));
-        } catch (error) {
-          logger.error('Error saving guest cart:', error);
-        }
-      }
-      
       return {
         ...state,
         guestCart: action.payload,
@@ -332,13 +316,40 @@ const AppContext = createContext<{
 
 // Provider component
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  logger.log('[AppProvider] Initializing context...');
   const [state, dispatch] = useReducer(appReducer, initialState);
-  
-  logger.log('[AppProvider] Initial state:', { hasUser: !!state?.user, guestCartLength: state?.guestCart?.length || 0 });
+
+  // Persist guest cart to localStorage (extracted from reducer for purity)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && state.guestCart !== undefined) {
+      try {
+        localStorage.setItem('guest_cart', JSON.stringify(state.guestCart));
+      } catch (error) {
+        logger.error('Failed to persist cart:', error);
+      }
+    }
+  }, [state.guestCart]);
+
+  // Restore guest cart from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedCart = localStorage.getItem('guest_cart');
+        if (savedCart) {
+          const parsedCart = JSON.parse(savedCart);
+          if (Array.isArray(parsedCart) && parsedCart.length > 0) {
+            dispatch({ type: 'SET_CART', payload: parsedCart });
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to restore cart:', error);
+      }
+    }
+  }, []);
+
+  const contextValue = useMemo(() => ({ state, dispatch }), [state, dispatch]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

@@ -1,13 +1,14 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
 import { Send } from 'lucide-react-native';
 import type { FeedPost as FeedPostType } from '../../types';
-import Colors from '../../config/colors';
+import { Colors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
 
 interface FeedPostEmpowerActionsProps {
     post: FeedPostType;
     currentUserId?: string;
     canMotivate: boolean;
+    goalHasGift?: boolean;
     onEmpower: () => void;
     onMotivate: () => void;
 }
@@ -16,13 +17,31 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
     post,
     currentUserId,
     canMotivate,
+    goalHasGift,
     onEmpower,
     onMotivate,
 }) => {
+    const empowerScale = useRef(new Animated.Value(1)).current;
+    const motivateScale = useRef(new Animated.Value(1)).current;
+
+    const handleEmpowerPressIn = () => {
+        Animated.spring(empowerScale, { toValue: 0.97, ...Animations.springs.bouncy, useNativeDriver: true }).start();
+    };
+    const handleEmpowerPressOut = () => {
+        Animated.spring(empowerScale, { toValue: 1, ...Animations.springs.bouncy, useNativeDriver: true }).start();
+    };
+    const handleMotivatePressIn = () => {
+        Animated.spring(motivateScale, { toValue: 0.97, ...Animations.springs.bouncy, useNativeDriver: true }).start();
+    };
+    const handleMotivatePressOut = () => {
+        Animated.spring(motivateScale, { toValue: 1, ...Animations.springs.bouncy, useNativeDriver: true }).start();
+    };
+
     return (
         <>
             {/* Free Goal: Experience Card Preview (milestone/completion posts) */}
             {post.isFreeGoal && post.pledgedExperienceId && post.userId !== currentUserId &&
+                !goalHasGift &&
                 (post.type === 'session_progress' || post.type === 'goal_completed') &&
                 post.experienceTitle && !post.isMystery && (
                     <TouchableOpacity style={styles.experiencePreviewCard} onPress={onEmpower} activeOpacity={0.85}>
@@ -47,7 +66,7 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
 
             {/* Free Goal: Category Hint Card (no pledged experience, but has category preference) */}
             {post.isFreeGoal && !post.pledgedExperienceId && post.preferredRewardCategory &&
-                post.userId !== currentUserId &&
+                post.userId !== currentUserId && !goalHasGift &&
                 (post.type === 'session_progress' || post.type === 'goal_completed') && (
                 <TouchableOpacity style={styles.categoryHintCard} onPress={onEmpower} activeOpacity={0.85}>
                     <Text style={styles.categoryHintEmoji}>
@@ -65,7 +84,7 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
             )}
 
             {/* Free Goal: Empower Button */}
-            {post.isFreeGoal && post.userId !== currentUserId && (post.pledgedExperienceId || post.preferredRewardCategory) && !(
+            {post.isFreeGoal && post.userId !== currentUserId && !goalHasGift && (post.pledgedExperienceId || post.preferredRewardCategory) && !(
                 (post.type === 'session_progress' || post.type === 'goal_completed') &&
                 post.experienceTitle && !post.isMystery
             ) && !(
@@ -73,35 +92,43 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                 post.preferredRewardCategory && !post.pledgedExperienceId
             ) && (
                 <View style={styles.freeGoalActions}>
-                    <TouchableOpacity
-                        style={styles.empowerButton}
-                        onPress={onEmpower}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Empower ${post.userName} with this experience`}
-                    >
-                        <Image
-                            source={require('../../assets/favicon.png')}
-                            style={styles.empowerButtonLogo}
-                        />
-                        <Text style={styles.empowerButtonText}>Empower</Text>
-                    </TouchableOpacity>
+                    <Animated.View style={[{ flex: 1, transform: [{ scale: empowerScale }] }]}>
+                        <TouchableOpacity
+                            style={styles.empowerButton}
+                            onPress={onEmpower}
+                            onPressIn={handleEmpowerPressIn}
+                            onPressOut={handleEmpowerPressOut}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Empower ${post.userName} with this experience`}
+                        >
+                            <Image
+                                source={require('../../assets/favicon.png')}
+                                style={styles.empowerButtonLogo}
+                            />
+                            <Text style={styles.empowerButtonText}>Empower</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
                 </View>
             )}
 
             {/* Motivate Button — all goals (only latest session, not completed) */}
             {canMotivate && (
                 <View style={styles.motivateActions}>
-                    <TouchableOpacity
-                        style={styles.motivateButton}
-                        onPress={onMotivate}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Send motivation message to ${post.userName}`}
-                    >
-                        <Send color={Colors.secondary} size={16} />
-                        <Text style={styles.motivateButtonText}>Motivate</Text>
-                    </TouchableOpacity>
+                    <Animated.View style={[{ flex: 1, transform: [{ scale: motivateScale }] }]}>
+                        <TouchableOpacity
+                            style={styles.motivateButton}
+                            onPress={onMotivate}
+                            onPressIn={handleMotivatePressIn}
+                            onPressOut={handleMotivatePressOut}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Send motivation message to ${post.userName}`}
+                        >
+                            <Send color={Colors.primary} size={16} />
+                            <Text style={styles.motivateButtonText}>Motivate</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
                 </View>
             )}
         </>
@@ -111,122 +138,123 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
 const styles = StyleSheet.create({
     freeGoalActions: {
         flexDirection: 'row',
-        gap: 8,
-        paddingHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 10,
+        gap: Spacing.sm,
+        paddingHorizontal: Spacing.lg,
+        marginTop: Spacing.xs,
+        marginBottom: Spacing.md,
     },
     motivateActions: {
-        paddingHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 10,
+        paddingHorizontal: Spacing.lg,
+        marginTop: Spacing.xs,
+        marginBottom: Spacing.md,
     },
     empowerButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
-        paddingVertical: 10,
-        borderRadius: 12,
-        backgroundColor: Colors.primarySurface,
-        borderWidth: 1,
-        borderColor: Colors.primaryTint,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.sm,
+        backgroundColor: Colors.primary,
+        ...Shadows.colored(Colors.primary),
     },
     empowerButtonLogo: {
         width: 18,
         height: 18,
-        borderRadius: 4,
+        borderRadius: BorderRadius.xs,
     },
     empowerButtonText: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: Colors.primary,
+        color: Colors.white,
     },
     motivateButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
-        paddingVertical: 10,
-        borderRadius: 12,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.primarySurface,
         borderWidth: 1,
         borderColor: Colors.primaryTint,
     },
     motivateButtonText: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: Colors.secondary,
+        color: Colors.primary,
     },
     experiencePreviewCard: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.primarySurface,
-        borderRadius: 12,
-        padding: 10,
-        marginHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 8,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.xs,
+        marginBottom: Spacing.sm,
         borderWidth: 1,
         borderColor: Colors.primaryTint,
+        ...Shadows.sm,
     },
     experiencePreviewImage: {
         width: 44,
         height: 44,
-        borderRadius: 8,
+        borderRadius: BorderRadius.sm,
         backgroundColor: Colors.border,
     },
     experiencePreviewInfo: {
         flex: 1,
-        marginLeft: 10,
+        marginLeft: Spacing.md,
     },
     experiencePreviewTitle: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.textPrimary,
     },
     experiencePreviewPrice: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '800',
         color: Colors.primary,
-        marginTop: 2,
+        marginTop: Spacing.xxs,
     },
     experiencePreviewCta: {
         backgroundColor: Colors.primary,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        borderRadius: BorderRadius.sm,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
     },
     experiencePreviewCtaText: {
-        color: '#fff',
-        fontSize: 12,
+        color: Colors.white,
+        ...Typography.caption,
         fontWeight: '700',
     },
     categoryHintCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        padding: 12,
-        marginHorizontal: 16,
-        marginTop: 4,
-        marginBottom: 8,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.xs,
+        marginBottom: Spacing.sm,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
+        ...Shadows.sm,
     },
     categoryHintEmoji: {
         fontSize: 24,
-        marginRight: 10,
+        marginRight: Spacing.md,
     },
     categoryHintInfo: {
         flex: 1,
     },
     categoryHintText: {
-        fontSize: 13,
+        ...Typography.caption,
         fontWeight: '600',
-        color: '#374151',
+        color: Colors.gray700,
     },
 });
 

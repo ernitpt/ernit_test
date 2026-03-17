@@ -19,6 +19,9 @@ import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { analyticsService } from '../../services/AnalyticsService';
 import Colors from '../../config/colors';
+import { BorderRadius } from '../../config/borderRadius';
+import { Typography } from '../../config/typography';
+import { Spacing } from '../../config/spacing';
 
 type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryChoice'>;
 
@@ -31,8 +34,8 @@ const HINT_BANDS = [
         session: 'Session 2',
         hint: '"Get ready to feel like a kid again — this one\'s going to be a thrill."',
         revealLevel: 0.08,
-        color: '#6366F1',
-        bgColor: '#EEF2FF',
+        color: Colors.categoryIndigo,
+        bgColor: Colors.infoLight,
     },
     {
         band: 'Thematic',
@@ -40,8 +43,8 @@ const HINT_BANDS = [
         session: 'Session 5',
         hint: '"You might want to bring comfortable shoes — and work on that grip strength."',
         revealLevel: 0.25,
-        color: '#F59E0B',
-        bgColor: '#FFFBEB',
+        color: Colors.categoryAmber,
+        bgColor: Colors.warningLighter,
     },
     {
         band: 'Strong',
@@ -49,8 +52,8 @@ const HINT_BANDS = [
         session: 'Session 8',
         hint: '"Ever wondered what it feels like to scale new heights? You\'re about to find out."',
         revealLevel: 0.55,
-        color: '#10B981',
-        bgColor: '#ECFDF5',
+        color: Colors.secondary,
+        bgColor: Colors.successLighter,
     },
     {
         band: 'Finale',
@@ -122,7 +125,7 @@ const MysteryChoiceScreen = () => {
             <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
                 <MainScreen activeRoute="Home">
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Redirecting...</Text>
+                        <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
                     </View>
                 </MainScreen>
             </ErrorBoundary>
@@ -244,11 +247,11 @@ const MysteryChoiceScreen = () => {
                                 <View style={styles.optionRow}>
                                     <View style={[
                                         styles.optionIcon,
-                                        { backgroundColor: '#FEF3C7' },
+                                        { backgroundColor: Colors.warningLight },
                                         selected === 'mystery' && styles.optionIconMystery,
                                     ]}>
                                         <Sparkles
-                                            color={selected === 'mystery' ? Colors.white : '#F59E0B'}
+                                            color={selected === 'mystery' ? Colors.white : Colors.warning}
                                             size={22}
                                         />
                                     </View>
@@ -284,7 +287,7 @@ const MysteryChoiceScreen = () => {
                                 >
                                     {/* Section title */}
                                     <View style={styles.explainerHeader}>
-                                        <Sparkles color="#F59E0B" size={16} />
+                                        <Sparkles color={Colors.warning} size={16} />
                                         <Text style={styles.explainerTitle}>How Mystery Hints Work</Text>
                                     </View>
 
@@ -415,7 +418,7 @@ const MysteryChoiceScreen = () => {
 
                                     {/* Footer note */}
                                     <View style={styles.explainerFooter}>
-                                        <Sparkles color="#F59E0B" size={14} />
+                                        <Sparkles color={Colors.warning} size={14} />
                                         <Text style={styles.explainerFooterText}>
                                             The mystery is revealed when {userName} completes the goal!
                                         </Text>
@@ -469,7 +472,7 @@ const MysteryChoiceScreen = () => {
                         >
                             <LinearGradient
                                 colors={selected === 'mystery'
-                                    ? ['#F59E0B', '#D97706'] as [string, string]
+                                    ? [Colors.warning, Colors.warningMedium] as [string, string]
                                     : Colors.gradientDark
                                 }
                                 start={{ x: 0, y: 0 }}
@@ -479,7 +482,7 @@ const MysteryChoiceScreen = () => {
                                 <Text style={styles.ctaText}>
                                     {selected === 'mystery' ? 'Continue with Mystery' : 'Continue'}
                                 </Text>
-                                <ChevronRight color="#fff" size={20} strokeWidth={3} />
+                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -501,8 +504,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 16,
-        paddingHorizontal: 20,
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
         backgroundColor: Colors.white,
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
@@ -510,14 +513,13 @@ const styles = StyleSheet.create({
     backButton: {
         width: 40,
         height: 40,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
+        ...Typography.heading3,
         color: Colors.textPrimary,
     },
 
@@ -526,23 +528,22 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 20,
+        paddingHorizontal: Spacing.xl,
+        paddingTop: Spacing.xxl,
+        paddingBottom: Spacing.xl,
     },
 
     // Step title (matches GoalSettingScreen)
     stepTitle: {
-        fontSize: 24,
+        ...Typography.heading1,
         fontWeight: '800',
         color: Colors.textPrimary,
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     stepSubtitle: {
-        fontSize: 15,
+        ...Typography.body,
         color: Colors.textSecondary,
-        lineHeight: 22,
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
 
     // Experience card
@@ -550,30 +551,30 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 24,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
+        marginBottom: Spacing.xxl,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
     },
     experienceImage: {
         width: 56,
         height: 56,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.border,
     },
     experienceInfo: {
         flex: 1,
-        marginLeft: 12,
+        marginLeft: Spacing.md,
     },
     experienceTitle: {
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '700',
         color: Colors.textPrimary,
         lineHeight: 20,
     },
     experiencePrice: {
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '800',
         color: Colors.primary,
         marginTop: 2,
@@ -581,13 +582,13 @@ const styles = StyleSheet.create({
 
     // Option cards
     optionsContainer: {
-        gap: 12,
-        marginBottom: 20,
+        gap: Spacing.md,
+        marginBottom: Spacing.xl,
     },
     optionCard: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
         borderWidth: 2,
         borderColor: Colors.border,
     },
@@ -596,18 +597,18 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primarySurface,
     },
     optionCardMystery: {
-        borderColor: '#F59E0B',
-        backgroundColor: '#FFFBEB',
+        borderColor: Colors.warning,
+        backgroundColor: Colors.warningLighter,
     },
     optionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: Spacing.md,
     },
     optionIcon: {
         width: 44,
         height: 44,
-        borderRadius: 14,
+        borderRadius: BorderRadius.lg,
         backgroundColor: Colors.primarySurface,
         justifyContent: 'center',
         alignItems: 'center',
@@ -616,13 +617,13 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.secondary,
     },
     optionIconMystery: {
-        backgroundColor: '#F59E0B',
+        backgroundColor: Colors.warning,
     },
     optionTextBlock: {
         flex: 1,
     },
     optionTitle: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '700',
         color: Colors.textPrimary,
         marginBottom: 2,
@@ -631,10 +632,10 @@ const styles = StyleSheet.create({
         color: Colors.primaryDark,
     },
     optionTitleMystery: {
-        color: '#92400E',
+        color: Colors.warningDark,
     },
     optionDesc: {
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textSecondary,
         lineHeight: 18,
     },
@@ -643,7 +644,7 @@ const styles = StyleSheet.create({
     radio: {
         width: 22,
         height: 22,
-        borderRadius: 11,
+        borderRadius: BorderRadius.md,
         borderWidth: 2,
         borderColor: Colors.border,
         justifyContent: 'center',
@@ -655,55 +656,55 @@ const styles = StyleSheet.create({
     radioInner: {
         width: 12,
         height: 12,
-        borderRadius: 6,
+        borderRadius: BorderRadius.xs,
         backgroundColor: Colors.secondary,
     },
     radioMystery: {
-        borderColor: '#F59E0B',
+        borderColor: Colors.warning,
     },
     radioInnerMystery: {
         width: 12,
         height: 12,
-        borderRadius: 6,
-        backgroundColor: '#F59E0B',
+        borderRadius: BorderRadius.xs,
+        backgroundColor: Colors.warning,
     },
 
     // Mystery explainer
     explainerContainer: {
         backgroundColor: Colors.white,
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xl,
         borderWidth: 1,
         borderColor: Colors.backgroundLight,
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     explainerHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
+        gap: Spacing.sm,
+        marginBottom: Spacing.md,
     },
     explainerTitle: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '700',
         color: Colors.textPrimary,
     },
     explainerIntro: {
-        fontSize: 14,
+        ...Typography.small,
         color: Colors.textSecondary,
         lineHeight: 21,
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
 
     // Reveal demo
     revealDemo: {
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
     revealImageContainer: {
-        borderRadius: 14,
+        borderRadius: BorderRadius.lg,
         overflow: 'hidden',
         height: 120,
-        backgroundColor: '#1F2937',
+        backgroundColor: Colors.gray800,
         position: 'relative',
     },
     revealImage: {
@@ -713,12 +714,12 @@ const styles = StyleSheet.create({
     },
     revealOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#1F2937',
+        backgroundColor: Colors.gray800,
         justifyContent: 'center',
         alignItems: 'center',
     },
     revealQuestionMark: {
-        fontSize: 40,
+        fontSize: Typography.displayLarge.fontSize,
         fontWeight: '800',
         color: 'rgba(255,255,255,0.3)',
     },
@@ -728,49 +729,48 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 4,
-        backgroundColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: Colors.whiteAlpha15,
     },
     revealProgressFill: {
         height: '100%',
-        borderRadius: 2,
+        borderRadius: BorderRadius.xs,
     },
     revealLabelRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        marginTop: 8,
-        paddingHorizontal: 4,
+        gap: Spacing.xs,
+        marginTop: Spacing.sm,
+        paddingHorizontal: Spacing.xs,
     },
     revealLabel: {
-        fontSize: 11,
-        fontWeight: '600',
+        ...Typography.tiny,
         color: Colors.textMuted,
     },
 
     // Example tag
     exampleTag: {
-        backgroundColor: '#FEF3C7',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginBottom: 16,
+        backgroundColor: Colors.warningLight,
+        borderRadius: BorderRadius.sm,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        marginBottom: Spacing.lg,
         alignSelf: 'flex-start',
     },
     exampleTagText: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '700',
-        color: '#92400E',
+        color: Colors.warningDark,
     },
 
     // Timeline
     timeline: {
-        gap: 10,
-        marginBottom: 16,
+        gap: Spacing.sm,
+        marginBottom: Spacing.lg,
     },
     timelineItem: {
         backgroundColor: Colors.surface,
-        borderRadius: 14,
-        padding: 14,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
         position: 'relative',
         borderWidth: 1,
         borderColor: 'transparent',
@@ -781,46 +781,46 @@ const styles = StyleSheet.create({
         left: 24,
         width: 2,
         height: 10,
-        borderRadius: 1,
+        borderRadius: BorderRadius.xs,
     },
     timelineTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     bandBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
+        gap: Spacing.xs,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.sm,
     },
     bandDot: {
         width: 7,
         height: 7,
-        borderRadius: 4,
+        borderRadius: BorderRadius.xs,
     },
     bandLabel: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     sessionLabel: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textMuted,
     },
     hintBubble: {
         flexDirection: 'row',
-        gap: 8,
+        gap: Spacing.sm,
         alignItems: 'flex-start',
     },
     hintText: {
         flex: 1,
-        fontSize: 13,
+        ...Typography.caption,
         color: Colors.textPrimary,
         lineHeight: 19,
         fontStyle: 'italic',
@@ -830,16 +830,16 @@ const styles = StyleSheet.create({
     explainerFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: '#FFFBEB',
-        borderRadius: 12,
-        padding: 14,
+        gap: Spacing.sm,
+        backgroundColor: Colors.warningLighter,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
     },
     explainerFooterText: {
         flex: 1,
-        fontSize: 14,
+        ...Typography.small,
         fontWeight: '600',
-        color: '#92400E',
+        color: Colors.warningDark,
         lineHeight: 20,
     },
 
@@ -848,36 +848,36 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.primarySurface,
-        borderRadius: 16,
-        padding: 14,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.md,
         borderWidth: 1,
         borderColor: Colors.primaryBorder,
-        marginBottom: 16,
-        gap: 14,
+        marginBottom: Spacing.lg,
+        gap: Spacing.md,
     },
     openPreviewImage: {
         width: 64,
         height: 64,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         backgroundColor: Colors.border,
     },
     openPreviewInfo: {
         flex: 1,
     },
     openPreviewTitle: {
-        fontSize: 12,
+        ...Typography.caption,
         fontWeight: '600',
         color: Colors.textSecondary,
         marginBottom: 2,
     },
     openPreviewName: {
-        fontSize: 15,
+        ...Typography.body,
         fontWeight: '700',
         color: Colors.primaryDeep,
         lineHeight: 20,
     },
     openPreviewSub: {
-        fontSize: 12,
+        ...Typography.caption,
         color: Colors.textMuted,
         marginTop: 2,
     },
@@ -888,9 +888,9 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: 20,
-        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-        paddingTop: 16,
+        paddingHorizontal: Spacing.xl,
+        paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
+        paddingTop: Spacing.lg,
         backgroundColor: Colors.white,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
@@ -901,19 +901,19 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     ctaButton: {
-        borderRadius: 16,
+        borderRadius: BorderRadius.lg,
         overflow: 'hidden',
     },
     ctaGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 16,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.lg,
+        borderRadius: BorderRadius.lg,
     },
     ctaText: {
-        fontSize: 16,
+        ...Typography.subheading,
         fontWeight: '700',
         color: Colors.white,
     },

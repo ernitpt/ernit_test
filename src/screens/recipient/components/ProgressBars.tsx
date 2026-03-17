@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native
 import * as Haptics from 'expo-haptics';
 import { CARD_COLORS } from '../goalCardUtils';
 import Colors from '../../../config/colors';
+import { BorderRadius } from '../../../config/borderRadius';
+import { Spacing } from '../../../config/spacing';
 
 // ─── Capsule ────────────────────────────────────────────────────────
 
@@ -89,7 +91,7 @@ const Capsule: React.FC<{
               outputRange: ['0%', '100%'],
             }),
             backgroundColor: fillColor,
-            borderRadius: 50,
+            borderRadius: BorderRadius.pill,
             shadowColor: fillColor,
             shadowOpacity,
             shadowRadius: 6,
@@ -169,7 +171,7 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
             <Capsule
               key={i}
               isFilled={i < weeklyFilled}
-              fillColor="#84b3e9ff"
+              fillColor={Colors.info}
               emptyColor={CARD_COLORS.grayLight}
             />
           ))}
@@ -187,7 +189,7 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
             <Capsule
               key={i}
               isFilled={i < completedWeeks}
-              fillColor="#84b3e9ff"
+              fillColor={Colors.info}
               emptyColor={CARD_COLORS.grayLight}
             />
           ))}
@@ -202,15 +204,15 @@ ProgressBars.displayName = 'ProgressBars';
 // ─── Styles ─────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  progressBlock: { marginBottom: 24 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  progressLabel: { color: '#4b5563' },
+  progressBlock: { marginBottom: Spacing.xxl },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+  progressLabel: { color: Colors.gray600 },
   progressText: { color: Colors.textPrimary, fontWeight: '600' },
-  capsuleRow: { flexDirection: 'row', gap: 3 },
+  capsuleRow: { flexDirection: 'row', gap: Spacing.xxs },
   capsule: {
     flex: 1,
     height: 12,
-    borderRadius: 50,
+    borderRadius: BorderRadius.pill,
     backgroundColor: CARD_COLORS.grayLight,
     overflow: 'hidden',
   },

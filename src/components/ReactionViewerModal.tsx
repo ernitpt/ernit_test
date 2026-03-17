@@ -4,7 +4,6 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Image,
     ScrollView,
 } from 'react-native';
 import type { Reaction, ReactionType } from '../types';
@@ -15,6 +14,7 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { Colors, Typography, Spacing, BorderRadius } from '../config';
 import { EmptyState } from './EmptyState';
 import { BaseModal } from './BaseModal';
+import { Avatar } from './Avatar';
 
 interface ReactionViewerModalProps {
     visible: boolean;
@@ -167,18 +167,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                 ) : (
                     filteredReactions.map((reaction) => (
                         <View key={reaction.id} style={styles.reactionItem}>
-                            {reaction.userProfileImageUrl ? (
-                                <Image
-                                    source={{ uri: reaction.userProfileImageUrl }}
-                                    style={styles.avatar}
-                                />
-                            ) : (
-                                <View style={styles.avatarPlaceholder}>
-                                    <Text style={styles.avatarText}>
-                                        {reaction.userName?.[0]?.toUpperCase() || 'U'}
-                                    </Text>
-                                </View>
-                            )}
+                            <Avatar uri={reaction.userProfileImageUrl} name={reaction.userName} size="sm" />
                             <View style={styles.userInfo}>
                                 <Text style={styles.userName}>{reaction.userName}</Text>
                             </View>
@@ -219,7 +208,7 @@ const styles = StyleSheet.create({
         borderColor: Colors.secondary,
     },
     tabEmoji: {
-        fontSize: 16,
+        fontSize: Typography.subheading.fontSize,
     },
     tabText: {
         ...Typography.smallBold,
@@ -243,23 +232,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: Colors.backgroundLight,
     },
-    avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-    },
-    avatarPlaceholder: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: Colors.primarySurface,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        ...Typography.heading3,
-        color: Colors.primary,
-    },
     userInfo: {
         flex: 1,
         marginLeft: Spacing.md,
@@ -269,7 +241,7 @@ const styles = StyleSheet.create({
         color: Colors.textPrimary,
     },
     reactionEmoji: {
-        fontSize: 20,
+        fontSize: Typography.large.fontSize,
     },
 });
 

@@ -83,6 +83,9 @@ test.env
 
 live.env
 
+# Partner app secrets
+ErnitPartnerApp/.env
+
 serviceAccountKey.json
 
 # Build outputs

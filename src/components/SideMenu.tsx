@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  LayoutAnimation,
   TouchableWithoutFeedback,
   Modal,
   ScrollView,
@@ -18,26 +19,27 @@ import { RootStackParamList } from '../types';
 import { getAuth, signOut } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../hooks/useAuthGuard';
+import { Avatar } from './Avatar';
 
-import SettingsIcon from '../assets/icons/Settings';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell } from 'lucide-react-native';
+import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell, X, ChevronRight } from 'lucide-react-native';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
 import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Colors from '../config/colors';
+import { Colors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../config';
 import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
+import * as Haptics from 'expo-haptics';
 
 // Wrapper component to adapt Lucide LogIn icon to MenuItem interface
 const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
-  width = 26,
-  height = 26,
+  width = 22,
+  height = 22,
   color = Colors.primary
 }) => {
   return <LogIn size={width} color={color} />;
@@ -52,24 +54,38 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: screenWidth } = Dimensions.get('window');
 
+const STAGGER_COUNT = 4;
+
+// Section header sub-component
+const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
+  <View style={styles.sectionHeader} accessibilityRole="header">
+    <Text style={styles.sectionHeaderText}>{title}</Text>
+  </View>
+);
+
 // Reusable menu item
 const MenuItem: React.FC<{
   Icon: React.FC<{ width?: number; height?: number; color?: string }>;
   title: string;
   onPress: () => void;
-  isLast?: boolean;
-}> = ({ Icon, title, onPress, isLast = false }) => (
+  showChevron?: boolean;
+  iconColor?: string;
+  textColor?: string;
+}> = ({ Icon, title, onPress, showChevron = false, iconColor = Colors.primary, textColor = Colors.textPrimary }) => (
   <TouchableOpacity
     onPress={onPress}
-    style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
-    activeOpacity={0.8}
+    style={styles.menuItem}
+    activeOpacity={0.7}
     accessibilityRole="button"
     accessibilityLabel={title}
   >
-    <View style={styles.iconWrapper}>
-      <Icon width={26} height={26} color={Colors.primary} />
+    <View style={[styles.iconWrapper, iconColor === Colors.error && styles.iconWrapperDanger]}>
+      <Icon width={20} height={20} color={iconColor} />
     </View>
-    <Text style={styles.menuTitle}>{title}</Text>
+    <Text style={[styles.menuTitle, { color: textColor }]}>{title}</Text>
+    {showChevron && (
+      <ChevronRight size={18} color={Colors.textMuted} />
+    )}
   </TouchableOpacity>
 );
 
@@ -78,9 +94,15 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const { state, dispatch } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const { showError } = useToast();
+  const [shouldRender, setShouldRender] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const itemAnims = useRef(
+    Array.from({ length: STAGGER_COUNT }, () => new Animated.Value(0))
+  ).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
@@ -90,8 +112,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [pickerHour, setPickerHour] = useState(19);
   const [pickerMinute, setPickerMinute] = useState(0);
+  const pickerAnim = useRef(new Animated.Value(0)).current;
 
   const isAuthenticated = !!state.user;
+  const displayName = state.user?.displayName || state.user?.profile?.name || 'User';
+  const profileImageUrl = state.user?.profile?.profileImageUrl;
 
   // Format "HH:MM" to display like "7:00 PM"
   const formatTime12h = (time: string) => {
@@ -125,32 +150,83 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
 
   useEffect(() => {
     if (visible) {
+      setShouldRender(true);
+      // Lock body scroll on web to prevent white space on drag
+      if (Platform.OS === 'web') {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+      }
+      // Open: spring panel + fade overlay + stagger sections
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 280,
-          useNativeDriver: true,
+          ...Animations.springs.gentle,
         }),
         Animated.timing(overlayOpacity, {
           toValue: 0.5,
-          duration: 280,
+          duration: Animations.durations.normal,
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Header fade in with slight delay
+      Animated.spring(headerAnim, {
+        toValue: 1,
+        delay: 80,
+        ...Animations.springs.gentle,
+      }).start();
+
+      // Stagger section groups
+      Animated.stagger(
+        60,
+        itemAnims.map(anim =>
+          Animated.spring(anim, {
+            toValue: 1,
+            ...Animations.springs.snappy,
+          })
+        )
+      ).start();
     } else {
+      // Close: fade out items + header, slide panel out, fade overlay
       Animated.parallel([
+        Animated.timing(headerAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        ...itemAnims.map(anim =>
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          })
+        ),
         Animated.timing(slideAnim, {
           toValue: screenWidth,
-          duration: 280,
+          duration: 250,
           useNativeDriver: true,
         }),
         Animated.timing(overlayOpacity, {
           toValue: 0,
-          duration: 280,
+          duration: 250,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setShouldRender(false);
+        // Unlock body scroll on web
+        if (Platform.OS === 'web') {
+          document.body.style.overflow = '';
+          document.documentElement.style.overflow = '';
+        }
+      });
     }
+
+    return () => {
+      if (Platform.OS === 'web') {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      }
+    };
   }, [visible]);
 
   const handleMenuPress = async (action: string) => {
@@ -178,26 +254,21 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       case 'Give Feedback':
         setContactModalType('feedback');
         setContactModalVisible(true);
-        // Don't close side menu yet - will close when modal opens
         break;
 
       case 'Get Support':
         setContactModalType('support');
         setContactModalVisible(true);
-        // Don't close side menu yet - will close when modal opens
         break;
 
       case 'How It Works':
         setHowItWorksVisible(true);
-        // Don't close side menu yet - will close when modal opens
         break;
 
       case 'Logout':
         if (isAuthenticated) {
-          // Show confirmation popup immediately - don't close side menu yet
           setShowLogoutConfirmation(true);
         } else {
-          // User not authenticated - show login prompt
           requireAuth('Please log in to access your account.');
         }
         break;
@@ -209,37 +280,40 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   };
 
   const handleLogoutConfirm = async () => {
-    // Close side menu when confirming logout
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     onClose();
     try {
-      // Clear persisted timer state to prevent stale sessions
       try { await AsyncStorage.removeItem('global_timer_state'); } catch {}
 
       const auth = getAuth();
       await signOut(auth);
       dispatch({ type: 'RESET_STATE' });
 
-      // Navigate to CategorySelection after successful logout
       navigation.navigate('CategorySelection');
     } catch (error) {
       logger.error('Logout failed:', error);
       showError('Failed to log out. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
   const handleLogoutCancel = () => {
     setShowLogoutConfirmation(false);
-    // Keep side menu open when canceling
   };
 
   const handleReminderToggle = async () => {
     if (!state.user?.id) return;
+    if (!state.user?.profile) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const newValue = !reminderEnabled;
     setReminderEnabled(newValue);
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       await userService.updateUserProfile(state.user.id, {
-        profile: { ...state.user.profile!, reminderEnabled: newValue, timezone },
+        profile: { ...state.user.profile, reminderEnabled: newValue, timezone },
       });
     } catch (error) {
       logger.error('Error saving reminder preference:', error);
@@ -249,16 +323,29 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
 
   const handleReminderTimeChange = async (time: string) => {
     if (!state.user?.id) return;
+    if (!state.user?.profile) return;
     setReminderTime(time);
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       await userService.updateUserProfile(state.user.id, {
-        profile: { ...state.user.profile!, reminderTime: time, timezone },
+        profile: { ...state.user.profile, reminderTime: time, timezone },
       });
     } catch (error) {
       logger.error('Error saving reminder time:', error);
     }
   };
+
+  useEffect(() => {
+    if (showTimePicker) {
+      pickerAnim.setValue(0);
+      Animated.spring(pickerAnim, {
+        toValue: 1,
+        tension: 65,
+        friction: 10,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showTimePicker, pickerAnim]);
 
   const openTimePicker = () => {
     const [h, m] = reminderTime.split(':').map(Number);
@@ -273,9 +360,20 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     setShowTimePicker(false);
   };
 
+  // Helper to create stagger animated style
+  const staggerStyle = (index: number) => ({
+    opacity: itemAnims[index],
+    transform: [{
+      translateX: itemAnims[index].interpolate({
+        inputRange: [0, 1],
+        outputRange: [30, 0],
+      }),
+    }],
+  });
+
   return (
     <>
-      {visible && (
+      {shouldRender && (
         <View style={styles.container}>
           {/* Overlay */}
           <TouchableWithoutFeedback onPress={onClose}>
@@ -287,95 +385,166 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
             style={[styles.menuPanel, { transform: [{ translateX: slideAnim }] }]}
           >
             <SafeAreaView style={styles.menuContent}>
-              {/* Header */}
-              <View style={styles.menuHeader}>
-                <Text style={styles.menuHeaderTitle} accessibilityRole="header">Menu</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close menu">
-                  <Text style={styles.closeButtonText}>×</Text>
+              {/* Profile Header */}
+              <Animated.View style={[styles.header, { opacity: headerAnim }]}>
+                {/* Close button */}
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.closeButton}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close menu"
+                >
+                  <X size={20} color={Colors.textMuted} />
                 </TouchableOpacity>
-              </View>
 
-              {/* Menu list */}
-              <View style={styles.menuItemsContainer}>
-                {/* <MenuItem
-                  Icon={SettingsIcon}
-                  title="Settings"
-                  onPress={() => handleMenuPress('Settings')}
-                /> */}
-                {showInstallButton && (
-                  <MenuItem
-                    Icon={({ width, height, color }) => <Download size={width} color={color} />}
-                    title="Install App"
-                    onPress={() => handleMenuPress('Install App')}
-                  />
-                )}
-                <MenuItem
-                  Icon={RedeemIcon}
-                  title="Redeem Coupon"
-                  onPress={() => handleMenuPress('Redeem Coupon')}
-                />
-                <MenuItem
-                  Icon={PurchaseIcon}
-                  title="Purchased Gifts"
-                  onPress={() => handleMenuPress('Purchased Gifts')}
-                />
-                <MenuItem
-                  Icon={({ width, height, color }) => <HelpCircle size={width} color={color} />}
-                  title="How It Works"
-                  onPress={() => handleMenuPress('How It Works')}
-                />
-                <MenuItem
-                  Icon={({ width, height, color }) => <MessageSquare size={width} color={color} />}
-                  title="Give Feedback"
-                  onPress={() => handleMenuPress('Give Feedback')}
-                />
-                <MenuItem
-                  Icon={({ width, height, color }) => <LifeBuoy size={width} color={color} />}
-                  title="Get Support"
-                  onPress={() => handleMenuPress('Get Support')}
-                />
-                {/* Session Reminders Section */}
-                {isAuthenticated && (
-                  <View style={styles.reminderSection}>
-                    <View style={styles.reminderHeader}>
-                      <View style={styles.iconWrapper}>
-                        <Bell size={26} color={Colors.primary} />
-                      </View>
-                      <Text style={styles.menuTitle}>Reminders</Text>
-                    </View>
-                    <View style={styles.reminderRow}>
-                      <Text style={styles.reminderLabel}>Session reminders</Text>
-                      <TouchableOpacity
-                        onPress={handleReminderToggle}
-                        style={[styles.toggle, reminderEnabled && styles.toggleActive]}
-                        activeOpacity={0.8}
-                      >
-                        <View style={[styles.toggleThumb, reminderEnabled && styles.toggleThumbActive]} />
-                      </TouchableOpacity>
-                    </View>
-                    {reminderEnabled && (
-                      <View style={styles.reminderRow}>
-                        <Text style={styles.reminderLabel}>Remind me at</Text>
-                        <TouchableOpacity
-                          onPress={openTimePicker}
-                          style={styles.timeChipActive}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.timeChipTextActive}>
-                            {formatTime12h(reminderTime)}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                {isAuthenticated ? (
+                  <TouchableOpacity
+                    style={styles.profileSection}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('Profile');
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go to profile"
+                  >
+                    <Avatar
+                      size="lg"
+                      uri={profileImageUrl}
+                      name={displayName}
+                    />
+                    <Text style={styles.profileName}>{displayName}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.brandSection}>
+                    <Text style={styles.brandName}>Ernit</Text>
+                    <Text style={styles.brandTagline}>Experiences worth giving</Text>
+                    <TouchableOpacity
+                      onPress={() => handleMenuPress('Logout')}
+                      style={styles.signInButton}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Sign in"
+                    >
+                      <Text style={styles.signInButtonText}>Sign In</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
-                <MenuItem
-                  Icon={isAuthenticated ? LogoutIcon : LoginIcon}
-                  title={isAuthenticated ? "Logout" : "Login"}
-                  onPress={() => handleMenuPress('Logout')}
-                  isLast
-                />
-              </View>
+              </Animated.View>
+
+              {/* Menu Body */}
+              <ScrollView
+                style={styles.menuBody}
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Install App (standalone, web only) */}
+                {showInstallButton && (
+                  <Animated.View style={staggerStyle(0)}>
+                    <MenuItem
+                      Icon={({ width, height, color }) => <Download size={width} color={color} />}
+                      title="Install App"
+                      onPress={() => handleMenuPress('Install App')}
+                    />
+                  </Animated.View>
+                )}
+
+                {/* Section: Actions */}
+                <Animated.View style={staggerStyle(0)}>
+                  <SectionHeader title="ACTIONS" />
+                  <MenuItem
+                    Icon={RedeemIcon}
+                    title="Redeem Coupon"
+                    onPress={() => handleMenuPress('Redeem Coupon')}
+                    showChevron
+                  />
+                  <MenuItem
+                    Icon={PurchaseIcon}
+                    title="Purchased Gifts"
+                    onPress={() => handleMenuPress('Purchased Gifts')}
+                    showChevron
+                  />
+                </Animated.View>
+
+                {/* Section: Help & Info */}
+                <Animated.View style={staggerStyle(1)}>
+                  <SectionHeader title="HELP & INFO" />
+                  <MenuItem
+                    Icon={({ width, height, color }) => <HelpCircle size={width} color={color} />}
+                    title="How It Works"
+                    onPress={() => handleMenuPress('How It Works')}
+                  />
+                  <MenuItem
+                    Icon={({ width, height, color }) => <MessageSquare size={width} color={color} />}
+                    title="Give Feedback"
+                    onPress={() => handleMenuPress('Give Feedback')}
+                  />
+                  <MenuItem
+                    Icon={({ width, height, color }) => <LifeBuoy size={width} color={color} />}
+                    title="Get Support"
+                    onPress={() => handleMenuPress('Get Support')}
+                  />
+                </Animated.View>
+
+                {/* Section: Settings (auth only) */}
+                {isAuthenticated && (
+                  <Animated.View style={staggerStyle(2)}>
+                    <SectionHeader title="SETTINGS" />
+                    <View style={styles.reminderSection}>
+                      <View style={styles.reminderHeader}>
+                        <View style={styles.iconWrapper}>
+                          <Bell size={20} color={Colors.primary} />
+                        </View>
+                        <Text style={styles.menuTitle}>Reminders</Text>
+                      </View>
+                      <View style={styles.reminderRow}>
+                        <Text style={styles.reminderLabel}>Session reminders</Text>
+                        <TouchableOpacity
+                          onPress={handleReminderToggle}
+                          style={[styles.toggle, reminderEnabled && styles.toggleActive]}
+                          activeOpacity={0.8}
+                          accessibilityRole="switch"
+                          accessibilityLabel="Toggle session reminders"
+                          accessibilityState={{ checked: reminderEnabled }}
+                        >
+                          <View style={[styles.toggleThumb, reminderEnabled && styles.toggleThumbActive]} />
+                        </TouchableOpacity>
+                      </View>
+                      {reminderEnabled && (
+                        <View style={styles.reminderRow}>
+                          <Text style={styles.reminderLabel}>Remind me at</Text>
+                          <TouchableOpacity
+                            onPress={openTimePicker}
+                            style={styles.timeChipActive}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Change reminder time, currently ${formatTime12h(reminderTime)}`}
+                          >
+                            <Text style={styles.timeChipTextActive}>
+                              {formatTime12h(reminderTime)}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </Animated.View>
+                )}
+
+                {/* Divider */}
+                <View style={styles.divider} />
+
+                {/* Login/Logout */}
+                <Animated.View style={staggerStyle(3)}>
+                  <MenuItem
+                    Icon={isAuthenticated ? LogoutIcon : LoginIcon}
+                    title={isAuthenticated ? (isLoggingOut ? 'Logging out…' : 'Logout') : 'Login'}
+                    onPress={isLoggingOut ? () => {} : () => handleMenuPress('Logout')}
+                    iconColor={isAuthenticated ? Colors.error : Colors.primary}
+                    textColor={isAuthenticated ? (isLoggingOut ? Colors.textMuted : Colors.error) : Colors.primary}
+                  />
+                </Animated.View>
+              </ScrollView>
 
               {/* Footer */}
               <View style={styles.menuFooter}>
@@ -386,14 +555,14 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         </View>
       )}
 
-      {/* Logout Confirmation Popup - rendered outside side menu so it's always available */}
+      {/* Logout Confirmation Popup */}
       <LogoutConfirmation
         visible={showLogoutConfirmation}
         onClose={handleLogoutCancel}
         onConfirm={handleLogoutConfirm}
       />
 
-      {/* Login Prompt - shown when not authenticated user tries to logout */}
+      {/* Login Prompt */}
       <LoginPrompt
         visible={showLoginPrompt}
         onClose={closeLoginPrompt}
@@ -405,21 +574,21 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         visible={howItWorksVisible}
         onClose={() => {
           setHowItWorksVisible(false);
-          onClose(); // Also close side menu
+          onClose();
         }}
       />
 
-      {/* Contact Modal - shown for feedback and support */}
+      {/* Contact Modal */}
       <ContactModal
         visible={contactModalVisible}
         type={contactModalType}
         onClose={() => {
           setContactModalVisible(false);
-          onClose(); // Also close side menu
+          onClose();
         }}
       />
 
-      {/* Time Picker Popbox */}
+      {/* Time Picker Modal */}
       <Modal
         visible={showTimePicker}
         transparent
@@ -429,7 +598,20 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
           <View style={styles.pickerOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.pickerBox}>
+              <Animated.View
+                style={[
+                  styles.pickerBox,
+                  {
+                    opacity: pickerAnim,
+                    transform: [{
+                      scale: pickerAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.9, 1],
+                      }),
+                    }],
+                  },
+                ]}
+              >
                 <Text style={styles.pickerTitle}>Set Reminder Time</Text>
                 <View style={styles.pickerColumns}>
                   {/* Hour column */}
@@ -470,10 +652,16 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                     </ScrollView>
                   </View>
                 </View>
-                <TouchableOpacity onPress={confirmTimePicker} style={styles.pickerConfirm} activeOpacity={0.8}>
+                <TouchableOpacity
+                  onPress={confirmTimePicker}
+                  style={styles.pickerConfirm}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm reminder time"
+                >
                   <Text style={styles.pickerConfirmText}>Set Time</Text>
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
@@ -486,115 +674,171 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
+    zIndex: 9999,
+    overflow: 'hidden',
   },
   overlay: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.black,
   },
   menuPanel: {
     position: 'absolute',
     right: 0,
-    width: 310,
-    height: '100%',
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
-    overflow: 'hidden',  // Prevent scrolling beyond bounds
+    top: 0,
+    bottom: 0,
+    width: Math.min(320, screenWidth * 0.85),
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderBottomLeftRadius: BorderRadius.xxl,
+    overflow: 'hidden',
+    ...Shadows.lg,
   },
   menuContent: {
     flex: 1,
-    overflow: 'hidden',  // Prevent horizontal scrolling in content
+    overflow: 'hidden',
   },
-  menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 16,
+
+  // Header
+  header: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xxxl,
+    paddingBottom: Spacing.xxl,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  menuHeaderTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    borderBottomColor: Colors.border,
   },
   closeButton: {
-    padding: 6,
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.circle,
+    backgroundColor: Colors.backgroundLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
-  closeButtonText: {
-    fontSize: 26,
-    color: '#9CA3AF',
+  profileSection: {
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
   },
-  menuItemsContainer: {
+  profileName: {
+    ...Typography.heading3,
+    color: Colors.textPrimary,
+    marginTop: Spacing.md,
+  },
+  brandSection: {
+    alignItems: 'center',
+    paddingTop: Spacing.lg,
+  },
+  brandName: {
+    ...Typography.heading1,
+    color: Colors.textPrimary,
+  },
+  brandTagline: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  signInButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  signInButtonText: {
+    ...Typography.bodyBold,
+    color: Colors.primary,
+  },
+
+  // Menu Body
+  menuBody: {
     flex: 1,
-    paddingVertical: 12,
+    paddingTop: Spacing.sm,
+  },
+  sectionHeader: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  sectionHeaderText: {
+    ...Typography.tiny,
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
   },
   iconWrapper: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: Colors.primarySurface,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: 'rgba(167, 243, 208, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginLeft: 16,
+  iconWrapperDanger: {
+    backgroundColor: Colors.errorLight,
   },
+  menuTitle: {
+    ...Typography.subheading,
+    color: Colors.textPrimary,
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.xxl,
+    marginVertical: Spacing.sm,
+  },
+
+  // Footer
   menuFooter: {
-    padding: 24,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: Colors.border,
+    alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    ...Typography.caption,
+    color: Colors.textMuted,
   },
+
   // Reminder settings
   reminderSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.sm,
   },
   reminderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   reminderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
   },
   reminderLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...Typography.small,
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   toggle: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#D1D5DB',
+    width: 48,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.disabled,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
@@ -602,65 +846,64 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.white,
+    ...Shadows.sm,
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
   timeChipActive: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.primarySurface,
     borderWidth: 1,
     borderColor: Colors.primary,
   },
   timeChipTextActive: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '600',
     color: Colors.primary,
   },
+
+  // Time Picker Modal
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pickerBox: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
     width: 280,
     maxHeight: 400,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    ...Shadows.lg,
   },
   pickerTitle: {
-    fontSize: 16,
+    ...Typography.subheading,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   pickerColumns: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   pickerColumn: {
     flex: 1,
   },
   pickerColumnLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -668,11 +911,11 @@ const styles = StyleSheet.create({
     maxHeight: 220,
   },
   pickerItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   pickerItemActive: {
     backgroundColor: Colors.primarySurface,
@@ -680,25 +923,24 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   pickerItemText: {
-    fontSize: 14,
+    ...Typography.small,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   pickerItemTextActive: {
     color: Colors.primary,
     fontWeight: '600',
   },
   pickerConfirm: {
-    marginTop: 16,
+    marginTop: Spacing.lg,
     backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: BorderRadius.sm,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
   },
   pickerConfirmText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
+    ...Typography.bodyBold,
+    color: Colors.white,
   },
 });
 
