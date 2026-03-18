@@ -1,6 +1,6 @@
 // screens/GoalDetailScreen.tsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +16,7 @@ import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
+import Button from '../components/Button';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -131,16 +132,14 @@ const GoalDetailScreen: React.FC = () => {
     <MainScreen activeRoute="Goals">
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <TouchableOpacity
+        <Button
+          variant="ghost"
+          title="Back"
           onPress={() => {
             if (navigation.canGoBack()) navigation.goBack();
             else navigation.navigate('Goals');
           }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        />
         <Text style={styles.headerTitle} accessibilityRole="header">Goal Details</Text>
       </View>
 
@@ -198,7 +197,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.subheading, color: Colors.secondary, fontWeight: '500' },
   headerTitle: { ...Typography.heading1, fontWeight: '700', color: Colors.textPrimary, marginTop: Spacing.xs },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },

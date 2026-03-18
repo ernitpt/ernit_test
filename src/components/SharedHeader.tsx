@@ -21,7 +21,6 @@ import { useRootNavigation } from '../types/navigation';
 interface SharedHeaderProps {
     title: string;
     subtitle?: string;
-    variant?: 'default' | 'transparent' | 'solid';
     showBack?: boolean;
     showNotifications?: boolean;
     showCart?: boolean;
@@ -33,7 +32,8 @@ const ActionButton: React.FC<{
     onPress: () => void;
     icon: React.ReactNode;
     badge?: number;
-}> = ({ onPress, icon, badge }) => {
+    accessibilityLabel?: string;
+}> = ({ onPress, icon, badge, accessibilityLabel }) => {
     const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
     const handlePress = () => {
@@ -60,6 +60,7 @@ const ActionButton: React.FC<{
                 style={styles.actionButton}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 accessibilityRole="button"
+                accessibilityLabel={accessibilityLabel}
             >
                 {icon}
                 {badge !== undefined && badge > 0 && (
@@ -77,7 +78,6 @@ const ActionButton: React.FC<{
 const SharedHeader: React.FC<SharedHeaderProps> = ({
     title,
     subtitle,
-    variant = 'default',
     showBack,
     showNotifications,
     showCart,
@@ -166,6 +166,8 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleBackPress}
                             style={styles.backButton}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Go back"
+                            accessibilityRole="button"
                         >
                             <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2} />
                         </TouchableOpacity>
@@ -206,6 +208,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleCartPress}
                             icon={<ShoppingCart color={Colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={cartItemCount}
+                            accessibilityLabel="Shopping cart"
                         />
                     )}
                     {shouldShowNotifications && (
@@ -213,6 +216,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleNotificationsPress}
                             icon={<Bell color={Colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={unreadCount}
+                            accessibilityLabel="Notifications"
                         />
                     )}
                 </View>

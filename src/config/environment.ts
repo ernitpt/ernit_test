@@ -48,11 +48,14 @@ interface EnvironmentConfig {
     debugEnabled: boolean;
 }
 
+// Allow overriding functions URL via env var (useful for region migration or staging)
+const functionsUrlOverride = process.env.EXPO_PUBLIC_FUNCTIONS_URL?.trim().replace(/['"]/g, '');
+
 const configs: Record<Environment, EnvironmentConfig> = {
     test: {
         name: 'test',
         isProduction: false,
-        functionsUrl: 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
+        functionsUrl: functionsUrlOverride || 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
         stripeFunctions: {
             createPaymentIntent: 'stripeCreatePaymentIntent_Test',
             updatePaymentIntentMetadata: 'updatePaymentIntentMetadata_Test',
@@ -68,7 +71,7 @@ const configs: Record<Environment, EnvironmentConfig> = {
     production: {
         name: 'production',
         isProduction: true,
-        functionsUrl: 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
+        functionsUrl: functionsUrlOverride || 'https://europe-west1-ernit-3fc0b.cloudfunctions.net',
         stripeFunctions: {
             createPaymentIntent: 'stripeCreatePaymentIntent',
             updatePaymentIntentMetadata: 'updatePaymentIntentMetadata',

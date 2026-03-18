@@ -506,11 +506,16 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       if (updated.isCompleted) {
         // GOAL COMPLETION — create session record, then navigate
-        sessionService.createSessionRecord(goalId, {
-          goalId, userId: updated.userId, timestamp: new Date(),
-          duration: timeElapsed, sessionNumber: totalSessionsDone,
-          weekNumber: updated.currentCount,
-        }).catch(err => logger.warn('Failed to save final session record:', err));
+        try {
+          await sessionService.createSessionRecord(goalId, {
+            goalId, userId: updated.userId, timestamp: new Date(),
+            duration: timeElapsed, sessionNumber: totalSessionsDone,
+            weekNumber: updated.currentCount,
+          });
+        } catch (err) {
+          logger.warn('Failed to save final session record:', err);
+          showError('Session completed but record failed to save. Your progress is still tracked.');
+        }
 
         // Free goals without attached gift: navigate to FreeGoalCompletion
         if (updated.isFreeGoal && !gift) {
@@ -970,7 +975,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                   const updated = await goalService.getGoalById(currentGoal.id!);
                   if (updated) setCurrentGoal(updated);
                   setDebugTimeKey(k => k + 1);
-                  Alert.alert('Debug', `${label} applied`);
                 }}
               >
                 <Text style={styles.debugButtonText}>{label}</Text>

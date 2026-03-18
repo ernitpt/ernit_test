@@ -4,9 +4,9 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Image,
     Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MessageCircle } from 'lucide-react-native';
 import ImageViewer from './ImageViewer';
 import { useNavigation } from '@react-navigation/native';
@@ -376,7 +376,9 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     <Image
                         source={{ uri: post.mediaUrl }}
                         style={styles.sessionMediaImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
                         accessibilityLabel={`Session ${post.mediaType || 'photo'} from ${post.userName}`}
                     />
                     {post.mediaType === 'video' && (

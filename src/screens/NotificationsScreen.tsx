@@ -8,9 +8,9 @@ import {
   StyleSheet,
   Image,
   RefreshControl,
-  Alert,
   Platform,
 } from 'react-native';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Avatar } from '../components/Avatar';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -89,6 +89,11 @@ const NotificationsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [clearNotificationId, setClearNotificationId] = useState<string | null>(null);
+  const [displayCount, setDisplayCount] = useState(20);
+  const isRefreshingRef = useRef(false);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigation = useNavigation<NotificationNavigationProp>();
 
@@ -124,6 +129,13 @@ const NotificationsScreen = () => {
         setNotifications(notifications);
         setLoading(false);
         setError(false);
+
+        // If this callback is the result of a pull-to-refresh, end the spinner and confirm freshness
+        if (isRefreshingRef.current) {
+          isRefreshingRef.current = false;
+          setRefreshing(false);
+          showInfo('Notifications are up to date');
+        }
       });
 
       if (isCancelled) {
@@ -150,6 +162,10 @@ const NotificationsScreen = () => {
       if (!isCancelled) {
         setError(true);
         setLoading(false);
+        if (isRefreshingRef.current) {
+          isRefreshingRef.current = false;
+          setRefreshing(false);
+        }
       }
     });
 
@@ -158,13 +174,12 @@ const NotificationsScreen = () => {
       if (unsubscribeNotifs) unsubscribeNotifs();
       if (unsubscribeGoals) unsubscribeGoals();
     };
-  }, [userId]);
+  }, [userId, refreshKey]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    refreshTimeoutRef.current = setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    isRefreshingRef.current = true;
+    setRefreshKey(prev => prev + 1); // Force listener re-subscribe
   };
 
   useEffect(() => {
@@ -280,60 +295,47 @@ const NotificationsScreen = () => {
 
 
   const handleClearAll = () => {
-    Alert.alert(
-      'Clear All Notifications',
-      'Are you sure you want to clear all notifications? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            if (!userId) {
-              showError('User not authenticated');
-              return;
-            }
+    setShowClearAllConfirm(true);
+  };
 
-            try {
-              await notificationService.clearAllNotifications(userId);
-              showSuccess('All notifications have been cleared.');
-            } catch (error) {
-              logger.error('Error clearing all notifications:', error);
-              showError('Failed to clear notifications. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+  const confirmClearAll = async () => {
+    setShowClearAllConfirm(false);
+    if (!userId) {
+      showError('User not authenticated');
+      return;
+    }
+
+    try {
+      await notificationService.clearAllNotifications(userId);
+      showSuccess('All notifications have been cleared.');
+    } catch (error) {
+      logger.error('Error clearing all notifications:', error);
+      showError('Failed to clear notifications. Please try again.');
+    }
   };
 
 
-  const handleClearNotification = async (notificationId: string) => {
+  const handleClearNotification = (notificationId: string) => {
     if (!notificationId) {
       showError('Cannot clear notification: missing ID');
       return;
     }
 
-    Alert.alert(
-      'Clear Notification',
-      'Remove this notification?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await notificationService.deleteNotification(notificationId);
-              // No toast needed - the notification just disappears
-            } catch (error) {
-              logger.error('Error clearing notification:', error);
-              showError('Failed to clear notification. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setClearNotificationId(notificationId);
+  };
+
+  const confirmClearNotification = async () => {
+    const notificationId = clearNotificationId;
+    if (!notificationId) return;
+    setClearNotificationId(null);
+
+    try {
+      await notificationService.deleteNotification(notificationId);
+      // No toast needed - the notification just disappears
+    } catch (error) {
+      logger.error('Error clearing notification:', error);
+      showError('Failed to clear notification. Please try again.');
+    }
   };
 
 
@@ -495,15 +497,11 @@ const NotificationsScreen = () => {
           >
             <View style={styles.reminderCardContent}>
               <View style={[styles.reminderIconContainer, { backgroundColor: Colors.pinkLight }]}>
-                {item.data?.senderProfileImageUrl ? (
-                  <Image
-                    source={{ uri: item.data.senderProfileImageUrl }}
-                    style={styles.reminderIconImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Heart size={24} color={Colors.pink} />
-                )}
+                <Avatar
+                  uri={item.data?.senderProfileImageUrl}
+                  name={item.data?.senderName}
+                  size="sm"
+                />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -752,7 +750,7 @@ const NotificationsScreen = () => {
           />
         ) : (
           <FlatList
-            data={notifications}
+            data={notifications.slice(0, displayCount)}
             renderItem={renderItem}
             keyExtractor={(item, index) => item.id || index.toString()}
             contentContainerStyle={styles.listContainer}
@@ -760,6 +758,16 @@ const NotificationsScreen = () => {
             removeClippedSubviews={Platform.OS !== 'web'}
             maxToRenderPerBatch={10}
             windowSize={5}
+            onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, notifications.length))}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              displayCount < notifications.length ? (
+                <View>
+                  <NotificationSkeleton />
+                  <NotificationSkeleton />
+                </View>
+              ) : null
+            }
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -771,6 +779,24 @@ const NotificationsScreen = () => {
           />
         )}
       </MainScreen>
+      <ConfirmationDialog
+        visible={showClearAllConfirm}
+        title="Clear All Notifications"
+        message="Are you sure you want to clear all notifications? This cannot be undone."
+        confirmLabel="Clear All"
+        onConfirm={confirmClearAll}
+        onCancel={() => setShowClearAllConfirm(false)}
+        variant="danger"
+      />
+      <ConfirmationDialog
+        visible={clearNotificationId !== null}
+        title="Clear Notification"
+        message="Remove this notification?"
+        confirmLabel="Clear"
+        onConfirm={confirmClearNotification}
+        onCancel={() => setClearNotificationId(null)}
+        variant="danger"
+      />
     </ErrorBoundary>
   );
 };
@@ -922,11 +948,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     overflow: 'hidden' as const,
-  },
-  reminderIconImage: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.xxl,
   },
   reminderTextContent: {
     flex: 1,

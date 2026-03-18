@@ -20,6 +20,8 @@ import { FriendRequest, Friend, UserSearchResult } from '../types';
 import { notificationService } from './NotificationService';
 import { logger } from '../utils/logger';
 import { analyticsService } from './AnalyticsService';
+import { toDateSafe } from '../utils/GoalHelpers';
+import { AppError } from '../utils/AppError';
 
 export class FriendService {
   private static instance: FriendService;
@@ -92,7 +94,7 @@ export class FriendService {
       // ✅ Check rate limit
       const rateLimited = await this.checkRateLimit(senderId);
       if (rateLimited) {
-        throw new Error('Rate limit exceeded. You can send up to 10 friend requests per hour. Please try again later.');
+        throw new AppError('RATE_LIMIT', 'Rate limit exceeded. You can send up to 10 friend requests per hour. Please try again later.', 'rate_limit');
       }
 
       // Graceful defaults for missing names
@@ -100,23 +102,23 @@ export class FriendService {
       recipientName = recipientName || 'Unknown';
 
       if (!senderId || !recipientId) {
-        throw new Error('Missing required user IDs for friend request');
+        throw new AppError('INVALID_REQUEST', 'Missing required user IDs for friend request', 'validation');
       }
 
       // Prevent self-friending
       if (senderId === recipientId) {
-        throw new Error('You cannot send a friend request to yourself');
+        throw new AppError('SELF_REQUEST', 'You cannot send a friend request to yourself', 'validation');
       }
 
       const existingRequest = await this.getFriendRequest(senderId, recipientId);
-      if (existingRequest) throw new Error('Friend request already exists');
+      if (existingRequest) throw new AppError('DUPLICATE_REQUEST', 'Friend request already exists', 'business');
 
       // T3-2: Check reverse direction — prevent simultaneous cross-requests
       const reverseRequest = await this.getFriendRequest(recipientId, senderId);
-      if (reverseRequest) throw new Error('This person has already sent you a friend request');
+      if (reverseRequest) throw new AppError('REVERSE_REQUEST', 'This person has already sent you a friend request', 'business');
 
       const alreadyFriends = await this.areFriends(senderId, recipientId);
-      if (alreadyFriends) throw new Error('Users are already friends');
+      if (alreadyFriends) throw new AppError('ALREADY_FRIENDS', 'Users are already friends', 'business');
 
       const friendRequest: Omit<FriendRequest, 'id'> = {
         senderId,
@@ -157,7 +159,7 @@ export class FriendService {
    */
   async acceptFriendRequest(requestId: string): Promise<void> {
     try {
-      if (!requestId) throw new Error('Request ID is required');
+      if (!requestId) throw new AppError('INVALID_REQUEST', 'Request ID is required', 'validation');
 
       const requestRef = doc(db, 'friendRequests', requestId);
 
@@ -173,14 +175,14 @@ export class FriendService {
         const requestSnap = await transaction.get(requestRef);
 
         if (!requestSnap.exists()) {
-          throw new Error('Friend request not found or already processed');
+          throw new AppError('REQUEST_NOT_FOUND', 'Friend request not found or already processed', 'not_found');
         }
 
         const requestData = requestSnap.data();
 
         // Verify request is still pending (prevents double-accept or accept-after-cancel)
         if (requestData?.status !== 'pending') {
-          throw new Error(`Friend request already ${requestData?.status || 'processed'}`);
+          throw new AppError('REQUEST_PROCESSED', `Friend request already ${requestData?.status || 'processed'}`, 'business');
         }
 
         senderId = requestData?.senderId;
@@ -189,7 +191,7 @@ export class FriendService {
         recipientName = requestData?.recipientName || 'Unknown';
         const senderProfileImageUrl = requestData?.senderProfileImageUrl ?? null;
 
-        if (!senderId || !recipientId) throw new Error('Invalid friend request data: missing user IDs');
+        if (!senderId || !recipientId) throw new AppError('INVALID_REQUEST', 'Invalid friend request data: missing user IDs', 'validation');
 
         // Fetch recipient's profile image
         const recipientDoc = await transaction.get(doc(db, 'users', recipientId));
@@ -306,8 +308,8 @@ export class FriendService {
           recipientId: data.recipientId || '',
           recipientName: data.recipientName || 'Unknown',
           status: data.status || 'pending',
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          createdAt: toDateSafe(data.createdAt),
+          updatedAt: toDateSafe(data.updatedAt),
         };
       }) as FriendRequest[];
     } catch (error) {
@@ -330,8 +332,8 @@ export class FriendService {
     return snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      createdAt: toDateSafe(doc.data().createdAt),
+      updatedAt: toDateSafe(doc.data().updatedAt),
     })) as FriendRequest[];
   }
 
@@ -344,7 +346,7 @@ export class FriendService {
     const friends = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      createdAt: toDateSafe(doc.data().createdAt),
     })) as Friend[];
 
     return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -409,8 +411,8 @@ export class FriendService {
     return {
       id: docSnap.id,
       ...docSnap.data(),
-      createdAt: docSnap.data().createdAt?.toDate() || new Date(),
-      updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+      createdAt: toDateSafe(docSnap.data().createdAt),
+      updatedAt: toDateSafe(docSnap.data().updatedAt),
     } as FriendRequest;
   }
 

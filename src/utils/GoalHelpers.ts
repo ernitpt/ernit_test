@@ -33,6 +33,17 @@ export function toJSDate(value: unknown): Date | null {
 }
 
 /**
+ * Convert a Firestore Timestamp, Date, or date string to a Date.
+ * Returns `fallback` (default: `new Date()`) when the value is null/undefined.
+ *
+ * Drop-in replacement for the common `data.field?.toDate?.() || new Date()` pattern.
+ * Usage: `toDateSafe(data.createdAt)` instead of `data.createdAt?.toDate() || new Date()`
+ */
+export function toDateSafe(value: unknown, fallback: Date = new Date()): Date {
+  return toJSDate(value) ?? fallback;
+}
+
+/**
  * Add `days` to a base date, normalising the result to midnight (00:00:00.000)
  * so that week boundaries align with calendar dates.
  *

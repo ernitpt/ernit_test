@@ -17,7 +17,7 @@
 import { db } from './firebase';
 import type { Comment } from '../types';
 import { sanitizeComment, sanitizeText } from '../utils/sanitization';
-
+import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 class CommentService {
     /**
@@ -106,8 +106,8 @@ class CommentService {
                     userName: data.userName,
                     userProfileImageUrl: data.userProfileImageUrl,
                     text: data.text,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    updatedAt: data.updatedAt?.toDate(),
+                    createdAt: toDateSafe(data.createdAt),
+                    updatedAt: toDateSafe(data.updatedAt),
                     likedBy: data.likedBy || [],
                 } as Comment;
             });

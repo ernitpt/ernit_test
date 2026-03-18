@@ -29,6 +29,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
+import { AppError } from '../utils/AppError';
 
 // Re-export helpers from GoalHelpers so existing importers of these symbols from
 // GoalService continue to work without breaking changes.
@@ -77,7 +78,7 @@ export class GoalService {
         );
         const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
         if (activeGoalsSnapshot.size >= 3) {
-          throw new Error('GOAL_LIMIT_REACHED');
+          throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
         }
       }
 
@@ -128,7 +129,7 @@ export class GoalService {
   async createFreeGoal(goal: Goal): Promise<Goal> {
     try {
       if (!goal.isFreeGoal) {
-        throw new Error('Invalid free goal data: missing isFreeGoal');
+        throw new AppError('INVALID_GOAL_DATA', 'Invalid free goal data: missing isFreeGoal', 'validation');
       }
 
       // Check goal limit (max 3 active goals)
@@ -139,7 +140,7 @@ export class GoalService {
       );
       const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
       if (activeGoalsSnapshot.size >= 3) {
-        throw new Error('GOAL_LIMIT_REACHED');
+        throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
       }
 
       const normalized = normalizeGoal(goal);
@@ -199,26 +200,26 @@ export class GoalService {
       const goalSnap = await transaction.get(goalRef);
       const giftSnap = await transaction.get(giftRef);
 
-      if (!goalSnap.exists()) throw new Error('Goal not found');
+      if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
       const goalData = goalSnap.data();
 
-      if (!goalData.isFreeGoal) throw new Error('Can only attach gifts to free goals');
+      if (!goalData.isFreeGoal) throw new AppError('INVALID_OPERATION', 'Can only attach gifts to free goals', 'business');
 
       // Prevent double-attachment
-      if (goalData.experienceGiftId) throw new Error('Goal already has a gift attached');
+      if (goalData.experienceGiftId) throw new AppError('DUPLICATE_GIFT', 'Goal already has a gift attached', 'business');
 
       // Check 30-day deadline for completed goals
       if (goalData.isCompleted && goalData.giftAttachDeadline) {
         const deadline = toJSDate(goalData.giftAttachDeadline);
         if (deadline && new Date() > deadline) {
-          throw new Error('Gift attachment window has expired (30 days post-completion)');
+          throw new AppError('GIFT_EXPIRED', 'Gift attachment window has expired (30 days post-completion)', 'business');
         }
       }
 
       // Validate gift exists and hasn't been used
-      if (!giftSnap.exists()) throw new Error('Experience gift not found');
+      if (!giftSnap.exists()) throw new AppError('GIFT_NOT_FOUND', 'Experience gift not found', 'not_found');
       const giftData = giftSnap.data();
-      if (giftData.isRedeemed) throw new Error('Gift has already been redeemed');
+      if (giftData.isRedeemed) throw new AppError('GIFT_REDEEMED', 'Gift has already been redeemed', 'business');
 
       const updateFields: Record<string, any> = {
         experienceGiftId,
@@ -303,17 +304,17 @@ export class GoalService {
   async appendHint(goalId: string, hintObj: Record<string, unknown>) {
     // SECURITY: Validate hint structure
     if (!hintObj || typeof hintObj !== 'object') {
-      throw new Error('Invalid hint object');
+      throw new AppError('INVALID_HINT', 'Invalid hint object', 'validation');
     }
 
     if (!hintObj.id || !hintObj.session || typeof hintObj.session !== 'number') {
-      throw new Error('Hint must have id and session number');
+      throw new AppError('INVALID_HINT', 'Hint must have id and session number', 'validation');
     }
 
     // SECURITY: Validate and sanitize text content
     if (hintObj.text) {
       if (typeof hintObj.text !== 'string') {
-        throw new Error('Hint text must be a string');
+        throw new AppError('INVALID_HINT', 'Hint text must be a string', 'validation');
       }
       // Limit text length to prevent storage DoS
       const MAX_TEXT_LENGTH = 500;
@@ -327,20 +328,20 @@ export class GoalService {
 
     // SECURITY: Validate URLs if present
     if (hintObj.audioUrl && !this.isValidUrl(hintObj.audioUrl)) {
-      throw new Error('Invalid audio URL');
+      throw new AppError('INVALID_URL', 'Invalid audio URL', 'validation');
     }
     if (hintObj.imageUrl && !this.isValidUrl(hintObj.imageUrl)) {
-      throw new Error('Invalid image URL');
+      throw new AppError('INVALID_URL', 'Invalid image URL', 'validation');
     }
 
     // SECURITY: Check array size limit before adding
     const currentGoal = await this.getGoalById(goalId);
     if (!currentGoal) {
-      throw new Error('Goal not found');
+      throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
     }
     const MAX_HINTS = 1000; // Reasonable limit for a goal
     if ((currentGoal.hints?.length || 0) >= MAX_HINTS) {
-      throw new Error(`Maximum hints limit (${MAX_HINTS}) reached for this goal`);
+      throw new AppError('HINTS_LIMIT', 'Maximum hints limit reached for this goal', 'business');
     }
 
     // Create clean hint object with only allowed fields
@@ -483,7 +484,7 @@ export class GoalService {
   async approveGoal(goalId: string, message?: string): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
     const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error('Goal not found');
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
     const currentGoal = normalizeGoal({ id: snap.id, ...snap.data() });
 
     // Extract category from title or description
@@ -508,6 +509,11 @@ export class GoalService {
       const startDate = toJSDate(currentGoal.startDate) || DateHelper.now();
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + durationInDays);
+
+      // Validate date range
+      if (endDate <= startDate) {
+        throw new AppError('INVALID_DATE_RANGE', 'Calculated endDate must be after startDate', 'validation');
+      }
 
       updates = {
         ...updates,
@@ -559,10 +565,10 @@ export class GoalService {
   ): Promise<Goal> {
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (suggestedTargetCount > 5) {
-      throw new Error('The maximum duration is 5 weeks.');
+      throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
     }
     if (suggestedSessionsPerWeek > 7) {
-      throw new Error('The maximum is 7 sessions per week.');
+      throw new AppError('VALIDATION_ERROR', 'The maximum is 7 sessions per week.', 'validation');
     }
 
     const ref = doc(db, 'goals', goalId);
@@ -588,7 +594,7 @@ export class GoalService {
   ): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
     const goalSnap = await getDoc(ref);
-    if (!goalSnap.exists()) throw new Error('Goal not found');
+    if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
     const currentGoal = normalizeGoal({ id: goalSnap.id, ...goalSnap.data() });
 
     // Ensure new goal is not less than initial
@@ -596,15 +602,15 @@ export class GoalService {
     const minSessionsPerWeek = currentGoal.initialSessionsPerWeek || currentGoal.sessionsPerWeek;
 
     if (newTargetCount < minTargetCount || newSessionsPerWeek < minSessionsPerWeek) {
-      throw new Error('New goal cannot be less than the original goal');
+      throw new AppError('VALIDATION_ERROR', 'New goal cannot be less than the original goal', 'validation');
     }
 
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (newTargetCount > 5) {
-      throw new Error('The maximum duration is 5 weeks.');
+      throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
     }
     if (newSessionsPerWeek > 7) {
-      throw new Error('The maximum is 7 sessions per week.');
+      throw new AppError('VALIDATION_ERROR', 'The maximum is 7 sessions per week.', 'validation');
     }
 
     // Update goal with new values

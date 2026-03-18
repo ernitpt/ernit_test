@@ -16,8 +16,9 @@ import {
 import { db } from './firebase';
 import type { Reaction, ReactionType } from '../types';
 import { notificationService } from './NotificationService';
-
+import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
+import { AppError } from '../utils/AppError';
 class ReactionService {
     /**
      * Add or toggle a reaction on a post (atomic via transaction)
@@ -42,7 +43,7 @@ class ReactionService {
                 // 1. Read the post doc (for owner ID and count updates)
                 const postDoc = await transaction.get(postRef);
                 if (!postDoc.exists()) {
-                    throw new Error('Post not found');
+                    throw new AppError('POST_NOT_FOUND', 'Post not found', 'not_found');
                 }
                 postOwnerId = postDoc.data().userId;
 
@@ -154,7 +155,7 @@ class ReactionService {
                 return {
                     id: doc.id,
                     ...data,
-                    createdAt: data.createdAt?.toDate() || new Date(),
+                    createdAt: toDateSafe(data.createdAt),
                 } as Reaction;
             });
         } catch (error) {
@@ -179,7 +180,7 @@ class ReactionService {
             return {
                 id: reactionDoc.id,
                 ...data,
-                createdAt: data.createdAt?.toDate() || new Date(),
+                createdAt: toDateSafe(data.createdAt),
             } as Reaction;
         } catch (error) {
             logger.error('❌ Error fetching user reaction:', error);

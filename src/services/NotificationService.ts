@@ -15,7 +15,9 @@ import {
   limit,
 } from 'firebase/firestore';
 import { Notification } from '../types';
+import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
+import { AppError } from '../utils/AppError';
 
 export class NotificationService {
   /** Add a new notification */
@@ -116,10 +118,13 @@ export class NotificationService {
         const existingData = existingDoc.data();
         const existingReactorNames: string[] = existingData.data?.reactorNames || [];
 
-        // Build updated reactor list (move reactor to front)
+        // Build updated reactor list (move reactor to front, cap at 5 stored names)
         const filteredNames = existingReactorNames.filter((n: string) => n !== reactorName);
-        const updatedNames = [reactorName, ...filteredNames];
-        const totalReactionCount = updatedNames.length;
+        const updatedNames = [reactorName, ...filteredNames].slice(0, 5);
+        const existingTotal = existingData.data?.totalReactionCount || existingReactorNames.length;
+        const totalReactionCount = filteredNames.length < existingReactorNames.length
+          ? existingTotal  // Reactor already counted, just moved to front
+          : existingTotal + 1;  // New reactor
 
         const message = totalReactionCount === 1
           ? `${updatedNames[0]} reacted to your post`
@@ -175,7 +180,7 @@ export class NotificationService {
       const notifications = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        createdAt: toDateSafe(doc.data().createdAt),
       })) as Notification[];
       callback(notifications);
     }, (error) => {
@@ -194,7 +199,7 @@ export class NotificationService {
   /** Delete a single notification */
   async deleteNotification(notificationId: string, force: boolean = false) {
     if (!notificationId) {
-      throw new Error('Notification ID is required');
+      throw new AppError('INVALID_REQUEST', 'Notification ID is required', 'validation');
     }
     const ref = doc(db, 'notifications', notificationId);
     const snap = await getDoc(ref);
@@ -202,7 +207,7 @@ export class NotificationService {
       const notificationData = snap.data();
       // Don't allow deletion of non-clearable notifications unless forced
       if (!force && notificationData.clearable === false) {
-        throw new Error('This notification cannot be cleared');
+        throw new AppError('NOT_CLEARABLE', 'This notification cannot be cleared', 'business');
       }
     }
     await deleteDoc(ref);

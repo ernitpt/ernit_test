@@ -95,6 +95,7 @@ export const Colors = {
     overlayDark: 'rgba(0, 0, 0, 0.92)',
     overlayHeavy: 'rgba(0, 0, 0, 0.7)',
     surfaceFrosted: 'rgba(255, 255, 255, 0.95)',
+    primaryTintAlpha40: 'rgba(167, 243, 208, 0.4)',
 
     // ─── Semi-transparent whites ──────────────────────────────────────
     whiteAlpha90: 'rgba(255, 255, 255, 0.9)',

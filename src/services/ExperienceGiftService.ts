@@ -1,9 +1,11 @@
 ﻿import { db } from './firebase';
 import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy } from 'firebase/firestore';
 import { ExperienceGift } from '../types';
+import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
+import { AppError } from '../utils/AppError';
 
 export class ExperienceGiftService {
 
@@ -53,8 +55,8 @@ export class ExperienceGiftService {
         return {
           ...data,
           id: doc.id,
-          createdAt: data.createdAt?.toDate?.() ?? data.createdAt,
-          deliveryDate: data.deliveryDate?.toDate?.() ?? data.deliveryDate,
+          createdAt: toDateSafe(data.createdAt),
+          deliveryDate: toDateSafe(data.deliveryDate),
         };
       });
     } catch (error) {
@@ -89,7 +91,7 @@ export class ExperienceGiftService {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error('Experience gift not found');
+        throw new AppError('GIFT_NOT_FOUND', 'Experience gift not found', 'not_found');
       }
 
       const foundDoc = querySnapshot.docs[0];

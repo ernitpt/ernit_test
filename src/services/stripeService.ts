@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { withRetry } from '../utils/retry';
+import { AppError } from '../utils/AppError';
 
 // Use environment-based URL and function names
 const STRIPE_FUNCTIONS_URL = config.functionsUrl;
@@ -30,7 +31,7 @@ export const stripeService = {
       // Get the current user's ID token
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("User not authenticated");
+        throw new AppError('UNAUTHENTICATED', 'User not authenticated', 'auth');
       }
 
       const idToken = await currentUser.getIdToken();
@@ -103,7 +104,7 @@ export const stripeService = {
       // ✅ SECURITY: Get authentication token
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("User not authenticated");
+        throw new AppError('UNAUTHENTICATED', 'User not authenticated', 'auth');
       }
 
       const idToken = await currentUser.getIdToken();
@@ -147,7 +148,7 @@ export const stripeService = {
       // ✅ SECURITY: Get authentication token
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("User not authenticated");
+        throw new AppError('UNAUTHENTICATED', 'User not authenticated', 'auth');
       }
 
       const idToken = await currentUser.getIdToken();

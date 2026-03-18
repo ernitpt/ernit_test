@@ -184,7 +184,7 @@ const Button: React.FC<ButtonProps> = ({
     ...styles.container,
     ...getVariantStyles(),
     ...(useGradient ? {} : getSizeStyles()),
-    ...(useGradient && { backgroundColor: 'transparent' }),
+    ...(useGradient && { backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 }),
     ...(fullWidth && { width: '100%' }),
     ...(disabled && { opacity: 0.5 }),
     ...style,
@@ -247,7 +247,7 @@ const Button: React.FC<ButtonProps> = ({
             colors={Colors.gradientPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={[styles.gradientInner, variant === 'icon' && styles.gradientIcon]}
+            style={[styles.gradientInner, getSizeStyles(), variant === 'icon' && styles.gradientIcon]}
           >
             {content}
           </LinearGradient>
@@ -273,8 +273,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
+    width: '100%',
   },
   gradientIcon: {
     width: 44,

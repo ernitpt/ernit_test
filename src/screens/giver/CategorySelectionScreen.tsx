@@ -8,16 +8,15 @@ import {
   FlatList,
   TouchableOpacity,
   Pressable,
-  Image,
   StyleSheet,
   TextInput,
-  ActivityIndicator,
   Animated,
   Easing,
   Platform,
   UIManager,
   LayoutAnimation,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import MainScreen from '../MainScreen';
@@ -65,7 +64,9 @@ const ExperienceCard = ({
       <Image
         source={{ uri: experience.coverImageUrl }}
         style={styles.cardImage}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
         accessibilityLabel={`${experience.title} experience cover image`}
       />
 

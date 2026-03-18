@@ -9,10 +9,10 @@ import {
   StyleSheet,
   Animated,
   Platform,
-  Modal,
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,6 +40,7 @@ import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
 import { Spacing } from '../config/spacing';
 import { EmptyState } from '../components/EmptyState';
+import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
@@ -182,103 +183,75 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       )}
 
       {/* Hint History Modal */}
-      {showHintHistory && (
-        <Modal
-          visible={showHintHistory}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowHintHistory(false)}
-        >
-          <TouchableOpacity
-            style={historyModalStyles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowHintHistory(false)}
-          >
-            <MotiView
-              from={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              style={historyModalStyles.modalContainer}
-            >
-              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                <View style={historyModalStyles.modalHeader}>
-                  <Text style={historyModalStyles.modalTitle}>Hint History</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowHintHistory(false)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Close hint history"
-                  >
-                    <Text style={historyModalStyles.closeButton}>×</Text>
-                  </TouchableOpacity>
-                </View>
+      <BaseModal
+        visible={showHintHistory}
+        onClose={() => setShowHintHistory(false)}
+        title="Hint History"
+        variant="center"
+      >
+        <ScrollView style={historyModalStyles.scrollView}>
+          {goal?.hints && goal.hints.length > 0 ? (
+            [...goal.hints].reverse().map((hint, index: number) => {
+              const isAudio = hint.type === 'audio' || hint.type === 'mixed';
+              const hasImage = hint.imageUrl;
+              const text = hint.text || hint.hint;
 
-                <ScrollView style={historyModalStyles.scrollView}>
-                  {goal?.hints && goal.hints.length > 0 ? (
-                    [...goal.hints].reverse().map((hint, index: number) => {
-                      const isAudio = hint.type === 'audio' || hint.type === 'mixed';
-                      const hasImage = hint.imageUrl;
-                      const text = hint.text || hint.hint;
+              // Handle date
+              let dateMs = 0;
+              if (hint.createdAt) {
+                if (typeof hint.createdAt.toMillis === 'function') {
+                  dateMs = hint.createdAt.toMillis();
+                } else if (hint.createdAt instanceof Date) {
+                  dateMs = hint.createdAt.getTime();
+                } else {
+                  dateMs = new Date(hint.createdAt).getTime();
+                }
+              } else if (hint.date) {
+                dateMs = hint.date;
+              }
 
-                      // Handle date
-                      let dateMs = 0;
-                      if (hint.createdAt) {
-                        if (typeof hint.createdAt.toMillis === 'function') {
-                          dateMs = hint.createdAt.toMillis();
-                        } else if (hint.createdAt instanceof Date) {
-                          dateMs = hint.createdAt.getTime();
-                        } else {
-                          dateMs = new Date(hint.createdAt).getTime();
-                        }
-                      } else if (hint.date) {
-                        dateMs = hint.date;
-                      }
-
-                      return (
-                        <View key={hint.id || index} style={historyModalStyles.hintItem}>
-                          <View style={historyModalStyles.hintHeader}>
-                            <Text style={historyModalStyles.sessionLabel}>
-                              Session {hint.session || index + 1}
-                            </Text>
-                            <Text style={historyModalStyles.dateLabel}>
-                              {new Date(dateMs).toLocaleDateString()}
-                            </Text>
-                          </View>
-
-                          {text && (
-                            <Text style={historyModalStyles.hintText}>{text}</Text>
-                          )}
-
-                          {hasImage && (
-                            <TouchableOpacity
-                              onPress={() => setSelectedImageUri(hint.imageUrl)}
-                              activeOpacity={0.9}
-                            >
-                              <Image
-                                source={{ uri: hint.imageUrl }}
-                                style={historyModalStyles.hintImage}
-                              />
-                            </TouchableOpacity>
-                          )}
-
-                          {isAudio && hint.audioUrl && (
-                            <View style={historyModalStyles.audioContainer}>
-                              <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })
-                  ) : (
-                    <Text style={historyModalStyles.emptyText}>
-                      No hints have been sent yet.
+              return (
+                <View key={hint.id || index} style={historyModalStyles.hintItem}>
+                  <View style={historyModalStyles.hintHeader}>
+                    <Text style={historyModalStyles.sessionLabel}>
+                      Session {hint.session || index + 1}
                     </Text>
+                    <Text style={historyModalStyles.dateLabel}>
+                      {new Date(dateMs).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  {text && (
+                    <Text style={historyModalStyles.hintText}>{text}</Text>
                   )}
-                </ScrollView>
-              </TouchableOpacity>
-            </MotiView>
-          </TouchableOpacity>
-        </Modal>
-      )}
+
+                  {hasImage && (
+                    <TouchableOpacity
+                      onPress={() => setSelectedImageUri(hint.imageUrl)}
+                      activeOpacity={0.9}
+                    >
+                      <Image
+                        source={{ uri: hint.imageUrl }}
+                        style={historyModalStyles.hintImage}
+                      />
+                    </TouchableOpacity>
+                  )}
+
+                  {isAudio && hint.audioUrl && (
+                    <View style={historyModalStyles.audioContainer}>
+                      <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          ) : (
+            <Text style={historyModalStyles.emptyText}>
+              No hints have been sent yet.
+            </Text>
+          )}
+        </ScrollView>
+      </BaseModal>
 
       {/* Fullscreen Image Viewer */}
       {selectedImageUri && (
@@ -752,20 +725,11 @@ const FriendProfileScreen: React.FC = () => {
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          {userProfile?.profileImageUrl && !imageLoadError ? (
-            <Image
-              source={{ uri: userProfile.profileImageUrl }}
-              style={styles.profileImage}
-              onError={() => setImageLoadError(true)}
-              accessibilityLabel={`${userName}'s profile picture`}
-            />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Text style={styles.placeholderText}>
-                {userName?.[0]?.toUpperCase() || "U"}
-              </Text>
-            </View>
-          )}
+          <Avatar
+            uri={userProfile?.profileImageUrl}
+            name={userProfile?.displayName || userName || undefined}
+            size="xl"
+          />
 
           <Text style={styles.userName}>{userName}</Text>
           {userProfile?.description && (

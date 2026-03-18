@@ -22,13 +22,15 @@ import { ExperienceGift, Experience, RootStackParamList } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import SharedHeader from '../components/SharedHeader';
-import { GiftCardSkeleton, SkeletonBox } from '../components/SkeletonLoader';
+import { GiftCardSkeleton, SkeletonBox, ListItemSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import Colors from '../config/colors';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { MotiView } from 'moti';
+import { EmptyState } from '../components/EmptyState';
+import { Card } from '../components/Card';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -98,43 +100,41 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   };
 
   return (
-    <TouchableOpacity
+    <Card
+      variant="outlined"
       onPress={handlePress}
-      activeOpacity={0.8}
-      accessibilityRole="button"
+      style={styles.card}
       accessibilityLabel={`View gift details for ${experience ? experience.title : 'experience'}. Status: ${item.status}`}
     >
-      <View style={styles.card}>
-        <View style={styles.cardRow}>
-          <Text style={styles.title}>
-            {experience ? experience.title : <SkeletonBox width={120} height={16} borderRadius={4} />}
-          </Text>
-          <Text
-            style={[
-              styles.status,
-              item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
-            ]}
-          >
-            {item.status ? item.status.toUpperCase() : 'PENDING'}
-          </Text>
-        </View>
-
-        {item.status === 'claimed' ? (
-          <Text style={[styles.detail, { color: Colors.primaryDeep, fontWeight: '500' }]}>
-            Claimed by:{' '}
-            {loadingName ? (
-              <SkeletonBox width={80} height={14} borderRadius={4} />
-            ) : (
-              claimedByName || 'Unknown'
-            )}
-          </Text>
-        ) : (
-          <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
-        )}
-
-        <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
+      <View style={styles.cardRow}>
+        <Text style={styles.title}>
+          {experience ? experience.title : <SkeletonBox width={120} height={16} borderRadius={4} />}
+        </Text>
+        <Text
+          style={[
+            styles.status,
+            item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
+          ]}
+        >
+          {item.status ? item.status.toUpperCase() : 'PENDING'}
+        </Text>
       </View>
-    </TouchableOpacity>
+
+      {item.status === 'claimed' ? (
+        <Text style={[styles.detail, { color: Colors.primaryDeep, fontWeight: '500' }]}>
+          Claimed by:{' '}
+          {loadingName ? (
+            <SkeletonBox width={80} height={14} borderRadius={4} />
+          ) : (
+            claimedByName || 'Unknown'
+          )}
+        </Text>
+      ) : (
+        <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
+      )}
+
+      <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
+    </Card>
   );
 };
 
@@ -146,6 +146,7 @@ const PurchasedGiftsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'claimed'>('all');
   const [error, setError] = useState(false);
+  const [displayCount, setDisplayCount] = useState(20);
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
 
   const fetchGifts = async () => {
@@ -183,6 +184,12 @@ const PurchasedGiftsScreen = () => {
     return gift.status === filterStatus;
   });
 
+  // Reset display count when filter changes
+  const handleFilterChange = (status: 'all' | 'pending' | 'claimed') => {
+    setFilterStatus(status);
+    setDisplayCount(20);
+  };
+
   const renderGiftItem = useCallback(({ item, index }: { item: ExperienceGift; index: number }) => (
     <MotiView
       from={{ opacity: 0, translateY: 12 }}
@@ -206,7 +213,7 @@ const PurchasedGiftsScreen = () => {
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[styles.filterTab, filterStatus === 'all' && styles.filterTabActive]}
-          onPress={() => setFilterStatus('all')}
+          onPress={() => handleFilterChange('all')}
           accessibilityRole="button"
           accessibilityLabel={`Show all ${gifts.length} gifts`}
         >
@@ -216,7 +223,7 @@ const PurchasedGiftsScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, filterStatus === 'pending' && styles.filterTabActive]}
-          onPress={() => setFilterStatus('pending')}
+          onPress={() => handleFilterChange('pending')}
           accessibilityRole="button"
           accessibilityLabel={`Show ${gifts.filter(g => g.status === 'pending').length} pending gifts`}
         >
@@ -226,7 +233,7 @@ const PurchasedGiftsScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, filterStatus === 'claimed' && styles.filterTabActive]}
-          onPress={() => setFilterStatus('claimed')}
+          onPress={() => handleFilterChange('claimed')}
           accessibilityRole="button"
           accessibilityLabel={`Show ${gifts.filter(g => g.status === 'claimed').length} claimed gifts`}
         >
@@ -248,26 +255,32 @@ const PurchasedGiftsScreen = () => {
           onRetry={fetchGifts}
         />
       ) : filteredGifts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🎁</Text>
-          <Text style={styles.emptyTitle}>
-            {filterStatus === 'all' ? 'No Gifts Yet' : `No ${filterStatus} Gifts`}
-          </Text>
-          <Text style={styles.emptyText}>
-            {filterStatus === 'all'
-              ? 'Purchase a gift to empower someone special!'
-              : `No gifts with status "${filterStatus}"`}
-          </Text>
-        </View>
+        <EmptyState
+          icon="🎁"
+          title={filterStatus === 'all' ? 'No Gifts Yet' : `No ${filterStatus} Gifts`}
+          message={filterStatus === 'all'
+            ? 'Purchase a gift to empower someone special!'
+            : `No gifts with status "${filterStatus}"`}
+        />
       ) : (
         <FlatList
-          data={filteredGifts}
+          data={filteredGifts.slice(0, displayCount)}
           renderItem={renderGiftItem}
           keyExtractor={(item) => item.id!}
           contentContainerStyle={styles.listContainer}
           removeClippedSubviews={Platform.OS !== 'web'}
           maxToRenderPerBatch={10}
           windowSize={5}
+          onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, filteredGifts.length))}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            displayCount < filteredGifts.length ? (
+              <View>
+                <ListItemSkeleton />
+                <ListItemSkeleton />
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -288,16 +301,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   card: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.black,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    padding: Spacing.lg,
   },
   cardRow: {
     flexDirection: 'row',
@@ -362,28 +366,6 @@ const styles = StyleSheet.create({
   },
   filterTextActive: {
     color: Colors.white,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.huge,
-    paddingTop: 60,
-  },
-  emptyIcon: {
-    fontSize: Typography.emojiLarge.fontSize,
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    ...Typography.heading2,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    ...Typography.body,
   },
 });
 

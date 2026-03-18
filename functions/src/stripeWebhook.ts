@@ -107,6 +107,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         throw new Error("Cart is empty or invalid");
     }
 
+    let totalQuantity = 0;
     for (const item of cart) {
         if (!item.experienceId || typeof item.experienceId !== 'string' || item.experienceId.length > 100) {
             throw new Error("Invalid experienceId in cart");
@@ -114,6 +115,10 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 50) {
             throw new Error("Invalid quantity in cart");
         }
+        totalQuantity += item.quantity;
+    }
+    if (totalQuantity > 100) {
+        throw new Error("Total cart quantity cannot exceed 100 gifts");
     }
 
     // ✅ Use transaction for idempotency (PRODUCTION DATABASE)
@@ -121,9 +126,9 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const processedRef = db.collection("processedPayments").doc(paymentIntentId);
 
     // Pre-generate claim codes outside the transaction to avoid external reads inside transaction
-    const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const totalClaimCodes = cart.reduce((sum, item) => sum + item.quantity, 0);
     const claimCodes: string[] = [];
-    for (let i = 0; i < totalQuantity; i++) {
+    for (let i = 0; i < totalClaimCodes; i++) {
         claimCodes.push(await generateUniqueClaimCode());
     }
     let claimCodeIndex = 0;
@@ -132,18 +137,30 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         const processedDoc = await transaction.get(processedRef);
 
         if (processedDoc.exists) {
-            console.log("⚠️ Payment already processed - returning existing gifts");
+            console.log("⚠️ Payment already processed - verifying existing gifts");
             const existingGiftIds = processedDoc.data()?.gifts || [];
 
-            // Fetch and return existing gifts
+            // Fetch and verify existing gifts still exist with valid status
             const existingGifts = await Promise.all(
                 existingGiftIds.map(async (giftId: string) => {
                     const giftDoc = await db.collection("experienceGifts").doc(giftId).get();
-                    return giftDoc.data();
+                    if (!giftDoc.exists) {
+                        console.warn(`⚠️ Cached gift ${giftId} no longer exists`);
+                        return null;
+                    }
+                    const giftData = giftDoc.data();
+                    if (giftData?.status !== 'pending' && giftData?.status !== 'active' && giftData?.status !== 'claimed') {
+                        console.warn(`⚠️ Cached gift ${giftId} has unexpected status: ${giftData?.status}`);
+                    }
+                    return giftData;
                 })
             );
 
-            return existingGifts.filter(Boolean);
+            const validGifts = existingGifts.filter(Boolean);
+            if (validGifts.length === 0) {
+                console.error(`❌ All cached gifts for ${paymentIntentId} are missing — this needs manual investigation`);
+            }
+            return validGifts;
         }
 
         // --- Create multiple experience gifts using transaction ---

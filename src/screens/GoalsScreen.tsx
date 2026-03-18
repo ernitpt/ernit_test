@@ -40,6 +40,7 @@ import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import ErrorRetry from '../components/ErrorRetry';
 import Button from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
 import * as Haptics from 'expo-haptics';
 
 
@@ -61,12 +62,12 @@ const GoalsScreen: React.FC = () => {
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleRefresh = async () => {
+  const isRefreshingRef = useRef(false);
+
+  const handleRefresh = () => {
     setRefreshing(true);
+    isRefreshingRef.current = true;
     setRefreshKey(prev => prev + 1); // Force listener re-subscribe
-    refreshTimeoutRef.current = setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
   };
 
   const loadGoals = () => setRefreshKey(prev => prev + 1);
@@ -114,6 +115,13 @@ const GoalsScreen: React.FC = () => {
           return bDate - aDate;
         });
         setCompletedGoals(finished);
+
+        // If this callback is the result of a pull-to-refresh, end the spinner and confirm freshness
+        if (isRefreshingRef.current) {
+          isRefreshingRef.current = false;
+          setRefreshing(false);
+          showInfo('Goals are up to date');
+        }
       } catch (error) {
         logger.error('Error processing goals in GoalsScreen:', error);
         setError(true);
@@ -121,6 +129,10 @@ const GoalsScreen: React.FC = () => {
         // Show whatever goals we can rather than crashing
         setCurrentGoals([]);
         setCompletedGoals([]);
+        if (isRefreshingRef.current) {
+          isRefreshingRef.current = false;
+          setRefreshing(false);
+        }
       } finally {
         setLoading(false);
         setIsInitialLoading(false);
@@ -295,16 +307,12 @@ const GoalsScreen: React.FC = () => {
               <StreakBanner streak={sessionStreak} />
             ) : null}
             ListEmptyComponent={
-              <View style={styles.noActiveContainer}>
-                <Text style={styles.noActiveText}>No active goals right now</Text>
-                <TouchableOpacity
-                  style={styles.noActiveCTA}
-                  activeOpacity={0.85}
-                  onPress={() => navigation.navigate('ChallengeSetup')}
-                >
-                  <Text style={styles.noActiveCTAText}>Start a New Challenge</Text>
-                </TouchableOpacity>
-              </View>
+              <EmptyState
+                icon="🎯"
+                title="No active goals right now"
+                actionLabel="Start a New Challenge"
+                onAction={() => navigation.navigate('ChallengeSetup')}
+              />
             }
             ListFooterComponent={completedGoals.length > 0 ? (
               <View style={styles.completedSection}>
@@ -526,29 +534,6 @@ const styles = StyleSheet.create({
   emptyCTA: {
     paddingHorizontal: Spacing.xxl,
   },
-  // ── No Active (but has completed) ──
-  noActiveContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxxl,
-  },
-  noActiveText: {
-    ...Typography.body,
-    color: Colors.textMuted,
-    marginBottom: Spacing.lg,
-  },
-  noActiveCTA: {
-    backgroundColor: Colors.primarySurface,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  noActiveCTAText: {
-    color: Colors.primary,
-    ...Typography.smallBold,
-  },
-
   // ── Completed Goals Section ──
   completedSection: {
     marginTop: Spacing.sm,

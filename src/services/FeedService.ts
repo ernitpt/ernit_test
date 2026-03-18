@@ -19,6 +19,7 @@ import {
 import { db } from './firebase';
 import type { FeedPost } from '../types';
 import { friendService } from './FriendService';
+import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 
 class FeedService {
@@ -165,7 +166,7 @@ class FeedService {
                         post: {
                             id: docSnapshot.id,
                             ...data,
-                            createdAt: data.createdAt?.toDate() || new Date(),
+                            createdAt: toDateSafe(data.createdAt),
                         } as FeedPost,
                         docSnapshot,
                     });
@@ -225,7 +226,7 @@ class FeedService {
                         posts.push({
                             id: docSnapshot.id,
                             ...data,
-                            createdAt: data.createdAt?.toDate() || new Date(),
+                            createdAt: toDateSafe(data.createdAt),
                         } as FeedPost);
                     }
 
@@ -293,7 +294,7 @@ class FeedService {
             return {
                 id: postDoc.id,
                 ...data,
-                createdAt: data.createdAt?.toDate() || new Date(),
+                createdAt: toDateSafe(data.createdAt),
             } as FeedPost;
         } catch (error) {
             logger.error('❌ Error fetching feed post:', error);

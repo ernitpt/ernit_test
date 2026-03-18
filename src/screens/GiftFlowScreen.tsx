@@ -12,13 +12,12 @@ import {
     TouchableOpacity,
     ScrollView,
     StyleSheet,
-    Dimensions,
     Platform,
     TextInput as RNTextInput,
     Image,
     Animated,
-    Modal,
-    GestureResponderEvent,
+    Alert,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
@@ -26,7 +25,6 @@ import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import {
@@ -41,27 +39,32 @@ import { useRootNavigation } from '../types/navigation';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { config } from '../config/environment';
-import { commonStyles } from '../styles/commonStyles';
-import { useModalAnimation } from '../hooks/useModalAnimation';
+import { BaseModal } from '../components/BaseModal';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import ModernSlider from '../components/ModernSlider';
+import WizardProgressBar from '../components/WizardProgressBar';
+import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
+import { Dimensions } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const SCREEN_H = Dimensions.get('window').height;
+const VH = Math.min(1, Math.max(0.72, SCREEN_H / 900));
+const vh = (px: number) => Math.round(px * VH);
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
 const SOLO_STEP_TITLES = [
     'Who takes the challenge?',
     'Pick the reward',
-    'How is the reward revealed?',
     'Secure the reward',
+    'How is the reward revealed?',
     'Confirm your gift',
 ];
 
 const SOLO_STEP_SUBTITLES = [
-    'Choose how your loved one will work towards their goal.',
+    'Choose how they will work towards their goal.',
     "Pick a category. We'll recommend the perfect reward!",
-    "Should they know what they're working towards?",
     "Choose how you'd like to back this challenge.",
+    "Should they know what they're working towards?",
     'Review everything before sending.',
 ];
 
@@ -69,17 +72,17 @@ const TOGETHER_STEP_TITLES = [
     'Who takes the challenge?',
     'Set your goal',
     'Pick the reward',
-    'How is the reward revealed?',
     'Secure the reward',
+    'How is the reward revealed?',
     'Confirm your gift',
 ];
 
 const TOGETHER_STEP_SUBTITLES = [
-    'Choose how your loved one will work towards their goal.',
+    'Choose how they will work towards their goal.',
     'What will you be working towards? Start small!',
     "Pick a category. We'll recommend the perfect reward!",
-    "Should they know what you're both working towards?",
     "Choose how you'd like to back this challenge.",
+    "Should they know what you're both working towards?",
     'Review everything before sending.',
 ];
 
@@ -89,7 +92,7 @@ const TYPE_OPTIONS: { key: GiftChallengeType; emoji: string; label: string; tagl
         key: 'solo',
         emoji: '👤',
         label: 'Just them',
-        tagline: 'Your loved one works on the goal. You gift the reward when they succeed.',
+        tagline: 'They work on the goal. You gift the reward when they succeed.',
         color: Colors.warning,
     },
     {
@@ -120,82 +123,8 @@ const REVEAL_OPTIONS: { key: GiftRevealMode; emoji: string; label: string; tagli
     },
 ];
 
-// ─── Experience categories ────────────────────────────────────────────────────
-const EXPERIENCE_CATEGORIES = [
-    { key: 'adventure', label: 'Adventure', emoji: '\u{1F3D4}\u{FE0F}', color: Colors.categoryAmber, match: ['adventure'] },
-    { key: 'wellness', label: 'Wellness', emoji: '\u{1F9D8}', color: Colors.categoryPink, match: ['relaxation', 'spa', 'health', 'wellness'] },
-    { key: 'creative', label: 'Creative', emoji: '\u{1F3A8}', color: Colors.categoryViolet, match: ['culture', 'arts', 'creative', 'workshop', 'food-culture'] },
-];
-
-// ─── Storage helper (cross-platform) ─────────────────────────────────────────
-const setStorageItem = async (key: string, value: string) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        localStorage.setItem(key, value);
-    } else {
-        await AsyncStorage.setItem(key, value);
-    }
-};
-
-// ─── ModernSlider ─────────────────────────────────────────────────────────────
-const ModernSlider = ({
-    label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
-}: {
-    label: string; value: number; min: number; max: number;
-    onChange: (val: number) => void; leftLabel: string; rightLabel: string;
-    unit?: string; unitPlural?: string;
-}) => {
-    const handlePress = (event: GestureResponderEvent) => {
-        const { locationX } = event.nativeEvent;
-        const trackWidth = width - 96;
-        const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
-        const newValue = Math.round(min + percentage * (max - min));
-        onChange(newValue);
-    };
-
-    const progress = ((value - min) / (max - min)) * 100;
-    const displayUnit = unit && unitPlural ? (value === 1 ? unit : unitPlural) : '';
-
-    return (
-        <View style={styles.sliderContainer}>
-            <Text style={styles.sliderTitle}>{label}</Text>
-            <View style={styles.sliderValueRow}>
-                <Text style={styles.sliderValue}>{value}</Text>
-                {displayUnit ? <Text style={styles.sliderUnit}>{displayUnit}</Text> : null}
-            </View>
-            <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabelText}>{leftLabel}</Text>
-                <Text style={styles.sliderLabelText}>{rightLabel}</Text>
-            </View>
-            <View
-                style={styles.sliderTrack}
-                onStartShouldSetResponder={() => true}
-                onResponderGrant={handlePress}
-                onResponderMove={handlePress}
-            >
-                <View style={[styles.sliderProgress, { width: `${progress}%` }]} />
-                <View style={[styles.sliderThumb, { left: `${progress}%` }]}>
-                    <View style={styles.sliderThumbInner} />
-                </View>
-            </View>
-        </View>
-    );
-};
-
-// ─── Progress Bar ─────────────────────────────────────────────────────────────
-const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
-    const progress = (currentStep / totalSteps) * 100;
-    return (
-        <View style={styles.progressBar}>
-            <View style={styles.progressTrack}>
-                <MotiView
-                    animate={{ width: `${progress}%` as any }}
-                    transition={{ type: 'spring', damping: 100, stiffness: 320 }}
-                    style={styles.progressFill}
-                />
-            </View>
-        </View>
-    );
-};
+// Alias so JSX call sites don't need to change
+const ProgressBar = WizardProgressBar;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function GiftFlowScreen() {
@@ -227,6 +156,9 @@ export default function GiftFlowScreen() {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
 
+    // Personalized message
+    const [personalizedMessage, setPersonalizedMessage] = useState('');
+
     // Reveal mode
     const [revealMode, setRevealMode] = useState<GiftRevealMode | null>(null);
 
@@ -251,7 +183,6 @@ export default function GiftFlowScreen() {
     const totalSteps = challengeType === 'shared' ? 6 : 5;
 
     // Animations
-    const slideAnim = useModalAnimation(showConfirm);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const scrollViewRef = useRef<ScrollView>(null);
 
@@ -261,6 +192,23 @@ export default function GiftFlowScreen() {
     // Step titles/subtitles (dynamic)
     const STEP_TITLES = challengeType === 'shared' ? TOGETHER_STEP_TITLES : SOLO_STEP_TITLES;
     const STEP_SUBTITLES = challengeType === 'shared' ? TOGETHER_STEP_SUBTITLES : SOLO_STEP_SUBTITLES;
+
+    // Exit confirmation for unsaved wizard progress
+    useEffect(() => {
+        const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+            if (currentStep === 1) return; // Allow back from step 1
+            e.preventDefault();
+            Alert.alert(
+                'Discard changes?',
+                'You have unsaved progress. Are you sure you want to leave?',
+                [
+                    { text: 'Stay', style: 'cancel' },
+                    { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+                ]
+            );
+        });
+        return unsubscribe;
+    }, [navigation, currentStep]);
 
     // Prefill from auth redirect
     useEffect(() => {
@@ -276,6 +224,7 @@ export default function GiftFlowScreen() {
             if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory as ExperienceCategory);
             if (p.revealMode) setRevealMode(p.revealMode);
             if (p.paymentChoice) setPaymentChoice(p.paymentChoice);
+            if (p.personalizedMessage) setPersonalizedMessage(p.personalizedMessage);
         }
     }, []);
 
@@ -315,14 +264,12 @@ export default function GiftFlowScreen() {
         }
     }, [isSubmitting]);
 
-    const sanitizeNumericInput = (text: string) => text.replace(/[^0-9]/g, '');
-
     // ─── Map logical step number to absolute step index ───────────────────────
     // Solo:     1=Type, 2=Experience, 3=Reveal, 4=Payment, 5=Confirm
     // Together: 1=Type, 2=Goal, 3=Experience, 4=Reveal, 5=Payment, 6=Confirm
     const getExperienceStep = () => challengeType === 'shared' ? 3 : 2;
-    const getRevealStep = () => challengeType === 'shared' ? 4 : 3;
-    const getPaymentStep = () => challengeType === 'shared' ? 5 : 4;
+    const getPaymentStep = () => challengeType === 'shared' ? 4 : 3;
+    const getRevealStep = () => challengeType === 'shared' ? 5 : 4;
 
     // ─── Per-step validation ──────────────────────────────────────────────────
     const validateCurrentStep = (): boolean => {
@@ -420,6 +367,7 @@ export default function GiftFlowScreen() {
                 revealMode,
                 paymentChoice,
                 sameExperienceForBoth,
+                personalizedMessage,
             };
             try {
                 await setStorageItem('pending_gift_flow', JSON.stringify(giftConfig));
@@ -436,16 +384,6 @@ export default function GiftFlowScreen() {
         setIsSubmitting(true);
 
         try {
-            if (paymentChoice === 'payNow' && selectedExperience) {
-                // Navigate to checkout — gift will be created post-payment
-                setShowConfirm(false);
-                navigation.navigate('ExperienceCheckout', {
-                    experience: selectedExperience,
-                    cartItems: [{ experienceId: selectedExperience.id, quantity: 1 }],
-                });
-                return;
-            }
-
             // payLater or free: call the appropriate cloud function
             const functionName = paymentChoice === 'free'
                 ? config.giftFunctions.createFreeGift
@@ -470,7 +408,7 @@ export default function GiftFlowScreen() {
                         challengeType,
                         revealMode,
                         giverName: state.user.displayName || '',
-                        personalizedMessage: '',
+                        personalizedMessage: personalizedMessage.trim(),
                         ...(challengeType === 'shared' ? {
                             goalName: goalName.trim() || `${weeks}-week challenge`,
                             duration: `${weeks} weeks`,
@@ -901,7 +839,15 @@ export default function GiftFlowScreen() {
         );
     };
 
+    // Auto-reset secret mode if experience deselected
+    useEffect(() => {
+        if (!selectedExperience && revealMode === 'secret') {
+            setRevealMode('revealed');
+        }
+    }, [selectedExperience]);
+
     // Reveal/Secret step
+    const secretDisabled = !selectedExperience || paymentChoice === 'free';
     const renderRevealStep = () => (
         <View style={styles.stepContent}>
             {validationErrors.revealMode && (
@@ -911,6 +857,7 @@ export default function GiftFlowScreen() {
             )}
             {REVEAL_OPTIONS.map((option, index) => {
                 const isActive = revealMode === option.key;
+                const isSecretAndDisabled = option.key === 'secret' && secretDisabled;
                 return (
                     <MotiView
                         key={option.key}
@@ -919,12 +866,17 @@ export default function GiftFlowScreen() {
                         transition={{ type: 'timing', duration: 300, delay: index * 80 }}
                     >
                         <TouchableOpacity
-                            style={[styles.rewardChoice, isActive && styles.rewardChoiceActive]}
+                            style={[
+                                styles.rewardChoice,
+                                isActive && styles.rewardChoiceActive,
+                                isSecretAndDisabled && { opacity: 0.4 },
+                            ]}
                             onPress={() => {
+                                if (isSecretAndDisabled) return;
                                 setRevealMode(option.key);
                                 setValidationErrors(prev => ({ ...prev, revealMode: false }));
                             }}
-                            activeOpacity={0.8}
+                            activeOpacity={isSecretAndDisabled ? 1 : 0.8}
                             accessibilityRole="button"
                             accessibilityLabel={`Select ${option.label} reveal mode`}
                         >
@@ -932,13 +884,18 @@ export default function GiftFlowScreen() {
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.rewardChoiceTitle, isActive && styles.rewardChoiceTitleActive]}>{option.label}</Text>
                                     <Text style={styles.rewardChoiceDesc}>{option.tagline}</Text>
-                                    {option.badge && (
+                                    {option.badge && !isSecretAndDisabled && (
                                         <View style={styles.revealBadge}>
                                             <Text style={styles.revealBadgeText}>{option.badge}</Text>
                                         </View>
                                     )}
+                                    {isSecretAndDisabled && (
+                                        <Text style={{ ...Typography.caption, color: Colors.textMuted, marginTop: Spacing.xs }}>
+                                            Pick a specific reward to unlock mystery mode
+                                        </Text>
+                                    )}
                                 </View>
-                                {isActive && (
+                                {isActive && !isSecretAndDisabled && (
                                     <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
                                 )}
                             </View>
@@ -958,32 +915,7 @@ export default function GiftFlowScreen() {
                 </View>
             )}
 
-            {/* Option A: Buy the reward */}
-            <TouchableOpacity
-                style={[styles.rewardChoice, paymentChoice === 'payNow' && styles.rewardChoiceActive]}
-                onPress={() => {
-                    setPaymentChoice('payNow');
-                    setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
-                }}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Buy the reward now"
-            >
-                <View style={styles.rewardChoiceHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>Buy the reward</Text>
-                        <Text style={styles.rewardChoiceDesc}>
-                            {'Purchase now, unlock when they complete their challenge'}
-                            {selectedExperience?.price ? ` \u00B7 \u20AC${selectedExperience.price}` : ''}
-                        </Text>
-                    </View>
-                    {paymentChoice === 'payNow' && (
-                        <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
-                    )}
-                </View>
-            </TouchableOpacity>
-
-            {/* Option B: Commit & pay later */}
+            {/* Option A: Commit & pay later */}
             <TouchableOpacity
                 style={[styles.rewardChoice, paymentChoice === 'payLater' && styles.rewardChoiceActive]}
                 onPress={() => {
@@ -1037,9 +969,70 @@ export default function GiftFlowScreen() {
             <View style={styles.statCard}>
                 <Text style={styles.statNumber}>Invest in their success.</Text>
                 <Text style={styles.statText}>
-                    When you commit upfront, you show your loved ones you believe in them.
+                    When you commit upfront, you show them you believe in them.
                 </Text>
             </View>
+        </View>
+    );
+
+    // Summary / confirm step — last step
+    const renderConfirmStep = () => (
+        <View style={styles.stepContent}>
+            <View style={styles.confirmSummaryCard}>
+                <Text style={styles.confirmSummaryRow}>
+                    <Text style={styles.confirmSummaryLabel}>Type: </Text>
+                    {typeLabel}
+                </Text>
+                {challengeType === 'shared' && (
+                    <>
+                        <Text style={styles.confirmSummaryRow}>
+                            <Text style={styles.confirmSummaryLabel}>Duration: </Text>
+                            {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                        </Text>
+                        <Text style={styles.confirmSummaryRow}>
+                            <Text style={styles.confirmSummaryLabel}>Sessions/week: </Text>
+                            {sessionsPerWeek}
+                        </Text>
+                        <Text style={styles.confirmSummaryRow}>
+                            <Text style={styles.confirmSummaryLabel}>Per session: </Text>
+                            {hours || '0'}h {minutes || '0'}m
+                        </Text>
+                    </>
+                )}
+                {selectedExperience ? (
+                    <Text style={styles.confirmSummaryRow}>
+                        <Text style={styles.confirmSummaryLabel}>Reward: </Text>
+                        {selectedExperience.title}
+                    </Text>
+                ) : preferredRewardCategory ? (
+                    <Text style={styles.confirmSummaryRow}>
+                        <Text style={styles.confirmSummaryLabel}>Reward preference: </Text>
+                        {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
+                    </Text>
+                ) : null}
+                {revealMode && (
+                    <Text style={styles.confirmSummaryRow}>
+                        <Text style={styles.confirmSummaryLabel}>Mode: </Text>
+                        {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
+                    </Text>
+                )}
+                {paymentChoice && (
+                    <Text style={styles.confirmSummaryRow}>
+                        <Text style={styles.confirmSummaryLabel}>Payment: </Text>
+                        {getPaymentLabel()}
+                    </Text>
+                )}
+            </View>
+
+            <TextInput
+                label="Add a personal note"
+                placeholder="Write something meaningful..."
+                value={personalizedMessage}
+                onChangeText={setPersonalizedMessage}
+                maxLength={200}
+                multiline
+                containerStyle={{ marginBottom: Spacing.md }}
+            />
         </View>
     );
 
@@ -1051,16 +1044,18 @@ export default function GiftFlowScreen() {
             switch (currentStep) {
                 case 2: return renderStep2Together();
                 case 3: return renderExperienceStep();
-                case 4: return renderRevealStep();
-                case 5: return renderPaymentStep();
+                case 4: return renderPaymentStep();
+                case 5: return renderRevealStep();
+                case 6: return renderConfirmStep();
                 default: return null;
             }
         } else {
             // solo
             switch (currentStep) {
                 case 2: return renderExperienceStep();
-                case 3: return renderRevealStep();
-                case 4: return renderPaymentStep();
+                case 3: return renderPaymentStep();
+                case 4: return renderRevealStep();
+                case 5: return renderConfirmStep();
                 default: return null;
             }
         }
@@ -1070,22 +1065,24 @@ export default function GiftFlowScreen() {
     const typeLabel = challengeType === 'shared' ? 'Together' : 'Just them';
 
     const getPaymentLabel = () => {
-        if (paymentChoice === 'payNow') return `Buy now${selectedExperience?.price ? ` (\u20AC${selectedExperience.price})` : ''}`;
         if (paymentChoice === 'payLater') return 'Pay on success';
         if (paymentChoice === 'free') return 'Free';
         return '';
     };
 
     const getCtaLabel = () => {
-        if (paymentChoice === 'payNow') return isSubmitting ? 'Processing...' : 'Buy & Send Gift';
-        if (paymentChoice === 'payLater') return isSubmitting ? 'Sending...' : 'Commit & Send';
-        return isSubmitting ? 'Sending...' : 'Send Challenge';
+        if (paymentChoice === 'payLater') return isSubmitting ? 'Sending...' : 'Commit & Send (pay on success)';
+        return isSubmitting ? 'Sending...' : 'Send Free Challenge';
     };
 
     const userId = state.user?.id || '';
 
     return (
         <ErrorBoundary screenName="GiftFlowScreen" userId={userId}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
             <View style={styles.container}>
                 <StatusBar style="dark" />
 
@@ -1141,7 +1138,7 @@ export default function GiftFlowScreen() {
                         </MotiView>
                     </AnimatePresence>
 
-                    <View style={{ height: 240 }} />
+                    <View style={{ height: vh(120) }} />
                 </ScrollView>
 
                 {/* Footer */}
@@ -1216,7 +1213,7 @@ export default function GiftFlowScreen() {
                             <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>
                                     {state.user?.id
-                                        ? (paymentChoice === 'payNow' ? 'Buy & Send Gift' : paymentChoice === 'payLater' ? 'Commit & Send' : 'Send Challenge')
+                                        ? (paymentChoice === 'payLater' ? 'Commit & Send' : 'Send Free Challenge')
                                         : 'Sign Up & Send Gift'}
                                 </Text>
                                 <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
@@ -1239,115 +1236,100 @@ export default function GiftFlowScreen() {
                 </View>
 
                 {/* Confirmation Modal */}
-                <Modal
+                <BaseModal
                     visible={showConfirm}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setShowConfirm(false)}
+                    onClose={() => setShowConfirm(false)}
+                    title="Confirm Your Gift"
+                    variant="center"
                 >
-                    <TouchableOpacity
-                        style={commonStyles.modalOverlay}
-                        activeOpacity={1}
-                        onPress={() => setShowConfirm(false)}
-                    >
-                        <Animated.View
-                            style={[
-                                styles.modalBox,
-                                { transform: [{ translateY: slideAnim }] },
-                            ]}
-                        >
-                            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
-                                <Text style={styles.modalTitle}>Confirm Your Gift</Text>
-                                <Text style={styles.modalSubtitle}>
-                                    Ready to send? Let's make it happen!
-                                </Text>
+                    <View style={{ width: '100%', alignItems: 'center' }}>
+                        <Text style={styles.modalSubtitle}>
+                            Ready to send? Let's make it happen!
+                        </Text>
 
-                                <View style={styles.modalDetails}>
+                        <View style={styles.modalDetails}>
+                            <Text style={styles.modalRow}>
+                                <Text style={styles.modalLabel}>Type: </Text>
+                                {typeLabel}
+                            </Text>
+                            {challengeType === 'shared' && (
+                                <>
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Type: </Text>
-                                        {typeLabel}
+                                        <Text style={styles.modalLabel}>Duration: </Text>
+                                        {weeks} {weeks === 1 ? 'week' : 'weeks'}
                                     </Text>
-                                    {challengeType === 'shared' && (
-                                        <>
-                                            <Text style={styles.modalRow}>
-                                                <Text style={styles.modalLabel}>Duration: </Text>
-                                                {weeks} {weeks === 1 ? 'week' : 'weeks'}
-                                            </Text>
-                                            <Text style={styles.modalRow}>
-                                                <Text style={styles.modalLabel}>Sessions/week: </Text>
-                                                {sessionsPerWeek}
-                                            </Text>
-                                            <Text style={styles.modalRow}>
-                                                <Text style={styles.modalLabel}>Per session: </Text>
-                                                {hours || '0'}h {minutes || '0'}m
-                                            </Text>
-                                        </>
-                                    )}
-                                    {selectedExperience ? (
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Reward: </Text>
-                                            {selectedExperience.title}
-                                        </Text>
-                                    ) : preferredRewardCategory ? (
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Reward preference: </Text>
-                                            {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
-                                        </Text>
-                                    ) : null}
-                                    {revealMode && (
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Mode: </Text>
-                                            {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
-                                        </Text>
-                                    )}
-                                    {paymentChoice && (
-                                        <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Payment: </Text>
-                                            {getPaymentLabel()}
-                                        </Text>
-                                    )}
-                                </View>
-
-                                <Text style={styles.pledgeNote}>
-                                    {paymentChoice === 'payNow'
-                                        ? 'The experience will be unlocked when they complete their challenge!'
-                                        : paymentChoice === 'payLater'
-                                            ? 'Your card will only be charged when they succeed.'
-                                            : 'You can attach a reward to this challenge at any time.'}
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Sessions/week: </Text>
+                                        {sessionsPerWeek}
+                                    </Text>
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Per session: </Text>
+                                        {hours || '0'}h {minutes || '0'}m
+                                    </Text>
+                                </>
+                            )}
+                            {selectedExperience ? (
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Reward: </Text>
+                                    {selectedExperience.title}
                                 </Text>
+                            ) : preferredRewardCategory ? (
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Reward preference: </Text>
+                                    {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
+                                </Text>
+                            ) : null}
+                            {revealMode && (
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Mode: </Text>
+                                    {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
+                                </Text>
+                            )}
+                            {paymentChoice && (
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Payment: </Text>
+                                    {getPaymentLabel()}
+                                </Text>
+                            )}
+                        </View>
 
-                                <View style={styles.modalButtons}>
-                                    <TouchableOpacity
-                                        onPress={() => setShowConfirm(false)}
-                                        style={[styles.modalButton, styles.cancelButton]}
-                                        activeOpacity={0.8}
-                                        disabled={isSubmitting}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="Cancel gift creation"
-                                    >
-                                        <Text style={styles.cancelText}>Cancel</Text>
-                                    </TouchableOpacity>
+                        <Text style={styles.pledgeNote}>
+                            {paymentChoice === 'payLater'
+                                ? 'Your card will only be charged when they succeed.'
+                                : 'You can attach a reward to this challenge at any time.'}
+                        </Text>
 
-                                    <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
-                                        <TouchableOpacity
-                                            onPress={confirmCreateGoal}
-                                            style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
-                                            activeOpacity={0.8}
-                                            disabled={isSubmitting}
-                                            accessibilityRole="button"
-                                            accessibilityLabel={isSubmitting ? 'Sending gift' : getCtaLabel()}
-                                        >
-                                            <Text style={styles.confirmText}>
-                                                {getCtaLabel()}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </Animated.View>
-                                </View>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                onPress={() => setShowConfirm(false)}
+                                style={[styles.modalButton, styles.cancelButton]}
+                                activeOpacity={0.8}
+                                disabled={isSubmitting}
+                                accessibilityRole="button"
+                                accessibilityLabel="Cancel gift creation"
+                            >
+                                <Text style={styles.cancelText}>Cancel</Text>
                             </TouchableOpacity>
-                        </Animated.View>
-                    </TouchableOpacity>
-                </Modal>
+
+                            <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                                <TouchableOpacity
+                                    onPress={confirmCreateGoal}
+                                    style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
+                                    activeOpacity={0.8}
+                                    disabled={isSubmitting}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={isSubmitting ? 'Sending gift' : getCtaLabel()}
+                                >
+                                    <Text style={styles.confirmText}>
+                                        {getCtaLabel()}
+                                    </Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </View>
+                </BaseModal>
             </View>
+            </KeyboardAvoidingView>
         </ErrorBoundary>
     );
 }
@@ -1362,8 +1344,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: Platform.OS === 'ios' ? 56 : 40,
-        paddingBottom: Spacing.lg,
+        paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
+        paddingBottom: vh(14),
         paddingHorizontal: Spacing.xl,
         backgroundColor: Colors.white,
         borderBottomWidth: 1,
@@ -1396,7 +1378,7 @@ const styles = StyleSheet.create({
     // Progress bar
     progressBar: {
         paddingHorizontal: Spacing.xl,
-        paddingVertical: Spacing.md,
+        paddingVertical: vh(10),
         backgroundColor: Colors.white,
     },
     progressTrack: {
@@ -1417,19 +1399,19 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: Spacing.xl,
-        paddingTop: Spacing.xxl,
-        paddingBottom: Spacing.xl,
+        paddingTop: vh(20),
+        paddingBottom: vh(16),
     },
     stepTitle: {
         ...Typography.heading1,
         fontWeight: '800',
         color: Colors.gray800,
-        marginBottom: Spacing.sm,
+        marginBottom: vh(8),
     },
     stepSubtitle: {
         ...Typography.body,
         color: Colors.textSecondary,
-        marginBottom: Spacing.xxxl,
+        marginBottom: vh(24),
     },
     stepContent: {
         // Wrapper for step-specific content
@@ -1464,7 +1446,7 @@ const styles = StyleSheet.create({
     sliderTitle: {
         ...Typography.smallBold,
         color: Colors.textSecondary,
-        marginBottom: Spacing.sm,
+        marginBottom: vh(6),
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
@@ -1633,8 +1615,8 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         paddingHorizontal: Spacing.xl,
-        paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
-        paddingTop: Spacing.lg,
+        paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
+        paddingTop: vh(14),
         backgroundColor: Colors.white,
         borderTopWidth: 1,
         borderTopColor: Colors.backgroundLight,
@@ -1988,7 +1970,7 @@ const styles = StyleSheet.create({
         padding: Spacing.lg,
         borderWidth: 2,
         borderColor: Colors.border,
-        marginBottom: Spacing.md,
+        marginBottom: vh(10),
     },
     rewardChoiceActive: {
         borderColor: Colors.primary,
@@ -2028,6 +2010,26 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
     },
 
+    // Confirm step summary card
+    confirmSummaryCard: {
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.md,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.xl,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    confirmSummaryRow: {
+        ...Typography.body,
+        color: Colors.gray700,
+        marginBottom: Spacing.xs,
+    },
+    confirmSummaryLabel: {
+        fontWeight: '600',
+        color: Colors.primaryDeep,
+    },
+
     // Motivational stat card
     statCard: {
         backgroundColor: Colors.successLighter,
@@ -2036,7 +2038,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: Colors.successBorder,
-        marginTop: Spacing.lg,
+        marginTop: vh(16),
         marginBottom: 0,
     },
     statNumber: {

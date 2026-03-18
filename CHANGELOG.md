@@ -122,6 +122,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap NavButton and CommentSection in React.memo, deduplicate BaseModal ScrollView, bump refresh timeouts to 1000ms, extract LandingScreen inline styles to StyleSheet
 - add TTL (30 days) and size limit (100 entries) to AIHintService local cache
 - rewrite GiftFlowScreen to match ChallengeSetupScreen format exactly
+- replace hardcoded colors with design tokens in ChallengeLandingScreen, AnimationPreviewScreen, SideMenu, and SkeletonLoader
+- replace raw empty state JSX with shared EmptyState component in GoalsScreen, PurchasedGiftsScreen, and ConfirmationScreen
+- replace raw TouchableOpacity primary CTAs with shared Button component in GoalsScreen, ExperienceCheckoutScreen, ConfirmationScreen, and GoalDetailScreen
+- replace ActivityIndicator spinners with skeleton loaders and Button loading prop
+- replace raw Image with Avatar component for user profile photos in UserProfileScreen, FriendProfileScreen, and NotificationsScreen
+- replace raw RNTextInput with shared TextInput component in AuthScreen, UserProfileScreen, and ConfirmationScreen
+- migrate raw Modal usage to shared BaseModal component across 9 files
+- replace inline toDate() patterns with toDateSafe() utility across service layer
+- consolidate timestamp conversions with toDateSafe utility, make Cloud Function URLs configurable via env var
+- remove backup file, debug Alert, and unused ActivityIndicator import
+- adopt shared Card component in PurchasedGiftsScreen and CartScreen
+- add display-count pagination to NotificationsScreen, PurchasedGiftsScreen, and FriendsListScreen
+- replace raw Error throws with AppError in service files for typed error handling
+- standardize error handling with AppError class across 12 service files
+- extract shared wizard components (ModernSlider, WizardProgressBar) and utilities (wizardHelpers) from ChallengeSetupScreen and GiftFlowScreen
+- add VH responsive scaling to ChallengeSetupScreen vertical spacing
+- add VH responsive scaling to GiftFlowScreen vertical spacing
+- responsive vh() scaling for all wizard steps in both ChallengeSetup and GiftFlow screens
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -252,6 +270,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve 8 code issues — Timestamp date conversions, lastNudgeLevel type, as-any casts, interval cleanup, null guard, coupon expiry validation
 - eighth-pass audit — removed unused react-native-worklets and firebase-admin from root deps, fixed typescript to ^5.7.3, removed incompatible @types/stripe and dead vercel from functions deps, fixed ExperienceGiftService no-op date conversion, added lastNudgeLevel to GoalWeeklyTracking type, cleaned up 4 as-any casts (completedAt Timestamp narrowing, giverId), added useMediaComposer interval cleanup on unmount, added null guard in GoalSessionService, added coupon expiry validation
 - footer glow now animates on every tab change by replacing SVG radial gradient with View-based glow
+- improve accessibility in SharedHeader (back button label, ActionButton labels, remove dead variant prop)
+- security hardening - coupon validation, feed privacy, AI input limits, Stripe webhook, search rate limits, ErrorBoundary rate limiting, notification caps, goal date validation
+- timer state persistence on app background, session record error handling on goal completion
+- replaced fake pull-to-refresh setTimeout with real listener re-subscribe in GoalsScreen and NotificationsScreen
+- add KeyboardAvoidingView to GoalSettingScreen and GiftFlowScreen to prevent keyboard covering inputs
+- replace Alert.alert destructive confirmations with ConfirmationDialog component
+- enable LayoutAnimation on Android in SideMenu and switch auth animations to native driver
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -344,3 +369,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add chargeDeferredGift trigger, auto-friend on redeem, together mode goal acceptance
 - merged landing pages into single screen with For myself / For a loved one toggle
 - dual carousel hero with goal and reward images side by side with lock icon
+- Card component — onPress with scale animation, glassmorphism variant, accessibilityLabel prop
+- TextInput — rightIcon prop, success state, removed baked-in marginBottom
+- added warning toast type to ToastContext and Toast component
+- add platform-appropriate screen transition animations to all navigators
+- populate notification badge count on Feed tab in footer navigation
+- add shared ProgressBar, Chip, and ConfirmationDialog components
+- add exit confirmation dialogs to multi-step wizard screens (GiftFlowScreen, ChallengeSetupScreen, GoalSettingScreen)
+- add expo-image for disk/memory caching and optimized image loading across Avatar, FeedPost, and CategorySelectionScreen
+- add dark mode scaffolding with ThemeContext, ThemeProvider, and SideMenu toggle
+- comprehensive UI/UX audit - replaced ActivityIndicators with skeletons, migrated raw Modals to BaseModal, adopted shared Button/TextInput/Avatar/Card/EmptyState components, added screen transitions, notification badge, real pull-to-refresh, exit confirmations, KeyboardAvoidingView, ConfirmationDialog, ProgressBar, Chip components, expo-image caching, pagination, a11y improvements, dark mode scaffolding
+- gift flow improvements - personalized message, secret mode guard, CTA labels, category UX
+- remove payNow option from GiftFlowScreen
+- clock dial for time per session, calendar spacing fix, Buy Now removal from both flows

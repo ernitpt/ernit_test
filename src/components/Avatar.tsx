@@ -1,20 +1,25 @@
 import React from 'react';
-import { View, Image, Text, ViewStyle, StyleSheet } from 'react-native';
+import { View, Text, ViewStyle, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Colors } from '../config/colors';
 import { Typography } from '../config/typography';
 
-export type AvatarSize = 'sm' | 'md' | 'lg';
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 const SIZES: Record<AvatarSize, number> = {
+  xs: 24,
   sm: 32,
   md: 44,
   lg: 80,
+  xl: 120,
 };
 
 const FONT_SIZES: Record<AvatarSize, number> = {
+  xs: 10,
   sm: 14,
   md: 18,
   lg: 28,
+  xl: 40,
 };
 
 export interface AvatarProps {
@@ -48,7 +53,9 @@ export const Avatar = React.memo<AvatarProps>(({
       <Image
         source={{ uri }}
         style={[styles.image, sizeStyle, style]}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="image"
       />

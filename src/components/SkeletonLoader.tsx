@@ -4,6 +4,7 @@ import { MotiView } from 'moti';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
+import { Shadows } from '../config/shadows';
 
 interface SkeletonLoaderProps {
     width?: number | string;
@@ -272,11 +273,7 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.lg,
         padding: Spacing.lg,
         marginBottom: Spacing.md,
-        shadowColor: Colors.black,
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        ...Shadows.sm,
     },
     header: {
         flexDirection: 'row',
@@ -300,11 +297,7 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.lg,
         padding: Spacing.xl,
         marginBottom: Spacing.lg,
-        shadowColor: Colors.black,
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        ...Shadows.sm,
     },
     goalHeader: {
         marginBottom: Spacing.sm,
@@ -320,11 +313,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
         borderRadius: BorderRadius.md,
         marginRight: Spacing.md,
-        shadowColor: Colors.black,
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        ...Shadows.sm,
         overflow: 'hidden',
     },
     listItemSkeleton: {

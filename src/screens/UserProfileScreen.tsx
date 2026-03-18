@@ -6,19 +6,15 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Modal,
-  TextInput as RNTextInput,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   RefreshControl,
   Dimensions,
-  Alert,
 } from 'react-native';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import * as Haptics from 'expo-haptics';
 import { TextInput } from '../components/TextInput';
-import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
+import { BaseModal } from '../components/BaseModal';
 import { Edit2, Users, Award, Gift, Heart, Target } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
@@ -51,6 +47,7 @@ import { SkeletonBox } from '../components/SkeletonLoader';
 import ClaimExperienceModal from '../components/ClaimExperienceModal';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
 
 // =========================
@@ -462,9 +459,9 @@ const UserProfileScreen: React.FC = () => {
     profileImageUrl: '',
   });
   const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
+  const [wishlistRemoveId, setWishlistRemoveId] = useState<string | null>(null);
 
   const userId = state.user?.id || '';
-  const slideAnim = useModalAnimation(isEditModalVisible);
   const tabScrollRef = useRef<ScrollView>(null);
   const { width: screenWidth } = Dimensions.get('window');
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
@@ -649,44 +646,39 @@ const UserProfileScreen: React.FC = () => {
     }
   };
 
-  const handleRemoveFromWishlist = async (experienceId: string) => {
+  const handleRemoveFromWishlist = (experienceId: string) => {
     if (!state.user) {
       showInfo('Please log in to manage wishlist.');
       return;
     }
 
-    Alert.alert(
-      'Remove from Wishlist',
-      'Are you sure you want to remove this experience from your wishlist?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const userRef = doc(db, 'users', state.user!.id);
-              await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
+    setWishlistRemoveId(experienceId);
+  };
 
-              // Update local state
-              setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
+  const confirmRemoveFromWishlist = async () => {
+    const experienceId = wishlistRemoveId;
+    if (!experienceId) return;
+    setWishlistRemoveId(null);
 
-              // Update context if needed
-              if (state.user) {
-                // Filter based on Experience type having an id property
-                const updatedWishlist = (state.user.wishlist || []).filter((exp) =>
-                  typeof exp === 'string' ? exp !== experienceId : exp.id !== experienceId
-                );
-                dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
-              }
-            } catch (error) {
-              logger.error('Error removing from wishlist:', error);
-              showError('Failed to remove item from wishlist. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const userRef = doc(db, 'users', state.user!.id);
+      await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
+
+      // Update local state
+      setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
+
+      // Update context if needed
+      if (state.user) {
+        // Filter based on Experience type having an id property
+        const updatedWishlist = (state.user.wishlist || []).filter((exp) =>
+          typeof exp === 'string' ? exp !== experienceId : exp.id !== experienceId
+        );
+        dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
+      }
+    } catch (error) {
+      logger.error('Error removing from wishlist:', error);
+      showError('Failed to remove item from wishlist. Please try again.');
+    }
   };
 
   const renderTabContent = (tab: typeof activeTab) => {
@@ -772,19 +764,11 @@ const UserProfileScreen: React.FC = () => {
           {/* Hero Section */}
           <View style={styles.heroSection}>
             <View style={styles.profileImageContainer}>
-              {userProfile?.profileImageUrl && userProfile.profileImageUrl.trim() !== '' ? (
-                <Image
-                  source={{ uri: userProfile.profileImageUrl }}
-                  style={styles.profileImage}
-                  accessibilityLabel="Your profile picture"
-                />
-              ) : (
-                <View style={styles.placeholderImage}>
-                  <Text style={styles.placeholderText}>
-                    {state.user?.displayName?.[0]?.toUpperCase() || 'U'}
-                  </Text>
-                </View>
-              )}
+              <Avatar
+                uri={userProfile?.profileImageUrl}
+                name={userProfile?.name || state.user?.displayName}
+                size="xl"
+              />
               <TouchableOpacity
                 style={styles.editIconButton}
                 onPress={openEditModal}
@@ -896,109 +880,97 @@ const UserProfileScreen: React.FC = () => {
         </ScrollView>
 
         {/* Edit Modal */}
-        <Modal
+        <BaseModal
           visible={isEditModalVisible}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setIsEditModalVisible(false)}
+          onClose={() => setIsEditModalVisible(false)}
+          title="Edit Profile"
+          variant="bottom"
+          noPadding
         >
-          <TouchableOpacity
-            style={commonStyles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setIsEditModalVisible(false)}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <Animated.View
-              style={[
-                styles.modalContainer,
-                {
-                  transform: [{ translateY: slideAnim }],
-                  marginTop: 50, // Top offset
-                  width: '100%',
-                  borderTopLeftRadius: BorderRadius.xxl,
-                  borderTopRightRadius: BorderRadius.xxl,
-                  overflow: 'hidden',
-                },
-              ]}
-            >
-              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ flex: 1 }}>
-                <KeyboardAvoidingView
-                  style={{ flex: 1 }}
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                >
-                  <View style={styles.modalHeader}>
-                    <TouchableOpacity
-                      onPress={() => setIsEditModalVisible(false)}
-                      style={styles.modalCancelButton}
-                    >
-                      <Text style={styles.modalCancelText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>Edit Profile</Text>
-                    <TouchableOpacity
-                      onPress={handleSaveProfile}
-                      style={styles.modalSaveButton}
-                    >
-                      <Text style={styles.modalSaveText}>
-                        Save
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView style={styles.modalContent}>
-                    <View style={styles.imageSection}>
-                      <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-                        {editFormData.profileImageUrl &&
-                          editFormData.profileImageUrl.trim() !== '' ? (
-                          <Image
-                            source={{ uri: editFormData.profileImageUrl }}
-                            style={styles.editProfileImage}
-                          />
-                        ) : (
-                          <View style={styles.placeholderImage}>
-                            <Text style={styles.placeholderText}>
-                              {(editFormData.name?.[0] || 'U').toUpperCase()}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={styles.imageOverlay}>
-                          <Text style={styles.imageOverlayText}>📷</Text>
-                        </View>
-                      </TouchableOpacity>
-                      <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
-                    </View>
-
-                    <TextInput
-                      label="Name"
-                      value={editFormData.name}
-                      onChangeText={(text) => {
-                        setEditFormData((prev) => ({ ...prev, name: text }));
-                        validateField('name', text);
-                      }}
-                      placeholder="Enter your name"
-                      maxLength={50}
-                      error={formErrors.name}
-                    />
-
-                    <TextInput
-                      label={`About You (${editFormData.description.length}/300)`}
-                      value={editFormData.description}
-                      onChangeText={(text) => {
-                        setEditFormData((prev) => ({ ...prev, description: text }));
-                        validateField('description', text);
-                      }}
-                      placeholder="Tell us about yourself..."
-                      multiline
-                      numberOfLines={6}
-                      maxLength={300}
-                      error={formErrors.description}
-                      inputStyle={{ minHeight: 120 }}
-                    />
-                  </ScrollView>
-                </KeyboardAvoidingView>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setIsEditModalVisible(false)}
+                style={styles.modalCancelButton}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-            </Animated.View>
-          </TouchableOpacity>
-        </Modal>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TouchableOpacity
+                onPress={handleSaveProfile}
+                style={styles.modalSaveButton}
+              >
+                <Text style={styles.modalSaveText}>
+                  Save
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.imageSection}>
+                <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+                  {editFormData.profileImageUrl &&
+                    editFormData.profileImageUrl.trim() !== '' ? (
+                    <Image
+                      source={{ uri: editFormData.profileImageUrl }}
+                      style={styles.editProfileImage}
+                    />
+                  ) : (
+                    <View style={styles.placeholderImage}>
+                      <Text style={styles.placeholderText}>
+                        {(editFormData.name?.[0] || 'U').toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.imageOverlay}>
+                    <Text style={styles.imageOverlayText}>📷</Text>
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
+              </View>
+
+              <TextInput
+                label="Name"
+                value={editFormData.name}
+                onChangeText={(text) => {
+                  setEditFormData((prev) => ({ ...prev, name: text }));
+                  validateField('name', text);
+                }}
+                placeholder="Enter your name"
+                maxLength={50}
+                error={formErrors.name}
+              />
+
+              <TextInput
+                label={`About You (${editFormData.description.length}/300)`}
+                value={editFormData.description}
+                onChangeText={(text) => {
+                  setEditFormData((prev) => ({ ...prev, description: text }));
+                  validateField('description', text);
+                }}
+                placeholder="Tell us about yourself..."
+                multiline
+                numberOfLines={6}
+                maxLength={300}
+                error={formErrors.description}
+                inputStyle={{ minHeight: 120 }}
+              />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </BaseModal>
       </MainScreen>
+      <ConfirmationDialog
+        visible={wishlistRemoveId !== null}
+        title="Remove from Wishlist"
+        message="Are you sure you want to remove this experience from your wishlist?"
+        confirmLabel="Remove"
+        onConfirm={confirmRemoveFromWishlist}
+        onCancel={() => setWishlistRemoveId(null)}
+        variant="danger"
+      />
     </ErrorBoundary>
   );
 };

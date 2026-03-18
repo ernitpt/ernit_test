@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react-native';
+import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react-native';
 import { useToast, ToastMessage } from '../context/ToastContext';
 import Colors from '../config/colors';
 import { Typography } from '../config/typography';
@@ -31,6 +31,13 @@ const TOAST_CONFIG = {
     text: Colors.infoDark,
     Icon: Info,
     iconColor: Colors.info,
+  },
+  warning: {
+    bg: Colors.warningLighter,
+    border: Colors.warningBorder,
+    text: Colors.warningDark,
+    Icon: AlertTriangle,
+    iconColor: Colors.warning,
   },
 } as const;
 

@@ -3,6 +3,7 @@ import { app } from './firebase';
 
 import { logger } from '../utils/logger';
 import { compressImageBlob } from '../utils/imageCompression';
+import { AppError } from '../utils/AppError';
 
 // ✅ SECURITY: File validation constants
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -27,22 +28,22 @@ class StorageService {
         // Check file size
         if (blob.size > maxSize) {
             const maxMB = Math.round(maxSize / (1024 * 1024));
-            throw new Error(`File too large. Maximum ${fileType} size is ${maxMB}MB.`);
+            throw new AppError('FILE_TOO_LARGE', `File too large. Maximum ${fileType} size is ${maxMB}MB.`, 'validation');
         }
 
         // Check file size is not zero
         if (blob.size === 0) {
-            throw new Error(`Invalid ${fileType} file: file is empty.`);
+            throw new AppError('FILE_EMPTY', `Invalid ${fileType} file: file is empty.`, 'validation');
         }
 
         // Check file type
         if (blob.type && !allowedTypes.includes(blob.type)) {
-            throw new Error(`Invalid ${fileType} type. Allowed types: ${allowedTypes.join(', ')}`);
+            throw new AppError('INVALID_FILE_TYPE', `Invalid ${fileType} type. Allowed types: ${allowedTypes.join(', ')}`, 'validation');
         }
 
         // Reject files with no MIME type — cannot verify safety
         if (!blob.type) {
-            throw new Error('File has no MIME type. Upload rejected for security.');
+            throw new AppError('NO_MIME_TYPE', 'File has no MIME type. Upload rejected for security.', 'validation');
         }
     }
 

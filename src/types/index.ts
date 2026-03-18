@@ -535,14 +535,14 @@ export interface ChallengeSetupPrefill {
   minutes?: string;
   experience?: Experience;
   plannedStartDate?: string;
-  buyNow?: boolean;
+  sessionMinutes?: number;
   preferredRewardCategory?: ExperienceCategory;
 }
 
 // Gift flow types
 export type GiftChallengeType = 'solo' | 'shared';
 export type GiftRevealMode = 'revealed' | 'secret';
-export type GiftPaymentChoice = 'payNow' | 'payLater' | 'free';
+export type GiftPaymentChoice = 'payLater' | 'free';
 
 export interface GiftFlowData {
   challengeType: GiftChallengeType;
@@ -559,6 +559,8 @@ export interface GiftFlowData {
   targetHours?: number;
   targetMinutes?: number;
   sameExperienceForBoth?: boolean;
+  personalizedMessage?: string;
+  preferredRewardCategory?: ExperienceCategory;
 }
 
 export interface GiftFlowPrefill extends Partial<GiftFlowData> {

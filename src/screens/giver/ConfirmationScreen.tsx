@@ -9,8 +9,8 @@ import {
   Animated,
   Platform,
   Share,
-  TextInput,
 } from 'react-native';
+import { TextInput } from '../../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
@@ -26,6 +26,7 @@ import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { EmptyState } from '../../components/EmptyState';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
@@ -33,6 +34,7 @@ import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
+import Button from '../../components/Button';
 
 const ConfirmationScreen = () => {
   const navigation = useGiverNavigation();
@@ -279,33 +281,23 @@ Earn it. Unlock it. Enjoy it 🚀
   if (loadError && !experience) {
     return (
       <MainScreen activeRoute="Home">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
-          <Text style={{ ...Typography.heading3, color: Colors.textPrimary, textAlign: 'center' }}>
-            Could not load experience details
-          </Text>
-          <Text style={{ ...Typography.body, color: Colors.textSecondary, textAlign: 'center' }}>
-            Please check your connection and try again.
-          </Text>
-          <TouchableOpacity
-            style={{ backgroundColor: Colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
-            onPress={() => {
-              setLoadError(false);
-              if (experienceGift?.experienceId) {
-                experienceService.getExperienceById(experienceGift.experienceId)
-                  .then(setExperience)
-                  .catch(async (err) => {
-                    setLoadError(true);
-                    showError('Could not load experience details.');
-                  });
-              }
-            }}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Retry loading experience"
-          >
-            <Text style={{ ...Typography.subheading, color: Colors.white }}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="⚠️"
+          title="Could not load experience details"
+          message="Please check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => {
+            setLoadError(false);
+            if (experienceGift?.experienceId) {
+              experienceService.getExperienceById(experienceGift.experienceId)
+                .then(setExperience)
+                .catch(async () => {
+                  setLoadError(true);
+                  showError('Could not load experience details.');
+                });
+            }
+          }}
+        />
       </MainScreen>
     );
   }
@@ -394,7 +386,6 @@ Earn it. Unlock it. Enjoy it 🚀
                 Add a heartfelt message to make this gift extra special.
                 It will show up when they redeem the gift.              </Text>
               <TextInput
-                style={styles.messageInput}
                 placeholder="Your message here..."
                 placeholderTextColor={Colors.textMuted}
                 multiline
@@ -404,20 +395,16 @@ Earn it. Unlock it. Enjoy it 🚀
                 maxLength={500}
                 editable={!messageSent}
                 accessibilityLabel="Personal message"
+                inputStyle={styles.messageInput}
               />
               {!messageSent && (
-                <TouchableOpacity
-                  style={[styles.sendMessageButton, isSendingMessage && styles.sendMessageButtonDisabled]}
+                <Button
+                  variant="ghost"
+                  title="Attach Message"
                   onPress={handleSendMessage}
                   disabled={isSendingMessage || !personalizedMessage.trim()}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Attach message"
-                >
-                  <Text style={styles.sendMessageButtonText}>
-                    {isSendingMessage ? 'Sending...' : 'Attach Message'}
-                  </Text>
-                </TouchableOpacity>
+                  loading={isSendingMessage}
+                />
               )}
               {messageSent && (
                 <View style={styles.messageSentBadge}>
@@ -521,8 +508,9 @@ Earn it. Unlock it. Enjoy it 🚀
 
       {/* Fixed Bottom Button */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.homeButton}
+        <Button
+          variant="primary"
+          title={isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}
           onPress={() => {
             if (isEmpower) {
               rootNavigation.reset({ index: 0, routes: [{ name: 'Feed' }] });
@@ -532,14 +520,8 @@ Earn it. Unlock it. Enjoy it 🚀
               handleBackToHome();
             }
           }}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={isEmpower ? 'Back to feed' : goalId ? 'Go to my goals' : 'Back to home'}
-        >
-          <Text style={styles.homeButtonText}>
-            {isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}
-          </Text>
-        </TouchableOpacity>
+          fullWidth
+        />
       </View>
     </MainScreen>
     </ErrorBoundary>
@@ -663,20 +645,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: Spacing.md,
-  },
-  sendMessageButton: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendMessageButtonDisabled: {
-    opacity: 0.6,
-  },
-  sendMessageButtonText: {
-    color: Colors.white,
-    ...Typography.subheading,
   },
   messageSentBadge: {
     flexDirection: 'row',
@@ -847,17 +815,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
-  },
-  homeButton: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-  },
-  homeButtonText: {
-    ...Typography.heading3,
-    fontWeight: '700',
-    color: Colors.white,
   },
 });
 

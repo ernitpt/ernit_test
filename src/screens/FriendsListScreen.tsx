@@ -49,6 +49,7 @@ const FriendsListScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [displayCount, setDisplayCount] = useState(20);
   const currentUserId = state.user?.id;
 
   useFocusEffect(
@@ -169,7 +170,7 @@ const FriendsListScreen: React.FC = () => {
           </View>
 
           <FlatList
-            data={friends}
+            data={friends.slice(0, displayCount)}
             renderItem={renderFriendItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.friendsList}
@@ -178,6 +179,16 @@ const FriendsListScreen: React.FC = () => {
             removeClippedSubviews={Platform.OS !== 'web'}
             maxToRenderPerBatch={10}
             windowSize={5}
+            onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, friends.length))}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              displayCount < friends.length ? (
+                <View>
+                  <ListItemSkeleton />
+                  <ListItemSkeleton />
+                </View>
+              ) : null
+            }
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

@@ -8,12 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   Animated,
   Image,
-  Modal,
   StyleSheet,
 } from 'react-native';
+import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,11 +22,10 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, doc, runTransaction, updateDoc } from 'firebase/firestore';
-import { useModalAnimation } from '../../hooks/useModalAnimation';
-import { commonStyles } from '../../styles/commonStyles';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import Button from '../../components/Button';
 import { analyticsService } from '../../services/AnalyticsService';
 import { friendService } from '../../services/FriendService';
 import Colors from '../../config/colors';
@@ -56,9 +54,6 @@ const CouponEntryScreen = () => {
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const continueTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Modal animation values
-  const slideAnim = useModalAnimation(showPersonalizedMessage);
 
   // Cleanup timeout on unmount to prevent memory leaks
   useEffect(() => {
@@ -360,41 +355,30 @@ const CouponEntryScreen = () => {
                     ) : null}
                   </View>
 
-                  <TouchableOpacity
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    title="Claim Reward"
                     onPress={() => handleClaimCode()}
                     disabled={isLoading || claimCode.length < 6}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Claim reward"
+                    loading={isLoading}
+                    fullWidth
                     style={{
-                      width: '100%',
                       backgroundColor:
                         isLoading || claimCode.length < 6 ? Colors.disabled : Colors.white,
-                      paddingVertical: Spacing.xl,
                       borderRadius: BorderRadius.lg,
-                      alignItems: 'center',
-                      justifyContent: 'center',
                       shadowColor: Colors.black,
                       shadowOffset: { width: 0, height: 4 },
                       shadowOpacity: 0.2,
                       shadowRadius: 6,
                       elevation: 5,
                     }}
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator color={Colors.primary} />
-                    ) : (
-                      <Text
-                        style={{
-                          color: Colors.primary,
-                          ...Typography.heading3,
-                          fontWeight: '700',
-                        }}
-                      >
-                        Claim Reward
-                      </Text>
-                    )}
-                  </TouchableOpacity>
+                    textStyle={{
+                      color: Colors.primary,
+                      ...Typography.heading3,
+                      fontWeight: '700',
+                    }}
+                  />
                 </View>
 
                 {/* Info Box */}
@@ -449,76 +433,34 @@ const CouponEntryScreen = () => {
       </LinearGradient>
 
       {/* Personalized Message Modal */}
-      <Modal
+      <BaseModal
         visible={showPersonalizedMessage}
-        transparent
-        animationType="fade"
-        onRequestClose={handleContinueFromMessage}
+        onClose={handleContinueFromMessage}
+        title="A Message For You"
+        variant="center"
       >
-        <View
-          style={commonStyles.modalOverlay}
-        >
-          <Animated.View
-            style={[
-              styles.modalContainer,
-              {
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-            pointerEvents={showPersonalizedMessage ? "box-none" : "none"}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>A Message For You</Text>
-                <View style={styles.messageBox}>
-                  <Text style={styles.messageText}>"{personalizedMessage}"</Text>
-                </View>
-                {pendingExperienceGift?.giverName && (
-                  <Text style={styles.signatureText}>
-                    - from {pendingExperienceGift.giverName}
-                  </Text>
-                )}
-                <TouchableOpacity
-                  style={styles.continueButton}
-                  onPress={handleContinueFromMessage}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.continueButtonText}>Continue</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+        <View style={styles.messageBox}>
+          <Text style={styles.messageText}>"{personalizedMessage}"</Text>
         </View>
-      </Modal>
+        {pendingExperienceGift?.giverName && (
+          <Text style={styles.signatureText}>
+            - from {pendingExperienceGift.giverName}
+          </Text>
+        )}
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={handleContinueFromMessage}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </TouchableOpacity>
+      </BaseModal>
     </MainScreen>
     </ErrorBoundary>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    width: '90%',
-    maxWidth: 400,
-    alignSelf: 'center',
-    marginHorizontal: Spacing.xl,
-  },
-  modalContent: {
-    backgroundColor: Colors.surfaceFrosted,
-    borderRadius: BorderRadius.xxl,
-    padding: Spacing.xxxl,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.3,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  modalTitle: {
-    ...Typography.heading2,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
-  },
   messageBox: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,

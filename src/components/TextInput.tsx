@@ -19,6 +19,9 @@ export interface TextInputProps extends Omit<RNTextInputProps, 'style'> {
   helperText?: string;
   disabled?: boolean;
   leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  success?: boolean;
+  successText?: string;
   containerStyle?: ViewStyle;
   inputStyle?: TextStyle;
 }
@@ -29,6 +32,9 @@ export const TextInput = React.memo<TextInputProps>(({
   helperText,
   disabled = false,
   leftIcon,
+  rightIcon,
+  success,
+  successText,
   containerStyle,
   inputStyle,
   ...inputProps
@@ -37,11 +43,13 @@ export const TextInput = React.memo<TextInputProps>(({
 
   const borderColor = error
     ? Colors.error
-    : isFocused
-      ? Colors.secondary
-      : Colors.border;
+    : success
+      ? Colors.successBorder
+      : isFocused
+        ? Colors.secondary
+        : Colors.border;
 
-  const borderWidth = error || isFocused ? 1.5 : 1;
+  const borderWidth = error || success || isFocused ? 1.5 : 1;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -62,6 +70,7 @@ export const TextInput = React.memo<TextInputProps>(({
           style={[
             styles.input,
             leftIcon && styles.inputWithIcon,
+            rightIcon && styles.inputWithRightIcon,
             inputProps.multiline && styles.multiline,
             inputStyle,
           ]}
@@ -75,9 +84,11 @@ export const TextInput = React.memo<TextInputProps>(({
             inputProps.onBlur?.(e);
           }}
         />
+        {rightIcon && <View style={styles.rightIconContainer}>{rightIcon}</View>}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
-      {!error && helperText && <Text style={styles.helperText}>{helperText}</Text>}
+      {!error && success && successText && <Text style={styles.successText}>{successText}</Text>}
+      {!error && !success && helperText && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
   );
 });
@@ -86,7 +97,7 @@ TextInput.displayName = 'TextInput';
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Spacing.lg,
+    marginBottom: 0,
   },
   label: {
     ...Typography.smallBold,
@@ -103,6 +114,9 @@ const styles = StyleSheet.create({
   iconContainer: {
     paddingLeft: Spacing.md,
   },
+  rightIconContainer: {
+    paddingRight: Spacing.md,
+  },
   input: {
     flex: 1,
     ...Typography.body,
@@ -112,6 +126,9 @@ const styles = StyleSheet.create({
   } as TextStyle,
   inputWithIcon: {
     paddingLeft: Spacing.sm,
+  },
+  inputWithRightIcon: {
+    paddingRight: Spacing.sm,
   },
   multiline: {
     minHeight: 100,
@@ -124,6 +141,11 @@ const styles = StyleSheet.create({
   errorText: {
     ...Typography.caption,
     color: Colors.error,
+    marginTop: Spacing.xs,
+  } as TextStyle,
+  successText: {
+    ...Typography.caption,
+    color: Colors.success,
     marginTop: Spacing.xs,
   } as TextStyle,
   helperText: {

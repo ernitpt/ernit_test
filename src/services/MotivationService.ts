@@ -10,13 +10,14 @@ import {
   doc,
   getCountFromServer,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Motivation } from '../types';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { notificationService } from './NotificationService';
+import { toDateSafe } from '../utils/GoalHelpers';
+import { AppError } from '../utils/AppError';
 
 class MotivationService {
   private getMotivationsCollection(goalId: string) {
@@ -41,17 +42,17 @@ class MotivationService {
     // Fetch the goal to validate and get owner info
     const goalRef = doc(db, 'goals', goalId);
     const goalSnap = await getDoc(goalRef);
-    if (!goalSnap.exists()) throw new Error('Goal not found');
+    if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
     const goalData = goalSnap.data();
 
     // Cannot motivate your own goal
     if (goalData.userId === authorId) {
-      throw new Error('Cannot motivate your own goal');
+      throw new AppError('SELF_MOTIVATION', 'Cannot motivate your own goal', 'business');
     }
 
     // Cannot motivate a completed goal
     if (goalData.isCompleted) {
-      throw new Error('This goal has already been completed');
+      throw new AppError('GOAL_COMPLETED', 'This goal has already been completed', 'business');
     }
 
     // Calculate effective target session
@@ -63,7 +64,7 @@ class MotivationService {
 
     // Only allow motivation for the next upcoming session
     if (effectiveTargetSession !== nextSession) {
-      throw new Error('Can only send motivation for the next upcoming session');
+      throw new AppError('INVALID_SESSION', 'Can only send motivation for the next upcoming session', 'business');
     }
 
     // Duplicate check: 1 motivation per sender per target session
@@ -75,7 +76,7 @@ class MotivationService {
     );
     const duplicateSnap = await getDocs(duplicateQuery);
     if (!duplicateSnap.empty) {
-      throw new Error('You have already sent a motivation for this session');
+      throw new AppError('DUPLICATE_MOTIVATION', 'You have already sent a motivation for this session', 'business');
     }
 
     // Save the motivation
@@ -161,9 +162,7 @@ class MotivationService {
             authorProfileImage: data.authorProfileImage,
             message: data.message,
             targetSession: data.targetSession,
-            createdAt: data.createdAt instanceof Timestamp
-              ? data.createdAt.toDate()
-              : new Date(data.createdAt),
+            createdAt: toDateSafe(data.createdAt),
             seen: data.seen,
           });
         }
@@ -215,9 +214,7 @@ class MotivationService {
           authorProfileImage: data.authorProfileImage,
           message: data.message,
           targetSession: data.targetSession,
-          createdAt: data.createdAt instanceof Timestamp
-            ? data.createdAt.toDate()
-            : new Date(data.createdAt),
+          createdAt: toDateSafe(data.createdAt),
           seen: data.seen,
         });
       });

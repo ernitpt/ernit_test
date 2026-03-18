@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Easing,
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -35,6 +36,7 @@ import { useAuthGuard } from '../hooks/useAuthGuard';
 type FooterNavigationProps = {
   activeRoute: 'Home' | 'Goals' | 'Profile' | 'Feed' | 'Settings';
   onMenuPress: () => void;
+  notificationBadgeCount?: number;
 };
 
 // ─── Nav Button ─────────────────────────────────────────────────────────────
@@ -54,11 +56,11 @@ const NavButton = React.memo<{
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(glowAnim, {
+      Animated.timing(glowAnim, {
         toValue: isActive ? 1 : 0,
+        duration: isActive ? 400 : 250,
         useNativeDriver: false,
-        friction: 6,
-        tension: 60,
+        easing: Easing.out(Easing.cubic),
       }),
       Animated.spring(labelColorAnim, {
         toValue: isActive ? 1 : 0,
@@ -95,7 +97,7 @@ const NavButton = React.memo<{
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 0.45],
+    outputRange: [0, 0.3],
   });
 
   const glowScale = glowAnim.interpolate({
@@ -161,6 +163,7 @@ const NavButton = React.memo<{
 const FooterNavigation: React.FC<FooterNavigationProps> = ({
   activeRoute,
   onMenuPress,
+  notificationBadgeCount,
 }) => {
   const navigation = useRootNavigation();
   const insets = useSafeAreaInsets();
@@ -209,6 +212,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
             label="Feed"
             isActive={activeRoute === 'Feed'}
             onPress={() => handleNavigation('Feed')}
+            badgeCount={notificationBadgeCount}
           />
 
           <NavButton
@@ -300,9 +304,9 @@ const styles = StyleSheet.create({
 
   iconGlow: {
     position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     ...(Platform.OS === 'web'
       ? { filter: 'blur(6px)' }
       : {}),

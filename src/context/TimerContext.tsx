@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
@@ -78,6 +79,34 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
         }, 1000);
 
         return () => clearInterval(interval);
+    }, []);
+
+    // Use a ref to always have access to latest timers for immediate flush
+    const timersRef = useRef(timers);
+    useEffect(() => { timersRef.current = timers; }, [timers]);
+
+    // Flush timer state immediately when app goes to background (prevents data loss on kill)
+    useEffect(() => {
+        const flushTimers = () => {
+            try {
+                AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timersRef.current));
+            } catch (error) {
+                logger.error('Error flushing timer state on background:', error);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'hidden') flushTimers();
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        } else {
+            const subscription = AppState.addEventListener('change', (nextState) => {
+                if (nextState === 'background' || nextState === 'inactive') flushTimers();
+            });
+            return () => subscription.remove();
+        }
     }, []);
 
     const loadTimers = async () => {

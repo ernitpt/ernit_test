@@ -10,7 +10,6 @@ import {
   Platform,
   Share,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -22,6 +21,7 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { GiftCardSkeleton } from '../../components/SkeletonLoader';
+import Button from '../../components/Button';
 import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
@@ -354,24 +354,17 @@ Earn it. Unlock it. Enjoy it 🚀
                       accessibilityLabel={`Personal message for ${item.experience.title}`}
                     />
                     {!messageSentStatus[item.gift.id || ''] && (
-                      <TouchableOpacity
-                        style={[
-                          styles.sendMessageButton,
-                          (sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()) &&
-                          styles.sendMessageButtonDisabled
-                        ]}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        title="Attach Message"
                         onPress={() => handleSendMessage(item.gift.id || '')}
                         disabled={sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Attach message"
-                      >
-                        {sendingMessageId === item.gift.id ? (
-                          <ActivityIndicator color={Colors.white} size="small" />
-                        ) : (
-                          <Text style={styles.sendMessageButtonText}>Attach Message</Text>
-                        )}
-                      </TouchableOpacity>
+                        loading={sendingMessageId === item.gift.id}
+                        style={styles.sendMessageButton}
+                        textStyle={styles.sendMessageButtonText}
+                        fullWidth
+                      />
                     )}
                     {messageSentStatus[item.gift.id || ''] && (
                       <View style={styles.messageSentBadge}>

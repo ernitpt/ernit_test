@@ -2,7 +2,8 @@
 import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
-import { ActivityIndicator, View, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
+import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
@@ -46,6 +47,7 @@ import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
 import GiftFlowScreen from '../screens/GiftFlowScreen';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
+import Colors from '../config/colors';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const GiverStack = createNativeStackNavigator<GiverStackParamList>();
@@ -88,7 +90,7 @@ const isIncognitoMode = () => {
 
 // Giver
 const GiverNavigator = () => (
-  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'none' }}>
+  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}>
     <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
     <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
     <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
@@ -99,7 +101,7 @@ const GiverNavigator = () => (
 
 // Recipient
 const RecipientNavigator = () => (
-  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'none' }}>
+  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}>
     <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
     <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
     <RecipientStack.Screen name="Journey" component={JourneyScreen} />
@@ -239,7 +241,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       <RootStack.Navigator
         id={undefined}
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false, animation: 'none' }}
+        screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}
       >
 
         {/* PUBLIC ROUTES */}
@@ -514,8 +516,8 @@ const AppNavigator = () => {
   // -----------------------------
   if (isCheckingAuth) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, backgroundColor: Colors.white }}>
+        <ProfileSkeleton />
       </View>
     );
   }

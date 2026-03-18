@@ -13,6 +13,7 @@ import { User, Goal, Experience, UserProfile, CartItem } from '../types';
 import { experienceService } from './ExperienceService';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { AppError } from '../utils/AppError';
 
 export class UserService {
   private static instance: UserService;
@@ -187,7 +188,7 @@ export class UserService {
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) throw new Error('User not found');
+    if (!userSnap.exists()) throw new AppError('USER_NOT_FOUND', 'User not found', 'not_found');
 
     const currentCart = (userSnap.data().cart as CartItem[]) || [];
     const newCart = currentCart.filter(

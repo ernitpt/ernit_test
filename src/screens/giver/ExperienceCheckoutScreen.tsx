@@ -45,6 +45,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
+import Button from '../../components/Button';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -433,20 +434,14 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalAmount}>€{totalAmount.toFixed(2)}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.payButton, isProcessing && styles.payButtonDisabled]}
+            <Button
+              variant="primary"
+              title="Complete Purchase"
               onPress={handlePurchase}
               disabled={isProcessing}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Complete purchase"
-            >
-              {isProcessing ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <Text style={styles.payButtonText}>Complete Purchase</Text>
-              )}
-            </TouchableOpacity>
+              loading={isProcessing}
+              fullWidth
+            />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -622,8 +617,19 @@ const ExperienceCheckoutScreen: React.FC = () => {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
-        <View style={styles.loadingContainer}>
-          <CheckoutSkeleton />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <View style={styles.backButton}>
+              <ChevronLeft color={Colors.textPrimary} size={24} />
+            </View>
+            <Text style={styles.headerTitle}>Checkout</Text>
+            <View style={styles.lockIcon}>
+              <Lock color={Colors.secondary} size={20} />
+            </View>
+          </View>
+          <View style={{ flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl }}>
+            <CheckoutSkeleton />
+          </View>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -834,20 +840,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
   totalAmount: { ...Typography.display, fontWeight: "700", color: Colors.textPrimary },
-  payButton: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    alignItems: "center",
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  payButtonDisabled: { opacity: 0.6 },
-  payButtonText: { color: Colors.white, ...Typography.heading3, fontWeight: "700" },
-
   loadingContainer: {
     flex: 1,
     justifyContent: "center",

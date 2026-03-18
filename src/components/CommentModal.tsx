@@ -11,10 +11,10 @@ import {
     Platform,
     ActivityIndicator,
     Animated,
-    Alert,
     Dimensions,
     KeyboardAvoidingView,
 } from 'react-native';
+import { ConfirmationDialog } from './ConfirmationDialog';
 import { X, Send, MoreHorizontal, Edit2, Trash2, Heart } from 'lucide-react-native';
 import { Avatar } from './Avatar';
 import { commentService } from '../services/CommentService';
@@ -52,6 +52,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [menuVisibleId, setMenuVisibleId] = useState<string | null>(null);
     const [originalCommentText, setOriginalCommentText] = useState('');
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const slideAnim = useModalAnimation(visible, {
         initialValue: 1000,
         tension: 80,
@@ -155,30 +156,25 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     }, [state.user?.id, postId]);
 
     const handleDeleteComment = useCallback((commentId: string) => {
-        Alert.alert(
-            'Delete Comment',
-            'Are you sure you want to delete this comment?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await commentService.deleteComment(postId, commentId);
-                            const reloaded = await commentService.getComments(postId);
-                            setComments(reloaded);
-                            onChange?.(reloaded.length);
-                            setMenuVisibleId(null);
-                        } catch (error) {
-                            logger.error('Error deleting comment:', error);
-                            showError('Could not delete comment. Please try again.');
-                        }
-                    },
-                },
-            ]
-        );
-    }, [postId, onChange, showError]);
+        setDeleteConfirmId(commentId);
+    }, []);
+
+    const confirmDeleteComment = useCallback(async () => {
+        const commentId = deleteConfirmId;
+        if (!commentId) return;
+        setDeleteConfirmId(null);
+
+        try {
+            await commentService.deleteComment(postId, commentId);
+            const reloaded = await commentService.getComments(postId);
+            setComments(reloaded);
+            onChange?.(reloaded.length);
+            setMenuVisibleId(null);
+        } catch (error) {
+            logger.error('Error deleting comment:', error);
+            showError('Could not delete comment. Please try again.');
+        }
+    }, [deleteConfirmId, postId, onChange, showError]);
 
     const renderCommentItem = (item: Comment) => {
         const isOwnComment = state.user?.id === item.userId;
@@ -370,6 +366,15 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 </View>
                 </KeyboardAvoidingView>
             </Animated.View>
+            <ConfirmationDialog
+                visible={deleteConfirmId !== null}
+                title="Delete Comment"
+                message="Are you sure you want to delete this comment?"
+                confirmLabel="Delete"
+                onConfirm={confirmDeleteComment}
+                onCancel={() => setDeleteConfirmId(null)}
+                variant="danger"
+            />
         </Modal>
     );
 };

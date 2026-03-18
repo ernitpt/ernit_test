@@ -1,16 +1,13 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
-  Animated,
-  Easing,
   Image,
-  Platform,
 } from 'react-native';
-import { Camera, ImageIcon, X } from 'lucide-react-native';
+import { BaseModal } from '../../../components/BaseModal';
+import { Camera, ImageIcon } from 'lucide-react-native';
 import Colors from '../../../config/colors';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -35,150 +32,76 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
   onSkip,
   onContinue,
 }) => {
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const [shouldRender, setShouldRender] = useState(visible);
-
-  useEffect(() => {
-    if (visible) {
-      setShouldRender(true);
-      slideAnim.setValue(0);
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setShouldRender(false);
-      });
-    }
-  }, [visible, slideAnim]);
-
-  if (!shouldRender) return null;
-
   const hasMedia = !!capturedMediaUri;
 
   return (
-    <Modal
-      visible={shouldRender}
-      transparent
-      animationType="none"
-      onRequestClose={onSkip}
+    <BaseModal
+      visible={visible}
+      onClose={onSkip}
+      title={hasMedia ? 'Looking good!' : 'Capture your session'}
+      variant="bottom"
+      noPadding={false}
     >
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: slideAnim,
-              transform: [{
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [60, 0],
-                }),
-              }],
-            },
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {hasMedia ? 'Looking good!' : 'Capture your session'}
-            </Text>
-            <TouchableOpacity onPress={onSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Close" accessibilityRole="button">
-              <X size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+      <Text style={styles.subtitle}>
+        {hasMedia
+          ? 'Share this with your friends on the feed?'
+          : 'Take a photo or video to remember this session'}
+      </Text>
 
-          <Text style={styles.subtitle}>
-            {hasMedia
-              ? 'Share this with your friends on the feed?'
-              : 'Take a photo or video to remember this session'}
-          </Text>
-
-          {/* Preview or capture buttons */}
-          {hasMedia ? (
-            <View style={styles.previewContainer}>
-              <Image source={{ uri: capturedMediaUri! }} style={styles.previewImage} />
-              {capturedMediaType === 'video' && (
-                <View style={styles.previewVideoOverlay}>
-                  <Text style={styles.previewVideoIcon}>▶</Text>
-                </View>
-              )}
-              <TouchableOpacity style={styles.changeButton} onPress={onCamera}>
-                <Camera size={16} color={Colors.white} />
-                <Text style={styles.changeButtonText}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.captureButtons}>
-              <TouchableOpacity style={styles.captureButton} onPress={onCamera} activeOpacity={0.7} accessibilityLabel="Take photo" accessibilityRole="button">
-                <View style={styles.captureIconCircle}>
-                  <Camera size={24} color={Colors.white} />
-                </View>
-                <Text style={styles.captureButtonText}>Camera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.captureButton} onPress={onGallery} activeOpacity={0.7} accessibilityLabel="Choose from gallery" accessibilityRole="button">
-                <View style={[styles.captureIconCircle, { backgroundColor: Colors.secondary }]}>
-                  <ImageIcon size={24} color={Colors.white} />
-                </View>
-                <Text style={styles.captureButtonText}>Gallery</Text>
-              </TouchableOpacity>
+      {/* Preview or capture buttons */}
+      {hasMedia ? (
+        <View style={styles.previewContainer}>
+          <Image source={{ uri: capturedMediaUri! }} style={styles.previewImage} />
+          {capturedMediaType === 'video' && (
+            <View style={styles.previewVideoOverlay}>
+              <Text style={styles.previewVideoIcon}>▶</Text>
             </View>
           )}
-
-          {/* Action buttons */}
-          <TouchableOpacity
-            style={[styles.continueButton, !hasMedia && styles.continueButtonDisabled]}
-            onPress={hasMedia ? onContinue : onSkip}
-            activeOpacity={0.8}
-            accessibilityLabel={hasMedia ? "Continue" : "Skip"}
-            accessibilityRole="button"
-          >
-            <Text style={styles.continueButtonText}>
-              {hasMedia ? 'Continue' : 'Skip'}
-            </Text>
+          <TouchableOpacity style={styles.changeButton} onPress={onCamera}>
+            <Camera size={16} color={Colors.white} />
+            <Text style={styles.changeButtonText}>Change</Text>
           </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.captureButtons}>
+          <TouchableOpacity style={styles.captureButton} onPress={onCamera} activeOpacity={0.7} accessibilityLabel="Take photo" accessibilityRole="button">
+            <View style={styles.captureIconCircle}>
+              <Camera size={24} color={Colors.white} />
+            </View>
+            <Text style={styles.captureButtonText}>Camera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.captureButton} onPress={onGallery} activeOpacity={0.7} accessibilityLabel="Choose from gallery" accessibilityRole="button">
+            <View style={[styles.captureIconCircle, { backgroundColor: Colors.secondary }]}>
+              <ImageIcon size={24} color={Colors.white} />
+            </View>
+            <Text style={styles.captureButtonText}>Gallery</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-          {hasMedia && (
-            <TouchableOpacity style={styles.skipLink} onPress={onSkip}>
-              <Text style={styles.skipLinkText}>Skip without photo</Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
+      {/* Action buttons */}
+      <TouchableOpacity
+        style={[styles.continueButton, !hasMedia && styles.continueButtonDisabled]}
+        onPress={hasMedia ? onContinue : onSkip}
+        activeOpacity={0.8}
+        accessibilityLabel={hasMedia ? "Continue" : "Skip"}
+        accessibilityRole="button"
+      >
+        <Text style={styles.continueButtonText}>
+          {hasMedia ? 'Continue' : 'Skip'}
+        </Text>
+      </TouchableOpacity>
+
+      {hasMedia && (
+        <TouchableOpacity style={styles.skipLink} onPress={onSkip}>
+          <Text style={styles.skipLinkText}>Skip without photo</Text>
+        </TouchableOpacity>
+      )}
+    </BaseModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  container: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: Spacing.xxl,
-    paddingBottom: Platform.OS === 'web' ? Spacing.xxl : Spacing.huge,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  title: {
-    ...Typography.large,
-    color: Colors.textPrimary,
-  },
   subtitle: {
     ...Typography.small,
     color: Colors.textSecondary,

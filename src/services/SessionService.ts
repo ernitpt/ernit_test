@@ -12,6 +12,7 @@ import { db } from './firebase';
 import type { SessionRecord } from '../types';
 import { logger } from '../utils/logger';
 import { analyticsService } from './AnalyticsService';
+import { toDateSafe } from '../utils/GoalHelpers';
 
 class SessionService {
     /**
@@ -68,7 +69,7 @@ class SessionService {
                     id: d.id,
                     goalId: data.goalId,
                     userId: data.userId,
-                    timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp),
+                    timestamp: toDateSafe(data.timestamp),
                     duration: data.duration || 0,
                     sessionNumber: data.sessionNumber || 0,
                     weekNumber: data.weekNumber || 0,
@@ -76,7 +77,7 @@ class SessionService {
                     mediaType: data.mediaType,
                     thumbnailUrl: data.thumbnailUrl,
                     notes: data.notes,
-                    createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
+                    createdAt: toDateSafe(data.createdAt),
                 } as SessionRecord;
             });
         } catch (error) {

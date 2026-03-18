@@ -24,6 +24,7 @@ import { friendService } from './FriendService';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { analyticsService } from './AnalyticsService';
+import { AppError } from '../utils/AppError';
 
 const TIMER_STORAGE_KEY = 'global_timer_state';
 
@@ -163,7 +164,7 @@ export class GoalSessionService {
     // Prevents race condition when user taps "Log Session" rapidly
     const txResult = await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(ref);
-      if (!snap.exists()) throw new Error('Goal not found');
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
 
       let g = normalizeGoal({ id: snap.id, ...snap.data() });
 
@@ -217,7 +218,7 @@ export class GoalSessionService {
         const nextWeekStart = new Date(g.weekStartAt!);
         nextWeekStart.setDate(nextWeekStart.getDate() + 7);
         const nextWeekStr = nextWeekStart.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-        throw new Error(`All sessions done this week! Your next week starts on ${nextWeekStr}.`);
+        throw new AppError('WEEK_COMPLETE', `All sessions done this week! Your next week starts on ${nextWeekStr}.`, 'business');
       }
 
       // Add new session

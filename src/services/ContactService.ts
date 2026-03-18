@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { logger } from '../utils/logger';
 import { Platform } from 'react-native';
+import { AppError } from '../utils/AppError';
 import Constants from 'expo-constants';
 
 interface ContactSubmission {
@@ -46,7 +47,7 @@ class ContactService {
             const user = auth.currentUser;
 
             if (!user) {
-                throw new Error('User must be authenticated to submit contact form');
+                throw new AppError('UNAUTHENTICATED', 'User must be authenticated to submit contact form', 'auth');
             }
 
             // Gather user metadata

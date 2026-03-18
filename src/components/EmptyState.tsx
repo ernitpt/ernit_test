@@ -29,7 +29,7 @@ export const EmptyState = React.memo<EmptyStateProps>(({
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 400 }}
     >
-      <View style={[styles.container, style]}>
+      <View style={[styles.container, style]} accessibilityRole="summary">
         {icon && <Text style={styles.icon}>{icon}</Text>}
         <Text style={styles.title}>{title}</Text>
         {message && <Text style={styles.message}>{message}</Text>}

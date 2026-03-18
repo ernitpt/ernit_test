@@ -46,6 +46,7 @@ import { Check } from 'lucide-react-native';
 import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { TextInput } from '../components/TextInput';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -140,12 +141,12 @@ const AuthScreen = () => {
         Animated.timing(buttonGlowAnim, {
           toValue: 1,
           duration: 2500,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(buttonGlowAnim, {
           toValue: 0,
           duration: 2500,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ])
     );
@@ -174,12 +175,12 @@ const AuthScreen = () => {
         Animated.timing(buttonGradientAnim, {
           toValue: 1,
           duration: 3000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(buttonGradientAnim, {
           toValue: 0,
           duration: 3000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ])
     );
@@ -976,15 +977,7 @@ const AuthScreen = () => {
                   {!isLogin && (
                     <View style={{ marginBottom: Spacing.xl }}>
                       <TextInput
-                        style={{
-                          backgroundColor: Colors.surface,
-                          borderRadius: BorderRadius.md,
-                          paddingHorizontal: Spacing.lg,
-                          paddingVertical: Spacing.md,
-                          ...Typography.subheading,
-                          borderWidth: 1,
-                          borderColor: Colors.border,
-                        }}
+                        label="Username"
                         placeholder="Username"
                         placeholderTextColor={Colors.textMuted}
                         value={displayName}
@@ -998,7 +991,7 @@ const AuthScreen = () => {
                   )}
 
                   <View style={{ marginBottom: Spacing.xl }}>
-                    <TextInput
+                    <RNTextInput
                       ref={emailRef}
                       style={{
                         backgroundColor: Colors.surface,
@@ -1033,7 +1026,7 @@ const AuthScreen = () => {
 
                   <View style={{ marginBottom: Spacing.lg }}>
                     <View style={{ position: 'relative' }}>
-                      <TextInput
+                      <RNTextInput
                         ref={passwordRef}
                         style={{
                           backgroundColor: Colors.surface,
@@ -1149,7 +1142,7 @@ const AuthScreen = () => {
                   {!isLogin && (
                     <View style={{ marginBottom: Spacing.xl }}>
                       <View style={{ position: 'relative' }}>
-                        <TextInput
+                        <RNTextInput
                           ref={confirmPasswordRef}
                           style={{
                             backgroundColor: Colors.surface,
@@ -1279,6 +1272,10 @@ const AuthScreen = () => {
                                 Success!
                               </Text>
                             </Animated.View>
+                          ) : isLoading ? (
+                            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 2 }}>
+                              <ActivityIndicator size="small" color={Colors.white} />
+                            </View>
                           ) : (
                             <Text
                               style={{
@@ -1289,11 +1286,7 @@ const AuthScreen = () => {
                                 letterSpacing: 0.5,
                               }}
                             >
-                              {isLoading ? (
-                                <ActivityIndicator size="small" color={Colors.white} />
-                              ) : (
-                                isLogin ? 'Sign In' : 'Create Account'
-                              )}
+                              {isLogin ? 'Sign In' : 'Create Account'}
                             </Text>
                           )}
                         </LinearGradient>

@@ -6,6 +6,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { logger } from '../utils/logger';
+import { AppError } from '../utils/AppError';
 
 export interface PartnerCoupon {
   code: string;
@@ -47,7 +48,7 @@ export async function generateCouponForGoal(
   try {
     const couponCode = await runTransaction(db, async (transaction) => {
       const goalDoc = await transaction.get(goalRef);
-      if (!goalDoc.exists()) throw new Error('Goal not found');
+      if (!goalDoc.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
 
       const goalData = goalDoc.data();
 
@@ -59,7 +60,7 @@ export async function generateCouponForGoal(
             ? (goalData.validUntil.toDate ? goalData.validUntil.toDate() : new Date(goalData.validUntil))
             : null;
           if (validUntilCheck && new Date() > new Date(validUntilCheck)) {
-            throw new Error('This coupon has expired');
+            throw new AppError('COUPON_EXPIRED', 'This coupon has expired', 'business');
           }
         }
         logger.log('Found existing coupon:', goalData.couponCode);
@@ -88,7 +89,7 @@ export async function generateCouponForGoal(
       // Check for code collision
       const existingCouponDoc = await transaction.get(partnerCouponRef);
       if (existingCouponDoc.exists()) {
-        throw new Error('CODE_COLLISION');
+        throw new AppError('CODE_COLLISION', 'Failed to generate a unique code. Please try again.', 'internal');
       }
 
       // Atomically create both documents
@@ -108,9 +109,9 @@ export async function generateCouponForGoal(
 
     return couponCode;
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === 'CODE_COLLISION') {
+    if (error instanceof AppError && error.code === 'CODE_COLLISION') {
       if (retryCount >= 5) {
-        throw new Error('Failed to generate unique coupon code after 5 attempts');
+        throw new AppError('CODE_GENERATION_FAILED', 'Failed to generate unique coupon code. Please try again.', 'internal');
       }
       logger.log(`Retrying coupon generation due to collision (attempt ${retryCount + 1}/5)...`);
       return generateCouponForGoal(goalId, userId, partnerId, retryCount + 1);

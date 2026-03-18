@@ -43,6 +43,18 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
         // Import db from index.ts (test database)
         const db = require("../index").db;
 
+        // Get recipient name for notifications
+        const recipientId = afterData.userId;
+        let recipientName = 'They';
+        try {
+            const userDoc = await db.collection("users").doc(recipientId).get();
+            if (userDoc.exists) {
+                recipientName = userDoc.data()?.name || userDoc.data()?.displayName || 'They';
+            }
+        } catch (e) {
+            console.warn("⚠️ [TEST] Could not fetch recipient name:", e);
+        }
+
         try {
             const giftDoc = await db.collection("experienceGifts").doc(experienceGiftId).get();
             if (!giftDoc.exists) {
@@ -75,7 +87,7 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                     userId: giftData.giverId,
                     type: 'payment_failed',
                     title: 'Payment method needed',
-                    message: 'Your loved one completed their goal! Please update your payment method.',
+                    message: `${recipientName} completed their goal! Please update your payment method.`,
                     data: { giftId: giftDoc.id, goalId },
                     read: false,
                     createdAt: new Date(),
@@ -118,7 +130,7 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                 userId: giftData.giverId,
                 type: 'payment_charged',
                 title: 'Challenge completed!',
-                message: `Your loved one achieved their goal! €${giftData.deferredAmount} has been charged.`,
+                message: `${recipientName} achieved their goal! €${giftData.deferredAmount} has been charged.`,
                 data: { giftId: giftDoc.id, goalId, amount: giftData.deferredAmount },
                 read: false,
                 createdAt: new Date(),

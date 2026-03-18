@@ -1,9 +1,8 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Button from './Button';
-import { db } from '../services/firebase';
-import { collection, addDoc } from 'firebase/firestore';
 import { analyticsService } from '../services/AnalyticsService';
+import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -31,17 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        const errorData = {
-            message: error.message,
-            stack: error.stack?.substring(0, 2000), // Limit stack size
-            componentStack: errorInfo.componentStack?.substring(0, 1000),
-            screenName: this.props.screenName,
-            userId: this.props.userId || 'unknown',
-            timestamp: new Date().toISOString(),
-            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-        };
-
-        // Also log to console for development
+        // Log to console for development
         logger.error('🔴 ErrorBoundary caught:', error.message, errorInfo);
 
         // Track in analytics
@@ -50,32 +39,15 @@ export class ErrorBoundary extends Component<Props, State> {
             errorMessage: error.message,
         });
 
-        // Try Firestore first
-        try {
-            await addDoc(collection(db, 'errors'), {
-                ...errorData,
-                timestamp: new Date(),
-            });
-            logger.log('✅ Error logged to Firestore');
-        } catch (firestoreError) {
-            logger.error('⚠️ Failed to log to Firestore (likely security rules):', firestoreError);
-
-            // Fallback: Save to localStorage so it can be retrieved later
-            try {
-                if (typeof localStorage === 'undefined') throw new Error('No localStorage');
-                const existingErrors = JSON.parse(localStorage.getItem('ernit_error_log') || '[]');
-                existingErrors.push(errorData);
-                // Keep only last 10 errors
-                const trimmed = existingErrors.slice(-10);
-                localStorage.setItem('ernit_error_log', JSON.stringify(trimmed));
-                logger.log('✅ Error saved to localStorage instead');
-                logger.log('📋 Error details:', JSON.stringify(errorData, null, 2));
-            } catch (localError) {
-                // Last resort: just log to console
-                logger.error('❌ Could not save error anywhere:', localError);
-                logger.error('📋 Error details:', JSON.stringify(errorData, null, 2));
-            }
-        }
+        // Use centralized rate-limited error logger (prevents Firestore spam from crash loops)
+        await logErrorToFirestore(error, {
+            screenName: this.props.screenName,
+            feature: 'ErrorBoundary',
+            userId: this.props.userId,
+            additionalData: {
+                componentStack: errorInfo.componentStack?.substring(0, 1000),
+            },
+        });
     }
 
     handleReset = () => {

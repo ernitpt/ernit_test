@@ -9,8 +9,8 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
 } from "react-native";
+import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { Plus, Minus, X, ArrowRight } from "lucide-react-native";
 import { useApp } from "../../context/AppContext";
 import { userService } from "../../services/userService";
@@ -34,6 +34,7 @@ import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { MotiView } from 'moti';
+import { Card } from '../../components/Card';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -47,6 +48,8 @@ export default function CartScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   // Track loaded experience IDs to prevent unnecessary reloads
   const loadedExperienceIds = useRef<string[]>([]);
@@ -168,57 +171,48 @@ export default function CartScreen() {
     }
   };
 
-  const removeItem = async (experienceId: string) => {
-    Alert.alert(
-      'Remove Item',
-      'Are you sure you want to remove this item from your cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            // Mark as updating
-            setUpdatingItems(prev => new Set(prev).add(experienceId));
+  const removeItem = (experienceId: string) => {
+    setRemoveConfirmId(experienceId);
+  };
 
-            try {
-              const updated = currentCart.filter(
-                (item) => item.experienceId !== experienceId
-              );
+  const confirmRemoveItem = async () => {
+    const experienceId = removeConfirmId;
+    if (!experienceId) return;
+    setIsRemoving(true);
 
-              // Update context immediately
-              dispatch({ type: "SET_CART", payload: updated });
+    try {
+      const updated = currentCart.filter(
+        (item) => item.experienceId !== experienceId
+      );
 
-              // Remove from experiences list immediately for smooth UX
-              setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
-              loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
+      // Update context immediately
+      dispatch({ type: "SET_CART", payload: updated });
 
-              // Update database in background if authenticated
-              if (state.user) {
-                await userService.removeFromCart(state.user.id, experienceId);
-              }
-            } catch (error) {
-              logger.error("Error removing item:", error);
-              await logErrorToFirestore(error, {
-                screenName: 'CartScreen',
-                feature: 'RemoveItem',
-                userId: state.user?.id,
-                additionalData: { experienceId }
-              });
-              showError("Failed to remove item. Please try again.");
-              // Reload to ensure consistency
-              loadItems();
-            } finally {
-              setUpdatingItems(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(experienceId);
-                return newSet;
-              });
-            }
-          },
-        },
-      ]
-    );
+      // Remove from experiences list immediately for smooth UX
+      setCartExperiences(prev => prev.filter(exp => exp.id !== experienceId));
+      loadedExperienceIds.current = loadedExperienceIds.current.filter(id => id !== experienceId);
+
+      // Update database in background if authenticated
+      if (state.user) {
+        await userService.removeFromCart(state.user.id, experienceId);
+      }
+
+      showSuccess("Item removed from cart");
+    } catch (error) {
+      logger.error("Error removing item:", error);
+      await logErrorToFirestore(error, {
+        screenName: 'CartScreen',
+        feature: 'RemoveItem',
+        userId: state.user?.id,
+        additionalData: { experienceId }
+      });
+      showError("Failed to remove item. Please try again.");
+      // Reload to ensure consistency
+      loadItems();
+    } finally {
+      setIsRemoving(false);
+      setRemoveConfirmId(null);
+    }
   };
 
   const total = currentCart.reduce((sum, item) => {
@@ -334,7 +328,7 @@ export default function CartScreen() {
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 300, delay: index * 60 }}
                   >
-                  <View style={styles.cartItemCard}>
+                  <Card variant="elevated" noPadding style={styles.cartItemCard}>
                     <TouchableOpacity
                       onPress={() => handleExperiencePress(exp)}
                       activeOpacity={0.9}
@@ -413,7 +407,7 @@ export default function CartScreen() {
                         </Text>
                       </View>
                     </View>
-                  </View>
+                  </Card>
                   </MotiView>
                 );
               })}
@@ -449,6 +443,16 @@ export default function CartScreen() {
         )}
       </View>
     </MainScreen>
+    <ConfirmationDialog
+      visible={removeConfirmId !== null}
+      title="Remove Item"
+      message="Are you sure you want to remove this item from your cart?"
+      confirmLabel="Remove"
+      onConfirm={confirmRemoveItem}
+      onCancel={() => setRemoveConfirmId(null)}
+      variant="danger"
+      loading={isRemoving}
+    />
     </ErrorBoundary>
   );
 }
@@ -496,15 +500,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.huge,
   },
   cartItemCard: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
     marginBottom: Spacing.lg,
     overflow: "hidden",
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
     flexDirection: "row",
   },
   cartItemImage: {

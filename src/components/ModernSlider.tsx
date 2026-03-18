@@ -1,0 +1,138 @@
+import React from 'react';
+import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent } from 'react-native';
+import Colors from '../config/colors';
+import { BorderRadius } from '../config/borderRadius';
+import { Typography } from '../config/typography';
+import { Spacing } from '../config/spacing';
+
+interface ModernSliderProps {
+    label: string;
+    value: number;
+    min: number;
+    max: number;
+    onChange: (val: number) => void;
+    leftLabel: string;
+    rightLabel: string;
+    unit?: string;
+    unitPlural?: string;
+}
+
+const ModernSlider = ({
+    label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
+}: ModernSliderProps) => {
+    const { width } = useWindowDimensions();
+
+    const handlePress = (event: GestureResponderEvent) => {
+        const { locationX } = event.nativeEvent;
+        const trackWidth = width - 96;
+        const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
+        const newValue = Math.round(min + percentage * (max - min));
+        onChange(newValue);
+    };
+
+    const progress = ((value - min) / (max - min)) * 100;
+    const displayUnit = unit && unitPlural ? (value === 1 ? unit : unitPlural) : '';
+
+    return (
+        <View style={styles.sliderContainer}>
+            <Text style={styles.sliderTitle}>{label}</Text>
+            <View style={styles.sliderValueRow}>
+                <Text style={styles.sliderValue}>{value}</Text>
+                {displayUnit ? <Text style={styles.sliderUnit}>{displayUnit}</Text> : null}
+            </View>
+            <View style={styles.sliderLabels}>
+                <Text style={styles.sliderLabelText}>{leftLabel}</Text>
+                <Text style={styles.sliderLabelText}>{rightLabel}</Text>
+            </View>
+            <View
+                style={styles.sliderTrack}
+                onStartShouldSetResponder={() => true}
+                onResponderGrant={handlePress}
+                onResponderMove={handlePress}
+            >
+                <View style={[styles.sliderProgress, { width: `${progress}%` as any }]} />
+                <View style={[styles.sliderThumb, { left: `${progress}%` as any }]}>
+                    <View style={styles.sliderThumbInner} />
+                </View>
+            </View>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    sliderContainer: {
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xxl,
+        borderWidth: 1,
+        borderColor: Colors.backgroundLight,
+    },
+    sliderTitle: {
+        ...Typography.smallBold,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.sm,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    sliderValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        marginBottom: Spacing.xl,
+        gap: Spacing.sm,
+    },
+    sliderValue: {
+        ...Typography.display,
+        fontWeight: '900',
+        color: Colors.gray800,
+    },
+    sliderUnit: {
+        ...Typography.heading3,
+        color: Colors.textSecondary,
+    },
+    sliderLabels: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: Spacing.md,
+    },
+    sliderLabelText: {
+        ...Typography.caption,
+        fontWeight: '600',
+        color: Colors.textMuted,
+    },
+    sliderTrack: {
+        height: 8,
+        backgroundColor: Colors.border,
+        borderRadius: BorderRadius.xs,
+        position: 'relative',
+        width: '100%',
+    },
+    sliderProgress: {
+        height: '100%' as any,
+        backgroundColor: Colors.primary,
+        borderRadius: BorderRadius.xs,
+    },
+    sliderThumb: {
+        position: 'absolute',
+        top: -8,
+        marginLeft: -12,
+        width: 24,
+        height: 24,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    sliderThumbInner: {
+        width: 12,
+        height: 12,
+        borderRadius: BorderRadius.xs,
+        backgroundColor: Colors.primary,
+    },
+});
+
+export default ModernSlider;

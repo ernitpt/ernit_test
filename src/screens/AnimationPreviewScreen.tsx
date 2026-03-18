@@ -122,7 +122,7 @@ const AnimationPreviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: Colors.gray800,
   },
   scroll: {
     padding: Spacing.lg,
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...Typography.small,
-    color: '#8888aa',
+    color: Colors.textMuted,
     marginBottom: Spacing.xl,
   },
   card: {

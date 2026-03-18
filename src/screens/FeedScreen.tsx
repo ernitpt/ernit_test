@@ -7,7 +7,6 @@ import {
     RefreshControl,
     Animated,
     Platform,
-    ActivityIndicator,
 } from 'react-native';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import * as Haptics from 'expo-haptics';
@@ -249,7 +248,7 @@ const FeedScreen: React.FC = () => {
                         ListEmptyComponent={renderEmpty}
                         ListFooterComponent={isLoadingMore ? (
                             <View style={styles.loadingMore}>
-                                <ActivityIndicator size="small" color={Colors.secondary} />
+                                <FeedPostSkeleton />
                             </View>
                         ) : null}
                         showsVerticalScrollIndicator={false}

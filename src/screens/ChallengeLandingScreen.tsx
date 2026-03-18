@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft, Trophy, Lock } from 'lucide-react-native';
+import { Target, Calendar, Users, Sparkles, ChevronRight, ChevronLeft, Trophy } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { RootStackParamList } from '../types';
 import { useApp } from '../context/AppContext';
@@ -28,16 +28,21 @@ import { Shadows } from '../config/shadows';
 import JourneyDemo from '../components/JourneyDemo';
 
 // ─── Constants ────────────────────────────────────────────────────
-const WORD_SLOT_HEIGHT = 46;
 const SCREEN_W = Dimensions.get('window').width;
+const SCREEN_H = Dimensions.get('window').height;
+// Continuous scale factor: 1.0 at 900px+, scales down to 0.72 at ~650px
+const VH = Math.min(1, Math.max(0.72, SCREEN_H / 900));
+const vh = (px: number) => Math.round(px * VH);
+
+const WORD_SLOT_HEIGHT = vh(46);
 const CONTENT_FADE_MS = 250;
 
-// Dual carousel sizing
-const CARDS_GAP = 12;
-const CARDS_PADDING = 24;
-const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2 - CARDS_GAP) / 2, 220);
-const CARD_H = CARD_W * 1.3;
-const CARD_SLIDE = CARD_W * 0.75; // how far adjacent cards offset
+// Dual carousel sizing — responsive to screen width AND height
+const CARDS_GAP = 10;
+const CARDS_PADDING = 16;
+const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2 - CARDS_GAP) / 2, 240);
+const CARD_H = CARD_W * (0.9 + 0.45 * VH);
+const CARD_SLIDE = CARD_W * 0.7;
 
 // ─── Mode configs ─────────────────────────────────────────────────
 type LandingMode = 'self' | 'gift';
@@ -141,22 +146,22 @@ const GIFT_CONFIG: ModeConfig = {
     accentColor: Colors.warning,
     gradient: [Colors.warningLighter, Colors.white, Colors.white] as const,
     rotatingWords: [
-        { word: 'get fit', color: Colors.warning },
-        { word: 'read daily', color: Colors.categoryAmber },
-        { word: 'run more', color: Colors.warning },
-        { word: 'study hard', color: Colors.categoryAmber },
-        { word: 'eat healthy', color: Colors.warning },
+        { word: 'workout', color: Colors.warning },
+        { word: 'read', color: Colors.categoryAmber },
+        { word: 'run', color: Colors.warning },
+        { word: 'walk', color: Colors.categoryAmber },
+        { word: 'do yoga', color: Colors.warning },
     ],
-    titlePrefix: 'Give them the push to',
-    titleSuffix: '',
-    subtitle: 'Empower your loved ones.\nYou only pay when they succeed.',
+    titlePrefix: 'Help them',
+    titleSuffix: ' more',
+    subtitle: 'Empower someone you care about.\nYou only pay when they succeed.',
     stat: 'People are ',
     statHighlight: '600%',
     statColor: Colors.warning,
     ctaText: 'Gift an Experience',
     ctaGradient: [Colors.warning, Colors.warningMedium] as const,
     ctaShadowColor: Colors.warning,
-    badgeText: 'Zero risk \u2014 pay only on success',
+    badgeText: '100% Free',
     badgeBg: Colors.warningLight,
     badgeBorder: Colors.warningBorder,
     badgeTextColor: Colors.warningDark,
@@ -166,13 +171,13 @@ const GIFT_CONFIG: ModeConfig = {
             icon: <Sparkles color={Colors.warning} size={24} strokeWidth={2.5} />,
             iconBg: Colors.warningLight,
             title: 'Pick a Reward',
-            desc: 'Choose an experience your loved one will earn once they achieve their goal',
+            desc: 'Choose an experience they\'ll earn once they achieve their goal',
         },
         {
             icon: <Target color={Colors.warningMedium} size={24} strokeWidth={2.5} />,
             iconBg: Colors.warningLighter,
             title: 'They Set the Goal',
-            desc: 'Your loved one picks their challenge and works towards it, day by day',
+            desc: 'They pick their challenge and work towards it, day by day',
         },
         {
             icon: <Trophy color={Colors.warningDark} size={24} strokeWidth={2.5} />,
@@ -246,18 +251,15 @@ export default function ChallengeLandingScreen() {
         return () => clearInterval(interval);
     }, [config.rotatingWords.length]);
 
-    // Cycle reward images every 4s (offset from goals)
+    // Cycle reward images in sync with goals (skip initial mount)
+    const isFirstRender = useRef(true);
     useEffect(() => {
-        const interval = setInterval(() => {
-            setRewardIndex((prev) => (prev + 1) % REWARD_IMAGES.length);
-        }, 4000);
-        return () => clearInterval(interval);
-    }, []);
-
-    // Reset word index when mode changes
-    useEffect(() => {
-        setWordIndex(0);
-    }, [mode]);
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        setRewardIndex((prev) => (prev + 1) % REWARD_IMAGES.length);
+    }, [wordIndex]);
 
     const switchMode = useCallback((newMode: LandingMode) => {
         if (newMode === mode) return;
@@ -339,540 +341,561 @@ export default function ChallengeLandingScreen() {
         inputRange: [0, 1],
         outputRange: [Colors.secondary, Colors.warningDark],
     });
+    // Founders section colors
+    const animFoundersBg = sliderAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [Colors.primarySurface, Colors.warningLighter],
+    });
+    const animFounderRole = sliderAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [Colors.primary, Colors.warning],
+    });
+    const animIncubatorBorder = sliderAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [Colors.primaryBorder, Colors.warningBorder],
+    });
 
     return (
         <ErrorBoundary screenName="ChallengeLandingScreen" userId={state.user?.id}>
-        <View style={styles.container}>
-            <StatusBar style="dark" />
-            <ScrollView
-                bounces={false}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
-                {/* Hero Section — stacked gradients for smooth cross-fade */}
-                <View style={styles.hero}>
-                    <LinearGradient
-                        colors={[...SELF_CONFIG.gradient]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+            <View style={styles.container}>
+                <StatusBar style="dark" />
+                <ScrollView
+                    bounces={false}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    {/* Hero Section — stacked gradients for smooth cross-fade */}
+                    <View style={styles.hero}>
                         <LinearGradient
-                            colors={[...GIFT_CONFIG.gradient]}
+                            colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
                             style={StyleSheet.absoluteFill}
                         />
-                    </RNAnimated.View>
+                        <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                            <LinearGradient
+                                colors={[...GIFT_CONFIG.gradient]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                            />
+                        </RNAnimated.View>
 
-                    {/* Top bar */}
-                    {navigation.canGoBack() && (
+                        {/* Top bar */}
+                        {navigation.canGoBack() && (
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={() => navigation.goBack()}
+                                activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityLabel="Go back"
+                            >
+                                <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                            </TouchableOpacity>
+                        )}
+
                         <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={() => navigation.goBack()}
-                            activeOpacity={0.8}
+                            style={styles.loginButton}
+                            onPress={() => isLoggedIn
+                                ? navigation.navigate('Goals')
+                                : navigation.navigate('Auth', { mode: 'signin' })
+                            }
+                            activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel="Go back"
+                            accessibilityLabel={isLoggedIn ? 'Go to app' : 'Log in to your account'}
                         >
-                            <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                            <RNAnimated.Text style={[styles.loginButtonText, { color: animLoginColor }]}>
+                                {isLoggedIn ? 'Go to App' : 'Log In'}
+                            </RNAnimated.Text>
+                            <ChevronRight color={mode === 'self' ? Colors.primary : Colors.warning} size={16} strokeWidth={3} />
                         </TouchableOpacity>
-                    )}
 
-                    <TouchableOpacity
-                        style={styles.loginButton}
-                        onPress={() => isLoggedIn
-                            ? navigation.navigate('Goals')
-                            : navigation.navigate('Auth', { mode: 'signin' })
-                        }
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityLabel={isLoggedIn ? 'Go to app' : 'Log in to your account'}
-                    >
-                        <RNAnimated.Text style={[styles.loginButtonText, { color: animLoginColor }]}>
-                            {isLoggedIn ? 'Go to App' : 'Log In'}
-                        </RNAnimated.Text>
-                        <ChevronRight color={mode === 'self' ? Colors.primary : Colors.warning} size={16} strokeWidth={3} />
-                    </TouchableOpacity>
-
-                    <View style={styles.heroWrapper}>
-                        <MotiView
-                            from={{ opacity: 0, translateY: 30 }}
-                            animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'timing', duration: 700 }}
-                            style={styles.heroContent}
-                        >
-                            {/* Brand */}
-                            <View style={styles.brandSection}>
-                                <Text style={styles.brandTitle}>
-                                    ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
-                                </Text>
-                            </View>
-
-                            {/* ─── Toggle Bar ─── */}
-                            <View style={styles.toggleWrap}>
-                                <View
-                                    style={styles.toggleBar}
-                                    onLayout={(e) => setToggleBarWidth(e.nativeEvent.layout.width)}
-                                >
-                                    {sliderWidth > 0 && (
-                                        <RNAnimated.View
-                                            style={[
-                                                styles.toggleSlider,
-                                                {
-                                                    width: sliderWidth,
-                                                    backgroundColor: sliderBgColor,
-                                                    transform: [{
-                                                        translateX: sliderAnim.interpolate({
-                                                            inputRange: [0, 1],
-                                                            outputRange: [0, sliderWidth],
-                                                        }),
-                                                    }],
-                                                },
-                                            ]}
-                                        />
-                                    )}
-                                    <TouchableOpacity
-                                        style={styles.toggleBtn}
-                                        onPress={() => switchMode('self')}
-                                        activeOpacity={0.8}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="For myself"
-                                    >
-                                        <Text style={[
-                                            styles.toggleBtnText,
-                                            mode === 'self' && styles.toggleBtnTextActive,
-                                        ]}>
-                                            For myself
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.toggleBtn}
-                                        onPress={() => switchMode('gift')}
-                                        activeOpacity={0.8}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="For a loved one"
-                                    >
-                                        <Text style={[
-                                            styles.toggleBtnText,
-                                            mode === 'gift' && styles.toggleBtnTextActive,
-                                        ]}>
-                                            For a loved one
-                                        </Text>
-                                    </TouchableOpacity>
+                        <View style={styles.heroWrapper}>
+                            <MotiView
+                                from={{ opacity: 0, translateY: 30 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 700 }}
+                                style={styles.heroContent}
+                            >
+                                {/* Brand */}
+                                <View style={styles.brandSection}>
+                                    <Text style={styles.brandTitle}>
+                                        ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
+                                    </Text>
                                 </View>
-                            </View>
 
-                            {/* ─── Text content (fades on toggle) ─── */}
-                            <RNAnimated.View style={{ opacity: contentOpacity }}>
-                                <View style={styles.heroTitleContainer}>
-                                    <Text style={styles.heroTitle}>{config.titlePrefix}</Text>
-                                    <View style={styles.dialRow}>
-                                        <View style={styles.dialSlot}>
-                                            <Text style={[styles.dialWord, { opacity: 0 }]}>
-                                                {currentWord.word}
+                                {/* ─── Toggle Bar ─── */}
+                                <View style={styles.toggleWrap}>
+                                    <View
+                                        style={styles.toggleBar}
+                                        onLayout={(e) => setToggleBarWidth(e.nativeEvent.layout.width)}
+                                    >
+                                        {sliderWidth > 0 && (
+                                            <RNAnimated.View
+                                                style={[
+                                                    styles.toggleSlider,
+                                                    {
+                                                        width: sliderWidth,
+                                                        backgroundColor: sliderBgColor,
+                                                        transform: [{
+                                                            translateX: sliderAnim.interpolate({
+                                                                inputRange: [0, 1],
+                                                                outputRange: [0, sliderWidth],
+                                                            }),
+                                                        }],
+                                                    },
+                                                ]}
+                                            />
+                                        )}
+                                        <TouchableOpacity
+                                            style={styles.toggleBtn}
+                                            onPress={() => switchMode('self')}
+                                            activeOpacity={0.8}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="For myself"
+                                        >
+                                            <Text style={[
+                                                styles.toggleBtnText,
+                                                mode === 'self' && styles.toggleBtnTextActive,
+                                            ]}>
+                                                For myself
                                             </Text>
-                                            {config.rotatingWords.map((item, i) => {
-                                                const offset = wrapOffset(i, wordIndex % config.rotatingWords.length, config.rotatingWords.length);
-                                                const isActive = offset === 0;
-                                                return (
-                                                    <MotiView
-                                                        key={`dial-${mode}-${i}`}
-                                                        animate={{
-                                                            translateY: offset * WORD_SLOT_HEIGHT,
-                                                            opacity: isActive ? 1 : 0,
-                                                        }}
-                                                        transition={{
-                                                            type: 'spring',
-                                                            damping: 18,
-                                                            stiffness: 140,
-                                                            mass: 0.8,
-                                                        }}
-                                                        style={styles.dialWordContainer}
-                                                    >
-                                                        <Text style={[styles.dialWord, { color: item.color }]}>
-                                                            {item.word}
-                                                        </Text>
-                                                    </MotiView>
-                                                );
-                                            })}
-                                        </View>
-                                        {config.titleSuffix ? (
-                                            <Text style={styles.heroTitle}>{config.titleSuffix}</Text>
-                                        ) : null}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.toggleBtn}
+                                            onPress={() => switchMode('gift')}
+                                            activeOpacity={0.8}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="For someone else"
+                                        >
+                                            <Text style={[
+                                                styles.toggleBtnText,
+                                                mode === 'gift' && styles.toggleBtnTextActive,
+                                            ]}>
+                                                For someone else
+                                            </Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
 
-                                <Text style={styles.heroSubtitle}>
-                                    {config.subtitle}
-                                </Text>
-                            </RNAnimated.View>
+                                {/* ─── Text content (fades on toggle) ─── */}
+                                <RNAnimated.View style={{ opacity: contentOpacity }}>
+                                    <View style={styles.heroTitleContainer}>
+                                        <Text style={styles.heroTitle}>{config.titlePrefix}</Text>
+                                        <View style={styles.dialRow}>
+                                            <View style={styles.dialSlot}>
+                                                <Text style={[styles.dialWord, { opacity: 0 }]}>
+                                                    {currentWord.word}
+                                                </Text>
+                                                {config.rotatingWords.map((item, i) => {
+                                                    const offset = wrapOffset(i, wordIndex % config.rotatingWords.length, config.rotatingWords.length);
+                                                    const isActive = offset === 0;
+                                                    return (
+                                                        <MotiView
+                                                            key={`dial-${mode}-${i}`}
+                                                            animate={{
+                                                                translateY: offset * WORD_SLOT_HEIGHT,
+                                                                opacity: isActive ? 1 : 0,
+                                                            }}
+                                                            transition={{
+                                                                type: 'spring',
+                                                                damping: 18,
+                                                                stiffness: 140,
+                                                                mass: 0.8,
+                                                            }}
+                                                            style={styles.dialWordContainer}
+                                                        >
+                                                            <Text style={[styles.dialWord, { color: item.color }]}>
+                                                                {item.word}
+                                                            </Text>
+                                                        </MotiView>
+                                                    );
+                                                })}
+                                            </View>
+                                            {config.titleSuffix ? (
+                                                <Text style={styles.heroTitle}>{config.titleSuffix}</Text>
+                                            ) : null}
+                                        </View>
+                                    </View>
 
-                            {/* ─── Dual image carousels (always visible, never fade) ─── */}
-                            <View style={styles.cardsRowOuter}>
-                            <View style={styles.cardsRow}>
-                                {/* Left — Goal images (next peeks from left only, slides L→R) */}
-                                <View style={styles.cardCarousel}>
-                                    {GOAL_IMAGES.map((url, i) => {
-                                        const offset = wrapOffset(i, wordIndex % GOAL_IMAGES.length, GOAL_IMAGES.length);
-                                        const isCenter = offset === 0;
-                                        // Only show the image peeking on the LEFT (offset === -1)
-                                        const isPeekLeft = offset === -1;
-                                        const tx = offset * CARD_SLIDE;
-                                        return (
-                                            <MotiView
-                                                key={`goal-${i}`}
-                                                animate={{
-                                                    translateX: tx,
-                                                    scale: isCenter ? 1 : 0.9,
-                                                    opacity: isCenter ? 1 : isPeekLeft ? 0.5 : 0,
-                                                }}
-                                                transition={{
-                                                    type: 'spring',
-                                                    damping: 20,
-                                                    stiffness: 90,
-                                                    mass: 0.9,
-                                                }}
-                                                style={[
-                                                    styles.cardImageCard,
-                                                    { zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
-                                                ]}
-                                            >
-                                                <Image
-                                                    source={{ uri: url }}
-                                                    style={styles.cardImg}
-                                                    resizeMode="cover"
-                                                    accessibilityLabel={`Goal activity ${i + 1}`}
-                                                />
-                                            </MotiView>
-                                        );
-                                    })}
-                                    <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
-                                        <Text style={styles.cardLabel}>
-                                            {mode === 'self' ? 'Your goal' : 'Their goal'}
-                                        </Text>
-                                    </RNAnimated.View>
-                                </View>
+                                    <Text style={styles.heroSubtitle}>
+                                        {config.subtitle}
+                                    </Text>
+                                </RNAnimated.View>
+                            </MotiView>
 
-                                {/* Lock icon between cards */}
-                                <View style={styles.lockIcon}>
-                                    <Lock size={22} color={Colors.textPrimary} strokeWidth={2.2} />
-                                </View>
+                            {/* ─── Dual image carousels ─── */}
+                            <MotiView
+                                from={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: 'spring', damping: 20, stiffness: 90, delay: 300 }}
+                            >
+                                <View style={styles.cardsRowOuter}>
+                                    <View style={styles.cardsRow}>
+                                        {/* Left — Goal images (next peeks from left only, slides L→R) */}
+                                        <View style={styles.cardCarousel}>
+                                            {GOAL_IMAGES.map((url, i) => {
+                                                const offset = wrapOffset(i, wordIndex % GOAL_IMAGES.length, GOAL_IMAGES.length);
+                                                const isCenter = offset === 0;
+                                                // Only show the image peeking on the LEFT (offset === -1)
+                                                const isPeekLeft = offset === -1;
+                                                const tx = offset * CARD_SLIDE;
+                                                return (
+                                                    <MotiView
+                                                        key={`goal-${i}`}
+                                                        animate={{
+                                                            translateX: tx,
+                                                            scale: isCenter ? 1 : 0.9,
+                                                            opacity: isCenter ? 1 : isPeekLeft ? 0.5 : 0,
+                                                        }}
+                                                        transition={{
+                                                            type: 'spring',
+                                                            damping: 20,
+                                                            stiffness: 90,
+                                                            mass: 0.9,
+                                                        }}
+                                                        style={[
+                                                            styles.cardImageCard,
+                                                            { zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
+                                                        ]}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: url }}
+                                                            style={styles.cardImg}
+                                                            resizeMode="cover"
+                                                            accessibilityLabel={`Goal activity ${i + 1}`}
+                                                        />
+                                                    </MotiView>
+                                                );
+                                            })}
+                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
+                                                <Text style={styles.cardLabel}>
+                                                    {mode === 'self' ? 'Your goal' : 'The goal'}
+                                                </Text>
+                                            </RNAnimated.View>
+                                        </View>
 
-                                {/* Right — Reward images (next peeks from right only, slides R→L) */}
-                                <View style={styles.cardCarousel}>
-                                    {REWARD_IMAGES.map((url, i) => {
-                                        const offset = wrapOffset(i, rewardIndex % REWARD_IMAGES.length, REWARD_IMAGES.length);
-                                        const isCenter = offset === 0;
-                                        // Only show the image peeking on the RIGHT (offset -1 negated → positive tx)
-                                        const isPeekRight = offset === -1;
-                                        const tx = -offset * CARD_SLIDE;
-                                        return (
-                                            <MotiView
-                                                key={`reward-${i}`}
-                                                animate={{
-                                                    translateX: tx,
-                                                    scale: isCenter ? 1 : 0.9,
-                                                    opacity: isCenter ? 1 : isPeekRight ? 0.5 : 0,
-                                                }}
-                                                transition={{
-                                                    type: 'spring',
-                                                    damping: 20,
-                                                    stiffness: 90,
-                                                    mass: 0.9,
-                                                }}
-                                                style={[
-                                                    styles.cardImageCard,
-                                                    { zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
-                                                ]}
-                                            >
-                                                <Image
-                                                    source={{ uri: url }}
-                                                    style={styles.cardImg}
-                                                    resizeMode="cover"
-                                                    accessibilityLabel={`Reward experience ${i + 1}`}
-                                                />
-                                            </MotiView>
-                                        );
-                                    })}
-                                    <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
-                                        <Text style={styles.cardLabel}>
-                                            {mode === 'self' ? 'Your reward' : 'Their reward'}
-                                        </Text>
-                                    </RNAnimated.View>
+                                        {/* Right — Reward images (next peeks from right only, slides R→L) */}
+                                        <View style={styles.cardCarousel}>
+                                            {REWARD_IMAGES.map((url, i) => {
+                                                const offset = wrapOffset(i, rewardIndex % REWARD_IMAGES.length, REWARD_IMAGES.length);
+                                                const isCenter = offset === 0;
+                                                // Only show the image peeking on the RIGHT (offset -1 negated → positive tx)
+                                                const isPeekRight = offset === -1;
+                                                const tx = -offset * CARD_SLIDE;
+                                                return (
+                                                    <MotiView
+                                                        key={`reward-${i}`}
+                                                        animate={{
+                                                            translateX: tx,
+                                                            scale: isCenter ? 1 : 0.9,
+                                                            opacity: isCenter ? 1 : isPeekRight ? 0.5 : 0,
+                                                        }}
+                                                        transition={{
+                                                            type: 'spring',
+                                                            damping: 20,
+                                                            stiffness: 90,
+                                                            mass: 0.9,
+                                                        }}
+                                                        style={[
+                                                            styles.cardImageCard,
+                                                            { zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
+                                                        ]}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: url }}
+                                                            style={styles.cardImg}
+                                                            resizeMode="cover"
+                                                            accessibilityLabel={`Reward experience ${i + 1}`}
+                                                        />
+                                                    </MotiView>
+                                                );
+                                            })}
+                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
+                                                <Text style={styles.cardLabel}>
+                                                    {mode === 'self' ? 'Your reward' : 'The reward'}
+                                                </Text>
+                                            </RNAnimated.View>
+                                        </View>
+                                    </View>
                                 </View>
-                            </View>
-                            </View>
+                            </MotiView>
 
                             {/* ─── Stat + CTA + Badge (text fades, colors animate) ─── */}
-                            <RNAnimated.View style={{ opacity: contentOpacity }}>
-                                <View style={styles.statContainer}>
-                                    <Text style={styles.statText}>
-                                        {config.stat}
-                                        <RNAnimated.Text style={{ color: animStatColor, fontWeight: '700' }}>
-                                            {config.statHighlight}
-                                        </RNAnimated.Text>
-                                        {mode === 'self'
-                                            ? ' more likely to achieve your goals with friends backing you.'
-                                            : ' more likely to achieve goals when someone believes in them.'}
-                                    </Text>
-                                </View>
-                            </RNAnimated.View>
-
-                            {/* CTA — stacked gradients for smooth color transition */}
-                            <TouchableOpacity
-                                style={styles.primaryCta}
-                                onPress={handleCta}
-                                activeOpacity={0.9}
-                                accessibilityRole="button"
-                                accessibilityLabel={config.ctaText}
+                            <MotiView
+                                from={{ opacity: 0, translateY: 20 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 500, delay: 400 }}
                             >
-                                <View style={styles.ctaGradient}>
-                                    <LinearGradient
-                                        colors={[...SELF_CONFIG.ctaGradient]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                    <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                                <RNAnimated.View style={{ opacity: contentOpacity }}>
+                                    <View style={styles.statContainer}>
+                                        <Text style={styles.statText}>
+                                            {config.stat}
+                                            <RNAnimated.Text style={{ color: animStatColor, fontWeight: '700' }}>
+                                                {config.statHighlight}
+                                            </RNAnimated.Text>
+                                            {mode === 'self'
+                                                ? ' more likely to achieve your goals with friends backing you.'
+                                                : ' more likely to achieve goals when someone believes in them.'}
+                                        </Text>
+                                    </View>
+                                </RNAnimated.View>
+
+                                {/* CTA — stacked gradients for smooth color transition */}
+                                <TouchableOpacity
+                                    style={styles.primaryCta}
+                                    onPress={handleCta}
+                                    activeOpacity={0.9}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={config.ctaText}
+                                >
+                                    <View style={styles.ctaGradient}>
                                         <LinearGradient
-                                            colors={[...GIFT_CONFIG.ctaGradient]}
+                                            colors={[...SELF_CONFIG.ctaGradient]}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 1 }}
                                             style={StyleSheet.absoluteFill}
                                         />
-                                    </RNAnimated.View>
-                                    <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
-                                        <Text style={styles.ctaText}>{config.ctaText}</Text>
-                                        <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                        <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                                            <LinearGradient
+                                                colors={[...GIFT_CONFIG.ctaGradient]}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                                style={StyleSheet.absoluteFill}
+                                            />
+                                        </RNAnimated.View>
+                                        <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
+                                            <Text style={styles.ctaText}>{config.ctaText}</Text>
+                                            <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                        </RNAnimated.View>
+                                    </View>
+                                </TouchableOpacity>
+
+                                {/* Badge — animated colors */}
+                                <View style={styles.badgeWrapper}>
+                                    <RNAnimated.View style={[styles.badge, {
+                                        backgroundColor: animBadgeBg,
+                                        borderColor: animBadgeBorder,
+                                    }]}>
+                                        <RNAnimated.View style={{ opacity: contentOpacity }}>
+                                            <RNAnimated.Text style={[styles.badgeText, { color: animBadgeText }]}>
+                                                {config.badgeText}
+                                            </RNAnimated.Text>
+                                        </RNAnimated.View>
                                     </RNAnimated.View>
                                 </View>
-                            </TouchableOpacity>
-
-                            {/* Badge — animated colors */}
-                            <View style={styles.badgeWrapper}>
-                                <RNAnimated.View style={[styles.badge, {
-                                    backgroundColor: animBadgeBg,
-                                    borderColor: animBadgeBorder,
-                                }]}>
-                                    <RNAnimated.View style={{ opacity: contentOpacity }}>
-                                        <RNAnimated.Text style={[styles.badgeText, { color: animBadgeText }]}>
-                                            {config.badgeText}
-                                        </RNAnimated.Text>
-                                    </RNAnimated.View>
-                                </RNAnimated.View>
-                            </View>
-                        </MotiView>
+                            </MotiView>
+                        </View>
                     </View>
-                </View>
 
-                <JourneyDemo />
+                    <JourneyDemo />
 
-                {/* How It Works Section */}
-                <View style={styles.howSection}>
-                    <View style={styles.howWrapper}>
-                        <MotiView
-                            from={{ opacity: 0, translateY: 20 }}
-                            animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'timing', duration: 500 }}
-                        >
-                            <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
-                                How It Works
-                            </RNAnimated.Text>
-                            <Text style={styles.sectionTitle}>Three Simple Steps</Text>
-                        </MotiView>
+                    {/* How It Works Section */}
+                    <View style={styles.howSection}>
+                        <View style={styles.howWrapper}>
+                            <MotiView
+                                from={{ opacity: 0, translateY: 20 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 500 }}
+                            >
+                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
+                                    How It Works
+                                </RNAnimated.Text>
+                                <Text style={styles.sectionTitle}>Three Simple Steps</Text>
+                            </MotiView>
 
-                        <RNAnimated.View style={[styles.stepsContainer, { opacity: contentOpacity }]}>
-                            {config.steps.map((step, i) => (
-                                <React.Fragment key={`${mode}-step-${i}`}>
-                                    {i > 0 && (
-                                        <RNAnimated.View style={[styles.stepDivider, { backgroundColor: animStepDivider }]} />
-                                    )}
+                            <RNAnimated.View style={[styles.stepsContainer, { opacity: contentOpacity }]}>
+                                {config.steps.map((step, i) => (
+                                    <React.Fragment key={`${mode}-step-${i}`}>
+                                        {i > 0 && (
+                                            <RNAnimated.View style={[styles.stepDivider, { backgroundColor: animStepDivider }]} />
+                                        )}
+                                        <MotiView
+                                            from={{ opacity: 0, translateX: -20 }}
+                                            animate={{ opacity: 1, translateX: 0 }}
+                                            transition={{
+                                                type: 'spring',
+                                                damping: 35,
+                                                delay: i * 150,
+                                            }}
+                                        >
+                                            <View style={styles.stepCard}>
+                                                <View style={styles.stepIconContainer}>
+                                                    <View style={[styles.stepIconBg, { backgroundColor: step.iconBg }]}>
+                                                        {step.icon}
+                                                    </View>
+                                                    <RNAnimated.View style={[styles.stepNumber, { backgroundColor: animStepNumberBg }]}>
+                                                        <Text style={styles.stepNumberText}>{i + 1}</Text>
+                                                    </RNAnimated.View>
+                                                </View>
+                                                <View style={styles.stepContent}>
+                                                    <Text style={styles.stepTitle}>{step.title}</Text>
+                                                    <Text style={styles.stepDesc}>{step.desc}</Text>
+                                                </View>
+                                            </View>
+                                        </MotiView>
+                                    </React.Fragment>
+                                ))}
+                            </RNAnimated.View>
+                        </View>
+                    </View>
+
+                    {/* Co-Founders Section */}
+                    <RNAnimated.View style={[styles.foundersSection, { backgroundColor: animFoundersBg }]}>
+                        <View style={styles.foundersWrapper}>
+                            <MotiView
+                                from={{ opacity: 0, translateY: 20 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 500 }}
+                            >
+                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
+                                    The Team {'\n'}{'\n'}
+                                </RNAnimated.Text>
+                            </MotiView>
+
+                            <View style={styles.foundersRow}>
+                                {[
+                                    {
+                                        name: 'Raul Marquez',
+                                        role: 'Co-Founder & CEO',
+                                        image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2F20260116_DBP0431.jpg?alt=media&token=c8e102c4-7068-4d45-8bcb-32f8714cc62c',
+                                    },
+                                    {
+                                        name: 'Nuno Castilho',
+                                        role: 'Co-Founder & CTO',
+                                        image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2Ffoto.jpeg?alt=media&token=4c4b8d02-1741-40ee-88fc-8cd658133864',
+                                    },
+                                ].map((founder, i) => (
                                     <MotiView
-                                        from={{ opacity: 0, translateX: -20 }}
-                                        animate={{ opacity: 1, translateX: 0 }}
+                                        key={i}
+                                        from={{ opacity: 0, translateY: 20 }}
+                                        animate={{ opacity: 1, translateY: 0 }}
                                         transition={{
                                             type: 'spring',
-                                            damping: 35,
+                                            damping: 28,
                                             delay: i * 150,
                                         }}
+                                        style={styles.founderCard}
                                     >
-                                        <View style={styles.stepCard}>
-                                            <View style={styles.stepIconContainer}>
-                                                <View style={[styles.stepIconBg, { backgroundColor: step.iconBg }]}>
-                                                    {step.icon}
-                                                </View>
-                                                <RNAnimated.View style={[styles.stepNumber, { backgroundColor: animStepNumberBg }]}>
-                                                    <Text style={styles.stepNumberText}>{i + 1}</Text>
-                                                </RNAnimated.View>
-                                            </View>
-                                            <View style={styles.stepContent}>
-                                                <Text style={styles.stepTitle}>{step.title}</Text>
-                                                <Text style={styles.stepDesc}>{step.desc}</Text>
-                                            </View>
-                                        </View>
+                                        <Image
+                                            source={{ uri: founder.image }}
+                                            style={styles.founderPhoto}
+                                            resizeMode="cover"
+                                            accessibilityLabel={`${founder.name}, ${founder.role}`}
+                                        />
+                                        <Text style={styles.founderName}>{founder.name}</Text>
+                                        <RNAnimated.Text style={[styles.founderRole, { color: animFounderRole }]}>{founder.role}</RNAnimated.Text>
                                     </MotiView>
-                                </React.Fragment>
-                            ))}
-                        </RNAnimated.View>
-                    </View>
-                </View>
+                                ))}
+                            </View>
 
-                {/* Co-Founders Section */}
-                <View style={styles.foundersSection}>
-                    <View style={styles.foundersWrapper}>
-                        <MotiView
-                            from={{ opacity: 0, translateY: 20 }}
-                            animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'timing', duration: 500 }}
-                        >
-                            <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
-                                The Team {'\n'}{'\n'}
-                            </RNAnimated.Text>
-                        </MotiView>
-
-                        <View style={styles.foundersRow}>
-                            {[
-                                {
-                                    name: 'Raul Marquez',
-                                    role: 'Co-Founder & CEO',
-                                    image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2F20260116_DBP0431.jpg?alt=media&token=c8e102c4-7068-4d45-8bcb-32f8714cc62c',
-                                },
-                                {
-                                    name: 'Nuno Castilho',
-                                    role: 'Co-Founder & CTO',
-                                    image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2Ffoto.jpeg?alt=media&token=4c4b8d02-1741-40ee-88fc-8cd658133864',
-                                },
-                            ].map((founder, i) => (
-                                <MotiView
-                                    key={i}
-                                    from={{ opacity: 0, translateY: 20 }}
-                                    animate={{ opacity: 1, translateY: 0 }}
-                                    transition={{
-                                        type: 'spring',
-                                        damping: 28,
-                                        delay: i * 150,
-                                    }}
-                                    style={styles.founderCard}
-                                >
-                                    <Image
-                                        source={{ uri: founder.image }}
-                                        style={styles.founderPhoto}
-                                        resizeMode="cover"
-                                        accessibilityLabel={`${founder.name}, ${founder.role}`}
-                                    />
-                                    <Text style={styles.founderName}>{founder.name}</Text>
-                                    <Text style={styles.founderRole}>{founder.role}</Text>
-                                </MotiView>
-                            ))}
-                        </View>
-
-                        <MotiView
-                            from={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ type: 'spring', damping: 28, delay: 400 }}
-                            style={styles.incubatorBadge}
-                        >
-                            <Text style={styles.incubatorText}>Incubated at</Text>
-                            <TouchableOpacity
-                                onPress={() => Linking.openURL('http://unicornfactorylisboa.com')}
-                                activeOpacity={0.7}
-                                accessibilityRole="button"
-                                accessibilityLabel="Visit Unicorn Factory Lisboa website"
+                            <MotiView
+                                from={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: 'spring', damping: 28, delay: 400 }}
                             >
-                                <Image
-                                    source={{ uri: 'http://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
-                                    style={styles.incubatorLogo}
-                                    resizeMode="contain"
-                                    accessibilityLabel="Unicorn Factory Lisboa logo"
-                                />
-                            </TouchableOpacity>
-                        </MotiView>
-                    </View>
-                </View>
-
-                {/* Final CTA */}
-                <MotiView
-                    from={{ opacity: 0, translateY: 20 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 500, delay: 300 }}
-                    style={styles.finalCtaSection}
-                >
-                    <RNAnimated.View style={{ opacity: contentOpacity }}>
-                        <Text style={styles.finalCtaTitle}>{config.finalTitle}</Text>
-                        <Text style={styles.finalCtaSubtitle}>{config.finalSubtitle}</Text>
+                                <RNAnimated.View style={[styles.incubatorBadge, { borderColor: animIncubatorBorder }]}>
+                                    <Text style={styles.incubatorText}>Incubated at</Text>
+                                    <TouchableOpacity
+                                        onPress={() => Linking.openURL('https://unicornfactorylisboa.com')}
+                                        activeOpacity={0.7}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Visit Unicorn Factory Lisboa website"
+                                    >
+                                        <Image
+                                            source={{ uri: 'https://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
+                                            style={styles.incubatorLogo}
+                                            resizeMode="contain"
+                                            accessibilityLabel="Unicorn Factory Lisboa logo"
+                                        />
+                                    </TouchableOpacity>
+                                </RNAnimated.View>
+                            </MotiView>
+                        </View>
                     </RNAnimated.View>
 
-                    <TouchableOpacity
-                        style={styles.primaryCta}
-                        onPress={handleCta}
-                        activeOpacity={0.9}
-                        accessibilityRole="button"
-                        accessibilityLabel={config.finalCtaText}
+                    {/* Final CTA */}
+                    <MotiView
+                        from={{ opacity: 0, translateY: 20 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ type: 'timing', duration: 500, delay: 300 }}
+                        style={styles.finalCtaSection}
                     >
-                        <View style={styles.ctaGradient}>
-                            <LinearGradient
-                                colors={[...SELF_CONFIG.ctaGradient]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                            />
-                            <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                        <RNAnimated.View style={{ opacity: contentOpacity }}>
+                            <Text style={styles.finalCtaTitle}>{config.finalTitle}</Text>
+                            <Text style={styles.finalCtaSubtitle}>{config.finalSubtitle}</Text>
+                        </RNAnimated.View>
+
+                        <TouchableOpacity
+                            style={styles.primaryCta}
+                            onPress={handleCta}
+                            activeOpacity={0.9}
+                            accessibilityRole="button"
+                            accessibilityLabel={config.finalCtaText}
+                        >
+                            <View style={styles.ctaGradient}>
                                 <LinearGradient
-                                    colors={[...GIFT_CONFIG.ctaGradient]}
+                                    colors={[...SELF_CONFIG.ctaGradient]}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}
                                     style={StyleSheet.absoluteFill}
                                 />
-                            </RNAnimated.View>
-                            <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
-                                <Text style={styles.ctaText}>{config.finalCtaText}</Text>
-                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
-                            </RNAnimated.View>
-                        </View>
-                    </TouchableOpacity>
-                </MotiView>
+                                <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                                    <LinearGradient
+                                        colors={[...GIFT_CONFIG.ctaGradient]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                </RNAnimated.View>
+                                <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
+                                    <Text style={styles.ctaText}>{config.finalCtaText}</Text>
+                                    <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                </RNAnimated.View>
+                            </View>
+                        </TouchableOpacity>
+                    </MotiView>
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <Text style={styles.footerBrand}>
-                        ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
-                    </Text>
-                    <View style={styles.footerSocials}>
-                        <TouchableOpacity
-                            style={styles.socialBtn}
-                            onPress={() => Linking.openURL('https://www.linkedin.com/company/ernit-app/')}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityLabel="Visit Ernit on LinkedIn"
-                        >
-                            <Text style={styles.socialIcon}>in</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.socialBtn}
-                            onPress={() => Linking.openURL('https://www.instagram.com/ernitapp__/')}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityLabel="Visit Ernit on Instagram"
-                        >
-                            <Text style={styles.socialIcon}>ig</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.socialBtn}
-                            onPress={() => Linking.openURL('https://www.tiktok.com/@ernitapp')}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityLabel="Visit Ernit on TikTok"
-                        >
-                            <Text style={styles.socialIcon}>tk</Text>
-                        </TouchableOpacity>
+                    {/* Footer */}
+                    <View style={styles.footer}>
+                        <Text style={styles.footerBrand}>
+                            ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
+                        </Text>
+                        <View style={styles.footerSocials}>
+                            <TouchableOpacity
+                                style={styles.socialBtn}
+                                onPress={() => Linking.openURL('https://www.linkedin.com/company/ernit-app/')}
+                                activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel="Visit Ernit on LinkedIn"
+                            >
+                                <Text style={styles.socialIcon}>in</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.socialBtn}
+                                onPress={() => Linking.openURL('https://www.instagram.com/ernitapp__/')}
+                                activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel="Visit Ernit on Instagram"
+                            >
+                                <Text style={styles.socialIcon}>ig</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.socialBtn}
+                                onPress={() => Linking.openURL('https://www.tiktok.com/@ernitapp')}
+                                activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel="Visit Ernit on TikTok"
+                            >
+                                <Text style={styles.socialIcon}>tk</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.footerCopy}>
+                            {new Date().getFullYear()} Ernit. All rights reserved.
+                        </Text>
                     </View>
-                    <Text style={styles.footerCopy}>
-                        {new Date().getFullYear()} Ernit. All rights reserved.
-                    </Text>
-                </View>
-            </ScrollView>
-        </View>
+                </ScrollView>
+            </View>
         </ErrorBoundary>
     );
 }
@@ -888,7 +911,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
     },
     hero: {
-        paddingTop: Platform.OS === 'ios' ? 70 : 50,
+        paddingTop: vh(Platform.OS === 'ios' ? 60 : 44),
         paddingHorizontal: 24,
         backgroundColor: Colors.white,
         position: 'relative',
@@ -930,10 +953,10 @@ const styles = StyleSheet.create({
     },
     brandSection: {
         alignItems: 'center',
-        marginBottom: Spacing.lg,
+        marginBottom: vh(16),
     },
     brandTitle: {
-        fontSize: 44,
+        fontSize: vh(44),
         fontWeight: '900',
         fontStyle: 'italic',
         color: Colors.textPrimary,
@@ -943,36 +966,38 @@ const styles = StyleSheet.create({
     // ── Toggle Bar ──────────────────────────────────
     toggleWrap: {
         alignItems: 'center',
-        marginBottom: Spacing.xxl,
-        paddingHorizontal: Spacing.md,
+        marginBottom: vh(22),
+        paddingHorizontal: Spacing.lg,
     },
     toggleBar: {
         flexDirection: 'row',
-        backgroundColor: Colors.gray100,
+        backgroundColor: Colors.backgroundLight,
         borderRadius: BorderRadius.pill,
-        padding: 3,
+        padding: vh(4),
         position: 'relative',
         width: '100%',
-        maxWidth: 360,
+        maxWidth: vh(320),
+        ...Shadows.sm,
     },
     toggleSlider: {
         position: 'absolute',
-        top: 3,
-        left: 3,
-        bottom: 3,
+        top: vh(4),
+        left: vh(4),
+        bottom: vh(4),
         borderRadius: BorderRadius.pill,
         zIndex: 1,
+        ...Shadows.md,
     },
     toggleBtn: {
         flex: 1,
-        paddingVertical: Spacing.sm + 2,
+        paddingVertical: vh(11),
         alignItems: 'center',
         zIndex: 2,
     },
     toggleBtnText: {
         ...Typography.small,
-        fontWeight: '600',
-        color: Colors.textTertiary,
+        fontWeight: '700',
+        color: Colors.textMuted,
     },
     toggleBtnTextActive: {
         color: Colors.white,
@@ -981,13 +1006,13 @@ const styles = StyleSheet.create({
     // ── Dial-style rotating word ──────────────────
     heroTitleContainer: {
         alignItems: 'center',
-        marginBottom: Spacing.md,
+        marginBottom: vh(10),
     },
     heroTitle: {
         ...Typography.display,
         fontWeight: '800',
         color: Colors.gray800,
-        lineHeight: 46,
+        lineHeight: vh(46),
         letterSpacing: -1,
         textAlign: 'center',
     },
@@ -1002,6 +1027,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
+        paddingHorizontal: 6, // extra space for italic slant
     },
     dialWordContainer: {
         position: 'absolute',
@@ -1021,20 +1047,21 @@ const styles = StyleSheet.create({
     heroSubtitle: {
         ...Typography.subheading,
         color: Colors.textSecondary,
-        lineHeight: 28,
-        marginBottom: Spacing.lg,
+        lineHeight: vh(26),
+        marginBottom: vh(14),
         textAlign: 'center',
+        fontSize: vh(14),
     },
 
     // ── Dual image carousels ──────────────────────
     cardsRowOuter: {
         width: SCREEN_W,
         alignSelf: 'center',
-        marginHorizontal: -CARDS_PADDING,
+        marginHorizontal: -24,
         overflow: 'hidden',
-        marginTop: Spacing.xl,
-        marginBottom: Spacing.xl,
-        paddingVertical: Spacing.sm,
+        marginTop: vh(18),
+        marginBottom: vh(18),
+        paddingVertical: Spacing.xs,
     },
     cardsRow: {
         flexDirection: 'row',
@@ -1056,7 +1083,7 @@ const styles = StyleSheet.create({
         height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
-        backgroundColor: Colors.gray200,
+        backgroundColor: Colors.gray300,
     },
     cardImg: {
         width: '100%',
@@ -1080,26 +1107,11 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.sm,
         overflow: 'hidden',
     },
-    lockIcon: {
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        marginLeft: -24,
-        marginTop: -24,
-        width: 48,
-        height: 48,
-        borderRadius: BorderRadius.pill,
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 5,
-        ...Shadows.md,
-    },
 
     statContainer: {
         alignItems: 'center',
         paddingHorizontal: Spacing.xxxl,
-        marginBottom: Spacing.xxxl,
+        marginBottom: vh(28),
     },
     statText: {
         ...Typography.subheading,
@@ -1109,7 +1121,7 @@ const styles = StyleSheet.create({
 
     badgeWrapper: {
         alignItems: 'center',
-        marginTop: Spacing.lg,
+        marginTop: vh(14),
     },
     badge: {
         flexDirection: 'row',
@@ -1119,7 +1131,7 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.sm,
         borderRadius: BorderRadius.xl,
         borderWidth: 1,
-        marginBottom: Spacing.huge,
+        marginBottom: vh(36),
     },
     badgeText: {
         ...Typography.small,
@@ -1258,7 +1270,6 @@ const styles = StyleSheet.create({
     foundersSection: {
         paddingVertical: 64,
         paddingHorizontal: Spacing.xxl,
-        backgroundColor: Colors.primarySurface,
         alignItems: 'center',
     },
     foundersWrapper: {
@@ -1284,7 +1295,9 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.lg,
         borderWidth: 3,
         borderColor: Colors.white,
-        ...Shadows.md,
+        shadowColor: Colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
         shadowOpacity: 0.1,
     },
     founderName: {
@@ -1297,7 +1310,6 @@ const styles = StyleSheet.create({
     founderRole: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.primary,
         marginBottom: Spacing.sm,
         textAlign: 'center',
     },
@@ -1310,7 +1322,6 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
         borderRadius: BorderRadius.xxl,
         borderWidth: 1,
-        borderColor: Colors.primaryBorder,
         ...Shadows.sm,
         shadowOpacity: 0.04,
     },

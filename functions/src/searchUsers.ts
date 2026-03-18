@@ -37,7 +37,7 @@ export const searchUsers = onCall(
     // ✅ RATE LIMITING: Max 30 searches per minute
     const now = Date.now();
     const oneMinuteAgo = now - (60 * 1000);
-    const RATE_LIMIT = 30; // Maximum searches per minute per user
+    const RATE_LIMIT = 10; // Maximum searches per minute per user
 
     // Import production db from index
     const { dbProd } = await import('./index.js');
@@ -74,9 +74,9 @@ export const searchUsers = onCall(
       // 🔍 SEARCH LOGIC
       const searchLower = trimmedSearchTerm.toLowerCase();
 
-      // SECURITY: Limit the number of documents read to prevent DoS
+      // SECURITY: Limit the number of documents read to prevent DoS and enumeration
       // For proper full-text search, consider Algolia or Typesense
-      const usersSnapshot = await dbProd.collection('users').limit(500).get();
+      const usersSnapshot = await dbProd.collection('users').limit(100).get();
 
       // Fetch current user's friends and pending requests
       const [friendsSnapshot, sentRequestsSnapshot, receivedRequestsSnapshot] = await Promise.all([

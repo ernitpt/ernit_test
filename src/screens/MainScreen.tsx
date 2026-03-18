@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation from '../components/FooterNavigation';
@@ -8,6 +8,7 @@ import { useAuthGuard } from '../hooks/useAuthGuard';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
+import { notificationService } from '../services/NotificationService';
 import Colors from '../config/colors';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -25,9 +26,25 @@ type MainScreenProps = {
  */
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const { state } = useApp();
   const { isConnected } = useNetworkStatus();
+
+  useEffect(() => {
+    if (!state.user?.id) {
+      setUnreadCount(0);
+      return;
+    }
+    const unsubscribe = notificationService.listenToUserNotifications(
+      state.user.id,
+      (notifications) => {
+        const unread = notifications.filter((n) => !n.read).length;
+        setUnreadCount(unread);
+      }
+    );
+    return unsubscribe;
+  }, [state.user?.id]);
 
   const handleMenuPress = () => setSideMenuVisible(true);
   const handleCloseSideMenu = () => setSideMenuVisible(false);
@@ -56,6 +73,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
         <FooterNavigation
           activeRoute={activeRoute}
           onMenuPress={handleMenuPress}
+          notificationBadgeCount={unreadCount}
         />
 
         {/* Side Menu */}

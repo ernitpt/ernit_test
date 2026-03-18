@@ -12,6 +12,8 @@ import {
   Animated,
   Dimensions,
   GestureResponderEvent,
+  KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -169,6 +171,23 @@ const GoalSettingScreen = () => {
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Exit confirmation for unsaved wizard progress
+  useEffect(() => {
+    const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+      if (currentStep === 1) return; // Allow back from step 1
+      e.preventDefault();
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved progress. Are you sure you want to leave?',
+        [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, currentStep]);
 
   // Validate required data
   const hasValidData = Boolean(experienceGift?.id && experienceGift?.experienceId);
@@ -920,6 +939,10 @@ const GoalSettingScreen = () => {
   return (
     <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
@@ -1006,6 +1029,7 @@ const GoalSettingScreen = () => {
             )}
           </View>
         </View>
+        </KeyboardAvoidingView>
 
         {/* First Hint Popup */}
         {showHintPopup && firstHint && (

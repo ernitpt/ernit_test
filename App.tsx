@@ -12,6 +12,7 @@ import { pushNotificationService } from './src/services/PushNotificationService'
 import { initializeAnalytics } from './src/utils/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastProvider } from './src/context/ToastContext';
+import { ThemeProvider } from './src/themes/ThemeContext';
 import ToastOverlay from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { logger } from './src/utils/logger';
@@ -103,6 +104,7 @@ export default function App() {
   logger.log('[App] Rendering AppProvider and AppNavigator');
 
   return (
+    <ThemeProvider>
     <SafeAreaProvider>
       <ErrorBoundary screenName="App">
         <AppProvider>
@@ -118,5 +120,6 @@ export default function App() {
         </AppProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

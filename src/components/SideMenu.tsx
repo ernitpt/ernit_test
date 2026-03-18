@@ -11,7 +11,13 @@ import {
   Modal,
   ScrollView,
   Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,7 +30,8 @@ import { Avatar } from './Avatar';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell, X, ChevronRight } from 'lucide-react-native';
+import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell, X, ChevronRight, Moon } from 'lucide-react-native';
+import { useTheme } from '../themes/ThemeContext';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
@@ -94,6 +101,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const { state, dispatch } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const { showError } = useToast();
+  const { isDark, toggleTheme } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -491,6 +499,28 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                 {isAuthenticated && (
                   <Animated.View style={staggerStyle(2)}>
                     <SectionHeader title="SETTINGS" />
+                    {/* Dark Mode toggle */}
+                    <View style={styles.darkModeRow}>
+                      <View style={styles.darkModeLeft}>
+                        <View style={styles.iconWrapper}>
+                          <Moon size={20} color={Colors.primary} />
+                        </View>
+                        <Text style={styles.menuTitle}>Dark Mode</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          toggleTheme();
+                        }}
+                        style={[styles.toggle, isDark && styles.toggleActive]}
+                        activeOpacity={0.8}
+                        accessibilityRole="switch"
+                        accessibilityLabel="Toggle dark mode"
+                        accessibilityState={{ checked: isDark }}
+                      >
+                        <View style={[styles.toggleThumb, isDark && styles.toggleThumbActive]} />
+                      </TouchableOpacity>
+                    </View>
                     <View style={styles.reminderSection}>
                       <View style={styles.reminderHeader}>
                         <View style={styles.iconWrapper}>
@@ -780,7 +810,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BorderRadius.sm,
-    backgroundColor: 'rgba(167, 243, 208, 0.4)',
+    backgroundColor: Colors.primaryTintAlpha40,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -941,6 +971,20 @@ const styles = StyleSheet.create({
   pickerConfirmText: {
     ...Typography.bodyBold,
     color: Colors.white,
+  },
+
+  // Dark mode toggle row
+  darkModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.md,
+  },
+  darkModeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
 });
 
