@@ -26,3 +26,8 @@ Authentication is handled via Firebase Auth, but the app implements a custom "Au
 ## Key Patterns
 - **User Creation**: `createUserProfile` is called after Firebase Auth sign-up.
 - **Navigation Blocking**: `requireAuth` returns `false` if the user isn't logged in, stopping the action and showing the modal.
+- **Password Handling**: Password is NEVER sanitized — `onChange` handlers pass raw text directly to Firebase Auth.
+- **New User Detection**: `isNewUser` is determined via `additionalUserInfo?.isNewUser` (not timestamp comparison).
+- **Login Dispatch**: Login dispatches the real Firestore user document on all paths including Google account-linking.
+- **Error Safety**: All `userService` methods have try/catch — failures do not propagate uncaught exceptions.
+- **Input Sanitization**: `sanitizeText` is called on profile `name` and `description` fields before any Firestore write.

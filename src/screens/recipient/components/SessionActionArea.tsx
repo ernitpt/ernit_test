@@ -153,6 +153,8 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
         onPress={onStart}
         disabled={loading}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Start session"
       >
         <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
       </TouchableOpacity>

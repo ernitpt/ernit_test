@@ -124,7 +124,7 @@ export interface ExperienceGift {
   // experience: Experience;
   personalizedMessage?: string;
   deliveryDate: Date;
-  status: 'pending' | 'claimed' | 'completed';
+  status: 'pending' | 'active' | 'claimed' | 'completed' | 'expired';
   createdAt: Date;
   payment: string;
   claimedAt?: Date;
@@ -159,7 +159,9 @@ export interface ExperienceGift {
     frequency: string;
     sessionTime: string;
     sameExperienceForBoth: boolean;
+    giverGoalId?: string;  // ID of the giver's goal once created (set by Cloud Function)
   };
+  recipientGoalId?: string; // Fallback field set when bidirectional goal link cannot be written directly
 }
 
 /** Core goal identity and description */
@@ -214,10 +216,11 @@ export interface GoalApproval {
   giverActionTaken?: boolean;
 }
 
-/** Valentine challenge fields */
-export interface GoalValentine {
-  valentineChallengeId?: string;
+/** Shared/Together challenge fields (renamed from GoalValentine for generality) */
+export interface GoalShared {
+  valentineChallengeId?: string;  // legacy Valentine challenge ID
   partnerGoalId?: string;
+  challengeType?: 'shared';       // marks this goal as part of a shared challenge
   isLeader?: boolean;
   canProgress?: boolean;
   isFinished?: boolean;
@@ -225,7 +228,12 @@ export interface GoalValentine {
   isUnlocked?: boolean;
   unlockedAt?: Date;
   unlockShown?: boolean;
+  /** True when giver has completed their sessions but is waiting for the recipient to join/redeem */
+  isReadyToComplete?: boolean;
 }
+
+/** Backward-compatibility alias — existing Valentine data keeps working */
+export type GoalValentine = GoalShared;
 
 /** Free Goal ("The Pledge") fields */
 export interface GoalFreeGoal {
@@ -269,7 +277,7 @@ export interface GoalHints {
 }
 
 /** Full Goal type — intersection of all sub-types (backward-compatible) */
-export type Goal = GoalCore & GoalWeeklyTracking & GoalApproval & GoalValentine & GoalFreeGoal & GoalHints;
+export type Goal = GoalCore & GoalWeeklyTracking & GoalApproval & GoalShared & GoalFreeGoal & GoalHints;
 
 // Helper function to detect if a goal is self-gifted
 export function isSelfGifted(goal: Goal): boolean {
@@ -430,7 +438,15 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'valentine_start' | 'valentine_unlock' | 'valentine_completion' | 'motivation_received' | 'session_reminder' | 'weekly_recap' | 'experience_booking_reminder';
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed'
+    // Legacy Valentine notification types (kept for backward compat with existing data)
+    | 'valentine_start' | 'valentine_unlock' | 'valentine_completion'
+    // Together/Shared challenge notification types
+    | 'shared_start' | 'shared_unlock' | 'shared_completion' | 'shared_session'
+    // Payment notification types
+    | 'payment_charged' | 'payment_failed'
+    | 'motivation_received' | 'session_reminder' | 'weekly_recap' | 'experience_booking_reminder'
+    | 'valentine_partner_progress';
   read: boolean;
   createdAt: Date | Timestamp;
   clearable?: boolean; // Whether notification can be cleared (default true)
@@ -536,7 +552,9 @@ export interface ChallengeSetupPrefill {
   experience?: Experience;
   plannedStartDate?: string;
   sessionMinutes?: number;
+  showCustomTime?: boolean;
   preferredRewardCategory?: ExperienceCategory;
+  currentStep?: number;
 }
 
 // Gift flow types
@@ -550,7 +568,6 @@ export interface GiftFlowData {
   revealMode: GiftRevealMode;
   paymentChoice: GiftPaymentChoice;
   // Together mode only:
-  goalName?: string;
   duration?: string;
   durationWeeks?: number;
   frequency?: string;
@@ -600,6 +617,7 @@ export type RootStackParamList = {
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
   GiftLanding: { mode?: 'self' | 'gift' } | undefined;
   GiftFlow: { prefill?: GiftFlowPrefill } | undefined;
+  DeferredSetup: { setupIntentClientSecret: string; experienceGift: ExperienceGift };
   AnimationPreview: undefined;
 };
 
@@ -663,6 +681,25 @@ export type AnalyticsEventName =
   | 'gift_attached_to_goal'
   | 'gift_created'
   | 'gift_message_updated'
+  // Landing & wizard flows
+  | 'landing_page_viewed'
+  | 'landing_mode_toggled'
+  | 'landing_cta_tapped'
+  | 'challenge_setup_started'
+  | 'challenge_step_completed'
+  | 'challenge_created'
+  | 'gift_flow_started'
+  | 'gift_step_completed'
+  // Auth
+  | 'signup_completed'
+  | 'login_completed'
+  | 'login_failed'
+  // Session & goal lifecycle
+  | 'session_start'
+  | 'weekly_goal_completed'
+  // Feed & discovery
+  | 'feed_viewed'
+  | 'app_open'
   // Error
   | 'error_boundary_triggered';
 

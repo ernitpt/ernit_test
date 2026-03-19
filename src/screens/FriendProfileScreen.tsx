@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import ErrorRetry from '../components/ErrorRetry';
 import {
   View,
   Text,
@@ -10,7 +11,7 @@ import {
   Animated,
   Platform,
   RefreshControl,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
@@ -30,10 +31,10 @@ import { experienceService } from '../services/ExperienceService';
 import { partnerService } from '../services/PartnerService';
 import AudioPlayer from '../components/AudioPlayer';
 import ImageViewer from '../components/ImageViewer';
-import { db } from '../services/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { goalService } from '../services/GoalService';
 import { logger } from '../utils/logger';
 import { toJSDate } from '../utils/GoalHelpers';
+import { vh } from '../utils/responsive';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -535,6 +536,7 @@ const FriendProfileScreen: React.FC = () => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [error, setError] = useState(false);
 
   // Popup animation states
   const [showRemovePopup, setShowRemovePopup] = useState(false);
@@ -542,7 +544,7 @@ const FriendProfileScreen: React.FC = () => {
   const removeScale = useRef(new Animated.Value(0.9)).current;
 
   const tabScrollRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = Dimensions.get('window');
+  const { width: screenWidth } = useWindowDimensions();
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   // Redirect if userId is missing (e.g., after bad navigation)
@@ -564,6 +566,15 @@ const FriendProfileScreen: React.FC = () => {
   );
 
   if (!userId) return null; // Early return AFTER all hooks
+
+  if (error && !isLoading) {
+    return (
+      <ErrorRetry
+        message="Could not load profile"
+        onRetry={() => { setError(false); loadFriendProfile(); }}
+      />
+    );
+  }
 
   const openRemovePopup = () => {
     setShowRemovePopup(true);
@@ -594,13 +605,9 @@ const FriendProfileScreen: React.FC = () => {
       let allGoals: Goal[] = [];
       let wishlistData: Experience[] = [];
 
-      // Fetch goals directly without sweep (read-only for other users)
-      // The sweep would try to update documents which we don't have permission for
+      // Fetch goals via service so normalizeGoal() is applied consistently
       try {
-        const goalsRef = collection(db, 'goals');
-        const q = query(goalsRef, where('userId', '==', userId));
-        const snapshot = await getDocs(q);
-        allGoals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+        allGoals = await goalService.getUserGoals(userId);
       } catch (goalError) {
         logger.log('Note: Could not load goals for this user', goalError);
         allGoals = [];
@@ -629,6 +636,7 @@ const FriendProfileScreen: React.FC = () => {
     } catch (error) {
       logger.error('Error loading profile:', error);
       showError('Failed to load profile. Please try again.');
+      setError(true);
     } finally {
       setIsLoading(false);
     }
@@ -787,6 +795,9 @@ const FriendProfileScreen: React.FC = () => {
                       currentUserProfileImageUrl
                     );
                     setHasPendingRequest(true);
+                  } catch (error) {
+                    console.error('Friend request failed:', error);
+                    showError('Could not send friend request. Please try again.');
                   } finally {
                     setIsActionLoading(false);
                   }
@@ -897,6 +908,9 @@ const FriendProfileScreen: React.FC = () => {
                   try {
                     await friendService.removeFriend(currentUserId!, userId);
                     setIsFriend(false);
+                  } catch (error) {
+                    console.error('Remove friend failed:', error);
+                    showError('Could not remove friend. Please try again.');
                   } finally {
                     setIsActionLoading(false);
                     closeRemovePopup();
@@ -1048,7 +1062,7 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
     shadowColor: Colors.textPrimary,
   },
-  experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
+  experienceImage: { width: '100%', height: vh(140), backgroundColor: Colors.border },
   experienceContent: { padding: Spacing.lg },
   experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
   experienceDescription: {
@@ -1076,7 +1090,7 @@ const styles = StyleSheet.create({
   },
   achievementImage: {
     width: "100%",
-    height: 140,
+    height: vh(140),
     backgroundColor: Colors.border,
   },
   achievementImagePlaceholder: {
@@ -1313,7 +1327,7 @@ const historyModalStyles = StyleSheet.create({
   },
   hintImage: {
     width: '100%',
-    height: 150,
+    height: vh(150),
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.sm,
     backgroundColor: Colors.border,

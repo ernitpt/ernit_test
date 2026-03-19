@@ -1,10 +1,7 @@
 import React, { useEffect } from 'react';
 import { AppProvider } from './src/context/AppContext';
-import { AuthGuardProvider } from './src/context/AuthGuardContext';
 import { TimerProvider } from './src/context/TimerContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { Ionicons } from '@expo/vector-icons';
-import * as Font from 'expo-font';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import Colors from './src/config/colors';
 import { PWAInstaller } from './src/components/PWAInstaller';
@@ -39,10 +36,11 @@ export default function App() {
     logger.log('[App] useEffect running...');
 
     // Setup local notification handler
-    pushNotificationService.setupNotificationHandler();
-
-    // Load Ionicons font on web
-    Font.loadAsync(Ionicons.font);
+    try {
+      pushNotificationService.setupNotificationHandler();
+    } catch (e) {
+      console.warn('Failed to setup notification handler:', e);
+    }
 
     // Set document title to "Ernit" on web and keep it constant
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -58,7 +56,7 @@ export default function App() {
       // Add theme color meta tag
       const themeColorMeta = document.createElement('meta');
       themeColorMeta.name = 'theme-color';
-      themeColorMeta.content = '#059669';
+      themeColorMeta.content = Colors.primary;
       document.head.appendChild(themeColorMeta);
 
       // Add apple mobile web app capable
@@ -108,15 +106,13 @@ export default function App() {
     <SafeAreaProvider>
       <ErrorBoundary screenName="App">
         <AppProvider>
-          <AuthGuardProvider>
-            <ToastProvider>
-              <TimerProvider>
-                <AppNavigator />
-                <PWAInstaller />
-              </TimerProvider>
-              <ToastOverlay />
-            </ToastProvider>
-          </AuthGuardProvider>
+          <ToastProvider>
+            <TimerProvider>
+              <AppNavigator />
+              <PWAInstaller />
+            </TimerProvider>
+            <ToastOverlay />
+          </ToastProvider>
         </AppProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

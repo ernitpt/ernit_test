@@ -130,6 +130,12 @@ export const deleteExperience = onCall(
                 message: "Experience deleted successfully",
             };
         } catch (error: any) {
+            // Preserve HttpsError codes (e.g. not-found, failed-precondition) so the
+            // client receives the correct error message rather than a generic 'internal' one.
+            if (error instanceof HttpsError) {
+                throw error;
+            }
+
             console.error("❌ Error deleting experience:", error);
             throw new HttpsError('internal', 'Failed to delete experience');
         }

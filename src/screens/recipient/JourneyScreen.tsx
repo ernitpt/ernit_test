@@ -44,6 +44,7 @@ import { BookingCalendar } from '../../components/BookingCalendar';
 import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import ErrorRetry from '../../components/ErrorRetry';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -54,6 +55,7 @@ import { MotiView } from 'moti';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
+import { vh } from '../../utils/responsive';
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -511,7 +513,7 @@ const sessStyles = StyleSheet.create({
   },
   motivationImage: {
     width: '100%',
-    height: 150,
+    height: vh(150),
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
@@ -677,6 +679,7 @@ const JourneyScreen = () => {
   const { width: screenWidth } = Dimensions.get('window');
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
+  const [error, setError] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
   // Redirect if no goal
@@ -735,6 +738,7 @@ const JourneyScreen = () => {
           if (gift) setExperienceGift(gift);
         } catch (error) {
           logger.error('Error fetching experience gift:', error);
+          setError(true);
         }
       }
     };
@@ -750,6 +754,7 @@ const JourneyScreen = () => {
       setSessions(data);
     } catch (error) {
       logger.error('Error fetching sessions:', error);
+      setError(true);
     } finally {
       setSessionsLoading(false);
     }
@@ -776,6 +781,7 @@ const JourneyScreen = () => {
         setMotivations(data);
       } catch (error) {
         logger.error('Error fetching motivations:', error);
+        setError(true);
       }
     };
     fetchMotivations();
@@ -833,7 +839,10 @@ const JourneyScreen = () => {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
             if (gift) expId = gift.experienceId;
-          } catch { /* no gift */ }
+          } catch (error) {
+            console.warn('Failed to load experience gift:', error);
+            // Continue without gift data — non-fatal
+          }
         }
 
         if (expId) {
@@ -852,6 +861,7 @@ const JourneyScreen = () => {
         }
       } catch (err) {
         logger.error('Error fetching completed goal data:', err);
+        setError(true);
       }
     };
 
@@ -1282,7 +1292,7 @@ const JourneyScreen = () => {
             {currentGoal.pledgedExperience?.coverImageUrl && (
               <Image
                 source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                style={[styles.experienceCover, { height: 180 }]}
+                style={[styles.experienceCover, { height: vh(180) }]}
               />
             )}
 
@@ -1468,6 +1478,25 @@ const JourneyScreen = () => {
   };
 
   // ─── Main render ──────────────────────────────────────────────────────────
+  if (error && !sessionsLoading) {
+    return (
+      <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
+        <MainScreen activeRoute="Goals">
+          <StatusBar style="light" />
+          <SharedHeader title="Journey" showBack />
+          <ErrorRetry
+            message="Could not load journey data"
+            onRetry={() => {
+              setError(false);
+              setSessionsLoading(true);
+              loadSessions();
+            }}
+          />
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
     <MainScreen activeRoute="Goals">
@@ -1781,13 +1810,13 @@ const styles = StyleSheet.create({
   },
   experienceCoverInline: {
     width: '100%',
-    height: 180,
+    height: vh(180),
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundLight,
   },
   experienceCover: {
     width: '100%',
-    height: 140,
+    height: vh(140),
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
     backgroundColor: Colors.backgroundLight,
@@ -1825,7 +1854,7 @@ const styles = StyleSheet.create({
   },
   hintImage: {
     width: '100%',
-    height: 200,
+    height: vh(200),
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
@@ -1906,7 +1935,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   mysteryShowcaseBanner: {
-    height: 120,
+    height: vh(120),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     backgroundColor: Colors.warningLight,
@@ -1950,7 +1979,7 @@ const styles = StyleSheet.create({
   },
   recommendedImage: {
     width: '100%',
-    height: 90,
+    height: vh(90),
     borderTopLeftRadius: BorderRadius.md,
     borderTopRightRadius: BorderRadius.md,
   },

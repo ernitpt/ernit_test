@@ -83,8 +83,13 @@ export class GoalSessionService {
         g.currentCount += 1;
         // T1-1: Detect goal completion during sweep
         if (g.currentCount >= g.targetCount) {
-          g.isCompleted = true;
-          g.completedAt = DateHelper.now();
+          g.currentCount = g.targetCount; // Ensure stored count reflects completion
+          if (g.challengeType === 'shared' && !g.partnerGoalId) {
+            g.isReadyToComplete = true;
+          } else {
+            g.isCompleted = true;
+            g.completedAt = DateHelper.now();
+          }
         }
       } else {
         hadIncompleteSweep = true;
@@ -127,6 +132,7 @@ export class GoalSessionService {
         weeklyLogDates: [],
         isWeekCompleted: false,
         isCompleted: !!g.isCompleted,
+        isReadyToComplete: !!g.isReadyToComplete,
         lastNudgeLevel: 0,
         updatedAt: serverTimestamp(),
       };
@@ -191,8 +197,14 @@ export class GoalSessionService {
             g.currentCount += 1;
             // T1-1: Detect goal completion during inline sweep
             if (g.currentCount >= g.targetCount) {
-              g.isCompleted = true;
-              g.completedAt = DateHelper.now();
+              g.currentCount = g.targetCount; // Ensure stored count reflects completion
+              // C2: Block giver completion until recipient redeems for shared challenges
+              if (g.challengeType === 'shared' && !g.partnerGoalId) {
+                g.isReadyToComplete = true;
+              } else {
+                g.isCompleted = true;
+                g.completedAt = DateHelper.now();
+              }
             }
           } else {
             hadIncompleteSweep = true;
@@ -202,6 +214,7 @@ export class GoalSessionService {
           g.weeklyLogDates = [];
           g.isWeekCompleted = false;
         }
+        anchor.setHours(0, 0, 0, 0);
         g.weekStartAt = anchor;
       }
 
@@ -237,8 +250,14 @@ export class GoalSessionService {
       if (g.weeklyCount >= g.sessionsPerWeek) {
         g.isWeekCompleted = true;
         if (g.currentCount + 1 >= g.targetCount) {
-          g.isCompleted = true;
-          g.completedAt = DateHelper.now();
+          g.currentCount = g.targetCount; // Ensure stored count reflects completion
+          // C2: Block giver completion until recipient redeems for shared challenges
+          if (g.challengeType === 'shared' && !g.partnerGoalId) {
+            g.isReadyToComplete = true;
+          } else {
+            g.isCompleted = true;
+            g.completedAt = DateHelper.now();
+          }
         }
       }
 
@@ -248,12 +267,21 @@ export class GoalSessionService {
         weeklyLogDates: g.weeklyLogDates,
         isWeekCompleted: g.isWeekCompleted || false,
         isCompleted: !!g.isCompleted,
+        // C2: persist waiting-for-partner flag for shared challenges without a linked partner goal
+        isReadyToComplete: !!g.isReadyToComplete,
         weekStartAt: g.weekStartAt,
         currentCount: g.currentCount,
         updatedAt: serverTimestamp(),
       };
       if (g.isCompleted) {
         updateData.completedAt = serverTimestamp();
+        // Set 30-day gift attach deadline for free goals without an attached gift
+        if (g.isFreeGoal && !g.experienceGiftId && !g.pledgedExperience?.experienceId) {
+          const deadline = new Date();
+          deadline.setDate(deadline.getDate() + 30);
+          updateData.giftAttachDeadline = deadline;
+          g.giftAttachDeadline = deadline;
+        }
       }
       transaction.update(ref, updateData);
 
@@ -312,6 +340,9 @@ export class GoalSessionService {
 
     // Analytics (non-critical, outside transaction)
     analyticsService.trackEvent('session_logged', 'engagement', { goalId, weeklyCount: g.weeklyCount, sessionsPerWeek: g.sessionsPerWeek, currentCount: g.currentCount, targetCount: g.targetCount });
+    if (g.isWeekCompleted) {
+      analyticsService.trackEvent('weekly_goal_completed', 'engagement', { goalId, weekNumber: g.currentCount + 1 });
+    }
 
     // === Side effects: Feed posts & notifications (outside transaction) ===
 
@@ -331,15 +362,6 @@ export class GoalSessionService {
             experienceTitle = g.pledgedExperience.title;
             experienceImageUrl = g.pledgedExperience.coverImageUrl;
             partnerName = g.pledgedExperience.subtitle;
-          }
-
-          // Set 30-day gift attach deadline for ALL free goals
-          if (g.isFreeGoal) {
-            const deadline = new Date();
-            deadline.setDate(deadline.getDate() + 30);
-            const goalRef = doc(db, 'goals', g.id);
-            await updateDoc(goalRef, { giftAttachDeadline: deadline });
-            g.giftAttachDeadline = deadline;
           }
 
           if (!g.isFreeGoal && g.experienceGiftId) {

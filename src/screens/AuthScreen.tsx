@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { vh } from '../utils/responsive';
 import Colors from '../config/colors';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
@@ -46,6 +47,7 @@ import { Check } from 'lucide-react-native';
 import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from '../services/AnalyticsService';
 import { TextInput } from '../components/TextInput';
 
 
@@ -80,7 +82,7 @@ const AuthScreen = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate('CategorySelection');
+      navigation.navigate('Goals');
     }
   };
 
@@ -250,11 +252,6 @@ const AuthScreen = () => {
   // Password error state for login
   const [passwordError, setPasswordError] = useState('');
 
-  // Google sign-in warning modal state
-  // const [showGoogleWarning, setShowGoogleWarning] = useState(false);
-  // const [verificationEmail, setVerificationEmail] = useState('');
-  // const [isSendingVerification, setIsSendingVerification] = useState(false);
-
   // ? Use makeRedirectUri for proper OAuth configuration
   const redirectUri = makeRedirectUri({
     scheme: 'ernit',
@@ -285,7 +282,7 @@ const AuthScreen = () => {
       signInWithCredential(auth, credential)
         .then(async (userCredential) => {
           const user = userCredential.user;
-          const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime;
+          const isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
           if (isNewUser) {
             await userService.createUserProfile({
@@ -296,20 +293,27 @@ const AuthScreen = () => {
               createdAt: new Date(),
               wishlist: [],
             });
-
           }
 
-          dispatch({
-            type: 'SET_USER',
-            payload: {
-              id: user.uid,
-              email: user.email || '',
-              displayName: user.displayName || '',
-              userType: 'giver',
-              createdAt: new Date(),
-              wishlist: [],
-            },
-          });
+          const existingUser = await userService.getUserById(user.uid);
+          if (existingUser) {
+            dispatch({ type: 'SET_USER', payload: existingUser });
+          } else {
+            // Fallback if Firestore fetch fails — use minimal Firebase Auth data
+            dispatch({
+              type: 'SET_USER',
+              payload: {
+                id: user.uid,
+                email: user.email || '',
+                displayName: user.displayName || '',
+                userType: 'giver',
+                createdAt: new Date(),
+                wishlist: [],
+              },
+            });
+          }
+
+          analyticsService.trackEvent('login_completed', 'conversion', { method: 'google' });
 
           // Show success animation
           setShowSuccessOverlay(true);
@@ -362,6 +366,7 @@ const AuthScreen = () => {
         })
         .catch(async (error) => {
           logger.error('Google Sign-In Error:', error);
+          analyticsService.trackEvent('login_failed', 'error', { method: 'google', errorCode: error?.code || 'unknown' });
 
           // ? Handle account linking when email already exists with password provider
           if (error.code === 'auth/account-exists-with-different-credential') {
@@ -379,9 +384,10 @@ const AuthScreen = () => {
                   const userCredential = await signInWithCredential(auth, GoogleAuthProvider.credential(response.params.id_token));
                   const user = userCredential.user;
 
+                  const fetchedUser = await userService.getUserById(user.uid);
                   dispatch({
                     type: 'SET_USER',
-                    payload: {
+                    payload: fetchedUser || {
                       id: user.uid,
                       email: user.email || '',
                       displayName: user.displayName || '',
@@ -407,6 +413,18 @@ const AuthScreen = () => {
                   ]).start();
 
                   navTimerRef.current = setTimeout(async () => {
+                    // Check for pending gift flow
+                    try {
+                      const giftData = await getStorageItem('pending_gift_flow');
+                      if (giftData) {
+                        const config = JSON.parse(giftData);
+                        await removeStorageItem('pending_gift_flow');
+                        navigation.navigate('GiftFlow', { prefill: config });
+                        return;
+                      }
+                    } catch (error) {
+                      logger.error('Error handling pending gift flow after auth:', error);
+                    }
                     // Check for pending free challenge
                     try {
                       const challengeData = await getStorageItem('pending_free_challenge');
@@ -439,7 +457,8 @@ const AuthScreen = () => {
 
           showError('Unable to sign in with Google. Please try again.');
           setIsLoading(false);
-        });
+        })
+        .finally(() => { if (!showSuccessOverlay) setIsLoading(false); });
     } else if (response?.type === 'error') {
       showError('The sign-in process was canceled or failed.');
     }
@@ -528,14 +547,13 @@ const AuthScreen = () => {
   };
 
   const handlePasswordChange = (text: string) => {
-    const sanitized = sanitizeInput(text);
-    setPassword(sanitized);
-    // Clear password error when user starts typing
+    // SECURITY: Never sanitize passwords — they must reach Firebase Auth unmodified
+    setPassword(text);
     if (passwordError) {
       setPasswordError('');
     }
     if (!isLogin) {
-      validatePasswordStrength(sanitized);
+      validatePasswordStrength(text);
     }
   };
 
@@ -546,11 +564,12 @@ const AuthScreen = () => {
 
   const handleAuth = async () => {
     const sanitizedEmail = sanitizeInput(email);
-    const sanitizedPassword = sanitizeInput(password);
     const sanitizedDisplayName = sanitizeInput(displayName);
-    const sanitizedConfirmPassword = sanitizeInput(confirmPassword);
+    // Passwords must NEVER be modified before being sent to Firebase Auth
+    const rawPassword = password;
+    const rawConfirmPassword = confirmPassword;
 
-    if (!sanitizedEmail || !sanitizedPassword) {
+    if (!sanitizedEmail || !rawPassword) {
       showError('Please fill in all fields');
       return;
     }
@@ -568,7 +587,7 @@ const AuthScreen = () => {
         showError('Password does not meet security requirements');
         return;
       }
-      if (sanitizedPassword !== sanitizedConfirmPassword) {
+      if (rawPassword !== rawConfirmPassword) {
         showError('Passwords do not match');
         return;
       }
@@ -585,9 +604,9 @@ const AuthScreen = () => {
     try {
       let userCredential;
       if (isLogin) {
-        userCredential = await signInWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
+        userCredential = await signInWithEmailAndPassword(auth, sanitizedEmail, rawPassword);
       } else {
-        userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, sanitizedPassword);
+        userCredential = await createUserWithEmailAndPassword(auth, sanitizedEmail, rawPassword);
         await updateProfile(userCredential.user, { displayName: sanitizedDisplayName.trim() });
 
         // ? Send email verification immediately after signup
@@ -613,18 +632,30 @@ const AuthScreen = () => {
       }
 
       const user = userCredential.user;
-      dispatch({
-        type: 'SET_USER',
-        payload: {
-          id: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || sanitizedDisplayName.trim() || undefined,
-          userType: 'giver',
-          createdAt: new Date(),
-          wishlist: [],
-          cart: [],
-        },
-      });
+      const fetchedUser = await userService.getUserById(user.uid);
+      if (fetchedUser) {
+        dispatch({ type: 'SET_USER', payload: fetchedUser });
+      } else {
+        // Fallback if Firestore fetch fails — use minimal Firebase Auth data
+        dispatch({
+          type: 'SET_USER',
+          payload: {
+            id: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || sanitizedDisplayName.trim() || undefined,
+            userType: 'giver',
+            createdAt: new Date(),
+            wishlist: [],
+            cart: [],
+          },
+        });
+      }
+
+      if (isLogin) {
+        analyticsService.trackEvent('login_completed', 'conversion', { method: 'email' });
+      } else {
+        analyticsService.trackEvent('signup_completed', 'conversion', { method: 'email' });
+      }
 
       // Show success animation
       setShowSuccessOverlay(true);
@@ -644,6 +675,18 @@ const AuthScreen = () => {
 
       // After success animation, navigate to pending route or default
       navTimerRef.current = setTimeout(async () => {
+        // Check for pending gift flow
+        try {
+          const giftData = await getStorageItem('pending_gift_flow');
+          if (giftData) {
+            const config = JSON.parse(giftData);
+            await removeStorageItem('pending_gift_flow');
+            navigation.navigate('GiftFlow', { prefill: config });
+            return;
+          }
+        } catch (error) {
+          logger.error('Error handling pending gift flow after auth:', error);
+        }
         // Check for pending free challenge
         try {
           const challengeData = await getStorageItem('pending_free_challenge');
@@ -665,12 +708,14 @@ const AuthScreen = () => {
       logger.error('Auth error:', error);
       const firebaseError = error as { code?: string; message?: string };
 
+      analyticsService.trackEvent('login_failed', 'error', { errorCode: firebaseError.code || 'unknown' });
+
       // Log for all auth errors except common user mistakes (wrong password, etc)
       if (firebaseError.code !== 'auth/wrong-password' && firebaseError.code !== 'auth/user-not-found' && firebaseError.code !== 'auth/invalid-email') {
         await logErrorToFirestore(error instanceof Error ? error : new Error(firebaseError.message || 'Unknown auth error'), {
           screenName: 'AuthScreen',
           feature: isLogin ? 'Login' : 'Signup',
-          additionalData: { email: sanitizedEmail }
+          additionalData: { emailDomain: sanitizedEmail.split('@')[1] || 'unknown' }
         });
       }
 
@@ -766,14 +811,14 @@ const AuthScreen = () => {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, sanitizeInput(email));
       showSuccess('A password reset link has been sent to your email. Please check your spam folder.');
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
       await logErrorToFirestore(error instanceof Error ? error : new Error('Password reset failed'), {
         screenName: 'AuthScreen',
         feature: 'PasswordReset',
-        additionalData: { email }
+        additionalData: { emailDomain: email.split('@')[1] || 'unknown' }
       });
       let message = 'Failed to send reset email.';
       if (firebaseError.code === 'auth/invalid-email') message = 'Invalid email address.';
@@ -846,7 +891,7 @@ const AuthScreen = () => {
             keyboardDismissMode="on-drag"
           >
             {/* Back Button */}
-            <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, left: 20, zIndex: 10 }}>
+            <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? vh(50) : vh(20), left: 20, zIndex: 10 }}>
               <TouchableOpacity
                 onPress={handleBack}
                 style={{
@@ -871,7 +916,7 @@ const AuthScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xxxl, paddingTop: 60 }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xxxl, paddingTop: vh(56) }}>
 
               {/* Logo */}
               <View style={{ marginBottom: Spacing.huge, alignItems: 'center' }}>
@@ -1033,7 +1078,7 @@ const AuthScreen = () => {
                           borderRadius: BorderRadius.md,
                           paddingHorizontal: Spacing.lg,
                           paddingVertical: Spacing.md,
-                          paddingRight: 80,
+                          paddingRight: vh(60),
                           ...Typography.subheading,
                           borderWidth: 1,
                           borderColor: passwordError ? Colors.error : Colors.border,
@@ -1149,7 +1194,7 @@ const AuthScreen = () => {
                             borderRadius: BorderRadius.md,
                             paddingHorizontal: Spacing.lg,
                             paddingVertical: Spacing.md,
-                            paddingRight: 80,
+                            paddingRight: vh(60),
                             ...Typography.subheading,
                             borderWidth: 1,
                             borderColor: confirmPassword && password !== confirmPassword ? Colors.error : Colors.border,
@@ -1158,8 +1203,8 @@ const AuthScreen = () => {
                           placeholderTextColor={Colors.textMuted}
                           value={confirmPassword}
                           onChangeText={(text) => {
-                            const sanitized = sanitizeInput(text);
-                            setConfirmPassword(sanitized);
+                            // SECURITY: Never sanitize passwords
+                            setConfirmPassword(text);
                           }}
                           secureTextEntry={!showConfirmPassword}
                           accessibilityLabel="Confirm password"
@@ -1215,7 +1260,7 @@ const AuthScreen = () => {
                             }}
                           >
                             <LinearGradient
-                              colors={['rgba(5, 150, 105, 0.8)', 'rgba(4, 120, 87, 0.8)']}
+                              colors={[Colors.primary + 'CC', Colors.primaryDark + 'CC']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={{ flex: 1, borderRadius: BorderRadius.xl }}
@@ -1335,8 +1380,6 @@ const AuthScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  animatedGradientWeb: {},
-});
+const styles = StyleSheet.create({});
 
 export default AuthScreen; 

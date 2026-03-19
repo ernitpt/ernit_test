@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
 
 const TIMER_STORAGE_KEY = 'global_timer_state';
 
@@ -115,13 +116,27 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
             if (stored) {
                 const parsed = JSON.parse(stored);
                 // Recalculate elapsed time for running timers
-                Object.keys(parsed).forEach(goalId => {
-                    if (parsed[goalId].isRunning) {
-                        const elapsed = Math.floor((Date.now() - parsed[goalId].startTime) / 1000);
-                        parsed[goalId].elapsed = elapsed;
+                const MAX_SESSION_SECONDS = 8 * 3600; // 8 hours — stale sessions are capped
+                const restored: TimersState = parsed;
+                Object.keys(restored).forEach(goalId => {
+                    if (restored[goalId].isRunning) {
+                        const elapsed = Math.floor((Date.now() - restored[goalId].startTime) / 1000);
+                        if (elapsed > MAX_SESSION_SECONDS) {
+                            restored[goalId].isRunning = false;
+                            restored[goalId].elapsed = MAX_SESSION_SECONDS;
+                        } else {
+                            restored[goalId].elapsed = elapsed;
+                        }
                     }
                 });
-                setTimers(parsed);
+                // Prune stale stopped timers older than 24 hours
+                const STALE_THRESHOLD = 24 * 3600 * 1000;
+                Object.entries(restored).forEach(([goalId, timer]) => {
+                    if (!timer.isRunning && (Date.now() - timer.startTime) > STALE_THRESHOLD) {
+                        delete restored[goalId];
+                    }
+                });
+                setTimers(restored);
             }
             // Mark as loaded so saves can happen
             hasLoaded.current = true;
@@ -133,7 +148,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
 
     const saveTimers = async () => {
         try {
-            await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
+            await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timersRef.current));
         } catch (error) {
             logger.error('Error saving timer state:', error);
         }
@@ -144,6 +159,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     }, [timers]);
 
     const startTimer = useCallback((goalId: string, pendingHint: string | null = null) => {
+        analyticsService.trackEvent('session_start', 'engagement', { goalId });
         setTimers(prev => ({
             ...prev,
             [goalId]: {

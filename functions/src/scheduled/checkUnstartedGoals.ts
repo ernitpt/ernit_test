@@ -93,9 +93,11 @@ export const checkUnstartedGoals = functions.onSchedule(
                     continue;
                 }
 
-                // Create notification
+                // Create notification + stamp dedup atomically
                 try {
-                    await db.collection("notifications").add({
+                    const batch = db.batch();
+                    const notifRef = db.collection("notifications").doc();
+                    batch.set(notifRef, {
                         userId: goal.userId,
                         type: "goal_progress",
                         title,
@@ -109,9 +111,11 @@ export const checkUnstartedGoals = functions.onSchedule(
                     });
 
                     // Track that this day's notification has been sent
-                    await goalDoc.ref.update({
+                    batch.update(goalDoc.ref, {
                         sentUnstartedNotificationDays: admin.firestore.FieldValue.arrayUnion(daysSincePlanned),
                     });
+
+                    await batch.commit();
 
                     notificationsSent++;
                     console.log(

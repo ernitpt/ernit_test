@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -21,16 +21,17 @@ const ModernSlider = ({
     label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
 }: ModernSliderProps) => {
     const { width } = useWindowDimensions();
+    const [trackWidth, setTrackWidth] = useState(width - 96);
 
     const handlePress = (event: GestureResponderEvent) => {
         const { locationX } = event.nativeEvent;
-        const trackWidth = width - 96;
         const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
         const newValue = Math.round(min + percentage * (max - min));
         onChange(newValue);
     };
 
-    const progress = ((value - min) / (max - min)) * 100;
+    // Guard against div-by-zero when max === min
+    const progress = (max - min) > 0 ? ((value - min) / (max - min)) * 100 : 0;
     const displayUnit = unit && unitPlural ? (value === 1 ? unit : unitPlural) : '';
 
     return (
@@ -46,6 +47,7 @@ const ModernSlider = ({
             </View>
             <View
                 style={styles.sliderTrack}
+                onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={handlePress}
                 onResponderMove={handlePress}

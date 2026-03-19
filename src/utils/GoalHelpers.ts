@@ -83,7 +83,7 @@ export function normalizeGoal(g: Record<string, unknown> & { id: string }): Goal
     isWeekCompleted: !!g.isWeekCompleted,
     updatedAt: toJSDate(g.updatedAt) ?? DateHelper.now(),
     // Approval fields
-    approvalStatus: g.approvalStatus || (g.isFreeGoal ? 'approved' : 'pending'),
+    approvalStatus: g.approvalStatus ?? 'approved',
     initialTargetCount:
       typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
     initialSessionsPerWeek:

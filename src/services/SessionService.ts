@@ -5,14 +5,17 @@ import {
     query,
     orderBy,
     doc,
+    getDoc,
     updateDoc,
     Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import type { SessionRecord } from '../types';
 import { logger } from '../utils/logger';
 import { analyticsService } from './AnalyticsService';
 import { toDateSafe } from '../utils/GoalHelpers';
+import { sanitizeText, sanitizeUrl } from '../utils/sanitization';
+import { AppError } from '../utils/AppError';
 
 class SessionService {
     /**
@@ -24,6 +27,15 @@ class SessionService {
     ): Promise<SessionRecord> {
         try {
             const sessionsRef = collection(db, 'goals', goalId, 'sessions');
+
+            // Sanitize user-supplied text fields before persisting
+            if (sessionData.notes) {
+                sessionData = { ...sessionData, notes: sanitizeText(sessionData.notes, 2000) };
+            }
+            if (sessionData.mediaUrl) {
+                sessionData = { ...sessionData, mediaUrl: sanitizeUrl(sessionData.mediaUrl) };
+            }
+
             const docData: Record<string, unknown> = {
                 goalId: sessionData.goalId,
                 userId: sessionData.userId,
@@ -59,6 +71,11 @@ class SessionService {
      */
     async getSessionsForGoal(goalId: string): Promise<SessionRecord[]> {
         try {
+            const goalDoc = await getDoc(doc(db, 'goals', goalId));
+            if (!goalDoc.exists() || goalDoc.data()?.userId !== auth.currentUser?.uid) {
+                throw new AppError('UNAUTHORIZED', 'Not authorized to access this goal\'s sessions', 'auth');
+            }
+
             const sessionsRef = collection(db, 'goals', goalId, 'sessions');
             const q = query(sessionsRef, orderBy('timestamp', 'desc'));
             const snapshot = await getDocs(q);
@@ -95,6 +112,19 @@ class SessionService {
         updates: Partial<Pick<SessionRecord, 'mediaUrl' | 'mediaType' | 'thumbnailUrl' | 'notes'>>
     ): Promise<void> {
         try {
+            const goalDoc = await getDoc(doc(db, 'goals', goalId));
+            if (!goalDoc.exists() || goalDoc.data()?.userId !== auth.currentUser?.uid) {
+                throw new AppError('UNAUTHORIZED', 'Not authorized to update sessions for this goal', 'auth');
+            }
+
+            // Sanitize user-supplied text fields before persisting
+            if (updates.notes) {
+                updates = { ...updates, notes: sanitizeText(updates.notes, 2000) };
+            }
+            if (updates.mediaUrl) {
+                updates = { ...updates, mediaUrl: sanitizeUrl(updates.mediaUrl) };
+            }
+
             const sessionRef = doc(db, 'goals', goalId, 'sessions', sessionId);
             await updateDoc(sessionRef, updates);
             logger.log('Session updated:', sessionId);

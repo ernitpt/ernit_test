@@ -26,6 +26,12 @@ Automatic via `AppNavigator.tsx` `onStateChange` — drills into nested navigato
 
 ### Navigation
 - `screen_view` — auto-tracked via AppNavigator onStateChange
+- `app_open` — tracked on app foreground/launch
+
+### Auth
+- `signup_completed` — tracked in AuthScreen (email + Google paths)
+- `login_completed` — tracked in AuthScreen (email + Google paths)
+- `login_failed` — tracked in AuthScreen on auth error
 
 ### Conversion
 - `checkout_started`, `payment_initiated`, `payment_completed`, `payment_failed` (ExperienceCheckoutScreen)
@@ -36,15 +42,23 @@ Automatic via `AppNavigator.tsx` `onStateChange` — drills into nested navigato
 
 ### Engagement
 - `session_logged` (SessionService + GoalService)
+- `session_start` — tracked in TimerContext on session begin
+- `weekly_goal_completed` — tracked in GoalSessionService on weekly completion
 - `notification_tapped` (NotificationsScreen)
 - `gift_message_updated` (ExperienceGiftService)
+- `feed_viewed` — tracked in FeedScreen on mount/focus
 
 ### Social
 - `friend_request_accepted`, `friend_request_declined` (FriendService)
 - `friend_removed` (FriendService)
+- `feed_reaction` — tracked in ReactionService on reaction add
+- `feed_comment` — tracked in CommentService on comment add
 
 ### Error
 - `error_boundary_triggered` (ErrorBoundary component)
+
+### Notes
+- All event names are typed via `AnalyticsEventName` union in `src/types/index.ts`.
 
 ## Firestore Rules
 - `events`: authenticated create only, no client reads

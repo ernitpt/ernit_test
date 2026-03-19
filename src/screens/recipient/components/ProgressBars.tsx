@@ -159,7 +159,10 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
   overallTotal,
 }) => {
   return (
-    <View>
+    <View
+      accessibilityLabel={`Goal progress: ${completedWeeks} of ${overallTotal} weeks completed`}
+      accessibilityRole="summary"
+    >
       {/* Sessions this week */}
       <View style={styles.progressBlock}>
         <View style={styles.progressHeader}>

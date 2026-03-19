@@ -2,8 +2,9 @@
 import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
-import { View, Platform } from 'react-native';
-import { ProfileSkeleton } from '../components/SkeletonLoader';
+import { View, Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Colors from '../config/colors';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
@@ -41,13 +42,15 @@ import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScr
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
-import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
-import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
+const AchievementDetailScreen = React.lazy(() => import('../screens/recipient/AchievementDetailScreen'));
+const AnimationPreviewScreen = React.lazy(() => import('../screens/AnimationPreviewScreen'));
 // GiftLanding now uses ChallengeLandingScreen with mode='gift' param
 import GiftFlowScreen from '../screens/GiftFlowScreen';
+const DeferredSetupScreen = React.lazy(() => import('../screens/giver/DeferredSetupScreen'));
+import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import Colors from '../config/colors';
+import * as Notifications from 'expo-notifications';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const GiverStack = createNativeStackNavigator<GiverStackParamList>();
@@ -158,6 +161,46 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
     };
   }, []);
 
+  // Handle push notification taps — route user to relevant screen
+  useEffect(() => {
+    // expo-notifications tap routing is only applicable on native (iOS/Android)
+    // On web, FCM foreground messages are handled by PushNotificationService
+    if (Platform.OS === 'web') return;
+
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, any> | undefined;
+      if (!data) return;
+
+      // Wait until navigation is ready before dispatching
+      const navigate = () => {
+        if (!navigationRef.current) return;
+        if (data.goalId) {
+          navigationRef.current.navigate('GoalDetail', { goalId: data.goalId });
+        } else if (data.type === 'friend_request') {
+          navigationRef.current.navigate('Notification');
+        } else {
+          navigationRef.current.navigate('Notification');
+        }
+      };
+
+      if (isNavigationReady) {
+        navigate();
+      } else {
+        // Poll until navigation is ready (handles cold-start taps)
+        const interval = setInterval(() => {
+          if (navigationRef.current) {
+            clearInterval(interval);
+            navigate();
+          }
+        }, 100);
+      }
+    });
+
+    return () => {
+      responseListener.remove();
+    };
+  }, [isNavigationReady]);
+
   // -----------------------------
   // RENDER
   // -----------------------------
@@ -204,6 +247,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         FreeGoalCompletion: 'free-goal-completion',
         GiftLanding: 'gift',
         GiftFlow: 'gift/create',
+        DeferredSetup: 'gift/setup-payment',
         ChallengeSetup: 'challenge/create',
         ChallengeLanding: '',
         MysteryChoice: 'mystery-choice',
@@ -255,7 +299,13 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
         <RootStack.Screen name="GiftLanding" component={ChallengeLandingScreen} initialParams={{ mode: 'gift' }} />
         <RootStack.Screen name="GiftFlow" component={GiftFlowScreen} />
-        <RootStack.Screen name="AnimationPreview" component={AnimationPreviewScreen} />
+        <RootStack.Screen name="DeferredSetup">
+          {() => (
+            <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
+              <DeferredSetupScreen />
+            </React.Suspense>
+          )}
+        </RootStack.Screen>
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
@@ -405,7 +455,19 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="AchievementDetail">
           {() => (
             <ProtectedRoute>
-              <AchievementDetailScreen />
+              <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
+                <AchievementDetailScreen />
+              </React.Suspense>
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
+
+        <RootStack.Screen name="AnimationPreview">
+          {() => (
+            <ProtectedRoute>
+              <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
+                <AnimationPreviewScreen />
+              </React.Suspense>
             </ProtectedRoute>
           )}
         </RootStack.Screen>
@@ -516,9 +578,14 @@ const AppNavigator = () => {
   // -----------------------------
   if (isCheckingAuth) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.white }}>
-        <ProfileSkeleton />
-      </View>
+      <LinearGradient colors={Colors.gradientPrimary} style={splashStyles.container}>
+        <Image
+          source={require('../assets/icon.png')}
+          style={splashStyles.logo}
+          resizeMode="contain"
+        />
+        <ActivityIndicator size="small" color={Colors.white} style={splashStyles.spinner} />
+      </LinearGradient>
     );
   }
 
@@ -533,5 +600,21 @@ const AppNavigator = () => {
     </AuthGuardProvider>
   );
 };
+
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+  },
+  spinner: {
+    marginTop: 24,
+  },
+});
 
 export default AppNavigator;

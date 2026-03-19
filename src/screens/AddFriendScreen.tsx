@@ -67,7 +67,7 @@ const AddFriendScreen: React.FC = () => {
     try {
       setIsSearching(true);
       setSearchError(false);
-      const results = await friendService.searchUsers(searchTerm, currentUserId);
+      const results = await friendService.searchUsers(searchTerm.trim(), currentUserId);
       setSearchResults(results);
     } catch (error) {
       logger.error('Error searching users:', error);
@@ -179,6 +179,7 @@ const AddFriendScreen: React.FC = () => {
           accessibilityLabel="Search for friends by name or email"
           leftIcon={<Search size={18} color={Colors.textMuted} />}
           containerStyle={{ marginBottom: 0 }}
+          maxLength={100}
         />
         {isSearching && (
           <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
@@ -222,6 +223,7 @@ const AddFriendScreen: React.FC = () => {
               removeClippedSubviews={Platform.OS !== 'web'}
               maxToRenderPerBatch={10}
               windowSize={5}
+              getItemLayout={(data, index) => ({ length: 72, offset: 72 * index, index })}
             />
           </>
         )}

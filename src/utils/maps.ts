@@ -1,4 +1,7 @@
 export const getStreetMapEmbedUrl = (originalEmbedUrl: string): string => {
+  if (!originalEmbedUrl.startsWith('https://')) {
+    return '';
+  }
   try {
     const url = new URL(originalEmbedUrl);
     // Force normal map (not satellite)

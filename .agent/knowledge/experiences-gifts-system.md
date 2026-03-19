@@ -30,8 +30,20 @@ Friends can buy the pledged experience for a free-goal user at any point during 
 - **Redemption**: Goal owner can only redeem after completing the goal
 - **Deadline**: 30-day window after completion (`giftAttachDeadline`) for late gifts
 
+## 5. Together/Shared Challenge Gift Flow
+- Giver goal is created **atomically** with the gift via a Firestore batch write.
+- `togetherData.giverGoalId` is set before the batch commits.
+- `recipientGoalId` is stored as a fallback on the gift document if the bidirectional link fails.
+- `attachGiftToGoal` transaction sets `isRedeemed: true`, `redeemedAt`, and `redeemedGoalId` on the gift doc.
+- **Gift claim revert**: If goal creation fails after gift creation, the gift reverts to `pending` with claim fields cleared.
+
+## 6. Email Security
+- Email templates use `escapeHtml` for XSS protection.
+- Shared template helper: `functions/src/utils/giftEmailTemplate.ts`.
+
 ## Key Relationships
 - **User's Wishlist**: Array of ID strings pointing to `experiences`.
 - **User's Cart**: Array of objects referencing `experiences` + quantity.
 - **Purchased Goal**: `experienceGiftId` on Goal links to `experienceGifts` document.
 - **Free Goal**: `pledgedExperience` snapshot on Goal (no purchase required to create).
+- **Gift Redeemed**: `isRedeemed` + `redeemedAt` + `redeemedGoalId` set atomically in `attachGiftToGoal`.

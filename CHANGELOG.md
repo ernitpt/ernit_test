@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Together/Shared challenge foundation: GoalShared type (GoalValentine alias kept for backward compat), sharedChallenges Firestore collection rules, checkAndUnlockSharedPartners method in GoalService, shared fields in GoalSettingScreen goal creation, partner goal onSnapshot listener and progress display in DetailedGoalCard, shared_start/shared_unlock/shared_completion/payment_charged/payment_failed notification renderers, and shared challenge check in chargeDeferredGift Cloud Function trigger
+- Together/Shared challenge foundation — GoalShared types, sharedChallenges rules, partner progress display, bidirectional goal linking, both-must-complete charge logic
+- add status field to createExperience Cloud Function (defaults to 'published')
+- wire up nodemailer email sending for partner app verification
+- create giver goal in Cloud Functions for Together/Shared challenges and write giverGoalId back to gift document
+- overhauled chargeDeferredGift to handle free shared challenges, fix double-charge race via transaction, unlock both goals after charge, and notify both users on shared_completion and shared_unlock
+- add shared challenge notifications and waiting-for-partner UX
+- Together challenge end-to-end — transaction-wrapped charge with idempotency, goal unlock for both partners, completion blocking, free shared gift path, shared_start/unlock/completion notifications, waiting-for-partner UI, approval skip, atomic gift+goal creation, Test functions synced
+- add critical analytics tracking for auth, feed, reactions, comments, sessions, and weekly goal completion
+- analytics — AuthScreen login/signup/failure events, FeedScreen view tracking, ReactionService feed_reaction, CommentService feed_comment, GoalSessionService weekly_goal_completed, TimerContext session_start, 8 new event types added
+- Firestore offline persistence enabled via persistentLocalCache + multi-tab manager — reads now cached to IndexedDB, writes queue offline
+- items 1-4 complete — error states on 7 screens, input validation with sanitizeText on all Firestore writes, Firestore offline persistence enabled, network-aware error messages, navigation to PurchasedGifts on payment poll failure, skeleton timeout on GoalsScreen
+- add rate limiting to createFreeGift, createDeferredGift, and stripeCreatePaymentIntent cloud functions
+- accessibility — accessibilityLiveRegion on GoalsScreen/FeedScreen/NotificationsScreen loading transitions, labels on ProgressBars/StreakBanner/WeeklyCalendar, PWA offline fallback page + service worker cache
+
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
+- update system-map, add deployment checklist, update CLAUDE.md with sanitizeText and vh patterns
+- document firebase-messaging-sw.js config sync requirement with firebaseConfig.ts
+- all 8 knowledge files updated — goals, notifications, analytics, payments, experiences/gifts, social/feed, auth/user, UI/UX systems
 
 ### Changed
 - replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen
@@ -140,6 +159,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add VH responsive scaling to ChallengeSetupScreen vertical spacing
 - add VH responsive scaling to GiftFlowScreen vertical spacing
 - responsive vh() scaling for all wizard steps in both ChallengeSetup and GiftFlow screens
+- extract shared vh/VH responsive utility and remove duplicate local definitions from ChallengeSetupScreen, ChallengeLandingScreen, GiftFlowScreen
+- add responsive vh() scaling to 4 confirmation/completion screens
+- add responsive vh() scaling to CategorySelectionScreen, ExperienceCheckoutScreen, AuthScreen, MysteryChoiceScreen, SideMenu, and SkeletonLoader
+- full-app responsive audit — shared vh() utility + scaling across 16 screens and 2 components
+- apply vh() responsive scaling to medium-priority hardcoded image heights in 5 components
+- apply vh() responsive scaling to MEDIUM-priority hardcoded height/margin values in 5 screen files
+- add vh() responsive scaling to high-priority hardcoded height values in ExperienceDetailsScreen.web, ExperienceDetailsScreen.native, GoalSettingScreen, and AchievementDetailScreen
+- second-pass responsive audit — vh() scaling on 14 additional files (screens + components)
+- unify partner onboarding flows — deprecate /partner/onboard with redirect to /signup, align partnerUsers schema across signup and complete-onboarding
+- partner app cleanup — unified onboarding, verification emails via nodemailer, experience status field
+- sync Test Cloud Functions with PROD (atomic batch giver goal creation for shared challenges in createFreeGift_Test and createDeferredGift_Test; fix payment_failed notification message in chargeDeferredGift_Test)
+- increased hero subtitle font size on landing screen
+- reduced spacing above CTA button to match carousel-subtitle gap
+- fix stale closures in FeedPost useEffect, replace Dimensions.get with useWindowDimensions in profile screens, remove dead imports and commented-out code across multiple files
+- add 121 tests for GoalHelpers edge cases, sanitization, and helpers utilities
+- 121 new tests — GoalHelpers edge cases (47), sanitization functions (48), helpers/claimCode/validation (26). Total: 212 tests across 6 suites
+- FeedPost useCallback on reaction/comment loaders, UserProfile+FriendProfile useWindowDimensions, dead imports+styles+code removed across 8 files
+- PWA audit — PWAInstaller confirmed mounted, service worker config sync documented, reaction PNGs identified at 4MB total (need compression), @expo/vector-icons only used for font preload (3.5MB of unused fonts), React.lazy candidates identified for code splitting
+- remove @expo/vector-icons (saves 3.5MB), fix hardcoded hex colors with design tokens, lazy-load 3 screens, cap FeedScreen memory at 200 posts
+- add unit tests for Cloud Function pure logic (giftEmailTemplate, cors)
+- removed @expo/vector-icons (saves ~3.5MB icon fonts), React.lazy on 3 screens (code splitting), FeedScreen 200-post memory cap, hardcoded hex colors replaced with tokens
+- Cloud Function tests — giftEmailTemplate escapeHtml+XSS (14 tests), cors config prod/emulator modes (12 tests). Total: 241 tests across 8 suites
+- final verification complete — all critical paths verified (Firestore rules, services, E2E flows, test infrastructure, new files), 13/17 deferred MEDIUMs confirmed fixed, 4 remaining are LOW severity and documented for post-launch
+- add unit tests for GoalSessionService tick logic, CartService.mergeCarts, and normalizeGoal edge cases
+- 103 new tests — GoalSessionService tick/sweep/completion logic (73), CartService.mergeCarts (19), normalizeGoal Timestamp+field edge cases (11). Total: 304 tests across 10 suites
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -277,6 +321,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add KeyboardAvoidingView to GoalSettingScreen and GiftFlowScreen to prevent keyboard covering inputs
 - replace Alert.alert destructive confirmations with ConfirmationDialog component
 - enable LayoutAnimation on Android in SideMenu and switch auth animations to native driver
+- clean up dead code and inconsistencies across wizard screens
+- correct targetCount/initialTargetCount to use sessionsPerWeek, persist sessionMinutes in prefill, remove dead goalName state, add pending_gift_flow to all auth paths, store currentStep in gift flow prefill, skip reveal step when paymentChoice is free
+- UX and bug fixes across landing page and wizard screens (Bugs 7-10, UX 11-14, 17-19)
+- 10 bugs, 9 UX issues, 5 inconsistencies fixed across landing page and both wizard flows
+- 6 critical security fixes — admin auth on partners/create, idempotency guard on chargeDeferredGift, tightened experienceGifts list limit, removed verifyLink from API responses, documented partnerUsers PII exposure, added auth guard in CouponEntryScreen
+- resolve double-claim race condition, deferred charge webhook crash, missing status:completed, payment_failed notification, SCA error recovery, and test db import
+- align claim button threshold with 12-char validation, fix post-goal-creation navigation to Goals, add revealed-mode reward preview on GoalSetting step 1, swap to design-system TextInput and shared ModernSlider/WizardProgressBar components
+- critical security hotfixes — partner API auth, idempotency guard, Firestore rules tightening, claim guard
+- 7 critical bugs — double-claim, webhook crash, gift status, payment notifications, SCA handling, cold-start fix
+- redemption UX — claim threshold, post-creation nav, reward preview, design system components, shared slider/progress bar
+- CouponEntryScreen now accepts active gifts alongside pending when validating claim codes
+- verify-email route no longer overwrites admin-set partner name; adds contactEmail field
+- chargeDeferredGift_Test now has idempotency guard and shared challenge both-must-complete logic
+- NotificationsScreen handlePress now navigates for shared_* and payment_* notification types
+- P0 Firestore rule missing claimedBy on active gift claim, partner invite link uses ?invite= param, orphaned gift revert on goal creation failure
+- add 'active' status to ExperienceGift type, remove dead goalName field from GiftFlowData, replace new Date() with serverTimestamp() in notification writes
+- second-pass audit — Firestore rule for active gifts, orphaned gift recovery, giver goal creation for Together mode, partner invite links, notification handlers, type consistency
+- move idempotency guard before shared-challenge check and use serverTimestamp for chargedAt/updatedAt in chargeDeferredGift
+- signup page copies admin-entered fields from pre-created partnerUsers doc when invite has targetUid; deleted unused /api/partners/onboard route
+- third-pass audit — idempotency guard ordering, serverTimestamp for chargedAt, partner signup claims pre-created account, legacy onboard route removed
+- wrap gift + giver goal creation in atomic batch write, add plannedStartDate, approvalStatus, giverActionTaken, and expiresAt to giver goal
+- block giver goal completion until recipient redeems for shared challenges (C2), skip approval notification for shared challenges (H5)
+- giver goal targetCount uses weeks (not sessionsPerWeek) and gift createdAt/updatedAt use serverTimestamp across all 4 gift creation Cloud Functions
+- bidirectional link retry/fallback, sweepExpiredWeeks C2 guard, shared_session notification type, giver goal deletion stuck state, remove dead checkAndUnlockSharedPartners
+- move Stripe PaymentIntent creation outside Firestore transaction in chargeDeferredGift to eliminate non-deterministic I/O retries; add notificationSent idempotency guard for shared_unlock notifications; add gift expiry check before charge
+- final Together audit — targetCount fix, Stripe moved outside transaction, bidirectional link retry, sweepExpiredWeeks guard, shared_session notification type, deleted goal handling, expiry gate, notification dedup, dead code removal
+- replaced ProfileSkeleton with branded splash screen on initial auth check
+- balanced stat text length across landing page modes for consistent toggle animation
+- remove password sanitization, fix isNewUser detection, dispatch real Firestore user on auth, fix AuthGuard fallback navigation to Goals
+- auth audit — removed password sanitization, fixed isNewUser detection, dispatch real Firestore user on login, AuthGuard fallback to Goals
+- persist isReadyToComplete in sweepExpiredWeeks, fix clearTimerState key, move giftAttachDeadline into transaction, tighten weeklyCount Firestore rule, set currentCount=targetCount on completion, fix FreeGoalCompletionScreen redirect and category-only guard
+- goals audit — isReadyToComplete persisted in sweep, timer storage key aligned, giftAttachDeadline moved into transaction, weeklyCount increment-only rule, currentCount reaches targetCount on completion, FreeGoalCompletion handles category-only goals
+- 7 critical/high gift-audit issues — native screen redirects to web checkout, processingRef reset on stripe null, cart cleared in all polling fallbacks, back button interactive during skeleton, experienceGifts get rule scoped to giver/recipient only, gift expiry enforced at claim time, partner coupon status rollback blocked
+- gift flow audit — native checkout redirects to web flow, processingRef reset, cart cleared on poll timeout, gift get rule tightened, expiry enforced at claim time, coupon status irreversible, loading back-button interactive
+- harden Firestore rules — whitelist Together notification types, restrict post_reaction update to owner+fields, add reactorId check on create, cap reactions/comments list at 50, validate reactionCounts map diff, allow email+targetUid in partnerInvites
+- Firestore rules audit — Together notification types whitelisted, post_reaction ownership+field restrictions, reactions/comments list capped, reactionCounts bounded, partnerInvites fields added
+- resolved 7 HIGH-severity issues — feed pagination timestamp cursor, goal_approval_response notification, markAllAsRead batch, duplicate AuthGuardProvider, AnimationPreview route protection, logout navigation reset, ErrorBoundary async componentDidCatch
+- patch 5 HIGH-severity security issues (middleware JWT check, invite auth, PII in logs, storage rules UID scope, weekly recap idempotency)
+- social/nav/UI audit — feed pagination cursor, goal_approval_response renderer, mark-all-read, removed duplicate AuthGuardProvider, AnimationPreview protected, logout resets stack, ErrorBoundary sync componentDidCatch
+- partner/storage/jobs audit — middleware JWT validation, invite API auth hardened, PII removed from error logs, storage rules UID-scoped, sendWeeklyRecap idempotency guard
+- add session cookie auth to complete-onboarding and verify-email API routes to prevent account takeover
+- fetch real Firestore user after Google account-link instead of dispatching stale hardcoded object
+- restrict storage catch-all rule to authenticated users only
+- wrap signup invite check and mark-used in a Firestore transaction to eliminate TOCTOU race
+- restrict Firestore notification owner update to read/updatedAt/isStale fields only
+- clear cart on processing payment status in ExperienceCheckoutScreen redirect-return handler
+- align sendWeeklyRecap idempotency check to use primaryGoal instead of goals[0]
+- final audit — partner API auth on complete-onboarding/verify-email, Google account-linking dispatch, storage catch-all requires auth, signup invite TOCTOU transaction, notification update field restriction, cart cleared on processing status, weekly recap idempotency consistency
+- third audit — weekly_recap field names aligned, partner signup setDoc inside transaction, cart cleared in Firestore on processing status, commentCount bounded to ±1
+- resolve 5 HIGH-severity security issues in service files (MotivationService race condition, friendship check, AIHintService per-user cache scoping, SessionService input sanitization, ExperienceGiftService client-side create guard)
+- production guard on DateHelper.addOffset, DateHelper.reset on logout, auth typed as Auth in firebase.ts, validateFirebaseConfig throws on missing keys and is called before initializeApp, removed duplicate isProduction from firebaseConfig, fixed recipientName in GoalProgressNotification
+- resolve 8 medium-severity issues: division by zero in WizardProgressBar, today disabled in BookingCalendar, duplicate notification listener in SharedHeader, stale closure in TimerContext saveTimers, no staleness cap on restored timers, hardcoded hex color in App.tsx, missing try/catch on setupNotificationHandler, modulo bias in generateClaimCode
+- enforce https-only in sanitizeUrl, maps embed, functionsUrlOverride; sanitize authorName in MotivationService; replace direct Firestore goals query with goalService in FriendProfileScreen; add timeout cleanup in LoginPrompt and MotivationModal; cap cart quantity at 10 in CartService
+- deep audit of unexplored files — 10 HIGH fixes (MotivationService transaction+friendship check, AIHintService user-scoped cache, SessionService sanitization, ExperienceGiftService deprecated, DateHelper production guard, firebase.ts typing, firebaseConfig validation+unified isProduction, GoalProgressNotification recipient name) + 15 MEDIUM fixes (WizardProgressBar div/zero, BookingCalendar today selectable, SharedHeader dedup listener, TimerContext stale closure+staleness cap, App.tsx color token+try-catch, claim code rejection sampling, sanitizeUrl https-only, maps https check, authorName sanitized, FriendProfile uses GoalService, timeout cleanups, cart quantity cap, functions URL validation)
+- patch 5 HIGH-severity Firestore rules vulnerabilities (coupon enumeration, existence probing, friend creation replay, notification spam, analytics injection)
+- exhaustive rules audit — coupon enumeration blocked, existence probing removed, friend creation requires server timestamp, notification spam prevented via friendRequest exists check, analytics events field-validated
+- auth round 2 — password onChange handlers no longer sanitize (was stripping special chars), LogoutConfirmation timer cleanup on unmount
+- firebase.ts setPersistence error now caught instead of fire-and-forget
+- add authorization checks for 15 HIGH-severity issues across service files
+- service authorization audit — 15 HIGH fixes: ownership checks on GoalService (updateGoal, approveGoal, suggestChange), SessionService (getSessions, updateSession), FriendService (declineRequest, removeFriend), CommentService (updateComment, deleteComment), CouponService (generateCoupon), NotificationService (clearAll bounded), saveCouponCode re-throws, AIHintService merge writes, FeedService private counter methods
+- dead || fallback in GoalApprovalNotification, ?? placeholder in title, BaseModal accessible={false}, ReactionIcons SVG gradient ID collisions, AudioPlayer resource leak on unmount, ContactModal setTimeout not cleaned up
+- component audit — GoalApprovalNotification dead fallback + placeholder emoji, BaseModal accessible to screen readers, ReactionIcons unique gradient IDs, AudioPlayer leak-safe unmount, ContactModal timer cleanup
+- PA-01/PA-02 activate JWT middleware at project root, remove presence-only guards middleware exports; S-01 debounce auto-approve out of snapshot callback; S-02 add mounted guard to GoalsScreen listener; S-06 add 5MB client-side file size check before profile image upload; S-12 document intentional non-atomicity and wrap session record writes in non-blocking try/catch; CF-01 fix rate-limit comment mismatch and document full-collection-scan limitation
+- final rounds — partner middleware renamed to middleware.ts (was never loading), GoalsScreen auto-approve debounced + mounted guard, UserProfileScreen 5MB upload check, DetailedGoalCard session non-atomicity documented, searchUsers comment fixed + limitation documented
+- verification audit — FriendService uses serverTimestamp + addedAt field (was breaking friend accepts), NotificationService writes data.requestId + top-level senderId (was breaking friend request notifications), invite validate route rate-limited
+- resolved 12 medium audit issues (firestore type validation, notification type, password reset sanitization, sanitizeUrl, goal ownership, weekStartAt normalization, motivation transaction, feed query, notification batch delete, slider div-by-zero, slider layout, checkout back button)
+- final 12 MEDIUM fixes — partnerInvites type validation, valentine_partner_progress type added, password reset sanitized, sanitizeUrl returns empty on invalid, checkAndAutoApprove ownership, weekStartAt midnight normalized, MotivationService deterministic doc ID in transaction, listenToFeed userId filter, clearReadNotifications bounded+batched, ModernSlider div-by-zero guard + onLayout track, checkout back button disabled during processing
+- E2E flow audit — ChallengeSetupScreen targetCount set to weeks (was sessionsPerWeek), endDate computed from plannedStartDate, currentStep saved+restored in wizard prefill
+- collect SetupIntent card details before confirming deferred gift, add payLater experience guard, fix dead coupon generation in CompletionScreen, document recipientEmail as planned feature
+- E2E gift flow — DeferredSetupScreen collects card via Stripe PaymentSheet (was completely missing), category-only payLater blocked, CompletionScreen coupon generation unreachable code fixed, recipientEmail documented as planned feature
+- A4 firestore rules allow recipient to link partnerGoalId on shared challenge goals; A5 shared_completion and shared_unlock notifications now target the correct users (goal owners, not giverId); B1 add comment notification to post owner in CommentService; C1 verified coupon generation useEffect is correctly extracted
+- E2E Together+Social flow — Firestore rules now allow recipient to link partnerGoalId on giver's shared goal, shared_completion/unlock notifications target correct users, comment notifications added
+- resolve 4 E2E flow issues — goalDescription undefined in reminders, expired gift silent failure with notifications, SCA recovery URL handling, gift not marked redeemed on attach
+- E2E re-verification — session reminder messages fixed (goalDescription→description), expired gifts notify both parties + mark status expired, SCA recovery URL opens in browser, gift marked redeemed in attachGiftToGoal transaction
+- add accessibilityViewIsModal to 7 modal components, fix Platform.OS check in AppContext, add getItemLayout to 3 FlatLists
+- cross-platform+accessibility+perf — 7 modals get accessibilityViewIsModal, AppContext uses Platform.OS for web check, FlatList getItemLayout on FriendsListScreen+AddFriendScreen+PurchasedGiftsScreen
+- Cloud Functions TS error (partnerGoalData out of scope), npm audit fix for undici+express vulnerabilities, all 91 tests passing
+- guard isCompleted/currentCount direct writes in Firestore goals rule, add gift claim revert rule for experienceGifts, null-guard experience.title in goal approval notification, fix GiftFlowScreen step titles for free-payment mode, add gift_received and goal_completed notification renderers
+- CRITICAL — Firestore rules prevent direct isCompleted/currentCount manipulation (blocked Stripe charge fraud), gift claim revert rule added (was blocking rollback on failure), experience?.title null guard, dynamic step titles for free-payment mode, gift_received+goal_completed notification renderers, all tests passing
+- NotificationsScreen onRetry now re-subscribes listener (was hanging on spinner), goal_set+valentine notification types now navigate on tap
+- remove useAuth privilege-escalation fallback, fix coupon doc ID path, add confetti timeout cleanup, add Start Session accessibility
+- atomic dedup batches, user-tz date key, N+1 pre-fetch in scheduled Cloud Functions
+- scheduled jobs — all 5 functions now use atomic batch writes for notification+dedup (was separate writes causing duplicates on retry), session reminders use user timezone (was UTC causing wrong-day dedup), booking reminders pre-fetch eliminates N+1 reads, checkUnstartedGoals_Test dedup restored, Test files synced with PROD (exists property, title field, batch pattern)
+- partner dashboard — useAuth privilege escalation fallback removed, coupon redemption uses doc ID, GoalCardModals confetti timeout cleanup, SessionActionArea accessibility
+- add idempotency to sendWeeklyRecap_Test and atomic batch writes to checkUnstartedGoals PROD
+- sendWeeklyRecap_Test now has full idempotency (weekKey + guard + atomic batch), checkUnstartedGoals PROD now uses atomic batch (was two separate writes)
+- add try/catch error handling to userService, NotificationService, ExperienceGiftService, and FriendService
+- error handling — try/catch on all userService methods, NotificationService.createNotification non-critical wrapper, ExperienceGiftService.getById safe fallback, FriendService 6 read methods with fallbacks
+- Google sign-in login_failed analytics tracked, UserProfileScreen pickImage wrapped in try/catch, NotificationService markAsRead+deleteNotification wrapped in try/catch
+- add missing catch blocks for friend request, remove friend, clipboard copy, and experience gift load errors
+- resolve 14 HIGH-severity error handling issues across Partner App and Cloud Functions
+- comprehensive error handling audit — FriendProfileScreen catch blocks on send/remove, JourneyScreen+AchievementDetailScreen empty catches log warnings, ConfirmationScreen clipboard try/catch, partner dashboard alert()→toast + loading guards, login auth/invalid-credential handled, Cloud Functions preserve HttpsError codes, aiGenerateHint import+rate-limit guarded, notificationSender token cleanup wrapped
+- add giver isRedeemed Firestore rule, approvalStatus migration default, UserProfile double-submit guard, AuthScreen isLoading stuck, NotificationsScreen double-tap guard, FriendProfileScreen error state
+- concurrency+migration+states — Firestore rule allows isRedeemed write (empower flow was broken), approvalStatus defaults to approved for old goals (were locked), UserProfile save double-submit guard, AuthScreen Google isLoading finally, NotificationsScreen tap dedup, FriendProfileScreen error state, test updated for new default
+- add full-screen ErrorRetry to 7 screens missing error states (JourneyScreen, CompletionScreen, AchievementDetailScreen, ConfirmationScreen, ExperienceCheckoutScreen, GoalSettingScreen, UserProfileScreen)
+- add input sanitization and maxLength guards for H1-H7 and M2-M4 validation gaps
+- 7 screens now have proper error states with ErrorRetry (JourneyScreen, CompletionScreen, AchievementDetailScreen, ConfirmationScreen, ExperienceCheckoutScreen, GoalSettingScreen, UserProfileScreen)
+- input validation — sanitizeText now called before ALL Firestore writes (UserProfile, GoalSetting, MotivationService, GoalService hints, GoalApprovalNotification, GoalChangeSuggestionModal, ConfirmationScreen, ChallengeSetup, GiftFlow), maxLength added to all missing TextInputs, AddFriendScreen search trimmed+capped
+- enable Firestore IndexedDB offline persistence, network-aware error messages, skeleton loader timeout, and PurchasedGifts fallback navigation
+- offline resilience — network-aware error message on session finish, payment poll failure navigates to PurchasedGifts, 15s skeleton timeout on GoalsScreen, gift revert failure shows support message
+- block hardware back and gesture swipe during active Stripe payment in ExperienceCheckoutScreen
+- add ref-based debounce guard to ChallengeLandingScreen CTA to prevent double-tap navigation
+- ProtectedRoute now preserves deep-link destination in requireAuth for post-login redirect
+- add push notification tap routing in AppNavigator for native platforms
+- navigation — ExperienceCheckout blocks back during payment, CTA double-tap debounce, ProtectedRoute preserves deep link destination, push notification tap routes to correct screen
+- escape HTML in gift emails, add unsubscribe footer, extract shared template, prune stale TimerContext entries
+- rate limits added to createFreeGift (10/hr), createDeferredGift (10/hr), stripeCreatePaymentIntent (20/hr) — all PROD+Test
+- email XSS — giverName+experienceTitle HTML-escaped, unsubscribe footer added, buildGiftEmailHtml extracted to shared utility, TimerContext prunes stale entries older than 24h
+- add accessibilityLiveRegion to loading transitions, accessibility labels to ProgressBars/StreakBanner/WeeklyCalendar, and offline PWA fallback page
 
 ### Added
 - Automatic changelog system with `npm run log` script
@@ -382,3 +535,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - gift flow improvements - personalized message, secret mode guard, CTA labels, category UX
 - remove payNow option from GiftFlowScreen
 - clock dial for time per session, calendar spacing fix, Buy Now removal from both flows
+- add responsive vh() scaling to GoalsScreen, JourneyScreen, CouponEntryScreen, SessionMediaPrompt

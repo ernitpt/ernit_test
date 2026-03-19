@@ -46,6 +46,13 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
     // Create refs for focus chaining
     const messageRef = useRef<RNTextInput>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, []);
 
     // Reset form when modal opens/closes
     useEffect(() => {
@@ -80,7 +87,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
             setIsSending(false);
 
             // Close after 2 seconds
-            setTimeout(() => {
+            timerRef.current = setTimeout(() => {
                 onClose();
             }, 2000);
         } catch (error) {
@@ -117,6 +124,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                         styles.modalContainer,
                         { transform: [{ translateY: slideAnim }] }
                     ]}
+                    accessibilityViewIsModal={true}
                 >
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

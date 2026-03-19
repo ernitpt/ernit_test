@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { db } from './index';
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
+import { buildGiftEmailHtml } from "./utils/giftEmailTemplate";
 import crypto from 'crypto';
 
 // ========== CREATE FREE GIFT (TEST — ernitclone2) ==========
@@ -90,6 +91,25 @@ export const createFreeGift_Test = onRequest(
             return;
         }
 
+        // ✅ RATE LIMITING: Max 10 free gift creations per hour per user
+        const RATE_LIMIT = 10;
+        const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+        const rateLimitRef = db.collection('rateLimits').doc(`createFreeGift_${userId}`);
+        const rateLimitSnap = await rateLimitRef.get();
+        const now = Date.now();
+
+        if (rateLimitSnap.exists) {
+            const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
+            if (requests.length >= RATE_LIMIT) {
+                console.warn(`⚠️ [TEST] createFreeGift rate limit exceeded for user ${userId}`);
+                res.status(429).json({ error: 'Too many gift creation requests. Please try again later.' });
+                return;
+            }
+            await rateLimitRef.set({ requests: [...requests, now], lastRequest: now });
+        } else {
+            await rateLimitRef.set({ requests: [now], lastRequest: now });
+        }
+
         try {
             // Fetch the experience to snapshot its data
             const experienceDoc = await db.collection('experiences').doc(experienceId).get();
@@ -120,8 +140,8 @@ export const createFreeGift_Test = onRequest(
                 payment: "free",
                 claimCode,
                 expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-                createdAt: admin.firestore.Timestamp.now(),
-                updatedAt: admin.firestore.Timestamp.now(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 challengeType,
                 revealMode,
                 isMystery: revealMode === 'secret',
@@ -149,7 +169,73 @@ export const createFreeGift_Test = onRequest(
                 };
             }
 
-            await db.doc(`experienceGifts/${giftId}`).set(newGift);
+            // Atomic batch: write gift and (for shared challenges) giver goal together
+            if (challengeType === 'shared' && newGift.togetherData) {
+                const td = newGift.togetherData;
+                const durationMatch = td.duration?.match(/(\d+)/);
+                const weeks = durationMatch ? parseInt(durationMatch[1]) : 4;
+                const freqMatch = td.frequency?.match(/(\d+)/);
+                const sessionsPerWeek = freqMatch ? parseInt(freqMatch[1]) : 3;
+                const timeMatch = td.sessionTime?.match(/(\d+)h\s*(\d+)m/);
+                const sessionHours = timeMatch ? parseInt(timeMatch[1]) : 0;
+                const sessionMinutes = timeMatch ? parseInt(timeMatch[2]) : 30;
+
+                const now = new Date();
+                const endDate = new Date(now);
+                endDate.setDate(endDate.getDate() + weeks * 7);
+
+                // Pre-generate both document references
+                const giftDocRef = db.collection('experienceGifts').doc(giftId);
+                const giverGoalRef = db.collection('goals').doc();
+
+                // Embed giverGoalId into the gift before writing
+                newGift.togetherData.giverGoalId = giverGoalRef.id;
+
+                const giverGoalData = {
+                    userId,
+                    experienceGiftId: giftId,
+                    name: td.goalName || `${weeks}-week challenge`,
+                    title: td.goalName || `${weeks}-week challenge`,
+                    description: td.goalName || `${weeks}-week challenge`,
+                    type: 'custom',
+                    isCustom: true,
+                    challengeType: 'shared',
+                    frequency: 'weekly',
+                    weeks,
+                    sessionsPerWeek,
+                    sessionHours,
+                    sessionMinutes,
+                    targetHours: sessionHours,
+                    targetMinutes: sessionMinutes,
+                    duration: weeks,
+                    targetCount: weeks,
+                    currentCount: 0,
+                    weeklyCount: 0,
+                    weeklyLogDates: [],
+                    isCompleted: false,
+                    isWeekCompleted: false,
+                    isActive: true,
+                    isRevealed: false,
+                    startDate: admin.firestore.Timestamp.fromDate(now),
+                    endDate: admin.firestore.Timestamp.fromDate(endDate),
+                    plannedStartDate: admin.firestore.Timestamp.fromDate(now),
+                    approvalStatus: 'approved',
+                    giverActionTaken: true,
+                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    experienceId,
+                };
+
+                const batch = db.batch();
+                batch.set(giftDocRef, newGift);
+                batch.set(giverGoalRef, { ...giverGoalData, experienceGiftId: giftDocRef.id });
+                await batch.commit();
+
+                console.log(`✅ [TEST] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
+            } else {
+                await db.doc(`experienceGifts/${giftId}`).set(newGift);
+            }
 
             console.log(`✅ [TEST] Created free gift ${giftId} with claimCode ${claimCode}`);
 
@@ -179,41 +265,6 @@ export const createFreeGift_Test = onRequest(
         }
     }
 );
-
-
-function buildGiftEmailHtml(
-    giverName: string,
-    experienceTitle: string,
-    claimUrl: string,
-    revealMode: string,
-): string {
-    const rewardText = revealMode === 'secret'
-        ? 'a mystery reward (hints will be revealed as you progress!)'
-        : `<strong>${experienceTitle}</strong>`;
-
-    return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <span style="font-size: 36px; font-weight: 900; font-style: italic; color: #111827;">ernit<span style="color: #10B981;">.</span></span>
-        </div>
-        <div style="background: linear-gradient(135deg, #FFF7ED, #FFFBEB); border-radius: 16px; padding: 32px; text-align: center;">
-            <p style="font-size: 24px; margin: 0 0 8px;">🎁</p>
-            <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 12px;">
-                ${giverName} sent you a challenge!
-            </h1>
-            <p style="font-size: 15px; color: #6B7280; line-height: 1.6; margin: 0 0 24px;">
-                Set a goal, work towards it, and earn ${rewardText} when you succeed.
-            </p>
-            <a href="${claimUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #F59E0B, #D97706); color: #fff; font-size: 16px; font-weight: 700; border-radius: 12px; text-decoration: none;">
-                Accept Challenge
-            </a>
-        </div>
-        <p style="font-size: 12px; color: #9CA3AF; text-align: center; margin-top: 24px;">
-            [TEST] © ${new Date().getFullYear()} Ernit.
-        </p>
-    </div>
-    `;
-}
 
 
 function generateClaimCode(): string {

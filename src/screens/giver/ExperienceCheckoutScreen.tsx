@@ -46,6 +46,7 @@ import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 import Button from '../../components/Button';
+import { vh } from '../../utils/responsive';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -178,6 +179,15 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     }
   };
 
+  // --- Block hardware back / gesture swipe during active payment ---
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (!isProcessing && !isCheckingRedirect) return; // Allow normal back
+      e.preventDefault(); // Block navigation during payment
+    });
+    return unsubscribe;
+  }, [navigation, isProcessing, isCheckingRedirect]);
+
   // --- Handle redirect-based flows (e.g. MB Way) ---
   useEffect(() => {
     const checkRedirectReturn = async () => {
@@ -234,11 +244,16 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
           } else {
             logger.warn("⚠️ Gifts not found after polling");
-            showInfo("Your payment was successful. Your gifts are being prepared and will be available shortly.");
+            dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
+            showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
+            setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
           }
         } else if (paymentIntent?.status === "processing") {
+          // Payment will succeed via webhook — clear cart everywhere to avoid duplicate purchases
+          await clearCartEverywhere();
           showInfo("Your payment is being processed. You will receive a confirmation shortly.");
         } else if (paymentIntent?.status === "requires_action") {
+          // Do NOT clear cart — user needs to complete the action and retry
           showInfo("Additional action is required to complete your payment.");
         }
       } catch (err: unknown) {
@@ -270,6 +285,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     if (processingRef.current || isProcessing) return;
     processingRef.current = true;
     if (!stripe || !elements) {
+      processingRef.current = false;  // Reset so user can retry
       showInfo("Please wait a few seconds and try again.");
       return;
     }
@@ -310,7 +326,9 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
         } else {
           logger.warn("⚠️ Gifts not found after polling");
-          showInfo("Your payment was successful. Your gifts are being prepared and will be available shortly.");
+          dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
+          showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
+          setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
         }
       } else if (paymentIntent.status === "processing") {
         showInfo("Your payment is being processed. You will receive confirmation shortly.");
@@ -354,7 +372,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                 if (navigation.canGoBack()) navigation.goBack();
                 else navigation.navigate('CategorySelection');
               }}
-              style={styles.backButton}
+              style={[styles.backButton, (isProcessing || isCheckingRedirect) && styles.backButtonDisabled]}
+              disabled={isProcessing || isCheckingRedirect}
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
@@ -425,7 +444,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               </Text>
             </View>
 
-            <View style={{ height: 120 }} />
+            <View style={{ height: vh(120) }} />
           </ScrollView>
 
           {/* Bottom CTA */}
@@ -619,9 +638,9 @@ const ExperienceCheckoutScreen: React.FC = () => {
       <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
-            <View style={styles.backButton}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
               <ChevronLeft color={Colors.textPrimary} size={24} />
-            </View>
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
             <View style={styles.lockIcon}>
               <Lock color={Colors.secondary} size={20} />
@@ -642,12 +661,63 @@ const ExperienceCheckoutScreen: React.FC = () => {
       <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Could not initialize payment.</Text>
-          <TouchableOpacity onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('CategorySelection');
-          }} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Go Back</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+            <TouchableOpacity
+              onPress={() => {
+                // Retry: reset init flag and re-attempt initialization
+                initRef.current = false;
+                setLoading(true);
+                setClientSecret(null);
+                setPaymentIntentId(null);
+                const retry = async () => {
+                  try {
+                    if (!cartItems || cartItems.length === 0) return;
+                    initRef.current = true;
+                    const list: Experience[] = [];
+                    let total = 0;
+                    for (const item of cartItems) {
+                      const exp = await experienceService.getExperienceById(item.experienceId);
+                      if (exp) { list.push(exp); total += exp.price * item.quantity; }
+                    }
+                    if (list.length === 0) {
+                      showError('Could not load experiences for checkout.');
+                      initRef.current = false;
+                      return;
+                    }
+                    setCartExperiences(list);
+                    setTotalAmount(total);
+                    const firstExp = list[0];
+                    const cartMetadata = cartItems.map((item) => {
+                      const exp = list.find((e) => e.id === item.experienceId);
+                      return { experienceId: item.experienceId, partnerId: exp?.partnerId || firstExp.partnerId, quantity: item.quantity };
+                    });
+                    const response = await stripeService.createPaymentIntent(
+                      total, state.user?.id || '', state.user?.displayName || '',
+                      firstExp.partnerId, cartMetadata, ''
+                    );
+                    setClientSecret(response.clientSecret);
+                    setPaymentIntentId(response.paymentIntentId);
+                  } catch (err: unknown) {
+                    logger.error('Retry init failed:', err);
+                    showError(err instanceof Error ? err.message : 'Failed to initialize payment.');
+                    initRef.current = false;
+                  } finally {
+                    setLoading(false);
+                  }
+                };
+                retry();
+              }}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('CategorySelection');
+            }} style={[styles.retryButton, { backgroundColor: Colors.backgroundLight }]}>
+              <Text style={[styles.retryButtonText, { color: Colors.textSecondary }]}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -698,7 +768,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.xl,
-    paddingTop: Platform.OS === "ios" ? 50 : 40,
+    paddingTop: Platform.OS === "ios" ? vh(50) : vh(40),
     paddingBottom: Spacing.lg,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
@@ -711,6 +781,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
+  },
+  backButtonDisabled: {
+    opacity: 0.4,
   },
   headerTitle: {
     ...Typography.large,
@@ -780,7 +853,7 @@ const styles = StyleSheet.create({
   priceLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
   priceAmount: { ...Typography.heading3, fontWeight: "700", color: Colors.secondary },
 
-  section: { marginBottom: 28 },
+  section: { marginBottom: vh(24) },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",

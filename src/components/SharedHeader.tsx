@@ -26,6 +26,8 @@ interface SharedHeaderProps {
     showCart?: boolean;
     rightActions?: React.ReactNode;
     onBackPress?: () => void;
+    /** Pass an already-fetched unread count to avoid creating a duplicate Firestore listener */
+    unreadNotificationCount?: number;
 }
 
 const ActionButton: React.FC<{
@@ -83,11 +85,12 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     showCart,
     rightActions,
     onBackPress,
+    unreadNotificationCount,
 }) => {
     const navigation = useRootNavigation();
     const route = useRoute();
     const { state, dispatch } = useApp();
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [ownUnreadCount, setOwnUnreadCount] = useState(0);
     const [, setTick] = useState(0);
 
     // Auto-detect context from route name
@@ -105,21 +108,24 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     const currentCart = state.user?.cart || state.guestCart || [];
     const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
 
-    // Listen to notifications
+    // Listen to notifications only when a count isn't provided from outside (avoid duplicate listeners)
     useEffect(() => {
+        if (unreadNotificationCount !== undefined) return; // caller owns the count
         if (!state.user?.id || !shouldShowNotifications) {
-            setUnreadCount(0);
+            setOwnUnreadCount(0);
             return;
         }
         const unsubscribe = notificationService.listenToUserNotifications(
             state.user.id,
             (notifications) => {
                 const unread = notifications.filter((n) => !n.read).length;
-                setUnreadCount(unread);
+                setOwnUnreadCount(unread);
             }
         );
         return unsubscribe;
-    }, [state.user?.id, shouldShowNotifications]);
+    }, [state.user?.id, shouldShowNotifications, unreadNotificationCount]);
+
+    const unreadCount = unreadNotificationCount ?? ownUnreadCount;
 
     // Refresh time offset display every 1s when debug mode is active
     useEffect(() => {

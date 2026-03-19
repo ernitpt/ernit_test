@@ -17,7 +17,7 @@ import {
     Image,
     Animated,
     Alert,
-    Dimensions,
+    KeyboardAvoidingView,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
@@ -39,10 +39,10 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import ModernSlider from '../components/ModernSlider';
 import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
-
-const SCREEN_H = Dimensions.get('window').height;
-const VH = Math.min(1, Math.max(0.72, SCREEN_H / 900));
-const vh = (px: number) => Math.round(px * VH);
+import { sanitizeText } from '../utils/sanitization';
+import { vh } from '../utils/responsive';
+import * as Haptics from 'expo-haptics';
+import { analyticsService } from '../services/AnalyticsService';
 
 const GOAL_TYPES = [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
@@ -103,8 +103,8 @@ export default function ChallengeSetupScreen() {
     const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
     const [showExperiencePicker, setShowExperiencePicker] = useState(false);
 
-    // Dynamic step count: skip step 6 when no specific experience selected
-    const totalSteps = selectedExperience ? 6 : 5;
+    // Always 6 steps — last step shows reward info or challenge-ready confirmation
+    const totalSteps = 6;
 
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,6 +122,11 @@ export default function ChallengeSetupScreen() {
     // Category filter state (single-select, 'All' by default)
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
+
+    // Analytics: track wizard start on mount
+    useEffect(() => {
+        analyticsService.trackEvent('challenge_setup_started', 'conversion', {});
+    }, []);
 
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
@@ -148,8 +153,10 @@ export default function ChallengeSetupScreen() {
             if (p.customGoal) setCustomGoal(p.customGoal);
             if (p.weeks) setWeeks(p.weeks);
             if (p.sessionsPerWeek) setSessionsPerWeek(p.sessionsPerWeek);
-            if (p.hours) setHours(p.hours);
-            if (p.minutes) setMinutes(p.minutes);
+            if (p.hours) { setHours(p.hours); setShowCustomTime(true); }
+            if (p.minutes) { setMinutes(p.minutes); setShowCustomTime(true); }
+            if (p.sessionMinutes) setSessionMinutes(p.sessionMinutes);
+            if (p.showCustomTime) setShowCustomTime(true);
             if (p.experience) setSelectedExperience(p.experience);
             if (p.plannedStartDate) {
                 const restored = new Date(p.plannedStartDate);
@@ -157,6 +164,7 @@ export default function ChallengeSetupScreen() {
             }
             // buyNow removed — no longer used
             if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory);
+            if (p.currentStep && p.currentStep > 1) setCurrentStep(p.currentStep);
         }
     }, []);
 
@@ -256,6 +264,8 @@ export default function ChallengeSetupScreen() {
     const handleNext = () => {
         if (!validateCurrentStep()) return;
         if (currentStep < totalSteps) {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            analyticsService.trackEvent('challenge_step_completed', 'conversion', { step: currentStep });
             setCurrentStep(prev => prev + 1);
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }
@@ -287,11 +297,14 @@ export default function ChallengeSetupScreen() {
                 customGoal: selectedGoal === 'Other' ? customGoal.trim() : '',
                 weeks,
                 sessionsPerWeek,
+                sessionMinutes,
+                showCustomTime,
                 hours: showCustomTime ? hours : String(Math.floor(sessionMinutes / 60)),
                 minutes: showCustomTime ? minutes : String(sessionMinutes % 60),
                 experience: selectedExperience || null,
                 plannedStartDate: plannedStartDate.toISOString(),
                 preferredRewardCategory: preferredRewardCategory || null,
+                currentStep,
             };
 
             try {
@@ -309,14 +322,15 @@ export default function ChallengeSetupScreen() {
         setIsSubmitting(true);
 
         try {
-            const finalGoal = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
+            const finalGoal = selectedGoal === 'Other' ? sanitizeText(customGoal.trim(), 50) : selectedGoal;
             const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
             const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
 
             const now = new Date();
             const durationInDays = weeks * 7;
-            const endDate = new Date(now);
-            endDate.setDate(now.getDate() + durationInDays);
+            const startRef = plannedStartDate > now ? plannedStartDate : now;
+            const endDate = new Date(startRef);
+            endDate.setDate(startRef.getDate() + durationInDays);
 
             const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
                 userId: state.user.id,
@@ -377,7 +391,7 @@ export default function ChallengeSetupScreen() {
             navigation.reset({
                 index: 1,
                 routes: [
-                    { name: 'CategorySelection' },
+                    { name: 'Goals' },
                     { name: 'Journey', params: { goal } },
                 ],
             });
@@ -750,6 +764,8 @@ export default function ChallengeSetupScreen() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const calendarDays = getCalendarDays(calendarMonth);
+        const now = new Date();
+        const isCurrentMonth = calendarMonth.getMonth() === now.getMonth() && calendarMonth.getFullYear() === now.getFullYear();
 
         return (
             <View style={styles.stepContent}>
@@ -759,8 +775,13 @@ export default function ChallengeSetupScreen() {
                         {/* Month navigation */}
                         <View style={styles.calHeader}>
                             <TouchableOpacity
-                                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
-                                style={styles.calNavBtn}
+                                onPress={() => {
+                                    if (!isCurrentMonth) {
+                                        setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+                                    }
+                                }}
+                                style={[styles.calNavBtn, isCurrentMonth && { opacity: 0.3 }]}
+                                disabled={isCurrentMonth}
                                 accessibilityRole="button"
                                 accessibilityLabel="Previous month"
                             >
@@ -1037,12 +1058,20 @@ export default function ChallengeSetupScreen() {
             );
         }
 
-        // Default view: category preference cards
-        const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] = [
-            { key: 'adventure', emoji: '\u{1F3D4}\u{FE0F}', label: 'Adventure', tagline: 'Explore something new', color: Colors.categoryAmber },
-            { key: 'wellness', emoji: '\u{1F9D8}', label: 'Wellness', tagline: 'Treat yourself', color: Colors.categoryPink },
-            { key: 'creative', emoji: '\u{1F3A8}', label: 'Creative', tagline: 'Make something amazing', color: Colors.categoryViolet },
-        ];
+        // Default view: category preference cards (derived from shared EXPERIENCE_CATEGORIES constant)
+        const CATEGORY_TAGLINES: Record<string, string> = {
+            adventure: 'Explore something new',
+            wellness: 'Treat yourself',
+            creative: 'Make something amazing',
+        };
+        const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] =
+            EXPERIENCE_CATEGORIES.map(cat => ({
+                key: cat.key as ExperienceCategory,
+                emoji: cat.emoji,
+                label: cat.label,
+                tagline: CATEGORY_TAGLINES[cat.key] ?? '',
+                color: cat.color,
+            }));
 
         return (
             <View style={styles.stepContent}>
@@ -1174,6 +1203,10 @@ export default function ChallengeSetupScreen() {
                 <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
 
                 {/* Step Content */}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1 }}
+                >
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.scroll}
@@ -1207,6 +1240,7 @@ export default function ChallengeSetupScreen() {
 
                     <View style={{ height: vh(160) }} />
                 </ScrollView>
+                </KeyboardAvoidingView>
 
                 {/* Footer */}
                 <View style={styles.footer}>
@@ -1561,7 +1595,7 @@ const styles = StyleSheet.create({
     },
     expIconBox: {
         width: '100%',
-        height: 100,
+        height: vh(100),
         borderRadius: BorderRadius.lg,
         backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',

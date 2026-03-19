@@ -126,9 +126,10 @@ export const sendInactivityNudges_Test = functions.onSchedule(
                     // Continue anyway - don't block nudge on user doc read failure
                 }
 
-                // Create notification
+                // Create notification + stamp dedup atomically
                 try {
-                    await db.collection("notifications").add({
+                    const batch = db.batch();
+                    batch.set(db.collection("notifications").doc(), {
                         userId: goal.userId,
                         type: "session_reminder",
                         title,
@@ -143,12 +144,11 @@ export const sendInactivityNudges_Test = functions.onSchedule(
                         },
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
-
-                    // Update goal with last nudge info
-                    await goalDoc.ref.update({
+                    batch.update(goalDoc.ref, {
                         lastNudgeSentAt: admin.firestore.FieldValue.serverTimestamp(),
                         lastNudgeLevel: currentLevel,
                     });
+                    await batch.commit();
 
                     notificationsSent++;
                     console.log(

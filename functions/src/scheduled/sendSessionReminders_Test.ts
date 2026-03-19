@@ -26,7 +26,6 @@ export const sendSessionReminders_Test = functions.onSchedule(
             // Import db from index.ts (test database)
             const db = require("../index").db;
             const now = new Date();
-            const todayISO = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
             // Get all users with reminders enabled
             const usersSnap = await db
@@ -61,8 +60,12 @@ export const sendSessionReminders_Test = functions.onSchedule(
                     continue;
                 }
 
+                // Compute today's date in the user's own timezone for dedup key
+                const userTz = user.profile?.timezone || 'UTC';
+                const todayInUserTz = new Intl.DateTimeFormat('en-CA', { timeZone: userTz }).format(now);
+
                 // Check if we already sent a reminder today
-                if (user.lastReminderSentDate === todayISO) {
+                if (user.lastReminderSentDate === todayInUserTz) {
                     console.log(
                         `⏭️ [TEST] User ${userDoc.id}: Already sent reminder today`
                     );
@@ -95,8 +98,8 @@ export const sendSessionReminders_Test = functions.onSchedule(
                     const weeklyCount = goal.weeklyCount || 0;
                     const sessionsPerWeek = goal.sessionsPerWeek || 3;
 
-                    // Check if session logged today
-                    const sessionLoggedToday = weeklyLogDates.includes(todayISO);
+                    // Check if session logged today (in the user's local timezone)
+                    const sessionLoggedToday = weeklyLogDates.includes(todayInUserTz);
 
                     // Check if weekly target not met
                     const weeklyTargetNotMet = weeklyCount < sessionsPerWeek;
@@ -120,7 +123,7 @@ export const sendSessionReminders_Test = functions.onSchedule(
                             mostBehindGoal = {
                                 id: goalDoc.id,
                                 title: goal.title,
-                                goalDescription: goal.goalDescription,
+                                goalDescription: goal.description || goal.title || 'your goal',
                                 weeklyCount,
                                 sessionsPerWeek,
                             };
@@ -179,9 +182,10 @@ export const sendSessionReminders_Test = functions.onSchedule(
                     }
                 }
 
-                // Create notification
+                // Create notification + stamp dedup atomically
                 try {
-                    await db.collection("notifications").add({
+                    const batch = db.batch();
+                    batch.set(db.collection("notifications").doc(), {
                         userId: userDoc.id,
                         type: "session_reminder",
                         title,
@@ -198,11 +202,11 @@ export const sendSessionReminders_Test = functions.onSchedule(
                         },
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
-
-                    // Update user's lastReminderSentDate
-                    await db.collection("users").doc(userDoc.id).update({
-                        lastReminderSentDate: todayISO,
+                    batch.update(db.collection("users").doc(userDoc.id), {
+                        lastReminderSentDate: todayInUserTz,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
+                    await batch.commit();
 
                     notificationsSent++;
                     console.log(

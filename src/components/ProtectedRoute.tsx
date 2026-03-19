@@ -2,6 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../hooks/useAuthGuard';
+import { RootStackParamList } from '../types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -24,15 +25,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   useFocusEffect(
     useCallback(() => {
       if (!state?.user) {
-        // Show login prompt instead of navigating back
-        requireAuth('Please log in to access this page.');
+        // Capture the current route name and params to restore after login
+        const navState = navigation.getState();
+        const currentRoute = navState?.routes?.slice(-1)?.[0];
+        const routeName = currentRoute?.name as keyof RootStackParamList | undefined;
+        const params = currentRoute?.params;
+
+        // Show login prompt, preserving the deep-link destination
+        requireAuth('Please log in to access this page.', routeName, params);
+
         // Navigate back after a short delay to prevent the protected page from rendering
         const timer = setTimeout(() => {
           if (navigation.canGoBack()) {
             navigation.goBack();
           }
         }, 0);
-        
+
         return () => {
           clearTimeout(timer);
         };

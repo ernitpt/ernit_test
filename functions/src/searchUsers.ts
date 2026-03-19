@@ -34,7 +34,7 @@ export const searchUsers = onCall(
       throw new HttpsError('invalid-argument', 'searchTerm cannot exceed 50 characters');
     }
 
-    // ✅ RATE LIMITING: Max 30 searches per minute
+    // ✅ RATE LIMITING: Max 10 searches per minute per user
     const now = Date.now();
     const oneMinuteAgo = now - (60 * 1000);
     const RATE_LIMIT = 10; // Maximum searches per minute per user
@@ -74,8 +74,13 @@ export const searchUsers = onCall(
       // 🔍 SEARCH LOGIC
       const searchLower = trimmedSearchTerm.toLowerCase();
 
-      // SECURITY: Limit the number of documents read to prevent DoS and enumeration
-      // For proper full-text search, consider Algolia or Typesense
+      // CF-01 KNOWN LIMITATION: This is a full-collection scan up to 100 docs.
+      // It performs client-side substring filtering which will miss users outside
+      // the first 100. For production scale, replace with Algolia or Typesense,
+      // or add a Firestore composite index on `displayNameLower` with prefix queries:
+      //   .where('displayNameLower', '>=', searchLower)
+      //   .where('displayNameLower', '<=', searchLower + '\uf8ff')
+      // That requires a Firestore index deployment (firebase deploy --only firestore:indexes).
       const usersSnapshot = await dbProd.collection('users').limit(100).get();
 
       // Fetch current user's friends and pending requests

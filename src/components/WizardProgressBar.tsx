@@ -11,7 +11,7 @@ interface WizardProgressBarProps {
 }
 
 const WizardProgressBar = ({ currentStep, totalSteps }: WizardProgressBarProps) => {
-    const progress = (currentStep / totalSteps) * 100;
+    const progress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
     return (
         <View style={styles.progressBar}>
             <View style={styles.progressTrack}>

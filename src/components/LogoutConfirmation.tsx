@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Image,
@@ -25,6 +25,10 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   onConfirm,
 }) => {
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handleClose = () => {
     onClose();

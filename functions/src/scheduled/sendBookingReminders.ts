@@ -70,6 +70,38 @@ export const sendBookingReminders = functions.onSchedule(
 
             console.log(`📊 [PROD] Found ${goalsSnap.size} recently completed goals`);
 
+            // Pre-fetch all unique experienceGift docs to avoid N+1 sequential reads
+            const giftIds = new Set<string>();
+            goalsSnap.docs.forEach((doc: any) => {
+                const giftId = doc.data().experienceGiftId;
+                if (giftId) giftIds.add(giftId);
+            });
+
+            const giftDocs = new Map<string, any>();
+            await Promise.all(
+                [...giftIds].map(async (id) => {
+                    const snap = await db.collection("experienceGifts").doc(id).get();
+                    giftDocs.set(id, snap);
+                })
+            );
+
+            // Pre-fetch all unique experience docs referenced by the gift docs
+            const experienceIds = new Set<string>();
+            giftDocs.forEach((snap) => {
+                const expId = snap.exists ? snap.data()?.experienceId : null;
+                if (expId) experienceIds.add(expId);
+            });
+
+            const experienceDocs = new Map<string, any>();
+            await Promise.all(
+                [...experienceIds].map(async (id) => {
+                    const snap = await db.collection("experiences").doc(id).get();
+                    experienceDocs.set(id, snap);
+                })
+            );
+
+            console.log(`📦 [PROD] Pre-fetched ${giftDocs.size} gift doc(s) and ${experienceDocs.size} experience doc(s)`);
+
             let notificationsSent = 0;
 
             // Use batch writes for efficiency (Firestore limit: 500 ops per batch)
@@ -108,32 +140,24 @@ export const sendBookingReminders = functions.onSchedule(
                     continue;
                 }
 
-                // Fetch experience name for the notification message
+                // Resolve experience name from pre-fetched maps (no per-goal reads)
                 let experienceName = "your experience";
                 try {
-                    if (goal.experienceGiftId) {
-                        const giftDoc = await db
-                            .collection("experienceGifts")
-                            .doc(goal.experienceGiftId)
-                            .get();
-                        if (giftDoc.exists) {
-                            const giftData = giftDoc.data();
-                            if (giftData?.experience?.name) {
-                                experienceName = giftData.experience.name;
-                            } else if (giftData?.experienceId) {
-                                const expDoc = await db
-                                    .collection("experiences")
-                                    .doc(giftData.experienceId)
-                                    .get();
-                                if (expDoc.exists) {
-                                    experienceName = expDoc.data()?.title || experienceName;
-                                }
+                    const giftDoc = giftDocs.get(goal.experienceGiftId);
+                    if (giftDoc?.exists) {
+                        const giftData = giftDoc.data();
+                        if (giftData?.experience?.name) {
+                            experienceName = giftData.experience.name;
+                        } else if (giftData?.experienceId) {
+                            const expDoc = experienceDocs.get(giftData.experienceId);
+                            if (expDoc?.exists) {
+                                experienceName = expDoc.data()?.title || experienceName;
                             }
                         }
                     }
                 } catch (expError) {
                     console.error(
-                        `⚠️ [PROD] Could not fetch experience name for goal ${goalDoc.id}:`,
+                        `⚠️ [PROD] Could not resolve experience name for goal ${goalDoc.id}:`,
                         expError
                     );
                 }

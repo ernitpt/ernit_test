@@ -170,6 +170,7 @@ export const createExperience = onCall(
                 category,
                 price,
                 partnerId,
+                status: data.status || 'published', // Default to 'published'; caller may pass 'draft'
                 imageUrl: imageUrls, // Array of all images
                 coverImageUrl: imageUrls[0], // First image is cover
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -186,6 +187,12 @@ export const createExperience = onCall(
                 message: "Experience created successfully",
             };
         } catch (error: any) {
+            // Preserve HttpsError codes (e.g. invalid-argument, permission-denied) so the
+            // client receives the correct error message rather than a generic 'internal' one.
+            if (error instanceof HttpsError) {
+                throw error;
+            }
+
             console.error("❌ Error creating experience:", error);
 
             // Cleanup uploaded images on failure

@@ -1,6 +1,5 @@
 import {
   collection,
-  addDoc,
   getDocs,
   getDoc,
   query,
@@ -10,6 +9,7 @@ import {
   doc,
   getCountFromServer,
   serverTimestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Motivation } from '../types';
@@ -18,6 +18,7 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { notificationService } from './NotificationService';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { AppError } from '../utils/AppError';
+import { sanitizeText } from '../utils/sanitization';
 
 class MotivationService {
   private getMotivationsCollection(goalId: string) {
@@ -45,8 +46,10 @@ class MotivationService {
     if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
     const goalData = goalSnap.data();
 
+    const goalOwnerId: string = goalData.userId;
+
     // Cannot motivate your own goal
-    if (goalData.userId === authorId) {
+    if (goalOwnerId === authorId) {
       throw new AppError('SELF_MOTIVATION', 'Cannot motivate your own goal', 'business');
     }
 
@@ -67,25 +70,35 @@ class MotivationService {
       throw new AppError('INVALID_SESSION', 'Can only send motivation for the next upcoming session', 'business');
     }
 
-    // Duplicate check: 1 motivation per sender per target session
-    const motivationsRef = this.getMotivationsCollection(goalId);
-    const duplicateQuery = query(
-      motivationsRef,
-      where('authorId', '==', authorId),
-      where('targetSession', '==', effectiveTargetSession),
+    // Check friendship immediately before the transaction to minimise the race window.
+    // Friend docs use auto-generated IDs (non-deterministic), so a query is required here —
+    // Firestore transactions only support get-by-ref, not queries. The window between this
+    // check and the transaction.set is small; Firestore rules enforce the same constraint.
+    const friendsQuery = query(
+      collection(db, 'friends'),
+      where('userId', '==', authorId),
+      where('friendId', '==', goalOwnerId),
     );
-    const duplicateSnap = await getDocs(duplicateQuery);
-    if (!duplicateSnap.empty) {
-      throw new AppError('DUPLICATE_MOTIVATION', 'You have already sent a motivation for this session', 'business');
+    const friendSnap = await getDocs(friendsQuery);
+    if (friendSnap.empty) {
+      throw new AppError('PERMISSION_DENIED', 'You must be friends to leave a motivation', 'auth');
     }
+
+    // Transactional duplicate check + write using a deterministic doc ID
+    // so transaction.get() can be used instead of a query (queries don't participate in transactions)
+    const motivationId = `${authorId}_${goalId}_${effectiveTargetSession}`;
+    const motivationsRef = this.getMotivationsCollection(goalId);
+    const motivationRef = doc(motivationsRef, motivationId);
 
     // Save the motivation
     try {
+      const sanitizedAuthorName = sanitizeText(authorName, 100);
+      const sanitizedMessage = sanitizeText(message, 500);
       const motivationData: Record<string, any> = {
         authorId,
-        authorName,
+        authorName: sanitizedAuthorName,
         authorProfileImage: authorProfileImage || null,
-        message: message.substring(0, 500),
+        message: sanitizedMessage,
         type: media?.type || 'text',
         targetSession: effectiveTargetSession,
         createdAt: serverTimestamp(),
@@ -95,7 +108,16 @@ class MotivationService {
       if (media?.audioUrl) motivationData.audioUrl = media.audioUrl;
       if (media?.audioDuration) motivationData.audioDuration = media.audioDuration;
 
-      const docRef = await addDoc(motivationsRef, motivationData);
+      await runTransaction(db, async (transaction) => {
+        // Use transaction.get() on the deterministic ref — participates in the transaction's read set
+        const existing = await transaction.get(motivationRef);
+        if (existing.exists()) {
+          throw new AppError('DUPLICATE_MOTIVATION', 'You already left a motivation for this session', 'business');
+        }
+        transaction.set(motivationRef, motivationData);
+      });
+
+      const docRef = motivationRef;
       logger.log('Motivation left for goal:', goalId);
 
       // Notify the goal owner

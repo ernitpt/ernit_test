@@ -72,7 +72,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
           ]}
           accessibilityViewIsModal={true}
         >
-          <TouchableOpacity activeOpacity={1} accessible={false}>
+          <TouchableOpacity activeOpacity={1}>
             {variant === 'bottom' && (
               <View style={styles.dragHandle}>
                 <View style={styles.dragHandlePill} />

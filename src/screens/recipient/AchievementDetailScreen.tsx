@@ -42,11 +42,13 @@ import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { vh } from '../../utils/responsive';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { logger } from '../../utils/logger';
+import ErrorRetry from '../../components/ErrorRetry';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle } from 'lucide-react-native';
@@ -413,7 +415,7 @@ const sessStyles = StyleSheet.create({
   },
   motivationImage: {
     width: '100%',
-    height: 150,
+    height: vh(150),
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
     backgroundColor: Colors.backgroundLight,
@@ -446,6 +448,7 @@ const AchievementDetailScreen = () => {
   const [userName, setUserName] = useState<string>('User');
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // Copy states
   const [isCopied, setIsCopied] = useState(false);
@@ -535,7 +538,9 @@ const AchievementDetailScreen = () => {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             if (gift) expId = gift.experienceId;
-          } catch { /* no gift */ }
+          } catch (error) {
+            console.warn('Failed to load experience gift:', error);
+          }
         }
 
         if (expId) {
@@ -561,6 +566,7 @@ const AchievementDetailScreen = () => {
       } catch (error) {
         logger.error('Error fetching achievement data:', error);
         showError('Could not load achievement details.');
+        setError(true);
       } finally {
         setIsLoading(false);
       }
@@ -801,6 +807,39 @@ const AchievementDetailScreen = () => {
   }
 
   // ───── JSX STRUCTURE ─────
+  if (error && !isLoading) {
+    return (
+      <ErrorBoundary screenName="AchievementDetailScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Profile">
+          <StatusBar style="light" />
+          <SharedHeader title="Achievement" showBack />
+          <ErrorRetry
+            message="Could not load achievement details"
+            onRetry={() => {
+              setError(false);
+              setIsLoading(true);
+              // Re-fetch by re-triggering the useEffect dependency
+              const fetchData = async () => {
+                try {
+                  if (goal?.userId) {
+                    const name = await userService.getUserName(goal.userId);
+                    setUserName(name || 'User');
+                  }
+                } catch (err) {
+                  logger.error('Retry failed:', err);
+                  setError(true);
+                } finally {
+                  setIsLoading(false);
+                }
+              };
+              fetchData();
+            }}
+          />
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary screenName="AchievementDetailScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Profile">
@@ -882,7 +921,7 @@ const AchievementDetailScreen = () => {
                 {(goal.pledgedExperience?.coverImageUrl || experienceImage) && (
                   <Image
                     source={{ uri: experienceImage || goal.pledgedExperience?.coverImageUrl }}
-                    style={{ width: '100%', height: 180, borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, backgroundColor: Colors.backgroundLight }}
+                    style={{ width: '100%', height: vh(180), borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, backgroundColor: Colors.backgroundLight }}
                   />
                 )}
 
@@ -1190,7 +1229,7 @@ const cStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   hintImage: {
     width: '100%',
-    height: 200,
+    height: vh(200),
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
     backgroundColor: Colors.backgroundLight,

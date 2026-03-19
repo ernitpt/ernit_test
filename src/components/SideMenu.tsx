@@ -37,6 +37,7 @@ import LoginPrompt from './LoginPrompt';
 import ContactModal from './ContactModal';
 import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
+import { DateHelper } from '../utils/DateHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../config';
 import { useToast } from '../context/ToastContext';
@@ -294,11 +295,13 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     try {
       try { await AsyncStorage.removeItem('global_timer_state'); } catch {}
 
+      DateHelper.reset();
+
       const auth = getAuth();
       await signOut(auth);
       dispatch({ type: 'RESET_STATE' });
 
-      navigation.navigate('CategorySelection');
+      navigation.reset({ index: 0, routes: [{ name: 'ChallengeLanding' }] });
     } catch (error) {
       logger.error('Logout failed:', error);
       showError('Failed to log out. Please try again.');
@@ -626,7 +629,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
-          <View style={styles.pickerOverlay}>
+          <View style={styles.pickerOverlay} accessibilityViewIsModal={true}>
             <TouchableWithoutFeedback>
               <Animated.View
                 style={[
@@ -910,7 +913,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
-    width: 280,
+    width: Math.min(280, screenWidth * 0.82),
     maxHeight: 400,
     ...Shadows.lg,
   },

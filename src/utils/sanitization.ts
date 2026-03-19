@@ -117,14 +117,14 @@ export function sanitizeUrl(url: string): string {
     try {
         const parsed = new URL(url);
 
-        // Only allow https and http protocols
-        if (!['https:', 'http:'].includes(parsed.protocol)) {
-            throw new Error('Invalid URL protocol');
+        // Only allow https protocol
+        if (!url.startsWith('https://')) {
+            return '';
         }
 
         return parsed.toString();
     } catch (error) {
-        throw new Error('Invalid URL format');
+        return '';
     }
 }
 

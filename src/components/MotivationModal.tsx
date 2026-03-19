@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -61,6 +61,11 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
     const media = useMediaComposer(visible);
     const slideAnim = useModalAnimation(visible);
     const successAnim = useRef(new Animated.Value(0)).current;
+    const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+    useEffect(() => {
+        return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
+    }, []);
 
     // --- Submission ---
     const handleSend = async () => {
@@ -117,7 +122,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                 useNativeDriver: true,
             }).start();
 
-            setTimeout(() => {
+            successTimerRef.current = setTimeout(() => {
                 setText('');
                 setShowExamples(false);
                 setShowSuccess(false);
@@ -171,7 +176,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                     onPress={onClose}
                 />
 
-                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
+                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]} accessibilityViewIsModal={true}>
                     {showSuccess ? (
                         <Animated.View style={[styles.successContainer, {
                             opacity: successAnim,

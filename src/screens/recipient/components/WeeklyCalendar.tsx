@@ -89,7 +89,12 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = React.memo(({
         const isToday = iso === todayIso;
 
         return (
-          <View key={iso} style={styles.dayCell}>
+          <View
+            key={iso}
+            style={styles.dayCell}
+            accessibilityLabel={`${dateLabel}${isToday ? ', today' : ''}${filled ? ', session logged' : ''}`}
+            accessibilityRole="text"
+          >
             {filled ? (
               <>
                 {isToday ? (

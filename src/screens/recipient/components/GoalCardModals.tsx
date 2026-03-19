@@ -15,8 +15,6 @@ import Colors from '../../../config/colors';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
-import { Experience, PartnerUser } from '../../../types';
-import { partnerService } from '../../../services/PartnerService';
 
 // ─── CancelSessionModal ─────────────────────────────────────────────
 
@@ -119,6 +117,9 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
         confettiRef.current?.start();
       }, 200);
     }
+    return () => {
+      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
+    };
   }, [visible]);
 
 
@@ -140,7 +141,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           explosionSpeed={350}
           fallSpeed={2500}
           fadeOut
-          colors={[Colors.primary, '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']}
+          colors={[Colors.primary, Colors.secondary, Colors.warning, Colors.error, Colors.categoryViolet, Colors.categoryPink]}
         />
 
         {/* Feed post preview card */}

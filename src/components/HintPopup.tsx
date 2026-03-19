@@ -15,6 +15,7 @@ import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import type { PersonalizedHint } from '../types';
+import { vh } from '../utils/responsive';
 
 
 interface Props {
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
   },
   hintImage: {
     width: '100%',
-    height: 200,
+    height: vh(200),
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     backgroundColor: Colors.backgroundLight,
@@ -506,28 +507,6 @@ const styles = StyleSheet.create({
   blurLayer3: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(250, 251, 252, 0.2)',
-  },
-  swipeInstruction: {
-    position: 'absolute',
-    zIndex: 10,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxl,
-    backgroundColor: Colors.surfaceFrosted,
-    borderRadius: BorderRadius.xxl,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  swipeText: {
-    ...Typography.subheading,
-    fontWeight: '800',
-    color: Colors.primary,
-    textAlign: 'center',
-    letterSpacing: 0.5,
   },
   btn: {
     width: '100%',

@@ -9,6 +9,7 @@ import {
 import { BaseModal } from '../../../components/BaseModal';
 import { Camera, ImageIcon } from 'lucide-react-native';
 import Colors from '../../../config/colors';
+import { vh } from '../../../utils/responsive';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -118,8 +119,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   captureIconCircle: {
-    width: 60,
-    height: 60,
+    width: vh(60),
+    height: vh(60),
     borderRadius: BorderRadius.pill,
     backgroundColor: Colors.primary,
     alignItems: 'center',
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
   },
   previewImage: {
     width: '100%',
-    height: 200,
+    height: vh(200),
     borderRadius: BorderRadius.lg,
     backgroundColor: Colors.backgroundLight,
   },
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: vh(200),
     borderRadius: BorderRadius.lg,
     backgroundColor: Colors.blackAlpha20,
     alignItems: 'center',

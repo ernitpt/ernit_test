@@ -170,7 +170,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             onRequestClose={onClose}
             statusBarTranslucent
         >
-            <View style={styles.container}>
+            <View style={styles.container} accessibilityViewIsModal={true}>
                 <StatusBar style="light" />
 
                 {/* Close button */}

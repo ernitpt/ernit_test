@@ -21,7 +21,7 @@ import { RecipientStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, doc, runTransaction, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { logErrorToFirestore } from '../../utils/errorLogger';
@@ -29,6 +29,7 @@ import Button from '../../components/Button';
 import { analyticsService } from '../../services/AnalyticsService';
 import { friendService } from '../../services/FriendService';
 import Colors from '../../config/colors';
+import { vh } from '../../utils/responsive';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
@@ -93,6 +94,13 @@ const CouponEntryScreen = () => {
       return;
     }
 
+    // Guard: user must be authenticated before claiming
+    if (!state.user?.id) {
+      setErrorMessage('Please log in to claim this gift');
+      triggerShake();
+      return;
+    }
+
     setIsLoading(true);
     dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -102,7 +110,7 @@ const CouponEntryScreen = () => {
       const q = query(
         giftsRef,
         where('claimCode', '==', trimmedCode),
-        where('status', '==', 'pending')
+        where('status', 'in', ['pending', 'active'])
       );
       const querySnapshot = await getDocs(q);
 
@@ -131,28 +139,8 @@ const CouponEntryScreen = () => {
         }
       }
 
-      // T1-4: Atomically claim the gift to prevent race conditions
-      const giftRef = doc(db, 'experienceGifts', giftDoc.id);
-      try {
-        await runTransaction(db, async (transaction) => {
-          const freshGift = await transaction.get(giftRef);
-          if (!freshGift.exists() || freshGift.data()?.status !== 'pending') {
-            throw new Error('ALREADY_CLAIMED');
-          }
-          transaction.update(giftRef, {
-            status: 'claimed',
-            claimedBy: state.user?.id || '',
-            claimedAt: new Date(),
-          });
-        });
-      } catch (txError: unknown) {
-        if (txError instanceof Error && txError.message === 'ALREADY_CLAIMED') {
-          setErrorMessage('This code has already been claimed');
-          triggerShake();
-          return;
-        }
-        throw txError;
-      }
+      // Validation only — actual claim is performed atomically in GoalSettingScreen
+      // (CouponEntryScreen must NOT modify the gift document to avoid double-claim)
 
       analyticsService.trackEvent('coupon_redeemed', 'conversion', { giftId: giftDoc.id }, 'CouponEntryScreen');
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
@@ -226,7 +214,7 @@ const CouponEntryScreen = () => {
           >
             <ScrollView
               contentContainerStyle={{
-                paddingTop: 45,
+                paddingTop: vh(45),
                 flexGrow: 1,
                 justifyContent: 'center',
               }}
@@ -246,7 +234,7 @@ const CouponEntryScreen = () => {
                 <View style={{ marginBottom: Spacing.xxl, alignItems: 'center' }}>
                   <Image
                     source={require('../../assets/favicon.png')}
-                    style={{ width: 80, height: 80 }}
+                    style={{ width: vh(80), height: vh(80) }}
                     resizeMode="contain"
                     accessibilityLabel="Ernit logo"
                   />
@@ -360,12 +348,12 @@ const CouponEntryScreen = () => {
                     size="lg"
                     title="Claim Reward"
                     onPress={() => handleClaimCode()}
-                    disabled={isLoading || claimCode.length < 6}
+                    disabled={isLoading || claimCode.length < 12}
                     loading={isLoading}
                     fullWidth
                     style={{
                       backgroundColor:
-                        isLoading || claimCode.length < 6 ? Colors.disabled : Colors.white,
+                        isLoading || claimCode.length < 12 ? Colors.disabled : Colors.white,
                       borderRadius: BorderRadius.lg,
                       shadowColor: Colors.black,
                       shadowOffset: { width: 0, height: 4 },

@@ -17,6 +17,7 @@ import { logger } from '../utils/logger';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { X } from 'lucide-react-native';
 import { useToast } from '../context/ToastContext';
+import { vh } from '../utils/responsive';
 
 interface GoalProgressNotificationProps {
     notification: Notification;
@@ -208,7 +209,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
             {goal && (
                 <PersonalizedHintModal
                     visible={showHintModal}
-                    recipientName={goal.title.split(' ')[0] || 'Recipient'}
+                    recipientName={notification?.data?.recipientName || notification?.data?.userName || 'Friend'}
                     sessionNumber={
                         (goal.currentCount * goal.sessionsPerWeek) +
                         goal.weeklyCount +
@@ -380,7 +381,7 @@ const historyStyles = StyleSheet.create({
     },
     hintImage: {
         width: '100%',
-        height: 150,
+        height: vh(150),
         borderRadius: BorderRadius.sm,
         marginBottom: Spacing.sm,
         backgroundColor: Colors.border,

@@ -31,6 +31,7 @@ import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { logger } from '../utils/logger';
 import { serializeNav } from '../utils/serializeNav';
+import { vh } from '../utils/responsive';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import Colors from '../config/colors';
@@ -63,6 +64,28 @@ const GoalsScreen: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isRefreshingRef = useRef(false);
+  // S-02: Mounted guard — prevents stale setState after unmount
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // S-01: Auto-approve flag — prevents re-running on every snapshot
+  const autoApproveRanRef = useRef(false);
+
+  // Skeleton loader safety timeout: if isInitialLoading stays true for 15s,
+  // force it off and show the error state so the user is never stuck on skeletons.
+  useEffect(() => {
+    if (!isInitialLoading) return;
+    const timeout = setTimeout(() => {
+      if (mountedRef.current && isInitialLoading) {
+        setIsInitialLoading(false);
+        setError(true);
+      }
+    }, 15000);
+    return () => clearTimeout(timeout);
+  }, [isInitialLoading]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -81,23 +104,16 @@ const GoalsScreen: React.FC = () => {
   useEffect(() => {
     if (!userId) return;
 
+    // Reset auto-approve flag when re-subscribing (refresh or userId change)
+    autoApproveRanRef.current = false;
+
     setLoading(true);
-    const unsubscribe = goalService.listenToUserGoals(userId, async (goals) => {
+    const unsubscribe = goalService.listenToUserGoals(userId, (goals) => {
+      // S-02: Ignore callbacks after unmount
+      if (!mountedRef.current) return;
+
       try {
         setError(false);
-        // Check for pending goals that need auto-approval
-        for (const goal of goals) {
-          if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
-            const now = new Date();
-            if (now >= goal.approvalDeadline) {
-              try {
-                await goalService.checkAndAutoApprove(goal.id);
-              } catch (error) {
-                logger.error('Error auto-approving goal:', error);
-              }
-            }
-          }
-        }
 
         const activeGoals = goals.filter((g) => {
           return !g.isCompleted && g.currentCount < g.targetCount;
@@ -124,6 +140,7 @@ const GoalsScreen: React.FC = () => {
         }
       } catch (error) {
         logger.error('Error processing goals in GoalsScreen:', error);
+        if (!mountedRef.current) return;
         setError(true);
         showError('Could not load goals. Please try again.');
         // Show whatever goals we can rather than crashing
@@ -134,13 +151,38 @@ const GoalsScreen: React.FC = () => {
           setRefreshing(false);
         }
       } finally {
-        setLoading(false);
-        setIsInitialLoading(false);
+        if (mountedRef.current) {
+          setLoading(false);
+          setIsInitialLoading(false);
+        }
       }
     });
 
     return () => unsubscribe();
   }, [userId, refreshKey]);
+
+  // S-01: Auto-approve runs once per subscription (not on every snapshot).
+  // Debounced via a ref flag — resets when userId or refreshKey changes.
+  useEffect(() => {
+    if (!userId || currentGoals.length === 0 || autoApproveRanRef.current) return;
+    autoApproveRanRef.current = true;
+
+    const runAutoApprove = async () => {
+      for (const goal of currentGoals) {
+        if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
+          const now = new Date();
+          if (now >= goal.approvalDeadline) {
+            try {
+              await goalService.checkAndAutoApprove(goal.id);
+            } catch (error) {
+              logger.error('Error auto-approving goal:', error);
+            }
+          }
+        }
+      }
+    };
+    runAutoApprove();
+  }, [userId, currentGoals, refreshKey]);
 
   // Fetch user-level session streak
   useEffect(() => {
@@ -263,6 +305,7 @@ const GoalsScreen: React.FC = () => {
           title="Current Goals"
           subtitle="Tap goal for more details"
         />
+        <View accessibilityLiveRegion="polite">
         {isInitialLoading ? (
           <ScrollView contentContainerStyle={styles.listContainer}>
             <GoalCardSkeleton />
@@ -346,6 +389,7 @@ const GoalsScreen: React.FC = () => {
             ) : null}
           />
         )}
+        </View>
 
         {/* ---------- FAB MENU ---------- */}
         {fabMenuOpen && (
@@ -517,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.huge,
-    paddingBottom: 80,
+    paddingBottom: vh(80),
   },
   emptyTitle: {
     ...Typography.heading2,
@@ -529,7 +573,7 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 28,
+    marginBottom: vh(24),
   },
   emptyCTA: {
     paddingHorizontal: Spacing.xxl,

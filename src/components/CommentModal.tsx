@@ -279,6 +279,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     styles.modalContainer,
                     { transform: [{ translateY: slideAnim }] }
                 ]}
+                accessibilityViewIsModal={true}
             >
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={0}>
                 {/* Header */}

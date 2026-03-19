@@ -279,6 +279,12 @@ export const updateExperience = onCall(
                 message: "Experience updated successfully",
             };
         } catch (error: any) {
+            // Preserve HttpsError codes (e.g. invalid-argument, not-found) so the
+            // client receives the correct error message rather than a generic 'internal' one.
+            if (error instanceof HttpsError) {
+                throw error;
+            }
+
             console.error("❌ Error updating experience:", error);
 
             // Cleanup uploaded images on failure

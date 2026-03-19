@@ -27,6 +27,13 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [position, setPosition] = useState(0);
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -39,6 +46,10 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
             if (!sound) {
                 setIsLoading(true);
                 const { sound: newSound } = await Audio.Sound.createAsync({ uri });
+                if (!mountedRef.current) {
+                    newSound.unloadAsync();
+                    return;
+                }
                 setIsLoading(false);
                 setSound(newSound);
                 newSound.setOnPlaybackStatusUpdate((status) => {

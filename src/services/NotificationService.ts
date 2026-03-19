@@ -13,6 +13,7 @@ import {
   getDocs,
   getDoc,
   limit,
+  writeBatch,
 } from 'firebase/firestore';
 import { Notification } from '../types';
 import { toDateSafe } from '../utils/GoalHelpers';
@@ -27,19 +28,30 @@ export class NotificationService {
     title: string,
     message: string,
     data?: Record<string, any>,
-    clearable: boolean = true
+    clearable: boolean = true,
+    senderId?: string
   ) {
-    const docRef = await addDoc(collection(db, 'notifications'), {
-      userId, // Fixed field name to match type definition
-      type,
-      title,
-      message,
-      read: false,
-      clearable,
-      createdAt: serverTimestamp(),
-      data: data || {},
-    });
-    return docRef.id;
+    try {
+      const docData: Record<string, any> = {
+        userId,
+        type,
+        title,
+        message,
+        read: false,
+        clearable,
+        createdAt: serverTimestamp(),
+        data: data || {},
+      };
+      if (senderId) {
+        docData.senderId = senderId;
+      }
+      const docRef = await addDoc(collection(db, 'notifications'), docData);
+      return docRef.id;
+    } catch (error) {
+      console.warn('Failed to create notification:', error);
+      // Don't rethrow — notification is non-critical
+      return '';
+    }
   }
 
   /** Create a friend request notification */
@@ -51,20 +63,28 @@ export class NotificationService {
     senderProfileImageUrl?: string,
     senderCountry?: string
   ) {
-    await this.createNotification(
-      recipientId,
-      'friend_request',
-      'New Friend Request',
-      `${senderName} wants to be your friend`,
-      {
-        friendRequestId,
-        senderId,
-        senderName,
-        senderProfileImageUrl,
-        senderCountry,
-      },
-      true // Allow clearing after responding
-    );
+    try {
+      // Note: Firestore rules require data.requestId (not friendRequestId) and top-level senderId
+      await this.createNotification(
+        recipientId,
+        'friend_request',
+        'New Friend Request',
+        `${senderName} wants to be your friend`,
+        {
+          requestId: friendRequestId,
+          friendRequestId, // Keep for backward compat
+          senderId,
+          senderName,
+          senderProfileImageUrl,
+          senderCountry,
+        },
+        true, // Allow clearing after responding
+        senderId // Pass senderId as top-level field
+      );
+    } catch (error) {
+      console.warn('Failed to create friend request notification:', error);
+      // Don't rethrow — notification is non-critical
+    }
   }
 
   /** Create a personalized hint notification */
@@ -190,10 +210,29 @@ export class NotificationService {
     return unsubscribe;
   };
 
+  /** Mark all unread notifications as read for a user (batch write, max 500) */
+  async markAllAsRead(userId: string): Promise<void> {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      where('read', '==', false),
+      limit(500)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.update(d.ref, { read: true }));
+    await batch.commit();
+  }
+
   /** Mark as read */
   async markAsRead(notificationId: string) {
-    const ref = doc(db, 'notifications', notificationId);
-    await updateDoc(ref, { read: true });
+    try {
+      const ref = doc(db, 'notifications', notificationId);
+      await updateDoc(ref, { read: true });
+    } catch (error) {
+      console.warn('Failed to mark notification as read:', error);
+    }
   }
 
   /** Delete a single notification */
@@ -201,62 +240,64 @@ export class NotificationService {
     if (!notificationId) {
       throw new AppError('INVALID_REQUEST', 'Notification ID is required', 'validation');
     }
-    const ref = doc(db, 'notifications', notificationId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const notificationData = snap.data();
-      // Don't allow deletion of non-clearable notifications unless forced
-      if (!force && notificationData.clearable === false) {
-        throw new AppError('NOT_CLEARABLE', 'This notification cannot be cleared', 'business');
+    try {
+      const ref = doc(db, 'notifications', notificationId);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const notificationData = snap.data();
+        if (!force && notificationData.clearable === false) {
+          throw new AppError('NOT_CLEARABLE', 'This notification cannot be cleared', 'business');
+        }
       }
+      await deleteDoc(ref);
+    } catch (error) {
+      if (error instanceof AppError) throw error; // Re-throw business logic errors
+      console.warn('Failed to delete notification:', error);
     }
-    await deleteDoc(ref);
   }
 
-  /** Clear all notifications for a user */
+  /** Clear all notifications for a user (bounded to 500 per call, uses batched delete) */
   async clearAllNotifications(userId: string) {
     try {
       const notificationsRef = collection(db, 'notifications');
-      const q = query(notificationsRef, where('userId', '==', userId));
+      const q = query(notificationsRef, where('userId', '==', userId), limit(500));
       const snapshot = await getDocs(q);
 
       // Only delete notifications that are clearable (clearable !== false)
-      const deletePromises = snapshot.docs
-        .filter(doc => {
-          const data = doc.data();
-          return data.clearable !== false && data.type !== 'friend_request' && data.type !== 'goal_approval_request' && data.type !== 'goal_change_suggested';
-        })
-        .map(doc => deleteDoc(doc.ref));
+      const clearableDocs = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.clearable !== false && data.type !== 'friend_request' && data.type !== 'goal_approval_request' && data.type !== 'goal_change_suggested';
+      });
 
-      await Promise.all(deletePromises);
+      if (clearableDocs.length === 0) return;
 
-      logger.log(`✅ Cleared ${deletePromises.length} clearable notifications for user ${userId}`);
+      const batch = writeBatch(db);
+      clearableDocs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+
+      logger.log(`✅ Cleared ${clearableDocs.length} clearable notifications for user ${userId}`);
     } catch (error) {
       logger.error('❌ Error clearing all notifications:', error);
       throw error;
     }
   }
 
-  /** Clear all read notifications for a user */
+  /** Clear all read notifications for a user (bounded to 500 per call, uses batched delete) */
   async clearReadNotifications(userId: string) {
     try {
       const notificationsRef = collection(db, 'notifications');
-      const q = query(
-        notificationsRef,
-        where('userId', '==', userId),
-        where('read', '==', true)
-      );
-      const snapshot = await getDocs(q);
+      const q = query(notificationsRef, where('userId', '==', userId), where('read', '==', true), limit(500));
+      const snap = await getDocs(q);
+      if (snap.empty) return;
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => {
+        if (d.data().clearable !== false) {
+          batch.delete(d.ref);
+        }
+      });
+      await batch.commit();
 
-      const deletePromises = snapshot.docs
-        .filter(doc => {
-          const data = doc.data();
-          return data.clearable !== false;
-        })
-        .map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-
-      logger.log(`✅ Cleared ${deletePromises.length} read clearable notifications for user ${userId}`);
+      logger.log(`✅ Cleared read clearable notifications for user ${userId}`);
     } catch (error) {
       logger.error('❌ Error clearing read notifications:', error);
       throw error;

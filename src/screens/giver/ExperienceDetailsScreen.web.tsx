@@ -37,6 +37,7 @@ import { useApp } from "../../context/AppContext";
 import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
+import { vh } from '../../utils/responsive';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     position: "relative",
-    height: 400,
+    height: vh(400),
     maxWidth: Platform.OS === "web" ? 800 : undefined,
     width: "100%",
     alignSelf: "center",
@@ -554,7 +555,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: Platform.OS === "web" ? Math.min(width, 800) : width,
-    height: 400,
+    height: vh(400),
     backgroundColor: Colors.backgroundLight,
   },
   dotsContainer: {
@@ -585,7 +586,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     paddingTop: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
-    paddingBottom: 100,
+    paddingBottom: vh(100),
   },
   headerSection: {
     flexDirection: "row",
@@ -701,7 +702,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   section: {
-    marginBottom: 28,
+    marginBottom: vh(28),
   },
   sectionTitleRow: {
     flexDirection: "row",
@@ -738,7 +739,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapContainer: {
-    height: 220,
+    height: vh(220),
     borderRadius: BorderRadius.md,
     overflow: "hidden",
     backgroundColor: Colors.border,

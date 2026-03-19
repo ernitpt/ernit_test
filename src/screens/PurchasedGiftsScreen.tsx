@@ -271,6 +271,7 @@ const PurchasedGiftsScreen = () => {
           removeClippedSubviews={Platform.OS !== 'web'}
           maxToRenderPerBatch={10}
           windowSize={5}
+          getItemLayout={(data, index) => ({ length: 120, offset: 120 * index, index })}
           onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, filteredGifts.length))}
           onEndReachedThreshold={0.5}
           ListFooterComponent={

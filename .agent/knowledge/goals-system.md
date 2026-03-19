@@ -4,10 +4,11 @@
 The Goal System is the core engine of Ernit, handling user progress, weekly sessions, Valentine's challenges, and **Free Goals** (self-set challenges). Managed by `GoalService.ts`.
 
 ## Core Concepts
-- **Goal**: The central entity. Tracks `targetCount` (total sessions), `currentCount` (weeks completed), and `weeklyCount` (sessions this week).
-- **Weekly Cadence**: Progress is tracked week-by-week. `tickWeeklySession` handles incrementing sessions.
+- **Goal**: The central entity. Tracks `targetCount` (total NUMBER OF WEEKS, not sessions), `currentCount` (weeks completed), and `weeklyCount` (sessions this week).
+- **Weekly Cadence**: Progress is tracked week-by-week. `tickWeeklySession` handles incrementing sessions. `currentCount` increments by 1 per completed week, capped at `targetCount` on completion.
 - **Anchored Weeks**: Weeks are calculated relative to `weekStartAt`.
 - **Validation**: Strict checks prevent multiple sessions per day (unless in debug mode) or exceeding weekly targets.
+- **`sweepExpiredWeeks`**: Midnight normalization function that runs on `weekStartAt` to handle expired weeks.
 
 ## Data Model (Key Fields)
 - `targetCount`: Total number of weeks to complete.
@@ -20,15 +21,19 @@ The Goal System is the core engine of Ernit, handling user progress, weekly sess
 - `isUnlocked`: Used in Valentine challenges to gate the final reward.
 - `isFreeGoal`: Boolean. True for self-set challenges (no purchase required).
 - `pledgedExperience`: Optional snapshot `{ experienceId, title, coverImageUrl, subtitle, price }` — the "dream reward" a user picks when creating a free goal.
-- `giftAttachDeadline`: Timestamp. 30-day window after completion for friends to attach gifts.
+- `giftAttachDeadline`: Timestamp. 30-day deadline set **atomically inside the `tickWeeklySession` transaction** on goal completion.
+- `isReadyToComplete`: Boolean. Set on shared/Together goals when the completing partner's goal is done but `partnerGoalId` is not yet linked. Prevents premature `isCompleted`. Used instead of `isCompleted` for shared goals without a linked partner.
+- `approvalStatus`: Defaults to `'approved'` for legacy/old goals via the `??` operator (backward compatibility).
 
 ## Goal Types
 
 ### 1. Purchased Goals (Original)
 Created via Stripe webhook after experience purchase. `experienceGiftId` links to the purchased gift.
 
-### 2. Valentine's Challenge
+### 2. Together/Shared Challenge (`GoalShared`)
+Formerly called `GoalValentine` — renamed to `GoalShared`. A backward-compatibility alias `GoalValentine = GoalShared` is kept in types.
 Paired goals (`partnerGoalId`). Atomic unlock via `checkAndUnlockBothPartners` using Firestore transactions. Partners who finish early wait (`isFinished=true`, `isUnlocked=false`).
+- **Completion blocking**: Shared goals without `partnerGoalId` set `isReadyToComplete: true` instead of `isCompleted: true` — completion finalizes once both partners are linked.
 
 ### 3. Free Goals ("The Pledge")
 Self-set challenges — no purchase required. Created via `createFreeGoal()`.
@@ -58,7 +63,7 @@ Friends leave encouragement messages for goal owners. Stored as subcollection: `
 - `attachGiftToGoal`: Links a purchased experience gift to an existing free goal.
 - `tickWeeklySession`: The main "I did it" action. Handles day validation, week rollover, completion checks, and milestone feed posts.
 - `checkAndUnlockBothPartners`: Critical for Valentine flow. Atomic completion check.
-- `applyExpiredWeeksSweep`: Maintenance — resets counters if a week passes without completion.
+- `applyExpiredWeeksSweep` / `sweepExpiredWeeks`: Maintenance — resets counters if a week passes without completion. Runs midnight normalization on `weekStartAt`.
 
 ## Security & Validation
 - **Input Sanitization**: `normalizeGoal` ensures all dates are valid JS Date objects.

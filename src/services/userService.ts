@@ -27,22 +27,38 @@ export class UserService {
 
   /** Create a user document after sign-up */
   async createUserProfile(user: User): Promise<void> {
-    const userRef = doc(db, 'users', user.id);
-    await setDoc(userRef, {
-      ...user,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: new Date().toISOString(),
-      cart: user.cart ?? [],
-    });
+    try {
+      const userRef = doc(db, 'users', user.id);
+      await setDoc(userRef, {
+        ...user,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: new Date().toISOString(),
+        cart: user.cart ?? [],
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('createUserProfile failed'), {
+        screenName: 'userService',
+        feature: 'createUserProfile',
+      });
+      throw error;
+    }
   }
 
   /** Get ONLY user.profile (subdocument) */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const userRef = doc(db, 'users', userId);
-    const snapshot = await getDoc(userRef);
+    try {
+      const userRef = doc(db, 'users', userId);
+      const snapshot = await getDoc(userRef);
 
-    if (!snapshot.exists()) return null;
-    return snapshot.data().profile ?? null;
+      if (!snapshot.exists()) return null;
+      return snapshot.data().profile ?? null;
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('getUserProfile failed'), {
+        screenName: 'userService',
+        feature: 'getUserProfile',
+      });
+      return null;
+    }
   }
 
   /** Parse Firestore / string dates */
@@ -57,38 +73,46 @@ export class UserService {
 
   /** Get full User object */
   async getUserById(userId: string): Promise<User | null> {
-    const userRef = doc(db, 'users', userId);
-    const snapshot = await getDoc(userRef);
+    try {
+      const userRef = doc(db, 'users', userId);
+      const snapshot = await getDoc(userRef);
 
-    if (!snapshot.exists()) return null;
+      if (!snapshot.exists()) return null;
 
-    const data = snapshot.data();
+      const data = snapshot.data();
 
-    return {
-      id: userId,
-      email: data.email || '',
-      displayName: data.displayName || undefined,
-      userType: data.userType || 'giver',
-      createdAt: this.parseDate(data.createdAt),
-      wishlist: Array.isArray(data.wishlist) ? data.wishlist : [],
+      return {
+        id: userId,
+        email: data.email || '',
+        displayName: data.displayName || undefined,
+        userType: data.userType || 'giver',
+        createdAt: this.parseDate(data.createdAt),
+        wishlist: Array.isArray(data.wishlist) ? data.wishlist : [],
 
-      // 🔥 ensure cart is always an array of CartItem
-      cart: Array.isArray(data.cart)
-        ? data.cart.filter((item: unknown): item is CartItem =>
-            item != null &&
-            typeof item === 'object' &&
-            typeof (item as CartItem).experienceId === 'string' &&
-            typeof (item as CartItem).quantity === 'number')
-        : [],
+        // 🔥 ensure cart is always an array of CartItem
+        cart: Array.isArray(data.cart)
+          ? data.cart.filter((item: unknown): item is CartItem =>
+              item != null &&
+              typeof item === 'object' &&
+              typeof (item as CartItem).experienceId === 'string' &&
+              typeof (item as CartItem).quantity === 'number')
+          : [],
 
-      profile: data.profile
-        ? {
-          ...data.profile,
-          createdAt: this.parseDate(data.profile.createdAt),
-          updatedAt: this.parseDate(data.profile.updatedAt),
-        }
-        : undefined,
-    };
+        profile: data.profile
+          ? {
+            ...data.profile,
+            createdAt: this.parseDate(data.profile.createdAt),
+            updatedAt: this.parseDate(data.profile.updatedAt),
+          }
+          : undefined,
+      };
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('getUserById failed'), {
+        screenName: 'userService',
+        feature: 'getUserById',
+      });
+      return null;
+    }
   }
 
   /** Get user display name */
@@ -119,95 +143,143 @@ export class UserService {
 
   /** Get wishlist as Experience[] */
   async getWishlist(userId: string): Promise<Experience[]> {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    const wishlistIds = userDoc.data()?.wishlist || [];
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      const wishlistIds = userDoc.data()?.wishlist || [];
 
-    const experiences = await Promise.all(
-      wishlistIds.map((id: string) => experienceService.getExperienceById(id))
-    );
+      const experiences = await Promise.all(
+        wishlistIds.map((id: string) => experienceService.getExperienceById(id))
+      );
 
-    return experiences.filter(Boolean);
+      return experiences.filter(Boolean);
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('getWishlist failed'), {
+        screenName: 'userService',
+        feature: 'getWishlist',
+      });
+      return [];
+    }
   }
 
   /** Update full user profile OR subdocument */
   async updateUserProfile(userId: string, updates: Partial<User>): Promise<void> {
-    const userRef = doc(db, 'users', userId);
+    try {
+      const userRef = doc(db, 'users', userId);
 
-    if (updates.profile) {
-      const profileUpdates = {
-        ...updates.profile,
-        updatedAt: new Date().toISOString(),
-      };
+      if (updates.profile) {
+        const profileUpdates = {
+          ...updates.profile,
+          updatedAt: new Date().toISOString(),
+        };
 
-      const userUpdates: Record<string, unknown> = {
-        profile: profileUpdates,
-        updatedAt: new Date().toISOString(),
-      };
+        const userUpdates: Record<string, unknown> = {
+          profile: profileUpdates,
+          updatedAt: new Date().toISOString(),
+        };
 
-      // Sync profile.name → displayName
-      if (updates.profile.name) {
-        userUpdates.displayName = updates.profile.name;
+        // Sync profile.name → displayName
+        if (updates.profile.name) {
+          userUpdates.displayName = updates.profile.name;
+        }
+
+        await updateDoc(userRef, userUpdates);
+        return;
       }
 
-      await updateDoc(userRef, userUpdates);
-      return;
+      // Normal update — restrict to whitelisted fields to prevent unintended overwrites
+      const allowedFields = ['profile', 'displayName', 'settings', 'wishlist', 'cart', 'reminderTime', 'reminderEnabled'];
+      const sanitizedUpdates = Object.keys(updates)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => ({ ...obj, [key]: updates[key as keyof typeof updates] }), {} as Partial<typeof updates>);
+
+      await updateDoc(userRef, {
+        ...sanitizedUpdates,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('updateUserProfile failed'), {
+        screenName: 'userService',
+        feature: 'updateUserProfile',
+      });
+      throw error;
     }
-
-    // Normal update — restrict to whitelisted fields to prevent unintended overwrites
-    const allowedFields = ['profile', 'displayName', 'settings', 'wishlist', 'cart', 'reminderTime', 'reminderEnabled'];
-    const sanitizedUpdates = Object.keys(updates)
-      .filter(key => allowedFields.includes(key))
-      .reduce((obj, key) => ({ ...obj, [key]: updates[key as keyof typeof updates] }), {} as Partial<typeof updates>);
-
-    await updateDoc(userRef, {
-      ...sanitizedUpdates,
-      updatedAt: new Date().toISOString(),
-    });
   }
 
   /** Update cart fully */
   async updateCart(userId: string, cart: CartItem[]): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      cart,
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        cart,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('updateCart failed'), {
+        screenName: 'userService',
+        feature: 'updateCart',
+      });
+      throw error;
+    }
   }
 
   /** Add item to cart */
   async addToCart(userId: string, cartItem: CartItem): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      cart: arrayUnion(cartItem),
-      updatedAt: serverTimestamp(),
-    });
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        cart: arrayUnion(cartItem),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('addToCart failed'), {
+        screenName: 'userService',
+        feature: 'addToCart',
+      });
+      throw error;
+    }
   }
 
   /** Remove item from cart */
   async removeFromCart(userId: string, experienceId: string): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) throw new AppError('USER_NOT_FOUND', 'User not found', 'not_found');
+      if (!userSnap.exists()) throw new AppError('USER_NOT_FOUND', 'User not found', 'not_found');
 
-    const currentCart = (userSnap.data().cart as CartItem[]) || [];
-    const newCart = currentCart.filter(
-      (item) => item.experienceId !== experienceId
-    );
+      const currentCart = (userSnap.data().cart as CartItem[]) || [];
+      const newCart = currentCart.filter(
+        (item) => item.experienceId !== experienceId
+      );
 
-    await updateDoc(userRef, {
-      cart: newCart,
-      updatedAt: new Date().toISOString(),
-    });
+      await updateDoc(userRef, {
+        cart: newCart,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('removeFromCart failed'), {
+        screenName: 'userService',
+        feature: 'removeFromCart',
+      });
+      throw error;
+    }
   }
 
   /** Clear entire cart */
   async clearCart(userId: string): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      cart: [],
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        cart: [],
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logErrorToFirestore(error instanceof Error ? error : new Error('clearCart failed'), {
+        screenName: 'userService',
+        feature: 'clearCart',
+      });
+      // Don't rethrow — cart clear failure is non-critical
+    }
   }
 
 }

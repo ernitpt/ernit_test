@@ -9,6 +9,7 @@ import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
+import { vh } from '../utils/responsive';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = Math.min(SCREEN_W - 48, 400);
@@ -554,7 +555,7 @@ const s = StyleSheet.create({
   },
   rewardCard: {
     width: '100%',
-    height: 160,
+    height: vh(160),
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },

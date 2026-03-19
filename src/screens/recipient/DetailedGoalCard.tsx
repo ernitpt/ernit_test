@@ -15,6 +15,9 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, isSelfGifted } from '../../types';
+import { db } from '../../services/firebase';
+import { addDoc, collection, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { normalizeGoal } from '../../services/GoalService';
 import { goalService } from '../../services/GoalService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/NotificationService';
@@ -35,12 +38,13 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import { vh } from '../../utils/responsive';
 
 // Extracted utilities, hooks, and components
 import {
   isGoalLocked,
-  TIMER_STORAGE_KEY,
   HintObject,
+  PartnerGoalData,
 } from './goalCardUtils';
 import { useGoalProgress } from './hooks/useGoalProgress';
 import WeeklyCalendar from './components/WeeklyCalendar';
@@ -118,6 +122,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [showCTA, setShowCTA] = useState(false);
   const [ctaDecision, setCTADecision] = useState<CTADecision | null>(null);
 
+  // Partner goal state for shared/together challenges
+  const [partnerGoalData, setPartnerGoalData] = useState<PartnerGoalData | null>(null);
+
   const isSelfGift = isSelfGifted(currentGoal);
   const navigation = useRootNavigation();
   const { state: appState } = useApp();
@@ -164,7 +171,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const progress = useGoalProgress({
     goal: currentGoal,
     selectedView: 'user',
-    partnerGoalData: null,
+    partnerGoalData,
     debugTimeKey,
   });
 
@@ -185,6 +192,44 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => { });
     }
   }, [currentGoal.empoweredBy]);
+
+  // Real-time partner goal listener for shared/together challenges
+  useEffect(() => {
+    if (!currentGoal.partnerGoalId) {
+      setPartnerGoalData(null);
+      return;
+    }
+
+    const partnerRef = doc(db, 'goals', currentGoal.partnerGoalId);
+    const unsubscribe = onSnapshot(
+      partnerRef,
+      (snap) => {
+        if (!snap.exists()) {
+          setPartnerGoalData(null);
+          return;
+        }
+        const raw = normalizeGoal({ id: snap.id, ...snap.data() });
+        setPartnerGoalData({
+          userId: raw.userId,
+          weeklyCount: raw.weeklyCount ?? 0,
+          sessionsPerWeek: raw.sessionsPerWeek ?? 1,
+          weeklyLogDates: raw.weeklyLogDates ?? [],
+          isWeekCompleted: raw.isWeekCompleted ?? false,
+          isCompleted: raw.isCompleted,
+          weekStartAt: raw.weekStartAt,
+          targetCount: raw.targetCount,
+          currentCount: raw.currentCount,
+          title: raw.title,
+        });
+      },
+      (error) => {
+        logger.error('Error listening to partner goal:', error);
+        setPartnerGoalData(null);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentGoal.partnerGoalId]);
 
   // Sync goal prop changes from parent (JourneyScreen owns the onSnapshot listener)
   useEffect(() => {
@@ -257,7 +302,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const clearTimerState = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem(TIMER_STORAGE_KEY + currentGoal.id);
+      const raw = await AsyncStorage.getItem('global_timer_state');
+      if (raw) {
+        const timers = JSON.parse(raw);
+        delete timers[currentGoal.id];
+        await AsyncStorage.setItem('global_timer_state', JSON.stringify(timers));
+      }
       await pushNotificationService.cancelSessionNotification(currentGoal.id);
     } catch (error) {
       logger.error('Error clearing timer state:', error);
@@ -505,7 +555,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       await pushNotificationService.cancelSessionNotification(goalId);
 
       if (updated.isCompleted) {
-        // GOAL COMPLETION — create session record, then navigate
+        // GOAL COMPLETION — create session record, then navigate.
+        //
+        // S-12 (INTENTIONAL NON-ATOMICITY): tickWeeklySession (above) runs as a
+        // Firestore transaction that atomically updates the goal counter and triggers
+        // the deferred-charge Cloud Function. The session record written here is
+        // supplementary audit data only — if it fails, the goal counter and charge
+        // trigger are already committed and correct. Navigation proceeds regardless.
         try {
           await sessionService.createSessionRecord(goalId, {
             goalId, userId: updated.userId, timestamp: new Date(),
@@ -513,8 +569,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             weekNumber: updated.currentCount,
           });
         } catch (err) {
-          logger.warn('Failed to save final session record:', err);
-          showError('Session completed but record failed to save. Your progress is still tracked.');
+          // Non-critical: goal progress and charge trigger are already committed
+          logger.warn('Failed to save final session record (non-critical):', err);
         }
 
         // Free goals without attached gift: navigate to FreeGoalCompletion
@@ -561,14 +617,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       logger.error(err);
       await logErrorToFirestore(err, {
         screenName: 'DetailedGoalCard',
         feature: 'UpdateGoalProgress',
         additionalData: { goalId: currentGoal.id },
       });
-      showError('Could not update goal progress.');
+      if (err?.code === 'unavailable' || err?.message?.includes('network') || err?.message?.includes('offline')) {
+        showError('You appear to be offline. Your session is saved — please try again when connected.');
+      } else {
+        showError('Could not update goal progress. Please try again.');
+      }
     } finally {
       setLoading(false);
       finishLock.current = false;
@@ -613,7 +673,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         mediaType,
       });
     } catch (err) {
-      logger.warn('Failed to save session record:', err);
+      // Non-critical: goal progress (tickWeeklySession transaction) already committed
+      logger.warn('Failed to save session record (non-critical):', err);
     }
 
     // Store uploaded media URL for feed post, then clear capture state
@@ -703,7 +764,24 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       );
     }
 
-  }, [isSelfGift, sessionMediaUri, sessionMediaType, timeElapsed, onFinish]);
+    // M3: Notify partner when a session is logged in a shared/together challenge
+    if (updated.partnerGoalId && partnerGoalData?.userId) {
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          userId: partnerGoalData.userId,
+          type: 'shared_session',
+          title: 'Partner Activity',
+          message: `${appState.user?.displayName || appState.user?.name || 'Your partner'} logged a session!`,
+          data: { goalId: updated.id },
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Failed to send partner session notification:', e);
+      }
+    }
+
+  }, [isSelfGift, sessionMediaUri, sessionMediaType, timeElapsed, onFinish, partnerGoalData, appState.user]);
 
   // ─── Media prompt handlers ────────────────────────────────────────
 
@@ -925,6 +1003,67 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             overallTotal={progress.overallTotal}
           />
 
+          {/* Partner Progress (shared/together challenges only) */}
+          {partnerGoalData && (
+            <View style={styles.partnerProgressContainer}>
+              <Text style={styles.partnerProgressTitle}>Partner progress</Text>
+              <Text style={styles.partnerProgressSubtitle}>
+                Your partner is at {partnerGoalData.currentCount ?? 0}/{partnerGoalData.targetCount ?? 0} sessions
+              </Text>
+              <View style={styles.partnerProgressBarTrack}>
+                <View
+                  style={[
+                    styles.partnerProgressBarFill,
+                    {
+                      width: `${partnerGoalData.targetCount
+                        ? Math.min(100, Math.round(((partnerGoalData.currentCount ?? 0) / partnerGoalData.targetCount) * 100))
+                        : 0}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* M4: "Waiting for partner to finish" — goal completed but partner hasn't unlocked yet */}
+          {(currentGoal.isCompleted === true || currentGoal.isReadyToComplete === true) &&
+            !currentGoal.isUnlocked &&
+            !!currentGoal.partnerGoalId && (
+            <View style={styles.waitingBanner}>
+              <Text style={styles.waitingBannerText}>
+                You've completed your challenge! Waiting for your partner to finish.
+              </Text>
+              {partnerGoalData && (
+                <View style={styles.waitingBannerProgress}>
+                  <Text style={styles.waitingBannerProgressLabel}>
+                    Partner: {partnerGoalData.currentCount ?? 0}/{partnerGoalData.targetCount ?? 0} sessions
+                  </Text>
+                  <View style={styles.waitingBannerProgressTrack}>
+                    <View
+                      style={[
+                        styles.waitingBannerProgressFill,
+                        {
+                          width: `${partnerGoalData.targetCount
+                            ? Math.min(100, Math.round(((partnerGoalData.currentCount ?? 0) / partnerGoalData.targetCount) * 100))
+                            : 0}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* M4: "Waiting for partner to accept" — shared challenge not yet linked to partner goal */}
+          {currentGoal.challengeType === 'shared' && !currentGoal.partnerGoalId && (
+            <View style={styles.waitingBanner}>
+              <Text style={styles.waitingBannerText}>
+                Waiting for your partner to accept the challenge
+              </Text>
+            </View>
+          )}
+
           {/* Action Area or Timer — animated crossfade */}
           <Animated.View style={{
             opacity: timerFadeAnim,
@@ -1089,7 +1228,7 @@ const styles = StyleSheet.create({
       WebkitBackdropFilter: 'blur(12px)',
     } as Record<string, string> : {}),
   },
-  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: 22, textAlign: 'center' },
+  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: vh(22), textAlign: 'center' },
   empoweredText: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
   mysteryBadge: {
     alignSelf: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: Spacing.md,
@@ -1125,6 +1264,70 @@ const styles = StyleSheet.create({
     alignItems: 'center', borderWidth: 1, borderColor: Colors.gray300,
   },
   debugButtonText: { ...Typography.caption, fontWeight: '600', color: Colors.gray700 },
+
+  // Partner progress (shared/together challenges)
+  partnerProgressContainer: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.primarySurface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+  },
+  partnerProgressTitle: {
+    ...Typography.smallBold,
+    color: Colors.primary,
+    marginBottom: Spacing.xs,
+  },
+  partnerProgressSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  partnerProgressBarTrack: {
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: BorderRadius.pill,
+    overflow: 'hidden',
+  },
+  partnerProgressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.pill,
+  },
+  // M4: Waiting for partner banners
+  waitingBanner: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.warningLight,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.warningBorder,
+  },
+  waitingBannerText: {
+    ...Typography.body,
+    color: Colors.warningDark,
+    fontWeight: '600',
+  },
+  waitingBannerProgress: {
+    marginTop: Spacing.sm,
+  },
+  waitingBannerProgressLabel: {
+    ...Typography.caption,
+    color: Colors.warningMedium,
+    marginBottom: Spacing.xs,
+  },
+  waitingBannerProgressTrack: {
+    height: 6,
+    backgroundColor: Colors.warningBorder,
+    borderRadius: BorderRadius.pill,
+    overflow: 'hidden',
+  },
+  waitingBannerProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.warning,
+    borderRadius: BorderRadius.pill,
+  },
 });
 
 export default DetailedGoalCard;

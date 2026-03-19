@@ -14,7 +14,6 @@ export const commonStyles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: Spacing.xxl,
-        // paddingTop: 34,
         paddingBottom: Spacing.sm,
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -24,6 +23,5 @@ export const commonStyles = StyleSheet.create({
         fontSize: Typography.heading1.fontSize,
         fontWeight: '700',
         color: Colors.white,
-        // marginBottom: 4,
     },
 });

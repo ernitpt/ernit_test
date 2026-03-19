@@ -21,6 +21,10 @@ export class DateHelper {
      * @param ms Milliseconds to add (can be negative)
      */
     static addOffset(ms: number) {
+        if (typeof __DEV__ === 'undefined' || !__DEV__) {
+            console.warn('DateHelper.addOffset is disabled in production');
+            return;
+        }
         this.offsetMs += ms;
     }
 

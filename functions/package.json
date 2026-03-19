@@ -10,7 +10,8 @@
     "deploy": "npm run build && firebase deploy --only functions",
     "logs": "firebase functions:log",
     "migrate:feed:preview": "npm run build && node lib/migrations/feedBackfillMigration.js",
-    "migrate:feed": "npm run build && node lib/migrations/feedBackfillMigration.js execute"
+    "migrate:feed": "npm run build && node lib/migrations/feedBackfillMigration.js execute",
+    "test": "node ../node_modules/jest-cli/bin/jest.js --config jest.config.js --passWithNoTests"
   },
   "engines": {
     "node": "22"

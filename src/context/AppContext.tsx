@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useContext, useReducer, useMemo, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { User, ExperienceGift, Goal, Hint, CartItem } from '../types';
 import { logger } from '../utils/logger';
 
@@ -320,7 +321,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Persist guest cart to localStorage (extracted from reducer for purity)
   useEffect(() => {
-    if (typeof window !== 'undefined' && state.guestCart !== undefined) {
+    if (Platform.OS === 'web' && state.guestCart !== undefined) {
       try {
         localStorage.setItem('guest_cart', JSON.stringify(state.guestCart));
       } catch (error) {
@@ -331,7 +332,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Restore guest cart from localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web') {
       try {
         const savedCart = localStorage.getItem('guest_cart');
         if (savedCart) {

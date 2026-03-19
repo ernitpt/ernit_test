@@ -1,6 +1,6 @@
 import { DateHelper } from '../utils/DateHelper';
 import { isoDateOnly, isValidDate, toJSDate, addDaysSafe, normalizeGoal } from '../utils/GoalHelpers';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   collection,
   addDoc,
@@ -30,6 +30,7 @@ import { config } from '../config/environment';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
 import { AppError } from '../utils/AppError';
+import { sanitizeText } from '../utils/sanitization';
 
 // Re-export helpers from GoalHelpers so existing importers of these symbols from
 // GoalService continue to work without breaking changes.
@@ -234,6 +235,12 @@ export class GoalService {
       }
 
       transaction.update(goalRef, updateFields);
+      transaction.update(giftRef, {
+        isRedeemed: true,
+        redeemedAt: serverTimestamp(),
+        redeemedGoalId: goalId,
+        updatedAt: serverTimestamp(),
+      });
     });
 
     analyticsService.trackEvent('gift_attached_to_goal', 'conversion', { goalId, experienceGiftId, giverId, isMystery });
@@ -316,14 +323,7 @@ export class GoalService {
       if (typeof hintObj.text !== 'string') {
         throw new AppError('INVALID_HINT', 'Hint text must be a string', 'validation');
       }
-      // Limit text length to prevent storage DoS
-      const MAX_TEXT_LENGTH = 500;
-      if (hintObj.text.length > MAX_TEXT_LENGTH) {
-        hintObj.text = hintObj.text.substring(0, MAX_TEXT_LENGTH);
-        logger.warn(`⚠️ Hint text truncated to ${MAX_TEXT_LENGTH} characters`);
-      }
-      // Basic sanitization: trim whitespace
-      hintObj.text = hintObj.text.trim();
+      hintObj.text = sanitizeText(hintObj.text as string, 100);
     }
 
     // SECURITY: Validate URLs if present
@@ -384,10 +384,14 @@ export class GoalService {
     goalId: string,
     hintData: Omit<PersonalizedHint, 'createdAt'>
   ): Promise<void> {
+    const sanitizedHintData = {
+      ...hintData,
+      ...(hintData.text ? { text: sanitizeText(hintData.text, 100) } : {}),
+    };
     const goalRef = doc(db, 'goals', goalId);
     await updateDoc(goalRef, {
       personalizedNextHint: {
-        ...hintData,
+        ...sanitizedHintData,
         createdAt: DateHelper.now(),
       },
       updatedAt: serverTimestamp(),
@@ -414,6 +418,11 @@ export class GoalService {
   }
 
   async updateGoal(goalId: string, updates: Partial<Goal>) {
+    const goalDoc = await getDoc(doc(db, 'goals', goalId));
+    if (!goalDoc.exists() || goalDoc.data()?.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Not authorized to update this goal', 'auth');
+    }
+
     const ref = doc(db, 'goals', goalId);
 
     // SECURITY: Whitelist allowed fields to prevent unintended writes
@@ -462,6 +471,7 @@ export class GoalService {
       );
     } catch (error) {
       logger.error('Error saving goal coupon:', error);
+      throw error; // Don't swallow — caller needs to know
     }
   }
 
@@ -485,6 +495,10 @@ export class GoalService {
     const ref = doc(db, 'goals', goalId);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goalData = snap.data();
+    if (goalData?.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal supporter can approve', 'auth');
+    }
     const currentGoal = normalizeGoal({ id: snap.id, ...snap.data() });
 
     // Extract category from title or description
@@ -563,6 +577,12 @@ export class GoalService {
     suggestedSessionsPerWeek: number,
     message?: string
   ): Promise<Goal> {
+    const goalDoc = await getDoc(doc(db, 'goals', goalId));
+    if (!goalDoc.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    if (goalDoc.data()?.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal supporter can suggest changes', 'auth');
+    }
+
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (suggestedTargetCount > 5) {
       throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
@@ -595,6 +615,9 @@ export class GoalService {
     const ref = doc(db, 'goals', goalId);
     const goalSnap = await getDoc(ref);
     if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    if (goalSnap.data()?.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal owner can respond to suggestions', 'auth');
+    }
     const currentGoal = normalizeGoal({ id: goalSnap.id, ...goalSnap.data() });
 
     // Ensure new goal is not less than initial
@@ -670,6 +693,10 @@ export class GoalService {
     const ref = doc(db, 'goals', goalId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
+
+    // SECURITY: Only the goal owner may trigger auto-approve
+    if (snap.data()?.userId !== auth.currentUser?.uid) return null;
+
     const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
     if (goal.approvalStatus === 'pending' && goal.approvalDeadline) {

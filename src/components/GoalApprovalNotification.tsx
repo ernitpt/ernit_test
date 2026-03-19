@@ -15,6 +15,7 @@ import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
+import { sanitizeText } from '../utils/sanitization';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import Button from './Button';
 
@@ -45,7 +46,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     setError(null);
     setLoading(true);
     try {
-      await goalService.approveGoal(notification.data.goalId, approveMessage.trim() || null);
+      const sanitizedApproveMessage = sanitizeText(approveMessage.trim(), 500);
+      await goalService.approveGoal(notification.data.goalId, sanitizedApproveMessage || null);
 
       // Get recipient name and giver name
       // The notification is sent TO the giver, so notification.userId is the giver's ID
@@ -58,7 +60,9 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         notification.data.recipientId || '',
         'goal_approval_response',
         '✅ Your goal has been approved!',
-        `Message from ${giverName}: ${approveMessage.trim()}` || `${giverName} approved your goal. You can now continue with all sessions!`,
+        sanitizedApproveMessage
+            ? `Message from ${giverName}: ${sanitizedApproveMessage}`
+            : `${giverName} approved your goal! Time to start your challenge.`,
         {
           goalId: notification.data.goalId,
           giverId: notification.userId, // Use notification.userId as the giver ID
@@ -116,11 +120,12 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
     setLoading(true);
     try {
+      const sanitizedSuggestMessage = sanitizeText(suggestMessage.trim(), 500);
       await goalService.suggestGoalChange(
         notification.data.goalId,
         weeks,
         sessions,
-        suggestMessage.trim() || undefined
+        sanitizedSuggestMessage || undefined
       );
 
       // Get recipient name, giver name, and experience title
@@ -135,7 +140,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       await notificationService.createNotification(
         notification.data.recipientId || '',
         'goal_change_suggested',
-        `?? ${giverNameForSuggestion} suggested a goal change`,
+        `💡 ${giverNameForSuggestion} suggested a goal change`,
         '', //suggestMessage.trim() || `${giverName} suggested: ${weeks} weeks, ${sessions} sessions per week`,
         {
           goalId: notification.data.goalId,
@@ -147,7 +152,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           initialSessionsPerWeek: initialSessions,
           suggestedTargetCount: weeks,
           suggestedSessionsPerWeek: sessions,
-          giverMessage: suggestMessage.trim() || '',
+          giverMessage: sanitizedSuggestMessage || '',
         },
         false // Not clearable until receiver responds
       );
@@ -231,6 +236,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           }}
           multiline
           numberOfLines={4}
+          maxLength={500}
         />
         <View style={styles.modalButtons}>
           <TouchableOpacity
@@ -317,6 +323,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           }}
           multiline
           numberOfLines={3}
+          maxLength={500}
         />
 
         <View style={styles.modalButtons}>

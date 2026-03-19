@@ -88,6 +88,7 @@ function styleForSession(n: number): HintStyle {
 export const aiHintService = {
   /** ✅ Get or generate a hint WITHOUT writing to Firestore */
   async generateHint(params: {
+    userId: string;
     goalId: string;
     experienceType: string;
     experienceDescription?: string;
@@ -100,6 +101,7 @@ export const aiHintService = {
     await loadLocalCache();
 
     const {
+      userId,
       goalId,
       sessionNumber,
       experienceType,
@@ -110,7 +112,7 @@ export const aiHintService = {
       userName,
     } = params;
 
-    const cacheKey = `${goalId}_${sessionNumber}`;
+    const cacheKey = `${userId}_${goalId}_${sessionNumber}`;
 
     // ✅ Check local cache first
     if (localCache[cacheKey]) {
@@ -182,7 +184,7 @@ export const aiHintService = {
       logger.log(`Generated hint for category: ${category}`);
     }
 
-    // ✅ Save hint + category to Firestore session document
+    // ✅ Save hint + category to Firestore session document (merge to avoid overwriting existing session data)
     try {
       const sessionRef = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
       await setDoc(sessionRef, {
@@ -192,7 +194,7 @@ export const aiHintService = {
         category: category || null,
         createdAt: new Date(),
         giverName: "Anonymous", // Hints are anonymous
-      });
+      }, { merge: true });
       logger.log(`✅ Saved hint + category to Firestore: ${category}`);
     } catch (err) {
       logger.warn('Failed to save hint to Firestore:', err);
@@ -216,6 +218,7 @@ export const aiHintService = {
 
   /** ✅ Generate hint for mystery gifts — experience details resolved server-side */
   async generateMysteryHint(params: {
+    userId: string;
     goalId: string;
     sessionNumber: number;
     totalSessions: number;
@@ -223,8 +226,8 @@ export const aiHintService = {
   }): Promise<{ hint: string; category?: HintCategory }> {
     await loadLocalCache();
 
-    const { goalId, sessionNumber, totalSessions, userName } = params;
-    const cacheKey = `${goalId}_${sessionNumber}`;
+    const { userId, goalId, sessionNumber, totalSessions, userName } = params;
+    const cacheKey = `${userId}_${goalId}_${sessionNumber}`;
 
     // Check local cache first
     if (localCache[cacheKey]) {
@@ -275,7 +278,7 @@ export const aiHintService = {
     const category = res?.data?.category as HintCategory | undefined;
     if (!hint) throw new Error("No hint returned for mystery");
 
-    // Save to Firestore
+    // Save to Firestore (merge to avoid overwriting existing session data)
     try {
       const sessionRef = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));
       await setDoc(sessionRef, {
@@ -285,7 +288,7 @@ export const aiHintService = {
         category: category || null,
         createdAt: new Date(),
         giverName: "Anonymous",
-      });
+      }, { merge: true });
     } catch (err) {
       logger.warn('Failed to save mystery hint to Firestore:', err);
     }
@@ -296,10 +299,10 @@ export const aiHintService = {
   },
 
   /** ✅ Fetch a hint already completed */
-  async getHint(goalId: string, sessionNumber: number) {
+  async getHint(userId: string, goalId: string, sessionNumber: number) {
     await loadLocalCache();
 
-    const cacheKey = `${goalId}_${sessionNumber}`;
+    const cacheKey = `${userId}_${goalId}_${sessionNumber}`;
     if (localCache[cacheKey]) return localCache[cacheKey].hint;
 
     const ref = doc(db, "goalSessions", goalId, "sessions", String(sessionNumber));

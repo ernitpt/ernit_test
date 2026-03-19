@@ -4,6 +4,7 @@
     query,
     orderBy,
     getDocs,
+    getDoc,
     deleteDoc,
     doc,
     Timestamp,
@@ -14,11 +15,14 @@
     arrayUnion,
     arrayRemove,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+import { AppError } from '../utils/AppError';
 import type { Comment } from '../types';
 import { sanitizeComment, sanitizeText } from '../utils/sanitization';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
+import { notificationService } from './NotificationService';
+import { analyticsService } from './AnalyticsService';
 class CommentService {
     /**
      * Add a comment to a post
@@ -56,7 +60,28 @@ class CommentService {
             batch.update(postRef, { commentCount: increment(1) });
             await batch.commit();
 
+            analyticsService.trackEvent('feed_comment', 'engagement', { postId });
+
             logger.log('✅ Comment added');
+
+            // Notify post owner if commenter is not the owner
+            try {
+                const postSnap = await getDoc(postRef);
+                if (postSnap.exists()) {
+                    const postData = postSnap.data();
+                    if (postData?.userId && postData.userId !== comment.userId) {
+                        await notificationService.createNotification(
+                            postData.userId,
+                            'post_reaction', // reuse existing type for now
+                            'New Comment',
+                            `${sanitizedUserName} commented on your post`,
+                            { postId, commentId: newCommentRef.id, commenterId: comment.userId },
+                        );
+                    }
+                }
+            } catch (e) {
+                logger.warn('Failed to send comment notification:', e);
+            }
         } catch (error) {
             logger.error('❌ Error adding comment:', error);
             throw error;
@@ -68,10 +93,15 @@ class CommentService {
      */
     async updateComment(postId: string, commentId: string, newText: string): Promise<void> {
         try {
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            const commentDoc = await getDoc(commentRef);
+            if (!commentDoc.exists() || commentDoc.data()?.userId !== auth.currentUser?.uid) {
+                throw new AppError('UNAUTHORIZED', 'Not authorized to update this comment', 'auth');
+            }
+
             // ✅ SECURITY: Sanitize comment text before updating
             const sanitizedText = sanitizeComment(newText);
 
-            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
             await updateDoc(commentRef, {
                 text: sanitizedText,
                 updatedAt: Timestamp.now(),
@@ -122,9 +152,14 @@ class CommentService {
      */
     async deleteComment(postId: string, commentId: string): Promise<void> {
         try {
+            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
+            const commentDoc = await getDoc(commentRef);
+            if (!commentDoc.exists() || commentDoc.data()?.userId !== auth.currentUser?.uid) {
+                throw new AppError('UNAUTHORIZED', 'Not authorized to delete this comment', 'auth');
+            }
+
             // T2-2: Atomic comment delete + count decrement
             const batch = writeBatch(db);
-            const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
             batch.delete(commentRef);
             const postRef = doc(db, 'feedPosts', postId);
             batch.update(postRef, { commentCount: increment(-1) });

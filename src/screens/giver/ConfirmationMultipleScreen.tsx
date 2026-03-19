@@ -32,6 +32,7 @@ import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
+import { vh } from '../../utils/responsive';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -168,8 +169,13 @@ const ConfirmationMultipleScreen = () => {
 
   const handleCopyCode = async (code: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await Clipboard.setStringAsync(code);
-    showSuccess('Claim code copied to clipboard.');
+    try {
+      await Clipboard.setStringAsync(code);
+      showSuccess('Claim code copied to clipboard.');
+    } catch (error) {
+      console.warn('Clipboard access denied:', error);
+      showError('Could not copy to clipboard');
+    }
   };
 
   const handleShareCode = async (code: string) => {
@@ -456,7 +462,7 @@ Earn it. Unlock it. Enjoy it 🚀
         </View>
 
         {/* Bottom Spacing */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: vh(100) }} />
       </ScrollView>
 
       {/* Fixed Bottom Button */}
@@ -493,7 +499,7 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     backgroundColor: Colors.white,
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
@@ -531,7 +537,7 @@ const styles = StyleSheet.create({
   },
   giftImage: {
     width: '100%',
-    height: 180,
+    height: vh(180),
     backgroundColor: Colors.border,
   },
   giftOverlay: {

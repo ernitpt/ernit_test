@@ -6,7 +6,10 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 // Initialize Firebase in the service worker
-// Note: These values will be replaced at runtime by the client
+// IMPORTANT: Service workers cannot import ES modules, so these values are hardcoded here.
+// They MUST be kept in sync with the values read by src/config/firebaseConfig.ts
+// (which reads from EXPO_PUBLIC_FIREBASE_* environment variables / expo-constants).
+// If you rotate API keys or change Firebase projects, update BOTH this file AND your env vars.
 firebase.initializeApp({
     apiKey: "AIzaSyDiPC0xV0VuP1SJoUdpBZk8VkL8-2pL4fU",
     authDomain: "ernit-3fc0b.firebaseapp.com",
@@ -83,6 +86,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('install', (event) => {
     console.log('[firebase-messaging-sw.js] Service worker installed');
     self.skipWaiting(); // Activate immediately
+    // Cache the offline fallback page so it's available without a network connection
+    event.waitUntil(
+        caches.open('ernit-offline-v1').then((cache) => {
+            return cache.addAll(['/offline.html']);
+        })
+    );
+});
+
+// Serve offline fallback page for navigation requests when network is unavailable
+self.addEventListener('fetch', (event) => {
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return caches.match('/offline.html');
+            })
+        );
+    }
 });
 
 // ========================================

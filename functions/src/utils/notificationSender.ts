@@ -149,12 +149,16 @@ export async function sendPushNotification(
     // Remove invalid tokens from Firestore
     if (invalidTokens.length > 0) {
         console.log(`🧹 [${envLabel}] Removing ${invalidTokens.length} invalid token(s)`);
-        await db
-            .collection('users')
-            .doc(userId)
-            .update({
-                fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
-            });
+        try {
+            await db
+                .collection('users')
+                .doc(userId)
+                .update({
+                    fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+                });
+        } catch (cleanupError) {
+            console.warn(`⚠️ [${envLabel}] Failed to remove stale FCM tokens for user ${userId}:`, cleanupError);
+        }
     }
 
     return successCount;

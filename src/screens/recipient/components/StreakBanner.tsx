@@ -252,7 +252,11 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 500 }}
     >
-      <View style={styles.banner}>
+      <View
+        style={styles.banner}
+        accessibilityLabel={`${streak} day streak`}
+        accessibilityRole="text"
+      >
         <View style={styles.bannerContent}>
           {/* Particle system */}
           {config.sparkCount > 0 &&

@@ -81,10 +81,11 @@ export class CartService {
       );
 
       if (existingIndex >= 0) {
-        // Merge quantities
+        // Merge quantities, capped to prevent abuse
+        const MAX_QUANTITY = 10;
         merged[existingIndex] = {
           ...merged[existingIndex],
-          quantity: merged[existingIndex].quantity + guestItem.quantity,
+          quantity: Math.min(merged[existingIndex].quantity + guestItem.quantity, MAX_QUANTITY),
         };
       } else {
         // Add new item

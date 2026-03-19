@@ -35,12 +35,14 @@ import { partnerService } from '../../services/PartnerService';
 import { userService } from '../../services/userService';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { logger } from '../../utils/logger';
+import ErrorRetry from '../../components/ErrorRetry';
 import { BookingCalendar } from '../../components/BookingCalendar';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
+import { vh } from '../../utils/responsive';
 import { useToast } from '../../context/ToastContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -56,6 +58,7 @@ const CompletionScreen = () => {
   const [isPhoneCopied, setIsPhoneCopied] = useState(false);
   const [isEmailCopied, setIsEmailCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('Amazing!');
 
   // Enhanced animation refs
@@ -192,6 +195,7 @@ const CompletionScreen = () => {
       } catch (error) {
         logger.error("? Error fetching data:", error);
         showError("Could not load experience details.");
+        setError(true);
       }
     };
     fetchExperience();
@@ -291,8 +295,12 @@ const CompletionScreen = () => {
       floatLoop1.stop();
       floatLoop2.stop();
     };
+  }, []);
 
-    // Only fetch/generate coupon after experience is loaded
+  // Bug 3 fix: coupon generation was dead code inside the animation useEffect's
+  // cleanup return — it was unreachable because return exits the effect callback.
+  // Moved into a dedicated effect that fires once the experience is loaded.
+  useEffect(() => {
     if (experience && !couponRequestedRef.current && !couponCode) {
       couponRequestedRef.current = true;
       fetchExistingCoupon();
@@ -550,6 +558,37 @@ const CompletionScreen = () => {
     : null;
 
   const totalSessions = goal.sessionsPerWeek * goal.targetCount;
+
+  if (error && !isLoading) {
+    return (
+      <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Goals">
+          <ErrorRetry
+            message="Could not load experience details"
+            onRetry={async () => {
+              setError(false);
+              setIsLoading(true);
+              try {
+                if (experienceGift?.experienceId) {
+                  const exp = await experienceService.getExperienceById(experienceGift.experienceId);
+                  setExperience(exp);
+                  if (exp?.partnerId) {
+                    const partnerData = await partnerService.getPartnerById(exp.partnerId);
+                    setPartner(partnerData);
+                  }
+                }
+              } catch (err) {
+                logger.error('Retry failed:', err);
+                setError(true);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          />
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
@@ -1102,7 +1141,7 @@ const CompletionScreen = () => {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: vh(100) }} />
       </ScrollView>
     </MainScreen >
     </ErrorBoundary>
@@ -1115,8 +1154,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundLight,
   },
   heroSection: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 60,
+    paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
+    paddingBottom: vh(56),
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
     position: 'relative',
@@ -1249,7 +1288,7 @@ const styles = StyleSheet.create({
   },
   experienceImage: {
     width: '100%',
-    height: 220,
+    height: vh(220),
     backgroundColor: Colors.border,
   },
   experienceContent: {
@@ -1301,7 +1340,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loadingBox: {
-    paddingVertical: 50,
+    paddingVertical: vh(44),
     alignItems: 'center',
   },
   loadingText: {

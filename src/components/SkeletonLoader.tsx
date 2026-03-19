@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, Dimensions } from 'react-native';
 import { MotiView } from 'moti';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
+import { vh } from '../utils/responsive';
+
+const SCREEN_W = Dimensions.get('window').width;
 
 interface SkeletonLoaderProps {
     width?: number | string;
@@ -308,8 +311,8 @@ const styles = StyleSheet.create({
         marginTop: Spacing.lg,
     },
     experienceCardSkeleton: {
-        width: 175,
-        height: 200,
+        width: (SCREEN_W - Spacing.lg * 3) / 2,
+        height: vh(200),
         backgroundColor: Colors.white,
         borderRadius: BorderRadius.md,
         marginRight: Spacing.md,

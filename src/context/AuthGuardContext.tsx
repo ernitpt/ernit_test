@@ -205,7 +205,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
           // Fallback to safe route
           try {
             if (navigationRef) {
-              navigationRef.navigate('CategorySelection');
+              navigationRef.navigate('Goals');
             }
           } catch (fallbackError) {
             logger.error('Fallback navigation error:', fallbackError);
@@ -215,7 +215,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Fallback to safe route
         try {
           if (navigationRef) {
-            navigationRef.navigate('CategorySelection');
+            navigationRef.navigate('Goals');
           }
         } catch (error) {
           logger.error('Fallback navigation error:', error);

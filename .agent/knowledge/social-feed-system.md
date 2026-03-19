@@ -39,5 +39,17 @@ Friends leave encouragement messages on goals. Subcollection: `goals/{goalId}/mo
 
 ## Key Methods (`FeedService.ts`)
 - `createFeedPost`: Adds a feed document. Includes free goal fields when applicable.
-- `listenToFeed`: Real-time listener. Returns `unsubscribe` function.
+- `listenToFeed`: Real-time listener. Returns `unsubscribe` function. Uses `where('userId', 'in', [...])` server-side filter (Firestore `in` query, max 30 friends). Privacy is enforced server-side.
 - `updateReactionCount`: Atomic `increment` of reaction counters.
+
+## Performance & Limits
+- **FeedScreen memory cap**: 200 posts maximum on infinite scroll to prevent unbounded memory growth.
+- **`in` query limit**: `listenToFeed` supports up to 30 friends per Firestore `in` constraint.
+
+## Analytics Integration
+- `CommentService.addComment` fires `feed_comment` analytics event.
+- `ReactionService.addReaction` fires `feed_reaction` analytics event.
+- FeedScreen fires `feed_viewed` on mount/focus.
+
+## Notifications
+- Comment notifications are sent to the post owner when a comment is added via `CommentService`.

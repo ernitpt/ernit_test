@@ -65,3 +65,18 @@ All icons in `src/assets/icons/` use linearGradient with `#065F46` → `#14B8A6`
 ### Animated API (Legacy / search bar toggle)
 -   `Animated.timing` + `Animated.View` for opacity/height/translateY.
 -   `Easing.out(Easing.cubic)` for easing.
+
+## 6. Security & Data Utilities
+- **`sanitizeText`** (`src/utils/sanitization.ts`): MUST be called before ALL Firestore writes on any user-supplied text fields.
+- **`vh()`** (`src/utils/responsive.ts`): MUST be used for responsive vertical sizing — do not use raw pixel values for height-dependent layouts.
+
+## 7. Accessibility Patterns
+- **`accessibilityViewIsModal`**: Required on all modal content containers.
+- **`accessibilityLiveRegion="polite"`**: Required on elements that transition from loading skeleton to real content.
+
+## 8. Error States
+- **`ErrorRetry`** component is used on 7+ screens for displaying error states with a retry action.
+
+## 9. Performance Patterns
+- **Firestore offline persistence**: Enabled via `persistentLocalCache` configuration.
+- **Code splitting**: `React.lazy` is used for 3 screens to reduce initial bundle size.

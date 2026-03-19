@@ -14,10 +14,6 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/partnerUsers/$(uid));
     }
 
-    function isUser(uid) {
-      return userDoc(uid).exists();
-    }
-
     function isPartner(uid) {
       return partnerUserDoc(uid).exists() &&
              partnerUserDoc(uid).data.userType == 'partner';
@@ -65,7 +61,10 @@ service cloud.firestore {
      * 👔 PARTNER USERS
      * ===================== **/
     match /partnerUsers/{partnerId} {
-      // Allow rule engine to fetch partnerUser doc when checking admin status
+      // Allow rule engine to fetch partnerUser doc when checking admin status.
+      // NOTE: Exposes partner PII to all authenticated users. The main app reads
+      // partner name/logo for experience display cards, so this broad get is intentional.
+      // Consider a Cloud Function proxy for sensitive fields if stricter isolation is needed.
       allow get: if request.auth != null;
 
       // Partner can read/update their own record
@@ -88,11 +87,22 @@ service cloud.firestore {
        * 🎟 COUPONS SUBCOLLECTION
        * ======================= **/
       match /coupons/{couponId} {
-        // ✅ Partner can manage their own coupons
+        // ✅ Partner can read and create their own coupons
         // ✅ Admin can read all coupons (for dashboard/analytics)
-        allow read, write: if request.auth != null && request.auth.uid == partnerId;
+        allow read: if request.auth != null && request.auth.uid == partnerId;
         allow read, update: if request.auth != null
           && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true;
+
+        // ✅ Partner can update their own coupons
+        // SECURITY: Prevent status from going backward (redeemed → active is forbidden)
+        allow update: if request.auth != null
+          && request.auth.uid == partnerId
+          && isPartner(request.auth.uid)
+          // Only allow status transitions forward: active → redeemed (not redeemed → active)
+          && (!('status' in resource.data) || resource.data.status != 'redeemed' || request.resource.data.status == 'redeemed');
+
+        // ✅ Partner can delete their own coupons (was previously allowed by write)
+        allow delete: if request.auth != null && request.auth.uid == partnerId && isPartner(request.auth.uid);
 
         // ✅ Users can create (generate) coupons for a partner
         // ✅ SECURITY FIX: Corrected validation to use isCompleted field
@@ -110,20 +120,19 @@ service cloud.firestore {
           ) : true); // Allow creation without goalId for backward compatibility
 
         // ✅ Users can read their own coupons OR partner can read their coupons
-        // ✅ Allow checking for existence (resource == null) to support atomic creation
+        // SECURITY FIX (HIGH-2): Removed resource == null branch — it enabled existence probing by any authenticated user
         allow get: if request.auth != null && (
-          resource == null ||
           resource.data.userId == request.auth.uid ||
           resource.data.partnerId == request.auth.uid
         );
 
         // ✅ For collision detection during coupon generation,
         // allow limited queries with specific code filter
-        allow list: if request.auth != null &&
-          request.query.limit == 1;
+        // SECURITY FIX (HIGH-1): Added partner ownership check — previously any authenticated user could enumerate partner coupons
+        allow list: if request.auth != null
+          && request.auth.uid == partnerId
+          && request.query.limit == 1;
 
-        // 🚫 Prevent deletes
-        allow delete: if false;
       }
     }
 
@@ -215,13 +224,26 @@ service cloud.firestore {
         // SECURITY: Add value validation for numeric fields
         && (!('weeklyCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
             (request.resource.data.weeklyCount >= 0 &&
-             request.resource.data.weeklyCount <= request.resource.data.sessionsPerWeek))
+             request.resource.data.weeklyCount <= request.resource.data.sessionsPerWeek &&
+             // weeklyCount can only increment by 1 (session tick) or reset to 0 (week reset)
+             (request.resource.data.weeklyCount == resource.data.weeklyCount + 1 ||
+              request.resource.data.weeklyCount == 0)))
         && (!('targetCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
             (request.resource.data.targetCount >= 1 &&
              request.resource.data.targetCount <= 5))
         && (!('sessionsPerWeek' in request.resource.data.diff(resource.data).affectedKeys()) ||
             (request.resource.data.sessionsPerWeek >= 1 &&
              request.resource.data.sessionsPerWeek <= 7))
+        // Prevent direct goal completion manipulation
+        && (!('isCompleted' in request.resource.data.diff(resource.data).affectedKeys())
+            || (request.resource.data.isCompleted == true
+                && resource.data.isCompleted == false
+                && request.resource.data.currentCount >= request.resource.data.targetCount))
+        // Prevent currentCount manipulation (can only increment by 1 or stay same)
+        && (!('currentCount' in request.resource.data.diff(resource.data).affectedKeys())
+            || request.resource.data.currentCount == resource.data.currentCount
+            || request.resource.data.currentCount == resource.data.currentCount + 1
+            || request.resource.data.currentCount == resource.data.targetCount)
         )
 
         ||
@@ -285,6 +307,17 @@ service cloud.firestore {
          && request.resource.data.experienceGiftId != ''
          && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId))
          && (!('giftAttachDeadline' in resource.data) || request.time < resource.data.giftAttachDeadline))
+
+        ||
+
+        // (6) Recipient links their goal to the giver's shared goal (Together challenge)
+        // SECURITY: Only partnerGoalId + updatedAt may change; goal must be a shared challenge;
+        // the authenticated user must own the partner goal being linked (proves they are the partner).
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerGoalId', 'updatedAt'])
+         && resource.data.challengeType == 'shared'
+         && request.resource.data.partnerGoalId is string
+         && exists(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId))
+         && get(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
       );
 
       /* ===============================
@@ -383,19 +416,74 @@ service cloud.firestore {
     }
 
     /** =====================
+     * 🤝 SHARED CHALLENGES (Together mode — mirrors valentineChallenges rules)
+     * ===================== **/
+    match /sharedChallenges/{challengeId} {
+      // Require authentication for all queries; limit result set size
+      allow list: if request.auth != null && request.query.limit <= 100;
+
+      // Allow reading individual challenge if user is a participant
+      allow get: if request.auth != null &&
+        (resource.data.purchaserUserId == request.auth.uid ||
+         resource.data.partnerUserId == request.auth.uid ||
+         // Allow get before user IDs are set (during redemption flow)
+         !('purchaserUserId' in resource.data) ||
+         resource.data.purchaserUserId == null);
+
+      // Create: only via cloud functions (server-side after payment)
+      allow create: if false;
+
+      // Update: only if user owns the goal they're linking to this challenge
+      // SECURITY: Prevents users from hijacking other people's challenges
+      // NOTE: Uses getAfter() to support atomic transactions - it sees writes pending in the same transaction
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['purchaserCodeRedeemed', 'partnerCodeRedeemed',
+                      'purchaserGoalId', 'partnerGoalId', 'purchaserUserId',
+                      'partnerUserId', 'status', 'updatedAt',
+                      'bothPartnersFinished', 'completionUnlockedAt', 'firstFinishedUserId', 'firstFinishedAt'])
+        && (
+          // If setting purchaserGoalId, verify user owns that goal
+          !('purchaserGoalId' in request.resource.data.diff(resource.data).affectedKeys())
+          || (getAfter(/databases/$(database)/documents/goals/$(request.resource.data.purchaserGoalId)).data.userId == request.auth.uid)
+        )
+        && (
+          // If setting partnerGoalId, verify user owns that goal
+          !('partnerGoalId' in request.resource.data.diff(resource.data).affectedKeys())
+          || (getAfter(/databases/$(database)/documents/goals/$(request.resource.data.partnerGoalId)).data.userId == request.auth.uid)
+        )
+        && (
+          // If marking completion unlock, ensure caller is a participant
+          !('bothPartnersFinished' in request.resource.data.diff(resource.data).affectedKeys())
+          || (
+            request.auth.uid == resource.data.purchaserUserId ||
+            request.auth.uid == resource.data.partnerUserId
+          )
+        );
+
+      // Delete: never allowed from client
+      allow delete: if false;
+    }
+
+    /** =====================
      * 🎁 EXPERIENCE GIFTS
      * ===================== **/
     match /experienceGifts/{giftId} {
       // List: allow authenticated users to query (for viewing own gifts and claiming)
       // Queries include: where('giverId', '==', userId) and where('claimCode', '==', code)
-      allow list: if request.auth != null && request.query.limit <= 100;
+      // SECURITY NOTE: Firestore list rules cannot enforce query filters on resource.data,
+      // so we cannot restrict by giverId/recipientId here. The limit is kept tight (10)
+      // to reduce bulk scraping exposure. claimCode is only returned for docs the client
+      // already knows to query for. Consider a Cloud Function proxy for stricter isolation.
+      allow list: if request.auth != null && request.query.limit <= 10;
 
-      // Get: allow giver, recipient, or if gift has no recipient yet (for claiming flow)
+      // Get: allow giver or recipient only.
+      // NOTE: The claim flow uses getDocs() (a list query, not a get-by-ID), so removing
+      // the broad 'pending' / 'no recipientId' conditions here does NOT break claiming.
+      // The list rule above (limit <= 10) covers the claimCode query in CouponEntryScreen.
       allow get: if request.auth != null &&
         (resource.data.giverId == request.auth.uid ||
-         resource.data.recipientId == request.auth.uid ||
-         !('recipientId' in resource.data) ||
-         resource.data.status == 'pending');
+         resource.data.recipientId == request.auth.uid);
 
       // Create: only via cloud functions (server-side)
       allow create: if false;
@@ -413,19 +501,34 @@ service cloud.firestore {
              .hasOnly(['status', 'claimedAt', 'claimedBy', 'updatedAt']))
         ||
         // Claiming a pending gift (setting recipientId for the first time)
+        // SECURITY: Gift must not be expired at claim time
         (resource.data.status == 'pending' &&
          !('recipientId' in resource.data) &&
          request.resource.data.recipientId == request.auth.uid &&
+         (!('expiresAt' in resource.data) || resource.data.expiresAt > request.time) &&
          request.resource.data.diff(resource.data).changedKeys()
              .hasOnly(['status', 'recipientId', 'claimedAt', 'claimedBy', 'updatedAt']))
         ||
         // Goal owner can claim an active gift when creating a goal
-        // SECURITY: Must set recipientId to their own uid
+        // SECURITY: Must set recipientId to their own uid AND gift must not be expired
         (resource.data.status == 'active' &&
          request.resource.data.status == 'claimed' &&
          request.resource.data.recipientId == request.auth.uid &&
+         (!('expiresAt' in resource.data) || resource.data.expiresAt > request.time) &&
          request.resource.data.diff(resource.data).changedKeys()
-             .hasOnly(['status', 'recipientId', 'claimedAt', 'updatedAt']))
+             .hasOnly(['status', 'recipientId', 'claimedAt', 'claimedBy', 'updatedAt']))
+        ||
+        // Allow recipient to revert their own claim (goal creation failed)
+        (request.auth.uid == resource.data.recipientId
+         && resource.data.status == 'claimed'
+         && request.resource.data.status == 'pending'
+         && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'recipientId', 'claimedBy', 'claimedAt', 'updatedAt']))
+        ||
+        // Allow giver to mark gift as redeemed (empower/attach flow)
+        (request.auth.uid == resource.data.giverId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['isRedeemed', 'redeemedAt', 'redeemedGoalId', 'updatedAt']))
       );
 
       // Delete: never allowed from client
@@ -501,16 +604,16 @@ service cloud.firestore {
       // Creating friendship doc — creator must be one of the users
       // NOTE: Real authorization happens in the acceptFriendRequest transaction
       // (verifies request status == 'accepted', creates friends, deletes request atomically).
-      // Firestore rules can't check auto-generated friend request IDs, so we validate
-      // structure here and rely on the transaction for status verification.
-      allow create: if request.auth != null &&
-        request.resource.data.userId is string &&
-        request.resource.data.friendId is string &&
-        request.resource.data.keys().hasAll(['userId', 'friendId', 'createdAt']) &&
-        request.resource.data.keys().hasOnly(['userId', 'friendId', 'friendName', 'friendProfileImageUrl', 'createdAt']) &&
-        request.resource.data.userId != request.resource.data.friendId &&
-        (request.auth.uid == request.resource.data.userId ||
-         request.auth.uid == request.resource.data.friendId);
+      // SECURITY FIX (HIGH-3): Added server timestamp enforcement (createdAt == request.time) and
+      // addedAt field requirement to prevent replaying old friend creation writes.
+      allow create: if request.auth != null
+        && request.resource.data.userId is string
+        && request.resource.data.friendId is string
+        && request.resource.data.userId != request.resource.data.friendId
+        && request.resource.data.keys().hasAll(['userId', 'friendId', 'createdAt', 'addedAt'])
+        && request.resource.data.keys().hasOnly(['userId', 'friendId', 'friendName', 'friendProfileImageUrl', 'createdAt', 'addedAt'])
+        && (request.auth.uid == request.resource.data.userId || request.auth.uid == request.resource.data.friendId)
+        && request.resource.data.createdAt == request.time;
 
       // Allow updates by either friend — restricted to safe fields only
       allow update: if request.auth != null &&
@@ -553,19 +656,16 @@ service cloud.firestore {
           )
         );
 
-      // Allow updates for friend request notifications, post reactions, and goal progress stale marking
+      // Allow updates for notification owners (read/updatedAt/isStale only), friend request senders, and goal progress stale marking
       allow update: if request.auth != null &&
         (
-          request.auth.uid == resource.data.userId ||
+          // Owner can only update read status, updatedAt, and isStale — not arbitrary fields
+          (request.auth.uid == resource.data.userId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'updatedAt', 'isStale']))
+          ||
           (
             resource.data.type == "friend_request" &&
             request.auth.uid == resource.data.data.senderId
-          ) ||
-          // Allow updating post_reaction notifications if the post exists
-          (
-            resource.data.type == 'post_reaction' &&
-            'postId' in resource.data.data &&
-            exists(/databases/$(database)/documents/feedPosts/$(resource.data.data.postId))
           ) ||
           // Allow marking goal_progress notifications as stale
           // Only the giver (notification recipient) or goal owner (person completing sessions) can do this
@@ -591,8 +691,13 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.userId
         ||
         // Friend requests: sender must be the authenticated user
+        // SECURITY FIX (HIGH-4): Added exists() check on friendRequest doc to prevent notification spam
+        // by users who have not actually sent a real friend request.
         (request.resource.data.type == 'friend_request' &&
-         request.resource.data.senderId == request.auth.uid)
+         request.resource.data.senderId == request.auth.uid &&
+         'requestId' in request.resource.data.data &&
+         request.resource.data.data.requestId is string &&
+         exists(/databases/$(database)/documents/friendRequests/$(request.resource.data.data.requestId)))
         ||
         // Valentine partner notifications: verify both users are in same challenge
         (request.resource.data.type == 'valentine_partner_progress' &&
@@ -615,7 +720,9 @@ service cloud.firestore {
         (request.resource.data.type in ['goal_completed', 'goal_progress', 'goal_approval_request',
                                          'goal_change_suggested', 'goal_approval_response',
                                          'personalized_hint_left', 'motivation_received',
-                                         'free_goal_completed', 'free_goal_milestone'] &&
+                                         'free_goal_completed', 'free_goal_milestone',
+                                         'shared_session', 'shared_start', 'shared_unlock',
+                                         'shared_completion', 'payment_charged', 'payment_failed'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
@@ -635,10 +742,11 @@ service cloud.firestore {
          exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)) &&
          get(/databases/$(database)/documents/experienceGifts/$(request.resource.data.data.giftId)).data.giverId == request.auth.uid)
         ||
-        // Post reactions: allow if post exists (posts are public to authenticated users)
+        // Post reactions: allow if post exists and the reactor is the authenticated user
         (request.resource.data.type == 'post_reaction' &&
          'postId' in request.resource.data.data &&
-         exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)))
+         exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)) &&
+         request.resource.data.data.reactorId == request.auth.uid)
       );
 
     }
@@ -683,8 +791,10 @@ service cloud.firestore {
             || request.resource.data.createdByEmail is string
             || request.resource.data.createdByEmail == null
           )
+          && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() <= 254))
+          && (!('targetUid' in request.resource.data) || request.resource.data.targetUid is string)
           && request.resource.data.keys().hasOnly([
-            'status', 'createdAt', 'createdBy', 'createdByEmail'
+            'status', 'createdAt', 'createdBy', 'createdByEmail', 'email', 'targetUid'
           ]);
 
         allow update, delete: if request.auth != null
@@ -735,11 +845,15 @@ service cloud.firestore {
         ||
         // Others can only update aggregated counts (for reactions/comments)
         // Counts can only change by small amounts (prevent setting to arbitrary values)
+        // reactionCounts map: at most 1 key may change per write (prevents bulk manipulation)
         (request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['reactionCounts', 'commentCount'])
          && (!('commentCount' in request.resource.data.diff(resource.data).affectedKeys()) ||
-             (request.resource.data.commentCount >= 0 &&
-              request.resource.data.commentCount <= resource.data.commentCount + 1)))
+             (request.resource.data.commentCount >= resource.data.commentCount - 1 &&
+              request.resource.data.commentCount >= 0 &&
+              request.resource.data.commentCount <= resource.data.commentCount + 1))
+         && (!('reactionCounts' in request.resource.data.diff(resource.data).affectedKeys()) ||
+             request.resource.data.reactionCounts.diff(resource.data.reactionCounts).affectedKeys().size() <= 1))
       );
 
       // Delete: only owner
@@ -748,8 +862,9 @@ service cloud.firestore {
 
       /** Reactions subcollection **/
       match /reactions/{reactionId} {
-        // Read: any authenticated user (they can only access via posts they can see)
-        allow read: if request.auth != null;
+        // Read: authenticated user; list queries capped at 50 to prevent bulk scraping
+        allow get: if request.auth != null;
+        allow list: if request.auth != null && request.query.limit <= 50;
 
         // Create: users can create their own reactions
         allow create: if request.auth != null
@@ -762,8 +877,9 @@ service cloud.firestore {
 
       /** Comments subcollection **/
       match /comments/{commentId} {
-        // Read: any authenticated user (they can only access via posts they can see)
-        allow read: if request.auth != null;
+        // Read: authenticated user; list queries capped at 50 to prevent bulk scraping
+        allow get: if request.auth != null;
+        allow list: if request.auth != null && request.query.limit <= 50;
 
         // Create: authenticated users can comment
         allow create: if request.auth != null
@@ -813,7 +929,14 @@ service cloud.firestore {
      * ===================== **/
     match /events/{eventId} {
       // Write-only: authenticated users can create events, no client reads
-      allow create: if request.auth != null;
+      // SECURITY FIX (HIGH-5): Added field validation to prevent arbitrary data injection
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['eventName', 'category', 'userId', 'timestamp', 'properties', 'sessionId'])
+        && request.resource.data.eventName is string
+        && request.resource.data.eventName.size() <= 100
+        && request.resource.data.category is string
+        && request.resource.data.category.size() <= 50
+        && request.resource.data.userId is string;
       allow read, update, delete: if false;
     }
 

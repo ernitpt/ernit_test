@@ -29,6 +29,7 @@ import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
+import { vh } from '../../utils/responsive';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'FreeGoalCompletion'>;
 
@@ -50,7 +51,7 @@ const FreeGoalCompletionScreen = () => {
       logger.warn('Missing/invalid goal data on FreeGoalCompletionScreen, redirecting');
       navigation.reset({
         index: 0,
-        routes: [{ name: 'CategorySelection' }],
+        routes: [{ name: 'Goals' }],
       });
     }
   }, [hasValidData, navigation]);
@@ -204,7 +205,7 @@ const FreeGoalCompletionScreen = () => {
     });
   };
 
-  if (!hasValidData || !goal || !pledgedExperience) {
+  if (!hasValidData || !goal) {
     return (
       <ErrorBoundary screenName="FreeGoalCompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
@@ -212,6 +213,117 @@ const FreeGoalCompletionScreen = () => {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
+      </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
+  // Category-only goals (no pledgedExperience) get a simplified completion screen
+  if (!pledgedExperience) {
+    const totalSessionsSimple = goal.sessionsPerWeek * goal.targetCount;
+    const categoryLabel = goal.preferredRewardCategory
+      ? goal.preferredRewardCategory.charAt(0).toUpperCase() + goal.preferredRewardCategory.slice(1)
+      : null;
+
+    return (
+      <ErrorBoundary screenName="FreeGoalCompletionScreen" userId={state.user?.id}>
+      <MainScreen activeRoute="Goals">
+        <StatusBar style="light" />
+        <ConfettiCannon
+          ref={confettiRef}
+          count={150}
+          origin={{ x: Dimensions.get('window').width / 2, y: -20 }}
+          autoStart={false}
+          fadeOut={true}
+          fallSpeed={3000}
+          colors={[Colors.celebrationGold, Colors.warning, Colors.secondary, Colors.secondary, Colors.categoryPink]}
+        />
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+          <LinearGradient
+            colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroSection}
+          >
+            <Animated.View
+              style={[styles.trophyContainer, { transform: [{ scale: Animated.multiply(scaleAnim, trophyPulse) }], opacity: fadeAnim }]}
+            >
+              <Trophy color={Colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={Colors.celebrationGold} />
+            </Animated.View>
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <Text style={styles.heroTitle}>Goal Completed!</Text>
+              <Animated.Text style={styles.celebrationMessage}>{celebrationMessage}</Animated.Text>
+              <Text style={styles.heroSubtitle}>You proved your dedication!</Text>
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{totalSessionsSimple}</Text>
+                  <Text style={styles.statLabel}>Sessions</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{goal.targetCount}</Text>
+                  <Text style={styles.statLabel}>Weeks</Text>
+                </View>
+              </View>
+            </Animated.View>
+          </LinearGradient>
+
+          <View style={styles.achievementCard}>
+            <View style={styles.achievementHeader}>
+              <CheckCircle color={Colors.secondary} size={24} />
+              <Text style={styles.achievementTitle}>Your Achievement</Text>
+            </View>
+            <Text style={styles.goalTitle}>{goal.title}</Text>
+            <Text style={styles.goalDesc}>{goal.description}</Text>
+            <View style={styles.statsBadge}>
+              <Sparkles color={Colors.celebrationGold} size={20} />
+              <Text style={styles.statsNumber}>{totalSessionsSimple}</Text>
+              <Text style={styles.statsLabel}>Sessions Completed</Text>
+            </View>
+          </View>
+
+          {categoryLabel && (
+            <View style={styles.empowerCard}>
+              <LinearGradient colors={[Colors.pinkLight, Colors.pinkLighter]} style={styles.empowerGradient}>
+                <Heart color={Colors.pink} size={32} fill={Colors.pink} />
+                <Text style={styles.empowerTitle}>Friends Can Celebrate With You!</Text>
+                <Text style={styles.empowerDescription}>
+                  You love {categoryLabel} experiences. Share your achievement — friends can gift you one to celebrate your hard work!
+                </Text>
+              </LinearGradient>
+            </View>
+          )}
+
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleShareAchievement}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Share achievement"
+            >
+              <LinearGradient
+                colors={[Colors.secondary, Colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.shareButtonGradient}
+              >
+                <ExternalLink color={Colors.white} size={22} />
+                <Text style={styles.shareButtonText}>Share Achievement</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.goalsButton}
+              onPress={handleGoToGoals}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Goals"
+            >
+              <Text style={styles.goalsButtonText}>Back to Goals</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: vh(100) }} />
+        </ScrollView>
       </MainScreen>
       </ErrorBoundary>
     );
@@ -451,7 +563,7 @@ const FreeGoalCompletionScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: vh(100) }} />
       </ScrollView>
     </MainScreen>
     </ErrorBoundary>
@@ -464,8 +576,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   heroSection: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 60,
+    paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
+    paddingBottom: vh(56),
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
     position: 'relative',
@@ -633,7 +745,7 @@ const styles = StyleSheet.create({
   },
   experienceImage: {
     width: '100%',
-    height: 220,
+    height: vh(220),
     backgroundColor: Colors.border,
   },
   experienceContent: {

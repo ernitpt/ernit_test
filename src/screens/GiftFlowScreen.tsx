@@ -45,11 +45,8 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import ModernSlider from '../components/ModernSlider';
 import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
-import { Dimensions } from 'react-native';
-
-const SCREEN_H = Dimensions.get('window').height;
-const VH = Math.min(1, Math.max(0.72, SCREEN_H / 900));
-const vh = (px: number) => Math.round(px * VH);
+import { sanitizeText } from '../utils/sanitization';
+import { vh } from '../utils/responsive';
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
 const SOLO_STEP_TITLES = [
@@ -79,7 +76,7 @@ const TOGETHER_STEP_TITLES = [
 
 const TOGETHER_STEP_SUBTITLES = [
     'Choose how they will work towards their goal.',
-    'What will you be working towards? Start small!',
+    'Set the challenge intensity for both of you.',
     "Pick a category. We'll recommend the perfect reward!",
     "Choose how you'd like to back this challenge.",
     "Should they know what you're both working towards?",
@@ -145,8 +142,6 @@ export default function GiftFlowScreen() {
     const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
     const [hours, setHours] = useState('');
     const [minutes, setMinutes] = useState('');
-    const [goalName, setGoalName] = useState('');
-
     // Experience selection
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
@@ -166,7 +161,7 @@ export default function GiftFlowScreen() {
     const [paymentChoice, setPaymentChoice] = useState<GiftPaymentChoice | null>(null);
 
     // Together-specific
-    const [sameExperienceForBoth] = useState(true);
+    const sameExperienceForBoth = true;
 
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,8 +174,11 @@ export default function GiftFlowScreen() {
         paymentChoice: false,
     });
 
-    // Dynamic step count
-    const totalSteps = challengeType === 'shared' ? 6 : 5;
+    // Dynamic step count — reveal step only exists when paymentChoice === 'payLater'
+    const hasRevealStep = paymentChoice === 'payLater';
+    const totalSteps = challengeType === 'shared'
+        ? (hasRevealStep ? 6 : 5)
+        : (hasRevealStep ? 5 : 4);
 
     // Animations
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -189,9 +187,35 @@ export default function GiftFlowScreen() {
     // Refs for focus chaining
     const minutesRef = useRef<RNTextInput>(null);
 
-    // Step titles/subtitles (dynamic)
-    const STEP_TITLES = challengeType === 'shared' ? TOGETHER_STEP_TITLES : SOLO_STEP_TITLES;
-    const STEP_SUBTITLES = challengeType === 'shared' ? TOGETHER_STEP_SUBTITLES : SOLO_STEP_SUBTITLES;
+    // Step titles/subtitles (dynamic — use lookup functions to handle free-payment step skipping)
+    const getStepTitle = (): string => {
+        if (currentStep === 1) return 'Choose a type';
+        if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_TITLES[1];
+        const expStep = getExperienceStep();
+        if (currentStep === expStep) return 'Pick a reward';
+        const payStep = getPaymentStep();
+        if (currentStep === payStep) return 'Secure the reward';
+        const revealStep = getRevealStep();
+        if (hasRevealStep && currentStep === revealStep) return 'How is the reward revealed?';
+        const confirmStep = getConfirmStep();
+        if (currentStep === confirmStep) return 'Confirm your gift';
+        return '';
+    };
+    const getStepSubtitle = (): string => {
+        if (currentStep === 1) return 'Choose how they will work towards their goal.';
+        if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_SUBTITLES[1];
+        const expStep = getExperienceStep();
+        if (currentStep === expStep) return "Pick a category. We'll recommend the perfect reward!";
+        const payStep = getPaymentStep();
+        if (currentStep === payStep) return "Choose how you'd like to back this challenge.";
+        const revealStep = getRevealStep();
+        if (hasRevealStep && currentStep === revealStep) return challengeType === 'shared'
+            ? "Should they know what you're both working towards?"
+            : "Should they know what they're working towards?";
+        const confirmStep = getConfirmStep();
+        if (currentStep === confirmStep) return 'Review everything before sending.';
+        return '';
+    };
 
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
@@ -264,12 +288,24 @@ export default function GiftFlowScreen() {
         }
     }, [isSubmitting]);
 
+    // Reset revealMode when paymentChoice changes to 'free'
+    useEffect(() => {
+        if (paymentChoice === 'free') {
+            setRevealMode(null);
+        }
+    }, [paymentChoice]);
+
     // ─── Map logical step number to absolute step index ───────────────────────
-    // Solo:     1=Type, 2=Experience, 3=Reveal, 4=Payment, 5=Confirm
-    // Together: 1=Type, 2=Goal, 3=Experience, 4=Reveal, 5=Payment, 6=Confirm
+    // Solo (payLater):  1=Type, 2=Experience, 3=Payment, 4=Reveal, 5=Confirm
+    // Solo (free):      1=Type, 2=Experience, 3=Payment, 4=Confirm
+    // Together (payLater): 1=Type, 2=Goal, 3=Experience, 4=Payment, 5=Reveal, 6=Confirm
+    // Together (free):     1=Type, 2=Goal, 3=Experience, 4=Payment, 5=Confirm
     const getExperienceStep = () => challengeType === 'shared' ? 3 : 2;
     const getPaymentStep = () => challengeType === 'shared' ? 4 : 3;
-    const getRevealStep = () => challengeType === 'shared' ? 5 : 4;
+    const getRevealStep = () => challengeType === 'shared' ? 5 : 4; // only valid when hasRevealStep
+    const getConfirmStep = () => hasRevealStep
+        ? (challengeType === 'shared' ? 6 : 5)
+        : (challengeType === 'shared' ? 5 : 4);
 
     // ─── Per-step validation ──────────────────────────────────────────────────
     const validateCurrentStep = (): boolean => {
@@ -306,21 +342,21 @@ export default function GiftFlowScreen() {
             return true;
         }
 
-        if (currentStep === getRevealStep()) {
-            if (!revealMode) {
-                setValidationErrors(prev => ({ ...prev, revealMode: true }));
-                return false;
-            }
-            setValidationErrors(prev => ({ ...prev, revealMode: false }));
-            return true;
-        }
-
         if (currentStep === getPaymentStep()) {
             if (!paymentChoice) {
                 setValidationErrors(prev => ({ ...prev, paymentChoice: true }));
                 return false;
             }
             setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
+            return true;
+        }
+
+        if (hasRevealStep && currentStep === getRevealStep()) {
+            if (!revealMode) {
+                setValidationErrors(prev => ({ ...prev, revealMode: true }));
+                return false;
+            }
+            setValidationErrors(prev => ({ ...prev, revealMode: false }));
             return true;
         }
 
@@ -357,6 +393,7 @@ export default function GiftFlowScreen() {
             setShowConfirm(true);
         } else {
             const giftConfig = {
+                currentStep,
                 challengeType,
                 weeks,
                 sessionsPerWeek,
@@ -381,6 +418,14 @@ export default function GiftFlowScreen() {
 
     const confirmCreateGoal = async () => {
         if (isSubmitting || !state.user?.id) return;
+
+        // Bug 2 fix: payLater requires a specific experience (the Cloud Function
+        // rejects an empty experienceId and we cannot charge for a category-only pick).
+        if (paymentChoice === 'payLater' && !selectedExperience) {
+            showError('Please select a specific experience to commit to');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -395,6 +440,9 @@ export default function GiftFlowScreen() {
             const token = await auth.currentUser?.getIdToken();
             if (!token) throw new Error('Not authenticated');
 
+            // Bug 4 note: recipientEmail is not yet collected by this wizard.
+            // The Cloud Function supports it for notification emails — add a wizard
+            // step to collect it when email notification UX is implemented.
             const response = await fetch(
                 `${config.functionsUrl}/${functionName}`,
                 {
@@ -408,9 +456,9 @@ export default function GiftFlowScreen() {
                         challengeType,
                         revealMode,
                         giverName: state.user.displayName || '',
-                        personalizedMessage: personalizedMessage.trim(),
+                        personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
                         ...(challengeType === 'shared' ? {
-                            goalName: goalName.trim() || `${weeks}-week challenge`,
+                            goalName: `${weeks}-week challenge`,
                             duration: `${weeks} weeks`,
                             frequency: `${sessionsPerWeek}x per week`,
                             sessionTime: `${hoursNum}h ${minutesNum}m`,
@@ -428,7 +476,18 @@ export default function GiftFlowScreen() {
             const result = await response.json();
             setShowConfirm(false);
 
-            navigation.navigate('Confirmation', { experienceGift: result.gift });
+            // Bug 1 fix: for payLater gifts the server returns a setupIntentClientSecret
+            // so the giver can save their card now for off-session charging later.
+            // Without this step, chargeDeferredGift will always fail because no
+            // payment_method is attached to the SetupIntent.
+            if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
+                navigation.navigate('DeferredSetup', {
+                    setupIntentClientSecret: result.setupIntentClientSecret,
+                    experienceGift: result.gift,
+                });
+            } else {
+                navigation.navigate('Confirmation', { experienceGift: result.gift });
+            }
         } catch (error) {
             logger.error('Error creating gift:', error);
             await logErrorToFirestore(error, {
@@ -767,12 +826,20 @@ export default function GiftFlowScreen() {
             );
         }
 
-        // Default view: category preference cards
-        const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] = [
-            { key: 'adventure', emoji: '\u{1F3D4}\u{FE0F}', label: 'Adventure', tagline: 'Explore something new', color: Colors.categoryAmber },
-            { key: 'wellness', emoji: '\u{1F9D8}', label: 'Wellness', tagline: 'Treat yourself', color: Colors.categoryPink },
-            { key: 'creative', emoji: '\u{1F3A8}', label: 'Creative', tagline: 'Make something amazing', color: Colors.categoryViolet },
-        ];
+        // Default view: category preference cards (derived from shared EXPERIENCE_CATEGORIES constant)
+        const CATEGORY_TAGLINES: Record<string, string> = {
+            adventure: 'Explore something new',
+            wellness: 'Treat yourself',
+            creative: 'Make something amazing',
+        };
+        const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] =
+            EXPERIENCE_CATEGORIES.map(cat => ({
+                key: cat.key as ExperienceCategory,
+                emoji: cat.emoji,
+                label: cat.label,
+                tagline: CATEGORY_TAGLINES[cat.key] ?? '',
+                color: cat.color,
+            }));
 
         return (
             <View style={styles.stepContent}>
@@ -932,6 +999,9 @@ export default function GiftFlowScreen() {
                         <Text style={styles.rewardChoiceDesc}>
                             Save your payment method. Only charged when they succeed. Zero risk.
                         </Text>
+                        <View style={styles.revealBadge}>
+                            <Text style={[styles.revealBadgeText, { color: Colors.warning }]}>Recommended</Text>
+                        </View>
                     </View>
                     {paymentChoice === 'payLater' && (
                         <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
@@ -1040,13 +1110,17 @@ export default function GiftFlowScreen() {
     const renderCurrentStep = () => {
         if (currentStep === 1) return renderStep1();
 
+        const confirmStep = getConfirmStep();
+        const revealStep = getRevealStep(); // only valid when hasRevealStep
+
+        if (currentStep === confirmStep) return renderConfirmStep();
+        if (hasRevealStep && currentStep === revealStep) return renderRevealStep();
+
         if (challengeType === 'shared') {
             switch (currentStep) {
                 case 2: return renderStep2Together();
                 case 3: return renderExperienceStep();
                 case 4: return renderPaymentStep();
-                case 5: return renderRevealStep();
-                case 6: return renderConfirmStep();
                 default: return null;
             }
         } else {
@@ -1054,8 +1128,6 @@ export default function GiftFlowScreen() {
             switch (currentStep) {
                 case 2: return renderExperienceStep();
                 case 3: return renderPaymentStep();
-                case 4: return renderRevealStep();
-                case 5: return renderConfirmStep();
                 default: return null;
             }
         }
@@ -1097,7 +1169,7 @@ export default function GiftFlowScreen() {
                     >
                         <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Create Your Challenge</Text>
+                    <Text style={styles.headerTitle}>Gift a Challenge</Text>
                     <View style={styles.stepIndicator}>
                         <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
                     </View>
@@ -1121,8 +1193,8 @@ export default function GiftFlowScreen() {
                         animate={{ opacity: 1, translateY: 0 }}
                         transition={{ type: 'timing', duration: 300 }}
                     >
-                        <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
-                        <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
+                        <Text style={styles.stepTitle}>{getStepTitle()}</Text>
+                        <Text style={styles.stepSubtitle}>{getStepSubtitle()}</Text>
                     </MotiView>
 
                     {/* Animated Step Content */}
@@ -1375,24 +1447,6 @@ const styles = StyleSheet.create({
         color: Colors.primary,
     },
 
-    // Progress bar
-    progressBar: {
-        paddingHorizontal: Spacing.xl,
-        paddingVertical: vh(10),
-        backgroundColor: Colors.white,
-    },
-    progressTrack: {
-        height: 4,
-        borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.border,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.secondary,
-    },
-
     // Step content
     scroll: {
         flex: 1,
@@ -1556,7 +1610,7 @@ const styles = StyleSheet.create({
     },
     expIconBox: {
         width: '100%',
-        height: 100,
+        height: vh(100),
         borderRadius: BorderRadius.lg,
         backgroundColor: Colors.backgroundLight,
         overflow: 'hidden',

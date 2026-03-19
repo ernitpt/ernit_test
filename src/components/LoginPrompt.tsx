@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Image,
@@ -31,6 +31,10 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 }) => {
   const navigation = useNavigation<LoginPromptNavigationProp>();
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handleClose = () => {
     onClose();

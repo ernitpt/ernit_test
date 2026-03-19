@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   doc,
   collection,
@@ -51,6 +51,11 @@ export async function generateCouponForGoal(
       if (!goalDoc.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
 
       const goalData = goalDoc.data();
+
+      // Verify the caller owns this goal and matches the userId parameter
+      if (goalData.userId !== userId || userId !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Not authorized to generate a coupon for this goal', 'auth');
+      }
 
       // Check if coupon already exists (atomic check)
       if (goalData.couponCode) {

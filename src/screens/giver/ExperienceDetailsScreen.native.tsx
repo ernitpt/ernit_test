@@ -8,12 +8,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { ChevronLeft, HelpCircle } from 'lucide-react-native';
-import { useStripe } from '@stripe/stripe-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
 import {
   Experience,
-  ExperienceGift,
 } from '../../types';
 import { useGiverNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
@@ -21,11 +19,11 @@ import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import HowItWorksModal from '../../components/HowItWorksModal';
 import { ExperienceDetailSkeleton } from '../../components/SkeletonLoader';
-import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
+import { vh } from '../../utils/responsive';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -41,8 +39,7 @@ export default function ExperienceDetailsScreen() {
   const experience = routeParams?.experience;
 
   const { state, dispatch } = useApp();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
 
   const [personalizedMessage, setPersonalizedMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,48 +92,30 @@ export default function ExperienceDetailsScreen() {
     setIsSubmitting(true);
 
     try {
-      // 1️⃣ Create PaymentIntent - uses environment-based function name
+      // SECURITY FIX: Native client-side gift creation is blocked by Firestore rules
+      // (allow create: if false). Redirect to the web checkout flow which uses a
+      // Cloud Function to create gifts server-side after payment confirmation.
       const createIntent = httpsCallable(functions, config.stripeFunctions.createPaymentIntent);
-      const { data }: any = await createIntent({
-        amount: experience.price,
-        experienceId: experience.id,
-        giverId: state.user?.id,
-      });
-      const clientSecret = data.clientSecret;
-
-      // 2️⃣ Init & Present payment sheet
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'Ernit',
-      });
-      if (initError) throw initError;
-      const { error: paymentError } = await presentPaymentSheet();
-      if (paymentError) throw paymentError;
-
-      // 3️⃣ Create gift
-      const experienceGiftData: ExperienceGift = {
-        id: Date.now().toString(),
-        giverId: state.user?.id || '',
-        giverName: state.user?.displayName || '',
+      const cartMetadata = [{
         experienceId: experience.id,
         partnerId: experience.partnerId || '',
+        quantity: 1,
+      }];
+      const { data }: any = await createIntent({
+        amount: experience.price,
+        giverId: state.user?.id,
+        giverName: state.user?.displayName || '',
+        partnerId: experience.partnerId || '',
+        cartMetadata,
         personalizedMessage,
-        deliveryDate: new Date(),
-        status: 'pending',
-        payment: 'paid',
-        createdAt: new Date(),
-        claimCode: Array.from(
-          crypto.getRandomValues(new Uint8Array(8)),
-          (b) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 36]
-        ).join(''),
-      };
+      });
 
-      const experienceGift = await experienceGiftService.createExperienceGift(
-        experienceGiftData as ExperienceGift
-      );
-      dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
-      showSuccess('Gift purchased successfully!');
-      navigation.navigate('Confirmation', { experienceGift });
+      // Hand off to the web checkout flow — gift creation happens server-side
+      // via the stripeWebhook Cloud Function after payment succeeds.
+      navigation.navigate('ExperienceCheckout', {
+        cartItems: [{ experienceId: experience.id, quantity: 1 }],
+        clientSecret: data.clientSecret,
+      });
     } catch (err: unknown) {
       logger.error('❌ Payment error:', err);
       const message = err instanceof Error ? err.message : String(err);
@@ -231,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   backText: { color: Colors.white, ...Typography.heading3, fontWeight: '600', marginLeft: Spacing.xs },
-  image: { width: '100%', height: 240, borderRadius: BorderRadius.lg, marginBottom: Spacing.lg },
+  image: { width: '100%', height: vh(240), borderRadius: BorderRadius.lg, marginBottom: Spacing.lg },
   title: { color: Colors.white, ...Typography.heading2, fontWeight: '700', marginBottom: Spacing.sm },
   desc: { color: Colors.border, ...Typography.subheading, marginBottom: Spacing.sm },
   howItWorksButton: {

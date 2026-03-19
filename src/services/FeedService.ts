@@ -12,7 +12,6 @@ import {
     increment,
     onSnapshot,
     Timestamp,
-    startAfter,
     QueryDocumentSnapshot,
     DocumentData,
 } from 'firebase/firestore';
@@ -121,13 +120,18 @@ class FeedService {
 
     /**
      * Get feed posts for current user (friends' posts + own posts)
-     * Uses batched 'in' queries for efficient Firestore reads
+     * Uses batched 'in' queries for efficient Firestore reads.
+     *
+     * Pagination uses a timestamp-based cursor (lastTimestamp) instead of a
+     * document snapshot cursor. A document snapshot is batch-specific and cannot
+     * be shared across multiple 'in' query batches — using a timestamp is
+     * consistent across all batches and correctly paginates >30-friend feeds.
      */
     async getFriendsFeed(
         userId: string,
         limitCount: number = 20,
-        lastDoc?: QueryDocumentSnapshot<DocumentData>
-    ): Promise<{ posts: FeedPost[]; lastDoc?: QueryDocumentSnapshot<DocumentData> }> {
+        lastTimestamp?: Date | null
+    ): Promise<{ posts: FeedPost[]; lastTimestamp?: Date }> {
         try {
             // Get user's friends
             const friends = await friendService.getFriends(userId);
@@ -138,22 +142,24 @@ class FeedService {
 
             // Use batched 'in' queries (Firestore supports up to 30 per 'in' clause)
             const batches = this.chunk(allowedUserIds, 30);
-            const allPosts: { post: FeedPost; docSnapshot: QueryDocumentSnapshot<DocumentData> }[] = [];
+            const allPosts: FeedPost[] = [];
 
             for (const batch of batches) {
-                let q = query(
-                    this.feedPostsCollection,
-                    where('userId', 'in', batch),
-                    orderBy('createdAt', 'desc'),
-                    limit(limitCount)
-                );
-
-                if (lastDoc) {
+                let q;
+                if (lastTimestamp) {
+                    // Timestamp cursor is consistent across all batches — this is the fix
+                    q = query(
+                        this.feedPostsCollection,
+                        where('userId', 'in', batch),
+                        where('createdAt', '<', Timestamp.fromDate(lastTimestamp)),
+                        orderBy('createdAt', 'desc'),
+                        limit(limitCount)
+                    );
+                } else {
                     q = query(
                         this.feedPostsCollection,
                         where('userId', 'in', batch),
                         orderBy('createdAt', 'desc'),
-                        startAfter(lastDoc),
                         limit(limitCount)
                     );
                 }
@@ -163,27 +169,24 @@ class FeedService {
                 for (const docSnapshot of snapshot.docs) {
                     const data = docSnapshot.data();
                     allPosts.push({
-                        post: {
-                            id: docSnapshot.id,
-                            ...data,
-                            createdAt: toDateSafe(data.createdAt),
-                        } as FeedPost,
-                        docSnapshot,
-                    });
+                        id: docSnapshot.id,
+                        ...data,
+                        createdAt: toDateSafe(data.createdAt),
+                    } as FeedPost);
                 }
             }
 
             // Sort all results by createdAt descending and take limitCount
-            allPosts.sort((a, b) => b.post.createdAt.getTime() - a.post.createdAt.getTime());
+            allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
             const sliced = allPosts.slice(0, limitCount);
 
-            const newLastDoc = sliced.length > 0
-                ? sliced[sliced.length - 1].docSnapshot
+            const newLastTimestamp = sliced.length > 0
+                ? sliced[sliced.length - 1].createdAt
                 : undefined;
 
             return {
-                posts: sliced.map(item => item.post),
-                lastDoc: newLastDoc,
+                posts: sliced,
+                lastTimestamp: newLastTimestamp,
             };
         } catch (error) {
             logger.error('❌ Error fetching feed:', error);
@@ -211,8 +214,12 @@ class FeedService {
             const friendIds = friends.map(f => f.friendId);
             const allowedUserIds = [userId, ...friendIds];
 
+            // NOTE: Firestore 'in' queries support up to 30 values.
+            // If the user has more than 29 friends, only the first 29 are included here
+            // (plus the user's own posts = 30 total). For larger friend lists, use getFriendsFeed.
             const q = query(
                 this.feedPostsCollection,
+                where('userId', 'in', allowedUserIds.slice(0, 30)),
                 orderBy('createdAt', 'desc'),
                 limit(100)
             );
@@ -222,13 +229,11 @@ class FeedService {
 
                 for (const docSnapshot of snapshot.docs) {
                     const data = docSnapshot.data();
-                    if (allowedUserIds.includes(data.userId)) {
-                        posts.push({
-                            id: docSnapshot.id,
-                            ...data,
-                            createdAt: toDateSafe(data.createdAt),
-                        } as FeedPost);
-                    }
+                    posts.push({
+                        id: docSnapshot.id,
+                        ...data,
+                        createdAt: toDateSafe(data.createdAt),
+                    } as FeedPost);
 
                     if (posts.length >= limitCount) break;
                 }
@@ -251,9 +256,10 @@ class FeedService {
     }
 
     /**
-     * Update reaction count for a post
-    */
-    async updateReactionCount(postId: string, reactionType: 'muscle' | 'heart' | 'like', incrementValue: number) {
+     * Update reaction count for a post.
+     * Private: only called internally from ReactionService which handles its own auth checks.
+     */
+    private async updateReactionCount(postId: string, reactionType: 'muscle' | 'heart' | 'like', incrementValue: number) {
         try {
             const postRef = doc(db, 'feedPosts', postId);
             await updateDoc(postRef, {
@@ -266,9 +272,10 @@ class FeedService {
     }
 
     /**
-     * Update comment count for a post
+     * Update comment count for a post.
+     * Private: only called internally from CommentService which handles its own auth checks.
      */
-    async updateCommentCount(postId: string, incrementValue: number) {
+    private async updateCommentCount(postId: string, incrementValue: number) {
         try {
             const postRef = doc(db, 'feedPosts', postId);
             await updateDoc(postRef, {

@@ -22,7 +22,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
     selectedDate: initialDate,
     onConfirm,
     onCancel,
-    minimumDate = new Date(),
+    minimumDate = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })(),
 }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState(initialDate);
@@ -125,6 +125,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                         styles.calendarContainer,
                         { transform: [{ translateY: slideAnim }] },
                     ]}
+                    accessibilityViewIsModal={true}
                 >
                     <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
                         {/* Custom Title */}

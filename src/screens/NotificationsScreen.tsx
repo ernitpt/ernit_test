@@ -9,6 +9,7 @@ import {
   Image,
   RefreshControl,
   Platform,
+  Linking,
 } from 'react-native';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Avatar } from '../components/Avatar';
@@ -32,7 +33,7 @@ import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import { Bell, TrendingUp, Heart, Gift, X } from 'lucide-react-native';
+import { Bell, TrendingUp, Heart, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy } from 'lucide-react-native';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
@@ -95,6 +96,7 @@ const NotificationsScreen = () => {
   const [displayCount, setDisplayCount] = useState(20);
   const isRefreshingRef = useRef(false);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tappingRef = useRef(false);
   const navigation = useNavigation<NotificationNavigationProp>();
 
   // Pre-compute latest goal_progress notification per goal (single-pass O(n))
@@ -190,6 +192,9 @@ const NotificationsScreen = () => {
 
   const handlePress = async (n: Notification) => {
     if (!userId) return;
+    if (tappingRef.current) return;
+    tappingRef.current = true;
+    try {
     analyticsService.trackEvent('notification_tapped', 'engagement', { type: n.type }, 'NotificationsScreen');
     await notificationService.markAsRead(n.id!);
 
@@ -285,6 +290,46 @@ const NotificationsScreen = () => {
       } catch (error) {
         logger.error('Error navigating from booking reminder:', error);
       }
+    }
+
+    if (
+      n.type === 'shared_start' ||
+      n.type === 'shared_completion' ||
+      n.type === 'shared_unlock' ||
+      n.type === 'shared_session'
+    ) {
+      if (n.data?.goalId) {
+        navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      }
+    }
+
+    if (n.type === 'payment_charged') {
+      if (n.data?.goalId) {
+        navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      }
+    }
+
+    if (n.type === 'payment_failed') {
+      if (n.data?.recoveryUrl) {
+        Linking.openURL(n.data.recoveryUrl);
+      } else {
+        navigation.navigate('PurchasedGifts');
+      }
+    }
+
+    if (n.type === 'goal_approval_response' && n.data?.goalId) {
+      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+    }
+
+    if (n.type === 'goal_set' && n.data?.goalId) {
+      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+    }
+
+    if ((n.type === 'valentine_partner_progress' || n.type === 'valentine_start' || n.type === 'valentine_unlock' || n.type === 'valentine_completion') && n.data?.goalId) {
+      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+    }
+    } finally {
+      setTimeout(() => { tappingRef.current = false; }, 500);
     }
   };
 
@@ -401,6 +446,51 @@ const NotificationsScreen = () => {
             notification={item}
             onActionComplete={handleFriendRequestHandled}
           />
+        </Animated.View>
+      );
+    }
+
+    // Handle goal approval response notifications (approved/rejected)
+    if (item.type === 'goal_approval_response') {
+      const isApproved = item.data?.approved !== false;
+      const accentColor = isApproved ? Colors.success : Colors.error;
+      const bgColor = isApproved ? Colors.successLight : Colors.errorLight;
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: accentColor },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={item.message}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: bgColor }]}>
+                <CheckCircle size={24} color={accentColor} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Animated.View>
       );
     }
@@ -568,8 +658,8 @@ const NotificationsScreen = () => {
 
     // Handle weekly recap notifications
     if (item.type === 'weekly_recap') {
-      const completed = item.data?.totalCompleted || 0;
-      const required = item.data?.totalRequired || 0;
+      const completed = item.data?.totalSessionsDone || item.data?.totalCompleted || 0;
+      const required = item.data?.totalSessionsRequired || item.data?.totalRequired || 0;
       const progressPercent = required > 0 ? Math.min(100, Math.round((completed / required) * 100)) : 0;
 
       return (
@@ -658,9 +748,217 @@ const NotificationsScreen = () => {
       );
     }
 
+    // Handle per-session partner notifications
+    if (item.type === 'shared_session') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+            ]}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
+                <Activity size={24} color={Colors.primary} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title || 'Partner Activity'}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message || 'Your partner logged a session!'}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    // Handle shared/together challenge notifications
+    if (item.type === 'shared_start' || item.type === 'shared_unlock' || item.type === 'shared_completion') {
+      const accentColor = item.type === 'shared_unlock' ? Colors.success : Colors.primary;
+      const bgColor = item.type === 'shared_unlock' ? Colors.successLight : Colors.primarySurface;
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: accentColor },
+            ]}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: bgColor }]}>
+                <Users size={24} color={accentColor} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    // Handle payment notifications
+    if (item.type === 'payment_charged' || item.type === 'payment_failed') {
+      const isFailure = item.type === 'payment_failed';
+      const accentColor = isFailure ? Colors.error : Colors.success;
+      const bgColor = isFailure ? Colors.errorLight : Colors.successLight;
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: accentColor },
+            ]}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: bgColor }]}>
+                {isFailure
+                  ? <AlertCircle size={24} color={accentColor} />
+                  : <CreditCard size={24} color={accentColor} />}
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
     // Handle personalized hint left notification (for recipients)
     if (item.type === 'personalized_hint_left') {
       // Falls through to default rendering with clear button
+    }
+
+    if (item.type === 'gift_received') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+            ]}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.warningLight }]}>
+                <Gift size={24} color={Colors.warning} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={[styles.reminderMessage, { color: Colors.warning, fontWeight: '600', marginTop: 4 }]}>
+                  Set up your goal →
+                </Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    if (item.type === 'goal_completed') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <TouchableOpacity
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+            style={[
+              styles.notificationCard,
+              !item.read && styles.notificationCardUnread,
+              { borderLeftWidth: 3, borderLeftColor: Colors.success },
+            ]}
+          >
+            <View style={styles.reminderCardContent}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.successLight }]}>
+                <Trophy size={24} color={Colors.success} />
+              </View>
+              <View style={styles.reminderTextContent}>
+                <View style={styles.reactionHeader}>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear this notification"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      );
     }
 
     return (
@@ -715,18 +1013,37 @@ const NotificationsScreen = () => {
           showBack={true}
           rightActions={
             notifications.length > 0 ? (
-              <TouchableOpacity
-                style={styles.clearAllButton}
-                onPress={handleClearAll}
-                accessibilityRole="button"
-                accessibilityLabel="Clear all notifications"
-              >
-                <Text style={styles.clearAllButtonText}>Clear All</Text>
-              </TouchableOpacity>
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.markAllReadButton}
+                  onPress={async () => {
+                    if (!userId) return;
+                    try {
+                      await notificationService.markAllAsRead(userId);
+                    } catch (error) {
+                      logger.error('Error marking all as read:', error);
+                      showError('Failed to mark all as read.');
+                    }
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mark all notifications as read"
+                >
+                  <Text style={styles.markAllReadButtonText}>Mark Read</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.clearAllButton}
+                  onPress={handleClearAll}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear all notifications"
+                >
+                  <Text style={styles.clearAllButtonText}>Clear All</Text>
+                </TouchableOpacity>
+              </View>
             ) : null
           }
         />
 
+        <View accessibilityLiveRegion="polite">
         {loading ? (
           <ScrollView contentContainerStyle={styles.listContainer}>
             <NotificationSkeleton />
@@ -740,6 +1057,7 @@ const NotificationsScreen = () => {
             onRetry={() => {
               setError(false);
               setLoading(true);
+              setRefreshKey(prev => prev + 1);
             }}
           />
         ) : notifications.length === 0 ? (
@@ -778,6 +1096,7 @@ const NotificationsScreen = () => {
             }
           />
         )}
+        </View>
       </MainScreen>
       <ConfirmationDialog
         visible={showClearAllConfirm}
@@ -803,6 +1122,24 @@ const NotificationsScreen = () => {
 
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  markAllReadButton: {
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+    borderColor: Colors.success,
+  },
+  markAllReadButtonText: {
+    color: Colors.success,
+    ...Typography.small,
+    fontWeight: '600',
+  },
   clearAllButton: {
     backgroundColor: Colors.primarySurface,
     paddingHorizontal: Spacing.md,

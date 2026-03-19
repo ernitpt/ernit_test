@@ -67,6 +67,27 @@ export const stripeCreatePaymentIntent = onRequest(
             return;
         }
 
+        const db = getDbProd();
+
+        // ✅ RATE LIMITING: Max 20 payment intent creations per hour per user
+        const RATE_LIMIT = 20;
+        const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+        const rateLimitRef = db.collection('rateLimits').doc(`createPaymentIntent_${userId}`);
+        const rateLimitSnap = await rateLimitRef.get();
+        const now = Date.now();
+
+        if (rateLimitSnap.exists) {
+            const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
+            if (requests.length >= RATE_LIMIT) {
+                console.warn(`⚠️ stripeCreatePaymentIntent rate limit exceeded for user ${userId}`);
+                res.status(429).json({ error: 'Too many payment requests. Please try again later.' });
+                return;
+            }
+            await rateLimitRef.set({ requests: [...requests, now], lastRequest: now });
+        } else {
+            await rateLimitRef.set({ requests: [now], lastRequest: now });
+        }
+
         try {
             const {
                 amount,
@@ -115,7 +136,6 @@ export const stripeCreatePaymentIntent = onRequest(
             }
 
             // ✅ Server-side price validation — never trust client-sent amount
-            const db = getDbProd();
             let serverTotal = 0;
 
             for (const item of cart) {

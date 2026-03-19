@@ -5,11 +5,23 @@ Manages in-app notifications and interacts with Firebase Cloud Messaging (FCM) f
 
 ## Core Concepts
 - **Notification Types**:
-    - `friend_request`: Interactive (accept/deny).
+    - `friend_request`: Interactive (accept/deny). Has top-level `senderId` field.
     - `personalized_hint_left`: From a partner/giver.
     - `post_reaction`: Social feedback.
     - `goal_progress`: System updates.
+    - `shared_session`: Partner logged a session in a Together/Shared challenge.
+    - `shared_start`: Partner accepted the Together challenge.
+    - `shared_unlock`: Both partners completed — reward unlocked.
+    - `shared_completion`: One partner completed their half.
+    - `payment_charged`: Deferred payment successfully charged.
+    - `payment_failed`: Payment failed (optional recovery URL in `data`).
+    - `goal_completed`: Goal fully completed.
+    - `gift_received`: User received a new gift.
+    - `valentine_partner_progress`: Partner progress update in Valentine/Together challenge.
 - **Real-time**: Uses `onSnapshot` to push updates to the UI immediately.
+- **Rendering**: All types above are rendered in `NotificationsScreen` with dedicated icons and `handlePress` navigation logic.
+- **`senderId`**: Top-level field on notification document (used by `friend_request` type).
+- **`createNotification`**: Non-critical — wrapped in try/catch so failures do not throw or break calling code.
 
 ## Data Model
 - `userId`: Recipient.

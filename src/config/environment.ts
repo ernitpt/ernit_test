@@ -49,7 +49,11 @@ interface EnvironmentConfig {
 }
 
 // Allow overriding functions URL via env var (useful for region migration or staging)
-const functionsUrlOverride = process.env.EXPO_PUBLIC_FUNCTIONS_URL?.trim().replace(/['"]/g, '');
+let functionsUrlOverride = process.env.EXPO_PUBLIC_FUNCTIONS_URL?.trim().replace(/['"]/g, '');
+if (functionsUrlOverride && !functionsUrlOverride.startsWith('https://')) {
+    logger.warn('Invalid functions URL override — must be HTTPS');
+    functionsUrlOverride = undefined;
+}
 
 const configs: Record<Environment, EnvironmentConfig> = {
     test: {

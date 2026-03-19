@@ -111,7 +111,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     useEffect(() => {
         loadUserReaction();
         loadComments();
-    }, [post.id]);
+    }, [loadUserReaction, loadComments]);
 
     // Animate highlight effect
     useEffect(() => {
@@ -144,7 +144,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         };
     }, [isHighlighted]);
 
-    const loadUserReaction = async () => {
+    const loadUserReaction = useCallback(async () => {
         if (!state.user?.id) return;
         try {
             const reaction = await reactionService.getUserReaction(post.id, state.user.id);
@@ -158,7 +158,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 additionalData: { postId: post.id },
             });
         }
-    };
+    }, [post.id, state.user?.id]);
 
     const loadComments = useCallback(async () => {
         try {

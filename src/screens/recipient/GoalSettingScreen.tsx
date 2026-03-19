@@ -4,17 +4,17 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
-  TextInput,
+  TextInput as RNTextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   Platform,
   Animated,
-  Dimensions,
-  GestureResponderEvent,
   KeyboardAvoidingView,
   Alert,
+  Image,
 } from 'react-native';
+import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -33,20 +33,23 @@ import { notificationService } from '../../services/NotificationService';
 import { userService } from '../../services/userService';
 import MainScreen from '../MainScreen';
 import { db, auth } from '../../services/firebase';
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, deleteField, doc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { experienceService } from '../../services/ExperienceService';
 import { SkeletonBox } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { vh } from '../../utils/responsive';
+import { sanitizeText } from '../../utils/sanitization';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
+import ModernSlider from '../../components/ModernSlider';
+import WizardProgressBar from '../../components/WizardProgressBar';
 
-const { width } = Dimensions.get('window');
 const TOTAL_STEPS = 4;
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
@@ -75,67 +78,6 @@ const STEP_SUBTITLES = [
   'Make sure everything looks right before we set it in motion',
 ];
 
-// ─── ModernSlider ────────────────────────────────────────────────────
-const ModernSlider = ({
-  label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
-}: {
-  label: string; value: number; min: number; max: number;
-  onChange: (val: number) => void; leftLabel: string; rightLabel: string;
-  unit?: string; unitPlural?: string;
-}) => {
-  const handlePress = (event: GestureResponderEvent) => {
-    const { locationX } = event.nativeEvent;
-    const trackWidth = width - 96;
-    const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
-    const newValue = Math.round(min + percentage * (max - min));
-    onChange(newValue);
-  };
-
-  const progress = ((value - min) / (max - min)) * 100;
-  const displayUnit = unit && unitPlural ? (value === 1 ? unit : unitPlural) : '';
-
-  return (
-    <View style={styles.sliderContainer}>
-      <Text style={styles.sliderTitle}>{label}</Text>
-      <View style={styles.sliderValueRow}>
-        <Text style={styles.sliderValue}>{value}</Text>
-        {displayUnit ? <Text style={styles.sliderUnit}>{displayUnit}</Text> : null}
-      </View>
-      <View style={styles.sliderLabels}>
-        <Text style={styles.sliderLabelText}>{leftLabel}</Text>
-        <Text style={styles.sliderLabelText}>{rightLabel}</Text>
-      </View>
-      <View
-        style={styles.sliderTrack}
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={handlePress}
-        onResponderMove={handlePress}
-      >
-        <View style={[styles.sliderProgress, { width: `${progress}%` }]} />
-        <View style={[styles.sliderThumb, { left: `${progress}%` }]}>
-          <View style={styles.sliderThumbInner} />
-        </View>
-      </View>
-    </View>
-  );
-};
-
-// ─── Progress Bar ────────────────────────────────────────────────────
-const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
-  const progress = (currentStep / totalSteps) * 100;
-  return (
-    <View style={styles.progressBar}>
-      <View style={styles.progressTrack}>
-        <MotiView
-          animate={{ width: `${progress}%` as any }}
-          transition={{ type: 'spring', damping: 100, stiffness: 320 }}
-          style={styles.progressFill}
-        />
-      </View>
-    </View>
-  );
-};
-
 // ─── Main Screen Component ──────────────────────────────────────────
 const GoalSettingScreen = () => {
   const navigation = useNavigation<NavProp>();
@@ -145,7 +87,7 @@ const GoalSettingScreen = () => {
   const { state, dispatch } = useApp();
   const { showError } = useToast();
   const scrollViewRef = useRef<ScrollView>(null);
-  const minutesRef = useRef<TextInput>(null);
+  const minutesRef = useRef<RNTextInput>(null);
 
   // ─── Wizard State ──────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(1);
@@ -281,14 +223,18 @@ const GoalSettingScreen = () => {
     if (!currentUser) throw new Error('User not authenticated');
 
     const giftDocRef = doc(db, 'experienceGifts', experienceGiftId);
+    const uid = currentUser.uid;
     await runTransaction(db, async (transaction) => {
       const freshGift = await transaction.get(giftDocRef);
       if (!freshGift.exists()) throw new Error('Gift not found');
-      if (freshGift.data().status !== 'pending') throw new Error('Gift already claimed');
+      const currentStatus = freshGift.data().status;
+      if (currentStatus !== 'pending' && currentStatus !== 'active') throw new Error('Gift already claimed');
       transaction.update(giftDocRef, {
         status: 'claimed',
-        recipientId: currentUser.uid,
+        claimedBy: uid,
+        recipientId: uid,
         claimedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
     });
   };
@@ -358,7 +304,7 @@ const GoalSettingScreen = () => {
         return;
       }
 
-      const finalCategory = selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
+      const finalCategory = selectedCategory === 'Other' ? sanitizeText(customCategory.trim(), 50) : selectedCategory;
       const hoursNum = parseInt(hours || '0');
       const minutesNum = parseInt(minutes || '0');
       const now = new Date();
@@ -421,31 +367,107 @@ const GoalSettingScreen = () => {
         approvalRequestedAt: now,
         approvalDeadline,
         giverActionTaken: experienceGift.giverId === currentUserId,
+        // H5: Shared challenges are auto-approved — giver already set the terms, no approval loop needed
+        ...(experienceGift?.challengeType === 'shared' && {
+          approvalStatus: 'approved' as const,
+          giverActionTaken: true,
+        }),
+        // Shared/Together challenge fields
+        ...(experienceGift?.challengeType === 'shared' && experienceGift?.togetherData && { challengeType: 'shared' as const }),
+        ...(experienceGift?.challengeType === 'shared' && experienceGift?.togetherData?.giverGoalId && { partnerGoalId: experienceGift.togetherData.giverGoalId }),
       };
 
-      const goal = await goalService.createGoal(goalData as Goal);
+      // SAFETY: If goal creation fails after gift claim, revert the gift to 'pending'
+      let goal: Goal;
+      try {
+        goal = await goalService.createGoal(goalData as Goal);
+      } catch (goalError) {
+        // Revert gift claim so the user can retry
+        try {
+          const giftRef = doc(db, 'experienceGifts', experienceGift.id);
+          await updateDoc(giftRef, {
+            status: 'pending',
+            claimedBy: deleteField(),
+            recipientId: deleteField(),
+            claimedAt: deleteField(),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (revertError) {
+          logger.error('Failed to revert gift claim:', revertError);
+          // Revert itself failed — the gift may be in an inconsistent state.
+          // Surface a clear message here rather than swallowing the error silently.
+          showError('Something went wrong. Please contact support with your claim code — we will fix this.');
+        }
+        throw goalError; // Re-throw to hit the outer error handler
+      }
+
+      // Bidirectional link: if giver's goal already exists, update it to point back to this recipient goal
+      if (experienceGift?.challengeType === 'shared' && experienceGift?.togetherData?.giverGoalId) {
+        // Retry bidirectional link up to 3 times
+        let linkSuccess = false;
+        for (let attempt = 0; attempt < 3 && !linkSuccess; attempt++) {
+          try {
+            await updateDoc(doc(db, 'goals', experienceGift.togetherData.giverGoalId), {
+              partnerGoalId: goal.id,
+              updatedAt: serverTimestamp(),
+            });
+            linkSuccess = true;
+            logger.log(`Linked giver goal ${experienceGift.togetherData.giverGoalId} -> recipient goal ${goal.id}`);
+          } catch (linkErr) {
+            if (attempt === 2) {
+              console.error('Failed to link partner goal after 3 attempts:', linkErr);
+              // Store recipientGoalId on the gift as fallback
+              try {
+                await updateDoc(doc(db, 'experienceGifts', experienceGift.id), {
+                  recipientGoalId: goal.id,
+                  updatedAt: serverTimestamp(),
+                });
+              } catch (e) { console.error('Fallback link also failed:', e); }
+            }
+          }
+        }
+      }
+
       analyticsService.trackEvent('goal_creation_completed', 'conversion', {
         category: finalCategory,
         durationWeeks: weeks,
         sessionsPerWeek,
       }, 'GoalSettingScreen');
 
+      // H1: Notify giver that recipient accepted the shared/together challenge
+      if (experienceGift?.challengeType === 'shared' && experienceGift?.giverId) {
+        try {
+          await addDoc(collection(db, 'notifications'), {
+            userId: experienceGift.giverId,
+            type: 'shared_start',
+            title: 'Challenge Accepted!',
+            message: `${state.user?.displayName || state.user?.name || 'Your partner'} accepted your Together challenge!`,
+            data: { goalId: goal.id, giftId: experienceGift.id },
+            read: false,
+            createdAt: serverTimestamp(),
+          });
+        } catch (e) {
+          console.warn('Failed to send shared_start notification:', e);
+        }
+      }
+
       const recipientName = await userService.getUserName(goalData.userId);
 
-      // Send approval notification (skip for self-gifts)
+      // Send approval notification (skip for self-gifts and shared challenges)
+      // Shared challenges are auto-approved; the shared_start notification (H1) handles giver notification
       const isSelfGift = experienceGift.giverId === currentUserId;
-      if (!isSelfGift) {
+      if (!isSelfGift && experienceGift?.challengeType !== 'shared') {
         await notificationService.createNotification(
           goalData.empoweredBy! || '',
           'goal_approval_request',
-          `\u{1F3AF} ${recipientName} set a goal for ${experience.title}`,
+          `\u{1F3AF} ${recipientName} set a goal for ${experience?.title ?? 'your challenge'}`,
           `Goal: ${goalData.description}`,
           {
             giftId: goalData.experienceGiftId,
             goalId: goal.id,
             giverId: goalData.empoweredBy,
             recipientId: goalData.userId,
-            experienceTitle: experience.title,
+            experienceTitle: experience?.title ?? 'your challenge',
             initialTargetCount: weeks,
             initialSessionsPerWeek: sessionsPerWeek,
           },
@@ -477,13 +499,13 @@ const GoalSettingScreen = () => {
           logger.error('Failed to get pre-generated hint:', hintError);
           navigation.reset({
             index: 1,
-            routes: [{ name: 'CouponEntry' }, { name: 'Journey', params: { goal } }],
+            routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal } }],
           });
         }
       } else {
         navigation.reset({
           index: 1,
-          routes: [{ name: 'CouponEntry' }, { name: 'Journey', params: { goal } }],
+          routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal } }],
         });
       }
     } catch (error) {
@@ -497,7 +519,7 @@ const GoalSettingScreen = () => {
           category: selectedCategory === 'Other' ? customCategory : selectedCategory,
         },
       });
-      showError('Failed to create goal. Please try again.');
+      showError('Goal creation failed. Your gift code is still valid — please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -508,7 +530,7 @@ const GoalSettingScreen = () => {
     if (createdGoal) {
       navigation.reset({
         index: 1,
-        routes: [{ name: 'CouponEntry' }, { name: 'Journey', params: { goal: createdGoal } }],
+        routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: createdGoal } }],
       });
     }
   };
@@ -566,6 +588,62 @@ const GoalSettingScreen = () => {
   // ─── Step Renderers ───────────────────────────────────────────────
   const renderStep1 = () => (
     <View style={styles.stepContent}>
+      {/* Reward preview for revealed-mode gifts */}
+      {experienceGift?.revealMode === 'revealed' && experience && (
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 350 }}
+          style={{ marginBottom: Spacing.xl }}
+        >
+          <View style={{
+            backgroundColor: Colors.primarySurface,
+            borderRadius: BorderRadius.xl,
+            padding: Spacing.xl,
+            borderWidth: 1,
+            borderColor: Colors.primaryBorder,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.lg,
+          }}>
+            {experience.imageUrl ? (
+              <Image
+                source={{ uri: experience.imageUrl }}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: BorderRadius.lg,
+                  backgroundColor: Colors.border,
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{
+                width: 64,
+                height: 64,
+                borderRadius: BorderRadius.lg,
+                backgroundColor: Colors.primary,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <Text style={{ fontSize: 28 }}>🎁</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ ...Typography.smallBold, color: Colors.primary, marginBottom: Spacing.xs }}>
+                YOUR REWARD
+              </Text>
+              <Text style={{ ...Typography.heading3, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+                {experience.title}
+              </Text>
+              <Text style={{ ...Typography.caption, color: Colors.textSecondary }}>
+                Complete your challenge to unlock this reward!
+              </Text>
+            </View>
+          </View>
+        </MotiView>
+      )}
+
       {/* Together mode: show giver's goal with accept option */}
       {togetherData && !acceptedGiverGoal && (
         <MotiView
@@ -671,28 +749,22 @@ const GoalSettingScreen = () => {
 
       {selectedCategory === 'Other' && (
         <View style={styles.customGoalContainer}>
-          <Text style={styles.customGoalLabel}>Enter your custom goal:</Text>
-          <View style={styles.customGoalInputWrapper}>
-            <Text style={styles.customGoalIcon}>{'\u2728'}</Text>
-            <TextInput
-              style={styles.customGoalInput}
-              placeholder="e.g., Painting, Meditation, Guitar..."
-              value={customCategory}
-              onChangeText={(text) => {
-                setCustomCategory(text);
-                if (validationErrors.category && text.trim()) {
-                  setValidationErrors(prev => ({ ...prev, category: false }));
-                }
-              }}
-              autoFocus
-              accessibilityLabel="Custom goal category"
-            />
-          </View>
-          {validationErrors.category && customCategory.trim() === '' && (
-            <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
-              Please enter a custom category
-            </Text>
-          )}
+          <TextInput
+            label="Enter your custom goal:"
+            placeholder="e.g., Painting, Meditation, Guitar..."
+            value={customCategory}
+            onChangeText={(text) => {
+              setCustomCategory(text);
+              if (validationErrors.category && text.trim()) {
+                setValidationErrors(prev => ({ ...prev, category: false }));
+              }
+            }}
+            maxLength={50}
+            error={validationErrors.category && customCategory.trim() === '' ? 'Please enter a custom category' : undefined}
+            leftIcon={<Text style={styles.customGoalIcon}>{'\u2728'}</Text>}
+            autoFocus
+            accessibilityLabel="Custom goal category"
+          />
         </View>
       )}
     </View>
@@ -732,7 +804,7 @@ const GoalSettingScreen = () => {
 
           <View style={styles.timeRow}>
             <View style={styles.timeInputGroup}>
-              <TextInput
+              <RNTextInput
                 style={styles.timeInput}
                 value={hours}
                 onChangeText={(t) => {
@@ -750,7 +822,7 @@ const GoalSettingScreen = () => {
               <Text style={styles.timeLabel}>hr</Text>
             </View>
             <View style={styles.timeInputGroup}>
-              <TextInput
+              <RNTextInput
                 ref={minutesRef}
                 style={styles.timeInput}
                 value={minutes}
@@ -955,7 +1027,7 @@ const GoalSettingScreen = () => {
             </View>
           </View>
 
-          <ProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+          <WizardProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
           {/* Step Content */}
           <ScrollView
@@ -988,7 +1060,7 @@ const GoalSettingScreen = () => {
               </MotiView>
             </AnimatePresence>
 
-            <View style={{ height: 160 }} />
+            <View style={{ height: vh(160) }} />
           </ScrollView>
 
           {/* Footer CTA */}

@@ -4,6 +4,7 @@ import { Trophy, Gift } from 'lucide-react-native';
 import Button from '../Button';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../../types';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../config';
+import { vh } from '../../utils/responsive';
 
 interface FeedPostContentProps {
     post: FeedPostType;
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
     },
     experienceImage: {
         width: '100%',
-        height: 140,
+        height: vh(140),
         backgroundColor: Colors.border,
     },
     experienceImagePlaceholder: {

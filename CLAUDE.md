@@ -44,6 +44,8 @@
 - **Security**:
     - **Firestore**: Never bypass security rules.
     - **Cloud Functions**: Validate all inputs (`httpsCallable`).
+- **Input Sanitization**: Use `sanitizeText` from `src/utils/sanitization.ts` for ALL user-provided string inputs before writing to Firestore or displaying in untrusted contexts. Also available: `sanitizeEmail`, `sanitizeNumber`, `sanitizeUrl`, `sanitizeProfileData`, `sanitizeGoalData`, `sanitizeComment`. Import: `import { sanitizeText } from '../utils/sanitization';`.
+- **Responsive Sizing**: Use `vh()` from `src/utils/responsive.ts` for layout dimensions that must scale with screen height. Do NOT use raw `Dimensions.get('window').height` arithmetic in screen files.
 
 ## 🧮 Model Strategy (Token Optimization)
 - **Opus = Orchestrator**: Use the main Opus context for planning, complex reasoning, architectural decisions, debugging, and review.

@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import * as Haptics from 'expo-haptics';
@@ -37,6 +37,8 @@ import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
 import { toJSDate } from '../utils/GoalHelpers';
 import { serializeNav } from '../utils/serializeNav';
+import { vh } from '../utils/responsive';
+import { sanitizeText } from '../utils/sanitization';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -460,10 +462,11 @@ const UserProfileScreen: React.FC = () => {
   });
   const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
   const [wishlistRemoveId, setWishlistRemoveId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const userId = state.user?.id || '';
   const tabScrollRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = Dimensions.get('window');
+  const { width: screenWidth } = useWindowDimensions();
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   useFocusEffect(
@@ -526,25 +529,33 @@ const UserProfileScreen: React.FC = () => {
 
   // ✅ Unified image picker and upload for all platforms
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showError('We need camera roll permissions to upload photos!');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError('We need camera roll permissions to upload photos!');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      try {
+      if (!result.canceled && result.assets[0]) {
+        const localUri = result.assets[0].uri;
+        try {
         // 📤 Upload instantly so preview uses a valid Firebase URL (not blob:)
         const response = await fetch(localUri);
         const blob = await response.blob();
+
+        // S-06: Client-side file size guard (Storage rules enforce server-side too)
+        if (blob.size > 5 * 1024 * 1024) {
+          showError('Image must be under 5MB');
+          return;
+        }
+
         const ext = localUri.split('.').pop()?.split('?')[0] || 'jpg';
         const filePath = `profile-images/${userId}/profile_${Date.now()}.${ext}`;
         const storageRef = ref(storage, filePath);
@@ -559,6 +570,10 @@ const UserProfileScreen: React.FC = () => {
         logger.error('Upload failed:', uploadErr);
         showError('Could not upload profile image.');
       }
+    }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      showError('Could not open image picker. Please try again.');
     }
   };
 
@@ -592,14 +607,19 @@ const UserProfileScreen: React.FC = () => {
   };
 
   const handleSaveProfile = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+
     // Inline validation check
     const nameVal = editFormData.name.trim();
     if (!nameVal || nameVal.length < 2) {
       setFormErrors(prev => ({ ...prev, name: nameVal ? 'Name must be at least 2 characters' : 'Name is required' }));
+      setIsSaving(false);
       return;
     }
     if (editFormData.description.length > 300) {
       setFormErrors(prev => ({ ...prev, description: 'Please keep under 300 characters' }));
+      setIsSaving(false);
       return;
     }
 
@@ -607,9 +627,11 @@ const UserProfileScreen: React.FC = () => {
     const previousProfile = userProfile;
 
     // 2. Prepare updated profile
+    const sanitizedName = sanitizeText(nameVal, 50);
+    const sanitizedDescription = sanitizeText(editFormData.description.trim(), 300);
     const profileUpdates = {
-      name: editFormData.name.trim() || userProfile?.name || '',
-      description: editFormData.description.trim(),
+      name: sanitizedName || userProfile?.name || '',
+      description: sanitizedDescription,
       profileImageUrl: editFormData.profileImageUrl || '',
       updatedAt: new Date(),
     };
@@ -643,6 +665,8 @@ const UserProfileScreen: React.FC = () => {
         dispatch({ type: 'SET_USER', payload: revertedUser });
       }
       showError('Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -745,6 +769,23 @@ const UserProfileScreen: React.FC = () => {
       </MotiView>
     ));
   };
+
+  if (error && !loading) {
+    return (
+      <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
+        <MainScreen activeRoute="Profile">
+          <ErrorRetry
+            message="Could not load profile data"
+            onRetry={() => {
+              setError(false);
+              setLoading(true);
+              loadProfileAndGoals();
+            }}
+          />
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
@@ -902,9 +943,10 @@ const UserProfileScreen: React.FC = () => {
               <TouchableOpacity
                 onPress={handleSaveProfile}
                 style={styles.modalSaveButton}
+                disabled={isSaving}
               >
                 <Text style={styles.modalSaveText}>
-                  Save
+                  {isSaving ? 'Saving…' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1132,7 +1174,7 @@ const styles = StyleSheet.create({
   experienceImageContainer: {
     position: 'relative',
   },
-  experienceImage: { width: '100%', height: 140, backgroundColor: Colors.border },
+  experienceImage: { width: '100%', height: vh(140), backgroundColor: Colors.border },
   wishlistHeartButton: {
     position: 'absolute',
     top: 8,
@@ -1162,7 +1204,7 @@ const styles = StyleSheet.create({
   },
   achievementImage: {
     width: '100%',
-    height: 150,
+    height: vh(150),
     backgroundColor: Colors.border,
   },
   achievementContent: {
@@ -1247,7 +1289,7 @@ const styles = StyleSheet.create({
   // Color banner fallback (no image)
   achColorBanner: {
     width: '100%',
-    height: 120,
+    height: vh(120),
     alignItems: 'center',
     justifyContent: 'center',
   },

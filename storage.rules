@@ -54,21 +54,25 @@ service firebase.storage {
     }
     
     // ========== EXPERIENCE IMAGES ==========
-    // Path: experiences/...
-    // Public images for the experience shop
-    match /experiences/{allPaths=**} {
+    // Path: experiences/{userId}/...
+    // Public images for the experience shop; write scoped to owning partner UID
+    match /experiences/{userId}/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null
+        && request.auth.uid == userId
         && request.resource.size < 20 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
-    
+
     // ========== PARTNER FILES ==========
-    // Path: partners/...
-    match /partners/{allPaths=**} {
+    // Path: partners/{userId}/...
+    // Write scoped to owning partner UID with content-type restriction
+    match /partners/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null 
-        && request.resource.size < 10 * 1024 * 1024;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     
     // ========== USERS FOLDER (legacy/backup) ==========
@@ -80,10 +84,11 @@ service firebase.storage {
         && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     
-    // ========== DEFAULT: Allow reads for any path ==========
+    // ========== DEFAULT: Authenticated reads only for any path ==========
     // Prevents breaking existing images stored in unexpected locations
+    // SECURITY: Restricted to authenticated users only (was: if true)
     match /{allPaths=**} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if false;
     }
   }

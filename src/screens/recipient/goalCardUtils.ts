@@ -1,6 +1,4 @@
 import { Goal, PersonalizedHint } from '../../types';
-import { db } from '../../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import Colors from '../../config/colors';
 
 // ─── Date utilities ─────────────────────────────────────────────────
@@ -126,6 +124,7 @@ export function getApprovalBlockMessage(
 // ─── Types for extracted components ─────────────────────────────────
 
 export interface PartnerGoalData {
+  userId?: string;
   weeklyCount: number;
   sessionsPerWeek: number;
   weeklyLogDates: string[];
@@ -153,7 +152,8 @@ export interface HintObject {
 
 // ─── Constants ──────────────────────────────────────────────────────
 
-export const TIMER_STORAGE_KEY = 'goal_timer_state_';
+/** @deprecated Use 'global_timer_state' AsyncStorage key directly (JSON object keyed by goalId) */
+export const TIMER_STORAGE_KEY = 'global_timer_state';
 
 export const CARD_COLORS = {
   grayLight: Colors.border,

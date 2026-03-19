@@ -8,7 +8,6 @@ import {
     Animated,
     Platform,
 } from 'react-native';
-import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
@@ -28,6 +27,7 @@ import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from '../services/AnalyticsService';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
@@ -50,8 +50,9 @@ const FeedScreen: React.FC = () => {
     const highlightAnim = React.useRef(new Animated.Value(0)).current;
     const flatListRef = React.useRef<FlatList>(null);
     const scrollRetryCount = React.useRef(0);
-    const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | undefined>(undefined);
+    const lastTimestampRef = useRef<Date | undefined>(undefined);
     const FEED_PAGE_SIZE = 15;
+    const MAX_POSTS = 200;
 
     // Handle highlight parameter from navigation
     useEffect(() => {
@@ -110,6 +111,7 @@ const FeedScreen: React.FC = () => {
 
     useFocusEffect(
         React.useCallback(() => {
+            analyticsService.trackScreenView('FeedScreen');
             loadFeed();
         }, [state.user?.id])
     );
@@ -127,20 +129,20 @@ const FeedScreen: React.FC = () => {
                 setIsLoading(true);
                 setError(false);
             }
-            const cursor = loadMore ? lastDocRef.current : undefined;
-            const { posts: loadedPosts, lastDoc } = await feedService.getFriendsFeed(
+            const cursor = loadMore ? lastTimestampRef.current : undefined;
+            const { posts: loadedPosts, lastTimestamp } = await feedService.getFriendsFeed(
                 state.user.id,
                 FEED_PAGE_SIZE,
                 cursor
             );
 
             if (loadMore) {
-                setPosts(prev => [...prev, ...loadedPosts]);
+                setPosts(prev => [...prev, ...loadedPosts].slice(-MAX_POSTS));
             } else {
                 setPosts(loadedPosts);
             }
 
-            lastDocRef.current = lastDoc;
+            lastTimestampRef.current = lastTimestamp;
             setHasMore(loadedPosts.length >= FEED_PAGE_SIZE);
         } catch (error) {
             logger.error('Error loading feed:', error);
@@ -157,7 +159,7 @@ const FeedScreen: React.FC = () => {
     const handleRefresh = async () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setIsRefreshing(true);
-        lastDocRef.current = undefined;
+        lastTimestampRef.current = undefined;
         setHasMore(true);
         await loadFeed();
         setIsRefreshing(false);
@@ -232,6 +234,7 @@ const FeedScreen: React.FC = () => {
                     subtitle="See what you and your friends have achieved"
                 />
 
+                <View accessibilityLiveRegion="polite">
                 {isLoading ? (
                     <View style={styles.list}>
                         <FeedPostSkeleton />
@@ -279,6 +282,7 @@ const FeedScreen: React.FC = () => {
                         }
                     />
                 )}
+                </View>
             </MainScreen>
         </ErrorBoundary>
     );

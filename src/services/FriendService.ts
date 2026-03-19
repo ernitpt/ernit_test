@@ -15,7 +15,7 @@
   Timestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from './firebase';
+import { db, functions, auth } from './firebase';
 import { FriendRequest, Friend, UserSearchResult } from '../types';
 import { notificationService } from './NotificationService';
 import { logger } from '../utils/logger';
@@ -206,7 +206,8 @@ export class FriendService {
           friendId: recipientId,
           friendName: recipientName,
           friendProfileImageUrl: recipientProfileImageUrl ?? null,
-          createdAt: Timestamp.now(),
+          createdAt: serverTimestamp(),
+          addedAt: serverTimestamp(),
         });
 
         const friendDoc2Ref = doc(collection(db, 'friends'));
@@ -215,7 +216,8 @@ export class FriendService {
           friendId: senderId,
           friendName: senderName,
           friendProfileImageUrl: senderProfileImageUrl ?? null,
-          createdAt: Timestamp.now(),
+          createdAt: serverTimestamp(),
+          addedAt: serverTimestamp(),
         });
 
         // Delete the friend request
@@ -257,6 +259,11 @@ export class FriendService {
       // T3-3: Read request data before deleting to clean up notifications
       const requestDoc = await getDoc(requestRef);
       const requestData = requestDoc.exists() ? requestDoc.data() : null;
+
+      // Verify the current user is the intended recipient before declining
+      if (requestData?.recipientId !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Not authorized to decline this friend request', 'auth');
+      }
 
       await deleteDoc(requestRef);
 
@@ -321,39 +328,53 @@ export class FriendService {
   async getSentFriendRequests(userId: string): Promise<FriendRequest[]> {
     if (!userId) return [];
 
-    const requestsRef = collection(db, 'friendRequests');
-    const q = query(
-      requestsRef,
-      where('senderId', '==', userId),
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: toDateSafe(doc.data().createdAt),
-      updatedAt: toDateSafe(doc.data().updatedAt),
-    })) as FriendRequest[];
+    try {
+      const requestsRef = collection(db, 'friendRequests');
+      const q = query(
+        requestsRef,
+        where('senderId', '==', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: toDateSafe(doc.data().createdAt),
+        updatedAt: toDateSafe(doc.data().updatedAt),
+      })) as FriendRequest[];
+    } catch (error) {
+      console.error('Error getting sent friend requests:', error);
+      return [];
+    }
   }
 
   async getFriends(userId: string): Promise<Friend[]> {
     if (!userId) return [];
 
-    const friendsRef = collection(db, 'friends');
-    const q = query(friendsRef, where('userId', '==', userId));
-    const snap = await getDocs(q);
-    const friends = snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: toDateSafe(doc.data().createdAt),
-    })) as Friend[];
+    try {
+      const friendsRef = collection(db, 'friends');
+      const q = query(friendsRef, where('userId', '==', userId));
+      const snap = await getDocs(q);
+      const friends = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: toDateSafe(doc.data().createdAt),
+      })) as Friend[];
 
-    return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (error) {
+      console.error('Error getting friends:', error);
+      return [];
+    }
   }
 
   async removeFriend(userId: string, friendId: string): Promise<void> {
     if (!userId || !friendId) return;
+
+    if (userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Not authorized to remove friends for another user', 'auth');
+    }
 
     try {
       const friendsRef = collection(db, 'friends');
@@ -378,42 +399,57 @@ export class FriendService {
 
   async areFriends(userId1: string, userId2: string): Promise<boolean> {
     if (!userId1 || !userId2) return false;
-    const q = query(collection(db, 'friends'), where('userId', '==', userId1), where('friendId', '==', userId2));
-    const snap = await getDocs(q);
-    return !snap.empty;
+    try {
+      const q = query(collection(db, 'friends'), where('userId', '==', userId1), where('friendId', '==', userId2));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch (error) {
+      console.error('Error checking areFriends:', error);
+      return false;
+    }
   }
 
   async hasPendingRequest(userId1: string, userId2: string): Promise<boolean> {
     if (!userId1 || !userId2) return false;
-    const q = query(
-      collection(db, 'friendRequests'),
-      where('senderId', '==', userId1),
-      where('recipientId', '==', userId2),
-      where('status', '==', 'pending')
-    );
-    const snap = await getDocs(q);
-    return !snap.empty;
+    try {
+      const q = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', userId1),
+        where('recipientId', '==', userId2),
+        where('status', '==', 'pending')
+      );
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch (error) {
+      console.error('Error checking hasPendingRequest:', error);
+      return false;
+    }
   }
 
   async getFriendRequest(senderId: string, recipientId: string): Promise<FriendRequest | null> {
     if (!senderId || !recipientId) return null;
 
-    const q = query(
-      collection(db, 'friendRequests'),
-      where('senderId', '==', senderId),
-      where('recipientId', '==', recipientId)
-    );
+    try {
+      const q = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', senderId),
+        where('recipientId', '==', recipientId)
+      );
 
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
 
-    const docSnap = snap.docs[0];
-    return {
-      id: docSnap.id,
-      ...docSnap.data(),
-      createdAt: toDateSafe(docSnap.data().createdAt),
-      updatedAt: toDateSafe(docSnap.data().updatedAt),
-    } as FriendRequest;
+      const docSnap = snap.docs[0];
+      return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: toDateSafe(docSnap.data().createdAt),
+        updatedAt: toDateSafe(docSnap.data().updatedAt),
+      } as FriendRequest;
+    } catch (error) {
+      console.error('Error getting friend request:', error);
+      return null;
+    }
   }
 
   private async addFriend(userId: string, friendId: string, friendName: string, friendProfileImageUrl?: string | null) {
@@ -435,10 +471,15 @@ export class FriendService {
 
   async getFriendCount(userId: string): Promise<number> {
     if (!userId) return 0;
-    const friendsRef = collection(db, 'friends');
-    const q = query(friendsRef, where('userId', '==', userId));
-    const snap = await getDocs(q);
-    return snap.size;
+    try {
+      const friendsRef = collection(db, 'friends');
+      const q = query(friendsRef, where('userId', '==', userId));
+      const snap = await getDocs(q);
+      return snap.size;
+    } catch (error) {
+      console.error('Error getting friend count:', error);
+      return 0;
+    }
   }
 }
 

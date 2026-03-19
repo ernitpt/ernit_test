@@ -74,7 +74,23 @@ export const stripeWebhook = onRequest(
         if (event.type === "payment_intent.payment_failed") {
             const paymentIntent = event.data.object as Stripe.PaymentIntent;
             console.log("❌ [PROD] Payment failed:", paymentIntent.id);
-            // You could add logic here to notify the user or clean up
+            const metadata = paymentIntent.metadata;
+            if (metadata?.giverId) {
+                try {
+                    await getDbProd().collection('notifications').add({
+                        userId: metadata.giverId,
+                        type: 'payment_failed',
+                        title: 'Payment Failed',
+                        message: 'Your payment method was declined. Please update your payment details.',
+                        data: { giftId: metadata.giftId || '' },
+                        read: false,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    console.log(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
+                } catch (notifError) {
+                    console.error("❌ [PROD] Failed to send payment failed notification:", notifError);
+                }
+            }
         }
 
         res.status(200).json({ received: true });
@@ -87,6 +103,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const paymentIntentId = paymentIntent.id;
 
     console.log("📦 [PROD] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
+
+    // ✅ DEFERRED CHARGE — handled by chargeDeferredGift trigger, not here
+    if (metadata?.type === 'deferred_charge') {
+        console.log('Deferred charge payment succeeded, handled by trigger');
+        return;
+    }
 
     // ✅ STANDARD GIFT PURCHASE FLOW
     if (!metadata.giverId || !metadata.cart) {

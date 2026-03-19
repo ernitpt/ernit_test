@@ -14,6 +14,7 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { EmptyState } from './EmptyState';
 import { BaseModal } from './BaseModal';
+import { vh } from '../utils/responsive';
 
 interface HintHistoryModalProps {
     visible: boolean;
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     },
     hintImage: {
         width: '100%',
-        height: 180,
+        height: vh(180),
         borderRadius: BorderRadius.sm,
         marginTop: Spacing.md,
         backgroundColor: Colors.border,

@@ -22,6 +22,7 @@ import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
+import { vh } from '../../utils/responsive';
 
 type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryChoice'>;
 
@@ -457,7 +458,7 @@ const MysteryChoiceScreen = () => {
                             )}
                         </AnimatePresence>
 
-                        <View style={{ height: 120 }} />
+                        <View style={{ height: vh(120) }} />
                     </ScrollView>
 
                     {/* Footer CTA */}
@@ -703,7 +704,7 @@ const styles = StyleSheet.create({
     revealImageContainer: {
         borderRadius: BorderRadius.lg,
         overflow: 'hidden',
-        height: 120,
+        height: vh(120),
         backgroundColor: Colors.gray800,
         position: 'relative',
     },
@@ -889,7 +890,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         paddingHorizontal: Spacing.xl,
-        paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
+        paddingBottom: Platform.OS === 'ios' ? vh(34) : vh(18),
         paddingTop: Spacing.lg,
         backgroundColor: Colors.white,
         borderTopWidth: 1,

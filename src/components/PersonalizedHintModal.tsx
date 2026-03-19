@@ -127,7 +127,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
                     onPress={onClose}
                 />
 
-                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
+                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]} accessibilityViewIsModal={true}>
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"

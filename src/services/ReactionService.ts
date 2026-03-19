@@ -19,6 +19,7 @@ import { notificationService } from './NotificationService';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
+import { analyticsService } from './AnalyticsService';
 class ReactionService {
     /**
      * Add or toggle a reaction on a post (atomic via transaction)
@@ -107,6 +108,11 @@ class ReactionService {
                 } catch (error) {
                     logger.warn('Could not create reaction notification:', error);
                 }
+            }
+
+            // Track reaction event when a new reaction is added (not removed)
+            if (reactionAdded) {
+                analyticsService.trackEvent('feed_reaction', 'engagement', { postId, reactionType: type });
             }
 
             logger.log('✅ Reaction toggled');

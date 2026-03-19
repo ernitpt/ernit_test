@@ -179,6 +179,7 @@ const FriendsListScreen: React.FC = () => {
             removeClippedSubviews={Platform.OS !== 'web'}
             maxToRenderPerBatch={10}
             windowSize={5}
+            getItemLayout={(data, index) => ({ length: 88, offset: 88 * index, index })}
             onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, friends.length))}
             onEndReachedThreshold={0.5}
             ListFooterComponent={

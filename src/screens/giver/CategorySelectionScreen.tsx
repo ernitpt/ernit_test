@@ -15,6 +15,7 @@ import {
   Platform,
   UIManager,
   LayoutAnimation,
+  Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -40,7 +41,10 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
+
+const SCREEN_W = Dimensions.get('window').width;
 
 type Category = { id: ExperienceCategory; title: string; experiences: Experience[] };
 
@@ -565,7 +569,7 @@ const styles = StyleSheet.create({
   },
   categoriesListMoved: {
     paddingTop: 0, // REMOVED GAP
-    paddingBottom: 80,
+    paddingBottom: vh(80),
   },
   categorySection: {
     marginBottom: 0,
@@ -584,7 +588,7 @@ const styles = StyleSheet.create({
   },
   experienceCard: {
     marginRight: Spacing.md,
-    width: 175,
+    width: (SCREEN_W - Spacing.lg * 3) / 2,
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -595,7 +599,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     overflow: 'hidden',
-    height: 200, // <-- 2. ADDED FIXED HEIGHT
+    height: vh(200), // <-- 2. ADDED FIXED HEIGHT
   },
   cardImageContainer: {
     position: 'relative',
@@ -615,12 +619,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     padding: Spacing.sm,
-    height: 90, // fixed consistent text+price zone
+    height: vh(90), // fixed consistent text+price zone
     justifyContent: "space-between",
   },
 
   textBlock: {
-    height: 64, // consistent space for title + subtitle (2 lines each)
+    height: vh(64), // consistent space for title + subtitle (2 lines each)
     overflow: "hidden",
   },
 

@@ -24,9 +24,11 @@ import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
+import { sanitizeText } from '../../utils/sanitization';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
+import ErrorRetry from '../../components/ErrorRetry';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import Colors from '../../config/colors';
 import { BorderRadius } from '../../config/borderRadius';
@@ -35,6 +37,7 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import Button from '../../components/Button';
+import { vh } from '../../utils/responsive';
 
 const ConfirmationScreen = () => {
   const navigation = useGiverNavigation();
@@ -217,7 +220,8 @@ const ConfirmationScreen = () => {
 
     setIsSendingMessage(true);
     try {
-      await experienceGiftService.updatePersonalizedMessage(experienceGift.id, personalizedMessage.trim());
+      const sanitizedMessage = sanitizeText(personalizedMessage.trim(), 500);
+      await experienceGiftService.updatePersonalizedMessage(experienceGift.id, sanitizedMessage);
       setMessageSent(true);
       showSuccess('Your personalized message has been saved!');
     } catch (error) {
@@ -236,10 +240,15 @@ const ConfirmationScreen = () => {
 
   const handleCopyCode = async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await Clipboard.setStringAsync(experienceGift.claimCode);
-    setIsCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(experienceGift.claimCode);
+      setIsCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.warn('Clipboard access denied:', error);
+      showError('Could not copy to clipboard');
+    }
   };
 
   const handleShareCode = async () => {
@@ -280,35 +289,39 @@ Earn it. Unlock it. Enjoy it 🚀
   // Show error state if fetch failed
   if (loadError && !experience) {
     return (
-      <MainScreen activeRoute="Home">
-        <EmptyState
-          icon="⚠️"
-          title="Could not load experience details"
-          message="Please check your connection and try again."
-          actionLabel="Retry"
-          onAction={() => {
-            setLoadError(false);
-            if (experienceGift?.experienceId) {
-              experienceService.getExperienceById(experienceGift.experienceId)
-                .then(setExperience)
-                .catch(async () => {
-                  setLoadError(true);
-                  showError('Could not load experience details.');
-                });
-            }
-          }}
-        />
-      </MainScreen>
+      <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Home">
+          <ErrorRetry
+            message="Could not load gift details"
+            onRetry={() => {
+              setLoadError(false);
+              if (experienceGift?.experienceId) {
+                experienceService.getExperienceById(experienceGift.experienceId)
+                  .then(setExperience)
+                  .catch(async () => {
+                    setLoadError(true);
+                    showError('Could not load experience details.');
+                  });
+              }
+            }}
+          />
+        </MainScreen>
+      </ErrorBoundary>
     );
   }
 
-  // Show loading state
+  // Show loading state (skeleton)
   if (!experience) {
     return (
-      <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
-        <ExperienceCardSkeleton />
-        <SkeletonBox width="100%" height={48} borderRadius={12} />
-      </View>
+      <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Home">
+          <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
+            <ExperienceCardSkeleton />
+            <SkeletonBox width="100%" height={48} borderRadius={12} />
+            <SkeletonBox width="80%" height={32} borderRadius={8} />
+          </View>
+        </MainScreen>
+      </ErrorBoundary>
     );
   }
 
@@ -503,7 +516,7 @@ Earn it. Unlock it. Enjoy it 🚀
         </View>}
 
         {/* Bottom Spacing */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: vh(100) }} />
       </ScrollView>
 
       {/* Fixed Bottom Button */}
@@ -535,7 +548,7 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     backgroundColor: Colors.white,
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
@@ -570,7 +583,7 @@ const styles = StyleSheet.create({
   },
   experienceImage: {
     width: '100%',
-    height: 200,
+    height: vh(200),
     backgroundColor: Colors.border,
   },
   experienceOverlay: {

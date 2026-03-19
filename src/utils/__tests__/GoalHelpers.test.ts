@@ -369,9 +369,9 @@ describe('normalizeGoal', () => {
     expect(result.approvalStatus).toBe('approved');
   });
 
-  it('sets approvalStatus to "pending" for non-free goals when not specified', () => {
+  it('defaults approvalStatus to "approved" for old goals without the field (backward compat)', () => {
     const result = normalizeGoal(makeRawGoal({ isFreeGoal: false, approvalStatus: undefined }));
-    expect(result.approvalStatus).toBe('pending');
+    expect(result.approvalStatus).toBe('approved');
   });
 
   it('preserves an explicit approvalStatus over the default', () => {

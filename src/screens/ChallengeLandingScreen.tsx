@@ -26,13 +26,12 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import JourneyDemo from '../components/JourneyDemo';
+import { vh, VH } from '../utils/responsive';
+import * as Haptics from 'expo-haptics';
+import { analyticsService } from '../services/AnalyticsService';
 
 // ─── Constants ────────────────────────────────────────────────────
 const SCREEN_W = Dimensions.get('window').width;
-const SCREEN_H = Dimensions.get('window').height;
-// Continuous scale factor: 1.0 at 900px+, scales down to 0.72 at ~650px
-const VH = Math.min(1, Math.max(0.72, SCREEN_H / 900));
-const vh = (px: number) => Math.round(px * VH);
 
 const WORD_SLOT_HEIGHT = vh(46);
 const CONTENT_FADE_MS = 250;
@@ -67,6 +66,7 @@ interface ModeConfig {
     titleSuffix: string;
     subtitle: string;
     stat: string;
+    statSuffix: string;
     statHighlight: string;
     statColor: string;
     ctaText: string;
@@ -102,6 +102,7 @@ const SELF_CONFIG: ModeConfig = {
     titleSuffix: ' more',
     subtitle: 'Set a challenge. Track your progress.\nFriends hold you accountable.',
     stat: 'You are ',
+    statSuffix: ' more likely to reach your goals with friends backing you.',
     statHighlight: '600%',
     statColor: Colors.secondary,
     ctaText: 'Start My Challenge',
@@ -156,12 +157,13 @@ const GIFT_CONFIG: ModeConfig = {
     titleSuffix: ' more',
     subtitle: 'Empower someone you care about.\nYou only pay when they succeed.',
     stat: 'People are ',
+    statSuffix: ' more likely to reach your goals with friends backing you.',
     statHighlight: '600%',
     statColor: Colors.warning,
     ctaText: 'Gift an Experience',
     ctaGradient: [Colors.warning, Colors.warningMedium] as const,
     ctaShadowColor: Colors.warning,
-    badgeText: '100% Free',
+    badgeText: 'Pay only on success',
     badgeBg: Colors.warningLight,
     badgeBorder: Colors.warningBorder,
     badgeTextColor: Colors.warningDark,
@@ -231,7 +233,7 @@ export default function ChallengeLandingScreen() {
     const isLoggedIn = !!state.user?.id;
 
     // Mode from route param (GiftLanding passes mode='gift')
-    const initialMode: LandingMode = (route.params as any)?.mode === 'gift' ? 'gift' : 'self';
+    const initialMode: LandingMode = route.params?.mode === 'gift' ? 'gift' : 'self';
     const [mode, setMode] = useState<LandingMode>(initialMode);
     const [wordIndex, setWordIndex] = useState(0);
     const [rewardIndex, setRewardIndex] = useState(0);
@@ -242,6 +244,11 @@ export default function ChallengeLandingScreen() {
     const contentOpacity = useRef(new RNAnimated.Value(1)).current;
 
     const config = mode === 'self' ? SELF_CONFIG : GIFT_CONFIG;
+
+    // Analytics: track landing page view on mount
+    useEffect(() => {
+        analyticsService.trackEvent('landing_page_viewed', 'navigation', {});
+    }, []);
 
     // Cycle rotating word + goal images every 3s
     useEffect(() => {
@@ -263,6 +270,9 @@ export default function ChallengeLandingScreen() {
 
     const switchMode = useCallback((newMode: LandingMode) => {
         if (newMode === mode) return;
+
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        analyticsService.trackEvent('landing_mode_toggled', 'engagement', { mode: newMode });
 
         // Animate slider + color transitions
         RNAnimated.spring(sliderAnim, {
@@ -288,15 +298,22 @@ export default function ChallengeLandingScreen() {
         });
     }, [mode, sliderAnim, contentOpacity]);
 
+    const ctaNavigatingRef = useRef(false);
     const handleCta = useCallback(() => {
+        if (ctaNavigatingRef.current) return;
+        ctaNavigatingRef.current = true;
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        analyticsService.trackEvent('landing_cta_tapped', 'conversion', { mode });
         navigation.navigate(config.navigateTo as any);
-    }, [navigation, config.navigateTo]);
+        setTimeout(() => { ctaNavigatingRef.current = false; }, 1000);
+    }, [navigation, config.navigateTo, mode]);
 
     const currentWord = config.rotatingWords[wordIndex % config.rotatingWords.length];
 
     // ─── Animated color interpolations (smooth transitions) ───
     const TOGGLE_PAD = 3;
-    const sliderWidth = toggleBarWidth > 0 ? (toggleBarWidth - TOGGLE_PAD * 2) / 2 : 0;
+    const SLIDER_FALLBACK_WIDTH = 150;
+    const sliderWidth = toggleBarWidth > 0 ? (toggleBarWidth - TOGGLE_PAD * 2) / 2 : SLIDER_FALLBACK_WIDTH;
 
     const sliderBgColor = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -407,7 +424,7 @@ export default function ChallengeLandingScreen() {
                             <RNAnimated.Text style={[styles.loginButtonText, { color: animLoginColor }]}>
                                 {isLoggedIn ? 'Go to App' : 'Log In'}
                             </RNAnimated.Text>
-                            <ChevronRight color={mode === 'self' ? Colors.primary : Colors.warning} size={16} strokeWidth={3} />
+                            <RNAnimated.Text style={{ color: animLoginColor, fontSize: 16, fontWeight: '700', lineHeight: 18 }}>{'\u203A'}</RNAnimated.Text>
                         </TouchableOpacity>
 
                         <View style={styles.heroWrapper}>
@@ -430,23 +447,21 @@ export default function ChallengeLandingScreen() {
                                         style={styles.toggleBar}
                                         onLayout={(e) => setToggleBarWidth(e.nativeEvent.layout.width)}
                                     >
-                                        {sliderWidth > 0 && (
-                                            <RNAnimated.View
-                                                style={[
-                                                    styles.toggleSlider,
-                                                    {
-                                                        width: sliderWidth,
-                                                        backgroundColor: sliderBgColor,
-                                                        transform: [{
-                                                            translateX: sliderAnim.interpolate({
-                                                                inputRange: [0, 1],
-                                                                outputRange: [0, sliderWidth],
-                                                            }),
-                                                        }],
-                                                    },
-                                                ]}
-                                            />
-                                        )}
+                                        <RNAnimated.View
+                                            style={[
+                                                styles.toggleSlider,
+                                                {
+                                                    width: sliderWidth,
+                                                    backgroundColor: sliderBgColor,
+                                                    transform: [{
+                                                        translateX: sliderAnim.interpolate({
+                                                            inputRange: [0, 1],
+                                                            outputRange: [0, sliderWidth],
+                                                        }),
+                                                    }],
+                                                },
+                                            ]}
+                                        />
                                         <TouchableOpacity
                                             style={styles.toggleBtn}
                                             onPress={() => switchMode('self')}
@@ -466,13 +481,13 @@ export default function ChallengeLandingScreen() {
                                             onPress={() => switchMode('gift')}
                                             activeOpacity={0.8}
                                             accessibilityRole="button"
-                                            accessibilityLabel="For someone else"
+                                            accessibilityLabel="For a loved one"
                                         >
                                             <Text style={[
                                                 styles.toggleBtnText,
                                                 mode === 'gift' && styles.toggleBtnTextActive,
                                             ]}>
-                                                For someone else
+                                                For a loved one
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
@@ -634,9 +649,7 @@ export default function ChallengeLandingScreen() {
                                             <RNAnimated.Text style={{ color: animStatColor, fontWeight: '700' }}>
                                                 {config.statHighlight}
                                             </RNAnimated.Text>
-                                            {mode === 'self'
-                                                ? ' more likely to achieve your goals with friends backing you.'
-                                                : ' more likely to achieve goals when someone believes in them.'}
+                                            {config.statSuffix}
                                         </Text>
                                     </View>
                                 </RNAnimated.View>
@@ -748,8 +761,8 @@ export default function ChallengeLandingScreen() {
                                 animate={{ opacity: 1, translateY: 0 }}
                                 transition={{ type: 'timing', duration: 500 }}
                             >
-                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
-                                    The Team {'\n'}{'\n'}
+                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel, marginBottom: Spacing.md }]}>
+                                    The Team
                                 </RNAnimated.Text>
                             </MotiView>
 
@@ -1047,10 +1060,10 @@ const styles = StyleSheet.create({
     heroSubtitle: {
         ...Typography.subheading,
         color: Colors.textSecondary,
-        lineHeight: vh(26),
+        lineHeight: vh(30),
         marginBottom: vh(14),
         textAlign: 'center',
-        fontSize: vh(14),
+        fontSize: vh(17),
     },
 
     // ── Dual image carousels ──────────────────────
@@ -1111,7 +1124,8 @@ const styles = StyleSheet.create({
     statContainer: {
         alignItems: 'center',
         paddingHorizontal: Spacing.xxxl,
-        marginBottom: vh(28),
+        marginBottom: vh(18),
+        minHeight: 66,
     },
     statText: {
         ...Typography.subheading,

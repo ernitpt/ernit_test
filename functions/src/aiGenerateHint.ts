@@ -394,34 +394,50 @@ export const aiGenerateHint = onCall(
     const RATE_LIMIT = 20; // Maximum hints per hour per user
 
     // Import production db from index
-    const { dbProd: db } = await import('./index.js');
+    let db: any;
+    try {
+      const indexModule = await import('./index.js');
+      db = indexModule.dbProd;
+    } catch (importError) {
+      console.error('Failed to import db from index.js:', importError);
+      throw new HttpsError('internal', 'Service initialization failed');
+    }
 
-    // Check rate limit using Firestore
-    const rateLimitRef = db.collection('rateLimits').doc(`hints_${userId}`);
-    const rateLimitDoc = await rateLimitRef.get();
+    // Check rate limit using Firestore (non-blocking: proceed if rate-limit check fails)
+    try {
+      const rateLimitRef = db.collection('rateLimits').doc(`hints_${userId}`);
+      const rateLimitDoc = await rateLimitRef.get();
 
-    if (rateLimitDoc.exists) {
-      const data = rateLimitDoc.data();
-      const recentRequests = (data?.requests || []).filter(
-        (timestamp: number) => timestamp > oneHourAgo
-      );
+      if (rateLimitDoc.exists) {
+        const rateLimitData = rateLimitDoc.data();
+        const recentRequests = (rateLimitData?.requests || []).filter(
+          (timestamp: number) => timestamp > oneHourAgo
+        );
 
-      if (recentRequests.length >= RATE_LIMIT) {
-        console.warn(`⚠️ Rate limit exceeded for user ${userId}`);
-        throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again later.');
+        if (recentRequests.length >= RATE_LIMIT) {
+          console.warn(`⚠️ Rate limit exceeded for user ${userId}`);
+          throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again later.');
+        }
+
+        // Update with new request
+        await rateLimitRef.set({
+          requests: [...recentRequests, now],
+          lastRequest: now,
+        });
+      } else {
+        // Create new rate limit document
+        await rateLimitRef.set({
+          requests: [now],
+          lastRequest: now,
+        });
       }
-
-      // Update with new request
-      await rateLimitRef.set({
-        requests: [...recentRequests, now],
-        lastRequest: now,
-      });
-    } else {
-      // Create new rate limit document
-      await rateLimitRef.set({
-        requests: [now],
-        lastRequest: now,
-      });
+    } catch (rateLimitError: any) {
+      // Re-throw HttpsError (e.g. resource-exhausted) — that's an intentional gate.
+      // For unexpected Firestore errors, warn and allow the request to proceed.
+      if (rateLimitError instanceof HttpsError) {
+        throw rateLimitError;
+      }
+      console.warn('Rate limit check failed, proceeding without enforcement:', rateLimitError);
     }
 
     // `requestData.data` for Firebase SDK clients

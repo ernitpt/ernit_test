@@ -11,37 +11,41 @@ export class ExperienceGiftService {
 
   private experiencesCollection = collection(db, 'experienceGifts');
 
-  /** Create a new experienceGift */
-  async createExperienceGift(experienceGift: ExperienceGift) {
-    const docRef = await addDoc(this.experiencesCollection, {
-      ...experienceGift,
-      createdAt: serverTimestamp(),
-    });
-    analyticsService.trackEvent('gift_created', 'conversion', { giftId: docRef.id, experienceId: experienceGift.experienceId, giverId: experienceGift.giverId });
-    return { ...experienceGift, id: docRef.id };
+  /**
+   * @deprecated Gift creation must go through Cloud Functions.
+   * Firestore rules block client-side creates (allow create: if false).
+   */
+  async createExperienceGift(experienceGift: ExperienceGift): Promise<ExperienceGift> {
+    console.warn('createExperienceGift is deprecated — gifts are created server-side via Cloud Functions');
+    throw new Error('Gift creation must go through Cloud Functions');
   }
 
   async getExperienceGiftById(id: string): Promise<ExperienceGift | null> {
     if (!id) return null;
 
-    // Try as a document ID first
-    const docRef = doc(db, 'experienceGifts', id);
-    const snapshot = await getDoc(docRef);
-    if (snapshot.exists()) {
-      return { id: snapshot.id, ...snapshot.data() } as ExperienceGift;
-    }
+    try {
+      // Try as a document ID first
+      const docRef = doc(db, 'experienceGifts', id);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return { id: snapshot.id, ...snapshot.data() } as ExperienceGift;
+      }
 
-    // Fallback: try to find by field `id`
-    const q = query(this.experiencesCollection, where('id', '==', id));
-    const querySnapshot = await getDocs(q);
+      // Fallback: try to find by field `id`
+      const q = query(this.experiencesCollection, where('id', '==', id));
+      const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) {
-      logger.warn('ExperienceGift not found with either docId or field id:', id);
+      if (querySnapshot.empty) {
+        logger.warn('ExperienceGift not found with either docId or field id:', id);
+        return null;
+      }
+
+      const foundDoc = querySnapshot.docs[0];
+      return { id: foundDoc.id, ...foundDoc.data() } as ExperienceGift;
+    } catch (error) {
+      console.error('Failed to get experience gift:', error);
       return null;
     }
-
-    const foundDoc = querySnapshot.docs[0];
-    return { id: foundDoc.id, ...foundDoc.data() } as ExperienceGift;
   }
 
   async getExperienceGiftsByUser(userId: string): Promise<ExperienceGift[]> {

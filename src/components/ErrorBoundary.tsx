@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return { hasError: true, error };
     }
 
-    async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         // Log to console for development
         logger.error('🔴 ErrorBoundary caught:', error.message, errorInfo);
 
@@ -39,15 +39,15 @@ export class ErrorBoundary extends Component<Props, State> {
             errorMessage: error.message,
         });
 
-        // Use centralized rate-limited error logger (prevents Firestore spam from crash loops)
-        await logErrorToFirestore(error, {
+        // Fire-and-forget — do not await in lifecycle methods
+        logErrorToFirestore(error, {
             screenName: this.props.screenName,
             feature: 'ErrorBoundary',
             userId: this.props.userId,
             additionalData: {
                 componentStack: errorInfo.componentStack?.substring(0, 1000),
             },
-        });
+        }).catch(e => logger.warn('Failed to log error to Firestore:', e));
     }
 
     handleReset = () => {

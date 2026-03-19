@@ -27,15 +27,21 @@ export const formatTime = (seconds: number): string => {
  * Uses expo-crypto for true randomness instead of Math.random()
  */
 export const generateClaimCode = async (): Promise<string> => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // 36 chars
   const codeLength = 12; // Must match server-side (stripeWebhook.ts)
-  const randomBytes = await getRandomBytes(codeLength);
-
-  let code = '';
-  for (let i = 0; i < codeLength; i++) {
-    code += chars[randomBytes[i] % chars.length];
+  // Rejection sampling to eliminate modulo bias:
+  // 256 / 36 = 7.11, so multiples of 36 up to 252 (7 * 36) are unbiased.
+  const maxValid = 252; // floor(256 / 36) * 36
+  let result = '';
+  while (result.length < codeLength) {
+    const batch = await getRandomBytes(codeLength - result.length);
+    for (const byte of batch) {
+      if (byte < maxValid && result.length < codeLength) {
+        result += chars[byte % 36];
+      }
+    }
   }
-  return code;
+  return result;
 };
 
 // Legacy sync version for non-critical uses (e.g., UI IDs)

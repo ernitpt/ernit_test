@@ -15,6 +15,7 @@ import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
+import { sanitizeText } from '../utils/sanitization';
 import Colors from '../config/colors';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -132,11 +133,12 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
     setError(null);
     setLoading(true);
     try {
+      const sanitizedMessage = sanitizeText(message.trim(), 500);
       const updated = await goalService.respondToGoalSuggestion(
         goal.id,
         selectedWeeks,
         selectedSessions,
-        message.trim() || undefined
+        sanitizedMessage || undefined
       );
 
       // Notify giver
@@ -305,6 +307,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
         }}
         multiline
         numberOfLines={3}
+        maxLength={500}
       />
 
       <View style={styles.modalButtons}>
