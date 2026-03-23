@@ -33,7 +33,7 @@ import { useTimerContext } from '../../context/TimerContext';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { serializeNav } from '../../utils/serializeNav';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -61,6 +61,14 @@ import { storageService } from '../../services/StorageService';
 import { feedService } from '../../services/FeedService';
 import { ctaService, CTADecision } from '../../services/CTAService';
 import { InlineExperienceCTA } from '../../components/ExperiencePurchaseCTA';
+import { discoveryService } from '../../services/DiscoveryService';
+import { locationService } from '../../services/LocationService';
+import DiscoveryQuizModal from '../../components/DiscoveryQuizModal';
+import ExperienceRevealModal from '../../components/ExperienceRevealModal';
+import VenueSelectionModal from '../../components/VenueSelectionModal';
+import { PopupMenu, PopupMenuItem } from '../../components/PopupMenu';
+import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { Trash2, Gift } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 
 // Enable LayoutAnimation on Android
@@ -78,6 +86,8 @@ interface DetailedGoalCardProps {
 // ─── Main Component ─────────────────────────────────────────────────
 
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -86,6 +96,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
   const [celebrationData, setCelebrationData] = useState<{
     userName: string;
@@ -122,9 +134,27 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [showCTA, setShowCTA] = useState(false);
   const [ctaDecision, setCTADecision] = useState<CTADecision | null>(null);
 
+  // Discovery engine state
+  const [showDiscoveryQuiz, setShowDiscoveryQuiz] = useState(false);
+  const [showExperienceReveal, setShowExperienceReveal] = useState(false);
+
+  // Venue/location state
+  const [showVenueModal, setShowVenueModal] = useState(false);
+  const [pendingStartAfterVenue, setPendingStartAfterVenue] = useState(false);
+  const shouldResumeStartRef = useRef(false);
+
+  // Resume session start after venue selection (avoids stale closure)
+  useEffect(() => {
+    if (shouldResumeStartRef.current && (currentGoal.venueId || currentGoal.venueName)) {
+      shouldResumeStartRef.current = false;
+      handleStart();
+    }
+  }, [currentGoal.venueId, currentGoal.venueName, handleStart]);
+
   // Partner goal state for shared/together challenges
   const [partnerGoalData, setPartnerGoalData] = useState<PartnerGoalData | null>(null);
 
+  const [experienceName, setExperienceName] = useState<string | null>(null);
   const isSelfGift = isSelfGifted(currentGoal);
   const navigation = useRootNavigation();
   const { state: appState } = useApp();
@@ -192,6 +222,31 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       userService.getUserName(currentGoal.empoweredBy).then(setEmpoweredName).catch(() => { });
     }
   }, [currentGoal.empoweredBy]);
+
+  // Fetch attached experience name (hidden for mystery gifts)
+  useEffect(() => {
+    if (currentGoal.isMystery) {
+      setExperienceName(null);
+      return;
+    }
+    if (currentGoal.pledgedExperience?.title) {
+      setExperienceName(currentGoal.pledgedExperience.title);
+      return;
+    }
+    if (currentGoal.experienceGiftId) {
+      experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId)
+        .then((gift) => {
+          // Check mystery flag on the gift doc too (may not be on the goal yet)
+          if (gift.isMystery) {
+            setExperienceName(null);
+            return null;
+          }
+          return experienceService.getExperienceById(gift.experienceId);
+        })
+        .then((exp) => { if (exp?.title) setExperienceName(exp.title); })
+        .catch(() => { /* silently fail */ });
+    }
+  }, [currentGoal.experienceGiftId, currentGoal.isMystery, currentGoal.pledgedExperience?.title]);
 
   // Real-time partner goal listener for shared/together challenges
   useEffect(() => {
@@ -434,6 +489,26 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         }
       }
 
+      // Venue check: prompt for venue on first session if not set
+      if (!currentGoal.venueId && !currentGoal.venueName) {
+        // First session and no venue set — show venue selection modal
+        // The modal's onSelectVenue/onSkip will resume the session start
+        setShowVenueModal(true);
+        setPendingStartAfterVenue(true);
+        setLoading(false);
+        return;
+      }
+
+      // GPS verification: if venue is set with coordinates, check proximity
+      if (currentGoal.venueLocation) {
+        const check = await locationService.isAtVenue(currentGoal.venueLocation);
+        if (!check.isNearby) {
+          const distKm = (check.distanceMeters / 1000).toFixed(1);
+          showInfo(`You seem to be ${distKm}km from ${currentGoal.venueName || 'your venue'}. Are you nearby? Starting session anyway.`);
+          // Don't block — just inform. User can still start.
+        }
+      }
+
       const funcTotalSessionsDone = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       const funcTotalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
 
@@ -446,22 +521,29 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         currentGoal.personalizedNextHint &&
         currentGoal.personalizedNextHint.forSessionNumber === nextSessionNumber;
 
+      // Hint generation: works for gifted goals, mystery goals, AND discovery engine goals
+      const hasDiscoveredExperience = !!currentGoal.discoveredExperience;
       const canGenerateHints =
         !isSelfGift &&
         funcTotalSessionsDone !== funcTotalSessions &&
         !hasPersonalizedHintForNextSession &&
-        (!!experience || !!currentGoal.isMystery); // Mystery gifts don't need client-side experience
+        (!!experience || !!currentGoal.isMystery || hasDiscoveredExperience);
 
       if (canGenerateHints && !hintGeneratingRef.current) {
         hintGeneratingRef.current = true;
-        const hintPromise = currentGoal.isMystery
+        // Mystery and discovery goals: pass goalId, server resolves experience
+        // Normal gifted goals: pass experience data directly
+        const useServerLookup = currentGoal.isMystery || hasDiscoveredExperience;
+        const hintPromise = useServerLookup
           ? aiHintService.generateMysteryHint({
+              userId: currentGoal.userId,
               goalId,
               sessionNumber: nextSessionNumber,
               totalSessions: funcTotalSessions,
               userName: recipientName || undefined,
             })
           : aiHintService.generateHint({
+              userId: currentGoal.userId,
               goalId,
               experienceType: experience?.title || 'experience',
               experienceDescription: experience?.description || undefined,
@@ -574,7 +656,25 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         }
 
         // Free goals without attached gift: navigate to FreeGoalCompletion
+        // Pay-on-completion: route to ExperienceCheckout instead of FreeGoalCompletion
+        if (updated.isFreeGoal && !gift && updated.paymentCommitment === 'payOnCompletion' && updated.pledgedExperience) {
+          navigation.navigate('ExperienceCheckout', {
+            cartItems: [{
+              experienceId: updated.pledgedExperience.experienceId,
+              quantity: 1,
+            }],
+            goalId: updated.id,
+          });
+          return;
+        }
         if (updated.isFreeGoal && !gift) {
+          // Discovery engine: if experience was discovered but not yet revealed, show reveal first
+          if (updated.discoveredExperience && !updated.experienceRevealed) {
+            setShowExperienceReveal(true);
+            // After reveal is dismissed, onClose will mark as revealed.
+            // The user can claim from the reveal modal or navigate to FreeGoalCompletion manually.
+            return;
+          }
           navigation.navigate('FreeGoalCompletion', {
             goal: serializeNav(updated),
           });
@@ -727,7 +827,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     onFinish?.(updated);
 
-    // Check for CTA (free goals only, after user dismisses celebration)
+    // Check for CTA (free goals with pledged experience only)
     if (updated.isFreeGoal && !updated.giftAttachedAt && updated.pledgedExperience) {
       ctaService.shouldShowInlineCTA({
         goalId: updated.id,
@@ -737,12 +837,47 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         weeklyCount: updated.weeklyCount,
         isWeekCompleted: updated.isWeekCompleted,
         currentCount: updated.currentCount,
+        totalSessions: (updated.targetCount || 1) * (updated.sessionsPerWeek || 1),
       }).then(decision => {
         if (decision.shouldShow) {
           setCTADecision(decision);
-          // CTA will be shown 2s after celebration is dismissed (see onClose handler)
         }
       }).catch(err => logger.warn('CTA check failed:', err));
+    }
+
+    // Discovery engine: quiz or reveal for category-path goals
+    if (discoveryService.needsDiscoveryQuiz(updated)) {
+      const totalSessions = (updated.targetCount || 1) * (updated.sessionsPerWeek || 1);
+      if (!updated.discoveredExperience && !discoveryService.isInQuizPhase(totalSessionsDone, totalSessions) && discoveryService.canMatchExperience(updated.discoveryQuestionsCompleted || 0)) {
+        // Past quiz phase but no match yet: trigger matching now
+        try {
+          const matched = await discoveryService.matchExperience(
+            updated.id,
+            updated.preferredRewardCategory!,
+            updated.discoveryPreferences || {}
+          );
+          if (matched) {
+            setCurrentGoal(prev => ({
+              ...prev,
+              discoveredExperience: {
+                experienceId: matched.id,
+                title: matched.title,
+                subtitle: matched.subtitle,
+                description: matched.description,
+                category: matched.category,
+                price: matched.price,
+                coverImageUrl: matched.coverImageUrl,
+                imageUrl: matched.imageUrl,
+                partnerId: matched.partnerId,
+                location: matched.location,
+              },
+              discoveredAt: new Date(),
+            }));
+          }
+        } catch (err) {
+          logger.warn('Discovery matching failed:', err);
+        }
+      }
     }
 
     // Giver notifications
@@ -904,7 +1039,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const aiHintSessionNumber = totalSessionsDone + 1;
 
       try {
-        const cachedHint = await aiHintService.getHint(updated.id, aiHintSessionNumber);
+        const cachedHint = await aiHintService.getHint(updated.userId, updated.id!, aiHintSessionNumber);
 
         hintToShow = cachedHint || "Keep going! You're doing great";
 
@@ -961,6 +1096,43 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     (navigation as { navigate: (screen: string, params?: unknown) => void }).navigate('Journey', { goal: g });
   };
 
+  const handleRemoveGoal = useCallback(async () => {
+    setIsRemoving(true);
+    try {
+      await goalService.deleteGoal(currentGoal.id!);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showSuccess('Goal removed');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not remove goal. Please try again.';
+      showError(message);
+      setIsRemoving(false);
+    } finally {
+      setShowRemoveDialog(false);
+    }
+  }, [currentGoal.id, showSuccess, showError]);
+
+  const removeDialogMessage = useMemo(() => {
+    let msg = 'This will permanently remove your goal and all session history. This cannot be undone.';
+    if (currentGoal.partnerGoalId) {
+      msg += '\n\nThis is a shared challenge — your partner\'s challenge will also be affected.';
+    }
+    if (currentGoal.approvalStatus === 'pending') {
+      msg += '\n\nYour supporter is waiting to review this goal.';
+    }
+    return msg;
+  }, [currentGoal.partnerGoalId, currentGoal.approvalStatus]);
+
+  const goalMenuItems: PopupMenuItem[] = useMemo(() => [
+    {
+      key: 'remove',
+      label: 'Remove Goal',
+      icon: <Trash2 size={14} color={isTimerRunning ? colors.textMuted : colors.error} />,
+      onPress: () => setShowRemoveDialog(true),
+      variant: 'danger' as const,
+      disabled: isTimerRunning,
+    },
+  ], [isTimerRunning]);
+
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
@@ -974,6 +1146,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         style={{ borderRadius: BorderRadius.lg }}
       >
         <View style={styles.card}>
+          {/* Menu */}
+          <View style={styles.cardMenuContainer}>
+            <PopupMenu items={goalMenuItems} accessibilityLabel="Goal options" />
+          </View>
           {/* Title & badges */}
           <Text style={styles.title}>
             {currentGoal.title}
@@ -986,7 +1162,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               <Text style={styles.mysteryBadgeText}>Mystery Gift</Text>
             </View>
           )}
-          {/* startDateText removed — was showing "started X days ago" */}
 
           {/* Weekly Calendar */}
           <WeeklyCalendar
@@ -1150,6 +1325,23 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onClose={() => {
           setShowCelebration(false);
           setCelebrationData(null);
+
+          // Discovery engine: show quiz or reveal after celebration
+          const totalSessions = (currentGoal.targetCount || 1) * (currentGoal.sessionsPerWeek || 1);
+          const sessionsDone = (currentGoal.currentCount || 0) * (currentGoal.sessionsPerWeek || 1) + (currentGoal.weeklyCount || 0);
+
+          if (discoveryService.needsDiscoveryQuiz(currentGoal) &&
+              discoveryService.isInQuizPhase(sessionsDone, totalSessions)) {
+            setTimeout(() => setShowDiscoveryQuiz(true), 500);
+            return;
+          }
+
+          if (currentGoal.discoveredExperience && !currentGoal.experienceRevealed &&
+              discoveryService.isReadyForReveal(sessionsDone, totalSessions, currentGoal.experienceRevealed)) {
+            setTimeout(() => setShowExperienceReveal(true), 500);
+            return;
+          }
+
           // Show CTA 2s after celebration dismisses (if decision was stored)
           if (ctaDecision && !showCTA) {
             ctaTimeoutRef.current = setTimeout(() => setShowCTA(true), 2000);
@@ -1179,6 +1371,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onContinue={handleMediaPromptContinue}
       />
 
+      <ConfirmationDialog
+        visible={showRemoveDialog}
+        title="Remove Goal?"
+        message={removeDialogMessage}
+        confirmLabel="Remove"
+        cancelLabel="Keep Goal"
+        variant="danger"
+        loading={isRemoving}
+        onConfirm={handleRemoveGoal}
+        onCancel={() => setShowRemoveDialog(false)}
+      />
+
       {/* Inline Experience Purchase CTA */}
       {showCTA && ctaDecision && currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
         <InlineExperienceCTA
@@ -1202,6 +1406,145 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           }}
         />
       )}
+
+      {/* Discovery Quiz Modal */}
+      {currentGoal.preferredRewardCategory && (
+        <DiscoveryQuizModal
+          visible={showDiscoveryQuiz}
+          onClose={() => setShowDiscoveryQuiz(false)}
+          onAnswer={async (questionId, answer) => {
+            const newCount = (currentGoal.discoveryQuestionsCompleted || 0) + 1;
+            try {
+              await discoveryService.saveQuizAnswer(currentGoal.id, questionId, answer, newCount);
+              setCurrentGoal(prev => ({
+                ...prev,
+                discoveryPreferences: { ...prev.discoveryPreferences, [questionId]: answer },
+                discoveryQuestionsCompleted: newCount,
+              }));
+              // If enough answers collected, trigger matching
+              if (discoveryService.canMatchExperience(newCount) && !currentGoal.discoveredExperience) {
+                const matched = await discoveryService.matchExperience(
+                  currentGoal.id,
+                  currentGoal.preferredRewardCategory!,
+                  { ...currentGoal.discoveryPreferences, [questionId]: answer }
+                );
+                if (matched) {
+                  setCurrentGoal(prev => ({
+                    ...prev,
+                    discoveredExperience: {
+                      experienceId: matched.id,
+                      title: matched.title,
+                      subtitle: matched.subtitle,
+                      description: matched.description,
+                      category: matched.category,
+                      price: matched.price,
+                      coverImageUrl: matched.coverImageUrl,
+                      imageUrl: matched.imageUrl,
+                      partnerId: matched.partnerId,
+                      location: matched.location,
+                    },
+                    discoveredAt: new Date(),
+                  }));
+                  showSuccess('We found the perfect experience for you!');
+                }
+              }
+            } catch (err) {
+              logger.warn('Quiz answer save failed:', err);
+            }
+          }}
+          questionsCompleted={currentGoal.discoveryQuestionsCompleted || 0}
+          category={currentGoal.preferredRewardCategory}
+        />
+      )}
+
+      {/* Experience Reveal Modal */}
+      <ExperienceRevealModal
+        visible={showExperienceReveal}
+        experience={currentGoal.discoveredExperience || null}
+        progressPct={celebrationData?.progressPct}
+        onClose={async () => {
+          setShowExperienceReveal(false);
+          try {
+            await discoveryService.markExperienceRevealed(currentGoal.id);
+            setCurrentGoal(prev => ({ ...prev, experienceRevealed: true, experienceRevealedAt: new Date() }));
+          } catch (err) {
+            logger.warn('Failed to mark experience revealed:', err);
+          }
+          // If goal is already completed, navigate to completion screen
+          if (currentGoal.isCompleted) {
+            navigation.navigate('FreeGoalCompletion', {
+              goal: serializeNav(currentGoal),
+            });
+          }
+        }}
+        onClaim={() => {
+          setShowExperienceReveal(false);
+          if (currentGoal.discoveredExperience) {
+            navigation.navigate('ExperienceCheckout', {
+              cartItems: [{ experienceId: currentGoal.discoveredExperience.experienceId, quantity: 1 }],
+              goalId: currentGoal.id,
+            });
+          }
+        }}
+        onBrowseOthers={() => {
+          setShowExperienceReveal(false);
+          navigation.navigate('CategorySelection' as any);
+        }}
+      />
+
+      {/* Venue Selection Modal */}
+      <VenueSelectionModal
+        visible={showVenueModal}
+        onClose={() => {
+          setShowVenueModal(false);
+          setPendingStartAfterVenue(false);
+          setLoading(false);
+        }}
+        onSelectVenue={async (venue) => {
+          setShowVenueModal(false);
+          try {
+            await goalService.updateGoal(currentGoal.id, {
+              venueId: venue.id,
+              venueName: venue.name,
+              venueLocation: venue.location,
+            });
+            // Request location permissions now that venue is set
+            await locationService.requestPermissions();
+            // Update state — the useEffect watching venueId/venueName will resume handleStart
+            if (pendingStartAfterVenue) {
+              shouldResumeStartRef.current = true;
+              setPendingStartAfterVenue(false);
+            }
+            setCurrentGoal(prev => ({
+              ...prev,
+              venueId: venue.id,
+              venueName: venue.name,
+              venueLocation: venue.location,
+            }));
+          } catch (err) {
+            logger.error('Failed to save venue:', err);
+            showError('Failed to save venue. Please try again.');
+            setLoading(false);
+          }
+        }}
+        onSkip={async () => {
+          setShowVenueModal(false);
+          try {
+            await goalService.updateGoal(currentGoal.id, {
+              venueName: 'Working out on my own',
+            });
+            // Update state — the useEffect watching venueId/venueName will resume handleStart
+            if (pendingStartAfterVenue) {
+              shouldResumeStartRef.current = true;
+              setPendingStartAfterVenue(false);
+            }
+            setCurrentGoal(prev => ({ ...prev, venueName: 'Working out on my own' }));
+          } catch (err) {
+            logger.error('Failed to save venue skip:', err);
+            setLoading(false);
+          }
+        }}
+      />
     </Animated.View>
     </ErrorBoundary>
   );
@@ -1209,38 +1552,62 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    position: 'relative' as const,
+    backgroundColor: colors.whiteAlpha88,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderColor: colors.whiteAlpha60,
     // Glassmorphism (web only)
     ...(Platform.OS === 'web' ? {
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
     } as Record<string, string> : {}),
   },
-  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: vh(22), textAlign: 'center' },
-  empoweredText: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
-  mysteryBadge: {
-    alignSelf: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, marginBottom: Spacing.md,
-    borderWidth: 1, borderColor: Colors.warningBorder,
+  cardMenuContainer: {
+    position: 'absolute' as const,
+    top: Spacing.sm,
+    right: Spacing.sm,
+    zIndex: 10,
   },
-  mysteryBadgeText: { ...Typography.caption, fontWeight: '700', color: Colors.warningDark },
-  selfChallengeText: { ...Typography.small, color: Colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
-  startDateText: { ...Typography.caption, color: Colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
+  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: vh(22), textAlign: 'center' },
+  empoweredText: { ...Typography.small, color: colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
+  mysteryBadge: {
+    alignSelf: 'center', backgroundColor: colors.warningLight, paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: colors.warningBorder,
+  },
+  mysteryBadgeText: { ...Typography.caption, fontWeight: '700', color: colors.warningDark },
+  experienceBadge: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  experienceBadgeText: {
+    ...Typography.caption,
+    fontWeight: '600',
+    color: colors.primary,
+    flexShrink: 1,
+  },
+  selfChallengeText: { ...Typography.small, color: colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
+  startDateText: { ...Typography.caption, color: colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
   projectedFinish: {
     ...Typography.caption,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '500',
     textAlign: 'center',
     marginTop: Spacing.xs,
@@ -1250,63 +1617,63 @@ const styles = StyleSheet.create({
   // Debug
   debugContainer: {
     marginTop: Spacing.xl, padding: Spacing.lg,
-    backgroundColor: Colors.backgroundLight, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
+    backgroundColor: colors.backgroundLight, borderRadius: BorderRadius.md,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
   },
   debugTitle: {
-    ...Typography.caption, fontWeight: '700', color: Colors.textSecondary,
+    ...Typography.caption, fontWeight: '700', color: colors.textSecondary,
     marginBottom: Spacing.md, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   debugButtonsRow: { flexDirection: 'row', gap: Spacing.sm },
   debugButton: {
-    flex: 1, backgroundColor: Colors.border,
+    flex: 1, backgroundColor: colors.border,
     paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm,
-    alignItems: 'center', borderWidth: 1, borderColor: Colors.gray300,
+    alignItems: 'center', borderWidth: 1, borderColor: colors.gray300,
   },
-  debugButtonText: { ...Typography.caption, fontWeight: '600', color: Colors.gray700 },
+  debugButtonText: { ...Typography.caption, fontWeight: '600', color: colors.gray700 },
 
   // Partner progress (shared/together challenges)
   partnerProgressContainer: {
     marginTop: Spacing.lg,
     padding: Spacing.md,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   partnerProgressTitle: {
     ...Typography.smallBold,
-    color: Colors.primary,
+    color: colors.primary,
     marginBottom: Spacing.xs,
   },
   partnerProgressSubtitle: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   partnerProgressBarTrack: {
     height: 6,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     borderRadius: BorderRadius.pill,
     overflow: 'hidden',
   },
   partnerProgressBarFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.pill,
   },
   // M4: Waiting for partner banners
   waitingBanner: {
     marginTop: Spacing.lg,
     padding: Spacing.md,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.warningBorder,
+    borderColor: colors.warningBorder,
   },
   waitingBannerText: {
     ...Typography.body,
-    color: Colors.warningDark,
+    color: colors.warningDark,
     fontWeight: '600',
   },
   waitingBannerProgress: {
@@ -1314,18 +1681,18 @@ const styles = StyleSheet.create({
   },
   waitingBannerProgressLabel: {
     ...Typography.caption,
-    color: Colors.warningMedium,
+    color: colors.warningMedium,
     marginBottom: Spacing.xs,
   },
   waitingBannerProgressTrack: {
     height: 6,
-    backgroundColor: Colors.warningBorder,
+    backgroundColor: colors.warningBorder,
     borderRadius: BorderRadius.pill,
     overflow: 'hidden',
   },
   waitingBannerProgressFill: {
     height: '100%',
-    backgroundColor: Colors.warning,
+    backgroundColor: colors.warning,
     borderRadius: BorderRadius.pill,
   },
 });

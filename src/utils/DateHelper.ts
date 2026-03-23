@@ -21,7 +21,8 @@ export class DateHelper {
      * @param ms Milliseconds to add (can be negative)
      */
     static addOffset(ms: number) {
-        if (typeof __DEV__ === 'undefined' || !__DEV__) {
+        const { config } = require('../config/environment');
+        if (!config.debugEnabled) {
             console.warn('DateHelper.addOffset is disabled in production');
             return;
         }

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Image,
@@ -8,7 +8,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -29,6 +29,9 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   onClose,
   message = 'Please log in to continue.',
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const navigation = useNavigation<LoginPromptNavigationProp>();
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -80,7 +83,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           fullWidth
           gradient
           onPress={handleSignUp}
-          icon={<UserPlus color={Colors.white} size={20} strokeWidth={2.5} />}
+          icon={<UserPlus color={colors.white} size={20} strokeWidth={2.5} />}
         />
         <Button
           title="Log In"
@@ -88,7 +91,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           size="lg"
           fullWidth
           onPress={handleLogin}
-          icon={<LogIn color={Colors.primary} size={20} strokeWidth={2.5} />}
+          icon={<LogIn color={colors.primary} size={20} strokeWidth={2.5} />}
         />
       </View>
 
@@ -104,26 +107,27 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  message: {
-    ...Typography.subheading,
-    color: Colors.gray600,
-    marginBottom: Spacing.xxxl,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  buttonContainer: {
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  cancelLink: {
-    alignSelf: 'center',
-    marginTop: Spacing.sm,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    iconContainer: {
+      alignItems: 'center',
+      marginBottom: Spacing.xl,
+    },
+    message: {
+      ...Typography.subheading,
+      color: colors.gray600,
+      marginBottom: Spacing.xxxl,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    buttonContainer: {
+      gap: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    cancelLink: {
+      alignSelf: 'center',
+      marginTop: Spacing.sm,
+    },
+  });
 
 export default LoginPrompt;

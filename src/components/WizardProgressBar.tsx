@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 
@@ -11,6 +11,9 @@ interface WizardProgressBarProps {
 }
 
 const WizardProgressBar = ({ currentStep, totalSteps }: WizardProgressBarProps) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const progress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
     return (
         <View style={styles.progressBar}>
@@ -25,23 +28,24 @@ const WizardProgressBar = ({ currentStep, totalSteps }: WizardProgressBarProps) 
     );
 };
 
-const styles = StyleSheet.create({
-    progressBar: {
-        paddingHorizontal: Spacing.xl,
-        paddingVertical: Spacing.md,
-        backgroundColor: Colors.white,
-    },
-    progressTrack: {
-        height: 4,
-        borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.border,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%' as any,
-        borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.secondary,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        progressBar: {
+            paddingHorizontal: Spacing.xl,
+            paddingVertical: Spacing.md,
+            backgroundColor: colors.white,
+        },
+        progressTrack: {
+            height: 4,
+            borderRadius: BorderRadius.xs,
+            backgroundColor: colors.border,
+            overflow: 'hidden',
+        },
+        progressFill: {
+            height: '100%' as any,
+            borderRadius: BorderRadius.xs,
+            backgroundColor: colors.secondary,
+        },
+    });
 
 export default WizardProgressBar;

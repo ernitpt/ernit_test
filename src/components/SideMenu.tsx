@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -48,9 +48,11 @@ import * as Haptics from 'expo-haptics';
 const LoginIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
   width = 22,
   height = 22,
-  color = Colors.primary
+  color,
 }) => {
-  return <LogIn size={width} color={color} />;
+  const { colors } = useTheme();
+  const effectiveColor = color ?? colors.primary;
+  return <LogIn size={width} color={effectiveColor} />;
 };
 
 type SideMenuProps = {
@@ -64,8 +66,10 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const STAGGER_COUNT = 4;
 
+type SideMenuStyles = ReturnType<typeof createStyles>;
+
 // Section header sub-component
-const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
+const SectionHeader: React.FC<{ title: string; styles: SideMenuStyles }> = ({ title, styles }) => (
   <View style={styles.sectionHeader} accessibilityRole="header">
     <Text style={styles.sectionHeaderText}>{title}</Text>
   </View>
@@ -79,30 +83,38 @@ const MenuItem: React.FC<{
   showChevron?: boolean;
   iconColor?: string;
   textColor?: string;
-}> = ({ Icon, title, onPress, showChevron = false, iconColor = Colors.primary, textColor = Colors.textPrimary }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={styles.menuItem}
-    activeOpacity={0.7}
-    accessibilityRole="button"
-    accessibilityLabel={title}
-  >
-    <View style={[styles.iconWrapper, iconColor === Colors.error && styles.iconWrapperDanger]}>
-      <Icon width={20} height={20} color={iconColor} />
-    </View>
-    <Text style={[styles.menuTitle, { color: textColor }]}>{title}</Text>
-    {showChevron && (
-      <ChevronRight size={18} color={Colors.textMuted} />
-    )}
-  </TouchableOpacity>
-);
+  styles: SideMenuStyles;
+}> = ({ Icon, title, onPress, showChevron = false, iconColor, textColor, styles }) => {
+  const { colors } = useTheme();
+  const effectiveIconColor = iconColor ?? colors.primary;
+  const effectiveTextColor = textColor ?? colors.textPrimary;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.menuItem}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <View style={[styles.iconWrapper, effectiveIconColor === colors.error && styles.iconWrapperDanger]}>
+        <Icon width={20} height={20} color={effectiveIconColor} />
+      </View>
+      <Text style={[styles.menuTitle, { color: effectiveTextColor }]}>{title}</Text>
+      {showChevron && (
+        <ChevronRight size={18} color={colors.textMuted} />
+      )}
+    </TouchableOpacity>
+  );
+};
 
 const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const navigation = useNavigation<NavigationProp>();
   const { state, dispatch } = useApp();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const { showError } = useToast();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [shouldRender, setShouldRender] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -406,7 +418,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   accessibilityRole="button"
                   accessibilityLabel="Close menu"
                 >
-                  <X size={20} color={Colors.textMuted} />
+                  <X size={20} color={colors.textMuted} />
                 </TouchableOpacity>
 
                 {isAuthenticated ? (
@@ -457,56 +469,62 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                       Icon={({ width, height, color }) => <Download size={width} color={color} />}
                       title="Install App"
                       onPress={() => handleMenuPress('Install App')}
+                      styles={styles}
                     />
                   </Animated.View>
                 )}
 
                 {/* Section: Actions */}
                 <Animated.View style={staggerStyle(0)}>
-                  <SectionHeader title="ACTIONS" />
+                  <SectionHeader title="ACTIONS" styles={styles} />
                   <MenuItem
                     Icon={RedeemIcon}
                     title="Redeem Coupon"
                     onPress={() => handleMenuPress('Redeem Coupon')}
                     showChevron
+                    styles={styles}
                   />
                   <MenuItem
                     Icon={PurchaseIcon}
                     title="Purchased Gifts"
                     onPress={() => handleMenuPress('Purchased Gifts')}
                     showChevron
+                    styles={styles}
                   />
                 </Animated.View>
 
                 {/* Section: Help & Info */}
                 <Animated.View style={staggerStyle(1)}>
-                  <SectionHeader title="HELP & INFO" />
+                  <SectionHeader title="HELP & INFO" styles={styles} />
                   <MenuItem
                     Icon={({ width, height, color }) => <HelpCircle size={width} color={color} />}
                     title="How It Works"
                     onPress={() => handleMenuPress('How It Works')}
+                    styles={styles}
                   />
                   <MenuItem
                     Icon={({ width, height, color }) => <MessageSquare size={width} color={color} />}
                     title="Give Feedback"
                     onPress={() => handleMenuPress('Give Feedback')}
+                    styles={styles}
                   />
                   <MenuItem
                     Icon={({ width, height, color }) => <LifeBuoy size={width} color={color} />}
                     title="Get Support"
                     onPress={() => handleMenuPress('Get Support')}
+                    styles={styles}
                   />
                 </Animated.View>
 
                 {/* Section: Settings (auth only) */}
                 {isAuthenticated && (
                   <Animated.View style={staggerStyle(2)}>
-                    <SectionHeader title="SETTINGS" />
+                    <SectionHeader title="SETTINGS" styles={styles} />
                     {/* Dark Mode toggle */}
                     <View style={styles.darkModeRow}>
                       <View style={styles.darkModeLeft}>
                         <View style={styles.iconWrapper}>
-                          <Moon size={20} color={Colors.primary} />
+                          <Moon size={20} color={colors.primary} />
                         </View>
                         <Text style={styles.menuTitle}>Dark Mode</Text>
                       </View>
@@ -527,7 +545,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                     <View style={styles.reminderSection}>
                       <View style={styles.reminderHeader}>
                         <View style={styles.iconWrapper}>
-                          <Bell size={20} color={Colors.primary} />
+                          <Bell size={20} color={colors.primary} />
                         </View>
                         <Text style={styles.menuTitle}>Reminders</Text>
                       </View>
@@ -573,8 +591,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                     Icon={isAuthenticated ? LogoutIcon : LoginIcon}
                     title={isAuthenticated ? (isLoggingOut ? 'Logging out…' : 'Logout') : 'Login'}
                     onPress={isLoggingOut ? () => {} : () => handleMenuPress('Logout')}
-                    iconColor={isAuthenticated ? Colors.error : Colors.primary}
-                    textColor={isAuthenticated ? (isLoggingOut ? Colors.textMuted : Colors.error) : Colors.primary}
+                    iconColor={isAuthenticated ? colors.error : colors.primary}
+                    textColor={isAuthenticated ? (isLoggingOut ? colors.textMuted : colors.error) : colors.primary}
+                    styles={styles}
                   />
                 </Animated.View>
               </ScrollView>
@@ -703,292 +722,293 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    zIndex: 9999,
-    overflow: 'hidden',
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.black,
-  },
-  menuPanel: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: Math.min(320, screenWidth * 0.85),
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: BorderRadius.xxl,
-    borderBottomLeftRadius: BorderRadius.xxl,
-    overflow: 'hidden',
-    ...Shadows.lg,
-  },
-  menuContent: {
-    flex: 1,
-    overflow: 'hidden',
-  },
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      ...StyleSheet.absoluteFillObject,
+      flexDirection: 'row',
+      zIndex: 9999,
+      overflow: 'hidden',
+    },
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.black,
+    },
+    menuPanel: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: Math.min(320, screenWidth * 0.85),
+      backgroundColor: colors.white,
+      borderTopLeftRadius: BorderRadius.xxl,
+      borderBottomLeftRadius: BorderRadius.xxl,
+      overflow: 'hidden',
+      ...Shadows.lg,
+    },
+    menuContent: {
+      flex: 1,
+      overflow: 'hidden',
+    },
 
-  // Header
-  header: {
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xxxl,
-    paddingBottom: Spacing.xxl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.backgroundLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  profileSection: {
-    alignItems: 'center',
-    paddingTop: Spacing.sm,
-  },
-  profileName: {
-    ...Typography.heading3,
-    color: Colors.textPrimary,
-    marginTop: Spacing.md,
-  },
-  brandSection: {
-    alignItems: 'center',
-    paddingTop: Spacing.lg,
-  },
-  brandName: {
-    ...Typography.heading1,
-    color: Colors.textPrimary,
-  },
-  brandTagline: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-  },
-  signInButton: {
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  signInButtonText: {
-    ...Typography.bodyBold,
-    color: Colors.primary,
-  },
+    // Header
+    header: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: Spacing.xxl,
+      paddingTop: Spacing.xxxl,
+      paddingBottom: Spacing.xxl,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    closeButton: {
+      position: 'absolute',
+      top: Spacing.md,
+      right: Spacing.md,
+      width: 44,
+      height: 44,
+      borderRadius: BorderRadius.circle,
+      backgroundColor: colors.backgroundLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    },
+    profileSection: {
+      alignItems: 'center',
+      paddingTop: Spacing.sm,
+    },
+    profileName: {
+      ...Typography.heading3,
+      color: colors.textPrimary,
+      marginTop: Spacing.md,
+    },
+    brandSection: {
+      alignItems: 'center',
+      paddingTop: Spacing.lg,
+    },
+    brandName: {
+      ...Typography.heading1,
+      color: colors.textPrimary,
+    },
+    brandTagline: {
+      ...Typography.small,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+    signInButton: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: Spacing.xxl,
+      paddingVertical: Spacing.sm,
+      marginTop: Spacing.lg,
+    },
+    signInButtonText: {
+      ...Typography.bodyBold,
+      color: colors.primary,
+    },
 
-  // Menu Body
-  menuBody: {
-    flex: 1,
-    paddingTop: Spacing.sm,
-  },
-  sectionHeader: {
-    paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  sectionHeaderText: {
-    ...Typography.tiny,
-    color: Colors.textMuted,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxl,
-  },
-  iconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primaryTintAlpha40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconWrapperDanger: {
-    backgroundColor: Colors.errorLight,
-  },
-  menuTitle: {
-    ...Typography.subheading,
-    color: Colors.textPrimary,
-    marginLeft: Spacing.md,
-    flex: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.xxl,
-    marginVertical: Spacing.sm,
-  },
+    // Menu Body
+    menuBody: {
+      flex: 1,
+      paddingTop: Spacing.sm,
+    },
+    sectionHeader: {
+      paddingHorizontal: Spacing.xxl,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.sm,
+    },
+    sectionHeaderText: {
+      ...Typography.tiny,
+      color: colors.textMuted,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.xxl,
+    },
+    iconWrapper: {
+      width: 36,
+      height: 36,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.primaryTintAlpha40,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    iconWrapperDanger: {
+      backgroundColor: colors.errorLight,
+    },
+    menuTitle: {
+      ...Typography.subheading,
+      color: colors.textPrimary,
+      marginLeft: Spacing.md,
+      flex: 1,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginHorizontal: Spacing.xxl,
+      marginVertical: Spacing.sm,
+    },
 
-  // Footer
-  menuFooter: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xxl,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    alignItems: 'center',
-  },
-  footerText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-  },
+    // Footer
+    menuFooter: {
+      paddingVertical: Spacing.lg,
+      paddingHorizontal: Spacing.xxl,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      alignItems: 'center',
+    },
+    footerText: {
+      ...Typography.caption,
+      color: colors.textMuted,
+    },
 
-  // Reminder settings
-  reminderSection: {
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.sm,
-  },
-  reminderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  reminderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  reminderLabel: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  toggle: {
-    width: 48,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.disabled,
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleActive: {
-    backgroundColor: Colors.primary,
-  },
-  toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.white,
-    ...Shadows.sm,
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
-  timeChipActive: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primarySurface,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  timeChipTextActive: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
+    // Reminder settings
+    reminderSection: {
+      paddingHorizontal: Spacing.xxl,
+      paddingVertical: Spacing.sm,
+    },
+    reminderHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.md,
+    },
+    reminderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: Spacing.sm,
+    },
+    reminderLabel: {
+      ...Typography.small,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    toggle: {
+      width: 48,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.disabled,
+      justifyContent: 'center',
+      paddingHorizontal: 2,
+    },
+    toggleActive: {
+      backgroundColor: colors.primary,
+    },
+    toggleThumb: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.white,
+      ...Shadows.sm,
+    },
+    toggleThumbActive: {
+      alignSelf: 'flex-end',
+    },
+    timeChipActive: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.primarySurface,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    timeChipTextActive: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.primary,
+    },
 
-  // Time Picker Modal
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pickerBox: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    width: Math.min(280, screenWidth * 0.82),
-    maxHeight: 400,
-    ...Shadows.lg,
-  },
-  pickerTitle: {
-    ...Typography.subheading,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  pickerColumns: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  pickerColumn: {
-    flex: 1,
-  },
-  pickerColumnLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  pickerScroll: {
-    maxHeight: 220,
-  },
-  pickerItem: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  pickerItemActive: {
-    backgroundColor: Colors.primarySurface,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  pickerItemText: {
-    ...Typography.small,
-    fontWeight: '500',
-    color: Colors.textSecondary,
-  },
-  pickerItemTextActive: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  pickerConfirm: {
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.sm,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  pickerConfirmText: {
-    ...Typography.bodyBold,
-    color: Colors.white,
-  },
+    // Time Picker Modal
+    pickerOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    pickerBox: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.xl,
+      width: Math.min(280, screenWidth * 0.82),
+      maxHeight: 400,
+      ...Shadows.lg,
+    },
+    pickerTitle: {
+      ...Typography.subheading,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: Spacing.lg,
+    },
+    pickerColumns: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+    },
+    pickerColumn: {
+      flex: 1,
+    },
+    pickerColumnLabel: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: Spacing.sm,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    pickerScroll: {
+      maxHeight: 220,
+    },
+    pickerItem: {
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      borderRadius: BorderRadius.sm,
+      alignItems: 'center',
+      marginBottom: Spacing.xs,
+    },
+    pickerItemActive: {
+      backgroundColor: colors.primarySurface,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    pickerItemText: {
+      ...Typography.small,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    pickerItemTextActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    pickerConfirm: {
+      marginTop: Spacing.lg,
+      backgroundColor: colors.primary,
+      borderRadius: BorderRadius.sm,
+      paddingVertical: Spacing.md,
+      alignItems: 'center',
+    },
+    pickerConfirmText: {
+      ...Typography.bodyBold,
+      color: colors.white,
+    },
 
-  // Dark mode toggle row
-  darkModeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.md,
-  },
-  darkModeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-});
+    // Dark mode toggle row
+    darkModeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.xxl,
+      paddingVertical: Spacing.md,
+    },
+    darkModeLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+  });
 
 export default SideMenu;

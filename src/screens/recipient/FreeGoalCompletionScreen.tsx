@@ -1,6 +1,6 @@
 // screens/Recipient/FreeGoalCompletionScreen.tsx
 // Completion screen for Free Goals - celebration + pledged experience + empowerment CTA
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -34,6 +34,8 @@ import { vh } from '../../utils/responsive';
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'FreeGoalCompletion'>;
 
 const FreeGoalCompletionScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
   const { state } = useApp();
@@ -211,7 +213,7 @@ const FreeGoalCompletionScreen = () => {
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -236,11 +238,11 @@ const FreeGoalCompletionScreen = () => {
           autoStart={false}
           fadeOut={true}
           fallSpeed={3000}
-          colors={[Colors.celebrationGold, Colors.warning, Colors.secondary, Colors.secondary, Colors.categoryPink]}
+          colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
         />
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
           <LinearGradient
-            colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+            colors={[colors.secondary, colors.cyan, colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroSection}
@@ -248,7 +250,7 @@ const FreeGoalCompletionScreen = () => {
             <Animated.View
               style={[styles.trophyContainer, { transform: [{ scale: Animated.multiply(scaleAnim, trophyPulse) }], opacity: fadeAnim }]}
             >
-              <Trophy color={Colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={Colors.celebrationGold} />
+              <Trophy color={colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={colors.celebrationGold} />
             </Animated.View>
             <Animated.View style={{ opacity: fadeAnim }}>
               <Text style={styles.heroTitle}>Goal Completed!</Text>
@@ -270,13 +272,13 @@ const FreeGoalCompletionScreen = () => {
 
           <View style={styles.achievementCard}>
             <View style={styles.achievementHeader}>
-              <CheckCircle color={Colors.secondary} size={24} />
+              <CheckCircle color={colors.secondary} size={24} />
               <Text style={styles.achievementTitle}>Your Achievement</Text>
             </View>
             <Text style={styles.goalTitle}>{goal.title}</Text>
             <Text style={styles.goalDesc}>{goal.description}</Text>
             <View style={styles.statsBadge}>
-              <Sparkles color={Colors.celebrationGold} size={20} />
+              <Sparkles color={colors.celebrationGold} size={20} />
               <Text style={styles.statsNumber}>{totalSessionsSimple}</Text>
               <Text style={styles.statsLabel}>Sessions Completed</Text>
             </View>
@@ -284,8 +286,8 @@ const FreeGoalCompletionScreen = () => {
 
           {categoryLabel && (
             <View style={styles.empowerCard}>
-              <LinearGradient colors={[Colors.pinkLight, Colors.pinkLighter]} style={styles.empowerGradient}>
-                <Heart color={Colors.pink} size={32} fill={Colors.pink} />
+              <LinearGradient colors={[colors.pinkLight, colors.pinkLighter]} style={styles.empowerGradient}>
+                <Heart color={colors.pink} size={32} fill={colors.pink} />
                 <Text style={styles.empowerTitle}>Friends Can Celebrate With You!</Text>
                 <Text style={styles.empowerDescription}>
                   You love {categoryLabel} experiences. Share your achievement — friends can gift you one to celebrate your hard work!
@@ -303,12 +305,12 @@ const FreeGoalCompletionScreen = () => {
               accessibilityLabel="Share achievement"
             >
               <LinearGradient
-                colors={[Colors.secondary, Colors.primary]}
+                colors={[colors.secondary, colors.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.shareButtonGradient}
               >
-                <ExternalLink color={Colors.white} size={22} />
+                <ExternalLink color={colors.white} size={22} />
                 <Text style={styles.shareButtonText}>Share Achievement</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -348,13 +350,13 @@ const FreeGoalCompletionScreen = () => {
         autoStart={false}
         fadeOut={true}
         fallSpeed={3000}
-        colors={[Colors.celebrationGold, Colors.warning, Colors.secondary, Colors.secondary, Colors.categoryPink]}
+        colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
       />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <LinearGradient
-          colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+          colors={[colors.secondary, colors.cyan, colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroSection}
@@ -378,7 +380,7 @@ const FreeGoalCompletionScreen = () => {
               },
             ]}
           >
-            <Star color={Colors.celebrationGold} size={20} fill={Colors.celebrationGold} />
+            <Star color={colors.celebrationGold} size={20} fill={colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View
@@ -400,13 +402,13 @@ const FreeGoalCompletionScreen = () => {
               },
             ]}
           >
-            <Zap color={Colors.warning} size={24} fill={Colors.warning} />
+            <Zap color={colors.warning} size={24} fill={colors.warning} />
           </Animated.View>
 
           <Animated.View
             style={[styles.sparkle, { opacity: sparkleAnim, top: 40, left: 30 }]}
           >
-            <Sparkles color={Colors.celebrationGoldLight} size={32} />
+            <Sparkles color={colors.celebrationGoldLight} size={32} />
           </Animated.View>
           <Animated.View
             style={[
@@ -421,7 +423,7 @@ const FreeGoalCompletionScreen = () => {
               },
             ]}
           >
-            <Sparkles color={Colors.celebrationGoldBorder} size={28} />
+            <Sparkles color={colors.celebrationGoldBorder} size={28} />
           </Animated.View>
 
           <Animated.View
@@ -433,7 +435,7 @@ const FreeGoalCompletionScreen = () => {
               },
             ]}
           >
-            <Trophy color={Colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={Colors.celebrationGold} />
+            <Trophy color={colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -462,13 +464,13 @@ const FreeGoalCompletionScreen = () => {
         {/* Achievement Card */}
         <View style={styles.achievementCard}>
           <View style={styles.achievementHeader}>
-            <CheckCircle color={Colors.secondary} size={24} />
+            <CheckCircle color={colors.secondary} size={24} />
             <Text style={styles.achievementTitle}>Your Achievement</Text>
           </View>
           <Text style={styles.goalTitle}>{goal.title}</Text>
           <Text style={styles.goalDesc}>{goal.description}</Text>
           <View style={styles.statsBadge}>
-            <Sparkles color={Colors.celebrationGold} size={20} />
+            <Sparkles color={colors.celebrationGold} size={20} />
             <Text style={styles.statsNumber}>{totalSessions}</Text>
             <Text style={styles.statsLabel}>Sessions Completed</Text>
           </View>
@@ -477,7 +479,7 @@ const FreeGoalCompletionScreen = () => {
         {/* Pledged Experience Card */}
         <View style={styles.experienceCard}>
           <View style={styles.experienceHeader}>
-            <Heart color={Colors.pink} size={24} />
+            <Heart color={colors.pink} size={24} />
             <Text style={styles.experienceHeaderText}>Your Wishlist Item</Text>
           </View>
 
@@ -503,10 +505,10 @@ const FreeGoalCompletionScreen = () => {
         {/* Empowerment Info Card */}
         <View style={styles.empowerCard}>
           <LinearGradient
-            colors={[Colors.pinkLight, Colors.pinkLighter]}
+            colors={[colors.pinkLight, colors.pinkLighter]}
             style={styles.empowerGradient}
           >
-            <Heart color={Colors.pink} size={32} fill={Colors.pink} />
+            <Heart color={colors.pink} size={32} fill={colors.pink} />
             <Text style={styles.empowerTitle}>Friends Can Empower You!</Text>
             <Text style={styles.empowerDescription}>
               Share your achievement with friends. They can gift you this experience to celebrate your dedication!
@@ -514,7 +516,7 @@ const FreeGoalCompletionScreen = () => {
 
             {daysRemaining !== null && daysRemaining > 0 && (
               <View style={styles.deadlineRow}>
-                <Clock color={Colors.primaryDark} size={18} />
+                <Clock color={colors.primaryDark} size={18} />
                 <Text style={styles.deadlineText}>
                   {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining for friends to empower you
                 </Text>
@@ -523,8 +525,8 @@ const FreeGoalCompletionScreen = () => {
 
             {daysRemaining === 0 && (
               <View style={styles.deadlineRow}>
-                <Clock color={Colors.error} size={18} />
-                <Text style={[styles.deadlineText, { color: Colors.error }]}>
+                <Clock color={colors.error} size={18} />
+                <Text style={[styles.deadlineText, { color: colors.error }]}>
                   Empowerment window has expired
                 </Text>
               </View>
@@ -542,12 +544,12 @@ const FreeGoalCompletionScreen = () => {
             accessibilityLabel="Share achievement"
           >
             <LinearGradient
-              colors={[Colors.secondary, Colors.primary]}
+              colors={[colors.secondary, colors.primary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.shareButtonGradient}
             >
-              <ExternalLink color={Colors.white} size={22} />
+              <ExternalLink color={colors.white} size={22} />
               <Text style={styles.shareButtonText}>Share Achievement</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -570,10 +572,10 @@ const FreeGoalCompletionScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   heroSection: {
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
@@ -593,8 +595,8 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xxl,
     padding: Spacing.xxl,
     borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.blackAlpha20,
-    shadowColor: Colors.warning,
+    backgroundColor: colors.blackAlpha20,
+    shadowColor: colors.warning,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 30,
@@ -603,10 +605,10 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: Typography.heroSub.fontSize,
     fontWeight: '900',
-    color: Colors.white,
+    color: colors.white,
     textAlign: 'center',
     marginBottom: Spacing.md,
-    textShadowColor: Colors.overlayLight,
+    textShadowColor: colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
@@ -616,15 +618,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     marginBottom: Spacing.md,
     textAlign: 'center',
-    color: Colors.warningLight,
+    color: colors.warningLight,
     letterSpacing: 1.5,
-    textShadowColor: Colors.overlayLight,
+    textShadowColor: colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
   heroSubtitle: {
     ...Typography.subheading,
-    color: Colors.primaryTint,
+    color: colors.primaryTint,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -632,11 +634,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: Spacing.xxl,
-    backgroundColor: Colors.whiteAlpha15,
+    backgroundColor: colors.whiteAlpha15,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.blackAlpha20,
+    borderColor: colors.blackAlpha20,
   },
   statItem: {
     flex: 1,
@@ -645,14 +647,14 @@ const styles = StyleSheet.create({
   statNumber: {
     ...Typography.display,
     fontWeight: '900',
-    color: Colors.white,
-    textShadowColor: Colors.blackAlpha20,
+    color: colors.white,
+    textShadowColor: colors.blackAlpha20,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   statLabel: {
     ...Typography.caption,
-    color: Colors.whiteAlpha90,
+    color: colors.whiteAlpha90,
     marginTop: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -661,17 +663,17 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 2,
     height: 50,
-    backgroundColor: Colors.whiteAlpha25,
+    backgroundColor: colors.whiteAlpha25,
     borderRadius: BorderRadius.xs,
   },
   // Achievement card
   achievementCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -686,21 +688,21 @@ const styles = StyleSheet.create({
   achievementTitle: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   goalTitle: {
     ...Typography.heading1,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   goalDesc: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: Spacing.xl,
   },
   statsBadge: {
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     flexDirection: 'row',
@@ -711,21 +713,21 @@ const styles = StyleSheet.create({
   statsNumber: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.warning,
+    color: colors.warning,
   },
   statsLabel: {
     ...Typography.subheading,
     fontWeight: '600',
-    color: Colors.warningDark,
+    color: colors.warningDark,
   },
   // Pledged experience card
   experienceCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -741,28 +743,28 @@ const styles = StyleSheet.create({
   experienceHeaderText: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   experienceImage: {
     width: '100%',
     height: vh(220),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   experienceContent: {
     padding: Spacing.xl,
   },
   experienceTitle: {
     ...Typography.heading1,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   experienceSubtitle: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   priceTag: {
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
@@ -772,7 +774,7 @@ const styles = StyleSheet.create({
   priceText: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.successMedium,
+    color: colors.successMedium,
   },
   // Empowerment card
   empowerCard: {
@@ -780,7 +782,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -793,14 +795,14 @@ const styles = StyleSheet.create({
   empowerTitle: {
     ...Typography.large,
     fontWeight: '800',
-    color: Colors.primaryDark,
+    color: colors.primaryDark,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   empowerDescription: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing.lg,
@@ -809,7 +811,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.whiteAlpha80,
+    backgroundColor: colors.whiteAlpha80,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
@@ -817,7 +819,7 @@ const styles = StyleSheet.create({
   deadlineText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.primaryDark,
+    color: colors.primaryDark,
   },
   // Action buttons
   actionsContainer: {
@@ -828,7 +830,7 @@ const styles = StyleSheet.create({
   shareButton: {
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -843,18 +845,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
   },
   shareButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.heading3,
     fontWeight: '700',
   },
   goalsButton: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.lg,
     alignItems: 'center',
   },
   goalsButtonText: {
-    color: Colors.gray700,
+    color: colors.gray700,
     ...Typography.subheading,
     fontWeight: '600',
   },

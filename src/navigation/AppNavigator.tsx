@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
 import { View, Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
@@ -42,14 +42,14 @@ import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScr
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
-const AchievementDetailScreen = React.lazy(() => import('../screens/recipient/AchievementDetailScreen'));
-const AnimationPreviewScreen = React.lazy(() => import('../screens/AnimationPreviewScreen'));
+import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
+import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
 // GiftLanding now uses ChallengeLandingScreen with mode='gift' param
 import GiftFlowScreen from '../screens/GiftFlowScreen';
-const DeferredSetupScreen = React.lazy(() => import('../screens/giver/DeferredSetupScreen'));
-import { GoalCardSkeleton } from '../components/SkeletonLoader';
+import DeferredSetupScreen from '../screens/giver/DeferredSetupScreen';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
+import { config } from '../config/environment';
 import * as Notifications from 'expo-notifications';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -299,13 +299,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
         <RootStack.Screen name="GiftLanding" component={ChallengeLandingScreen} initialParams={{ mode: 'gift' }} />
         <RootStack.Screen name="GiftFlow" component={GiftFlowScreen} />
-        <RootStack.Screen name="DeferredSetup">
-          {() => (
-            <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
-              <DeferredSetupScreen />
-            </React.Suspense>
-          )}
-        </RootStack.Screen>
+        <RootStack.Screen name="DeferredSetup" component={DeferredSetupScreen} />
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
@@ -455,22 +449,20 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="AchievementDetail">
           {() => (
             <ProtectedRoute>
-              <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
-                <AchievementDetailScreen />
-              </React.Suspense>
+              <AchievementDetailScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
 
-        <RootStack.Screen name="AnimationPreview">
-          {() => (
-            <ProtectedRoute>
-              <React.Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><GoalCardSkeleton /></View>}>
+        {config.debugEnabled && (
+          <RootStack.Screen name="AnimationPreview">
+            {() => (
+              <ProtectedRoute>
                 <AnimationPreviewScreen />
-              </React.Suspense>
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
+              </ProtectedRoute>
+            )}
+          </RootStack.Screen>
+        )}
 
         {/* 🔥 LOGIN PROMPT MODAL SHOULD BE LAST */}
         <RootStack.Screen
@@ -496,6 +488,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
 
 // Main AppNavigator component - wraps content with AuthGuardProvider
 const AppNavigator = () => {
+  const colors = useColors();
+  const splashStyles = useMemo(() => createSplashStyles(colors), [colors]);
   const { state, dispatch } = useApp();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -578,13 +572,13 @@ const AppNavigator = () => {
   // -----------------------------
   if (isCheckingAuth) {
     return (
-      <LinearGradient colors={Colors.gradientPrimary} style={splashStyles.container}>
+      <LinearGradient colors={colors.gradientPrimary} style={splashStyles.container}>
         <Image
           source={require('../assets/icon.png')}
           style={splashStyles.logo}
           resizeMode="contain"
         />
-        <ActivityIndicator size="small" color={Colors.white} style={splashStyles.spinner} />
+        <ActivityIndicator size="small" color={colors.white} style={splashStyles.spinner} />
       </LinearGradient>
     );
   }
@@ -601,10 +595,10 @@ const AppNavigator = () => {
   );
 };
 
-const splashStyles = StyleSheet.create({
+const createSplashStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

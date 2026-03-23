@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import GoalChangeSuggestionModal from './GoalChangeSuggestionModal';
 import { logger } from '../utils/logger';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import Button from './Button';
 
 interface GoalChangeSuggestionNotificationProps {
@@ -27,6 +27,8 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const suggestedWeeks = notification.data?.suggestedTargetCount || 0;
   const suggestedSessions = notification.data?.suggestedSessionsPerWeek || 0;
@@ -216,78 +218,78 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.accent,
-    overflow: 'hidden',
-  },
-  content: {
-    marginBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.subheading,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  message: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
-  },
-  messageBox: {
-    backgroundColor: Colors.infoLight,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.accent,
-  },
-  messageLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.accent,
-    marginBottom: Spacing.xs,
-  },
-  messageText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    fontStyle: 'italic',
-  },
-  details: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    marginTop: Spacing.sm,
-  },
-  errorBox: {
-    backgroundColor: Colors.errorLight,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.error,
-  },
-  errorText: {
-    color: Colors.errorDark,
-    ...Typography.caption,
-    fontWeight: '500',
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: Spacing.xxl,
-  },
-  buttonFlex: {
-    flex: 1,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      marginBottom: Spacing.md,
+      ...Shadows.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.accent,
+      overflow: 'hidden',
+    },
+    content: {
+      marginBottom: Spacing.md,
+    },
+    title: {
+      ...Typography.subheading,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
+    message: {
+      ...Typography.small,
+      color: colors.textSecondary,
+      marginBottom: Spacing.sm,
+    },
+    messageBox: {
+      backgroundColor: colors.infoLight,
+      borderRadius: BorderRadius.sm,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
+      marginTop: Spacing.sm,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.accent,
+    },
+    messageLabel: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.accent,
+      marginBottom: Spacing.xs,
+    },
+    messageText: {
+      ...Typography.caption,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+    },
+    details: {
+      ...Typography.caption,
+      color: colors.textMuted,
+      marginTop: Spacing.sm,
+    },
+    errorBox: {
+      backgroundColor: colors.errorLight,
+      borderRadius: BorderRadius.sm,
+      padding: Spacing.md,
+      marginTop: Spacing.sm,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.error,
+    },
+    errorText: {
+      color: colors.errorDark,
+      ...Typography.caption,
+      fontWeight: '500',
+    },
+    buttons: {
+      flexDirection: 'row',
+      gap: Spacing.xxl,
+    },
+    buttonFlex: {
+      flex: 1,
+    },
+  });
 
 export default GoalChangeSuggestionNotification;
-

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Heart } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import type { Comment as CommentType } from '../types';
 import { commentService } from '../services/CommentService';
 import { useApp } from '../context/AppContext';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -27,6 +27,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     onViewAll,
     onCommentsUpdate,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const { state } = useApp();
     const currentUserId = state.user?.id || '';
 
@@ -81,11 +84,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                             >
                                 <Heart
                                     size={14}
-                                    color={isLiked ? Colors.error : Colors.textMuted}
-                                    fill={isLiked ? Colors.error : 'none'}
+                                    color={isLiked ? colors.error : colors.textMuted}
+                                    fill={isLiked ? colors.error : 'none'}
                                 />
                                 {likeCount > 0 && (
-                                    <Text style={[styles.likeCount, isLiked && { color: Colors.error }]}>
+                                    <Text style={[styles.likeCount, isLiked && { color: colors.error }]}>
                                         {likeCount}
                                     </Text>
                                 )}
@@ -112,54 +115,55 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        marginTop: Spacing.sm,
-    },
-    viewAllButton: {
-        marginTop: Spacing.xs,
-        marginLeft: Spacing.xl,
-        minHeight: 44,
-        justifyContent: 'center',
-    },
-    viewAllText: {
-        ...Typography.small,
-        color: Colors.textMuted,
-    },
-    commentBubble: {
-        backgroundColor: Colors.surface,
-        borderRadius: BorderRadius.md,
-        padding: Spacing.md,
-        marginBottom: Spacing.sm,
-        marginRight: Spacing.xxl,
-    },
-    commentTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.sm,
-        marginBottom: Spacing.xs,
-    },
-    userName: {
-        ...Typography.caption,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-        flex: 1,
-    },
-    commentText: {
-        ...Typography.small,
-        color: Colors.gray700,
-        lineHeight: 18,
-        marginLeft: 40,
-    },
-    likeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.xxs,
-    },
-    likeCount: {
-        ...Typography.tiny,
-        color: Colors.textMuted,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        container: {
+            marginTop: Spacing.sm,
+        },
+        viewAllButton: {
+            marginTop: Spacing.xs,
+            marginLeft: Spacing.xl,
+            minHeight: 44,
+            justifyContent: 'center',
+        },
+        viewAllText: {
+            ...Typography.small,
+            color: colors.textMuted,
+        },
+        commentBubble: {
+            backgroundColor: colors.surface,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.md,
+            marginBottom: Spacing.sm,
+            marginRight: Spacing.xxl,
+        },
+        commentTop: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.sm,
+            marginBottom: Spacing.xs,
+        },
+        userName: {
+            ...Typography.caption,
+            fontWeight: '600',
+            color: colors.textPrimary,
+            flex: 1,
+        },
+        commentText: {
+            ...Typography.small,
+            color: colors.gray700,
+            lineHeight: 18,
+            marginLeft: 40,
+        },
+        likeButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.xxs,
+        },
+        likeCount: {
+            ...Typography.tiny,
+            color: colors.textMuted,
+        },
+    });
 
 export default React.memo(CommentSection);

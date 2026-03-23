@@ -176,9 +176,10 @@ class FeedService {
                 }
             }
 
-            // Sort all results by createdAt descending and take limitCount
-            allPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-            const sliced = allPosts.slice(0, limitCount);
+            // Filter out soft-deleted posts and sort by createdAt descending
+            const livePosts = allPosts.filter((p) => !(p as unknown as Record<string, unknown>).isDeleted);
+            livePosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            const sliced = livePosts.slice(0, limitCount);
 
             const newLastTimestamp = sliced.length > 0
                 ? sliced[sliced.length - 1].createdAt
@@ -229,6 +230,7 @@ class FeedService {
 
                 for (const docSnapshot of snapshot.docs) {
                     const data = docSnapshot.data();
+                    if (data.isDeleted) continue;
                     posts.push({
                         id: docSnapshot.id,
                         ...data,

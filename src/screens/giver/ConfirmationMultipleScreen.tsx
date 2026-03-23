@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
@@ -45,6 +45,8 @@ interface GiftWithExperience {
 }
 
 const ConfirmationMultipleScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<ConfirmationMultipleNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
@@ -223,14 +225,14 @@ Earn it. Unlock it. Enjoy it 🚀
       <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
-          <Text style={{ ...Typography.heading3, color: Colors.textPrimary, textAlign: 'center' }}>
+          <Text style={{ ...Typography.heading3, color: colors.textPrimary, textAlign: 'center' }}>
             Could not load experience details
           </Text>
-          <Text style={{ ...Typography.body, color: Colors.textSecondary, textAlign: 'center' }}>
+          <Text style={{ ...Typography.body, color: colors.textSecondary, textAlign: 'center' }}>
             Please check your connection and try again.
           </Text>
           <TouchableOpacity
-            style={{ backgroundColor: Colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
+            style={{ backgroundColor: colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
             onPress={() => {
               setLoadError(false);
               setLoading(true);
@@ -267,7 +269,7 @@ Earn it. Unlock it. Enjoy it 🚀
             accessibilityRole="button"
             accessibilityLabel="Retry loading experiences"
           >
-            <Text style={{ ...Typography.subheading, color: Colors.white }}>Retry</Text>
+            <Text style={{ ...Typography.subheading, color: colors.white }}>Retry</Text>
           </TouchableOpacity>
         </View>
       </MainScreen>
@@ -291,7 +293,7 @@ Earn it. Unlock it. Enjoy it 🚀
               },
             ]}
           >
-            <CheckCircle color={Colors.secondary} size={64} strokeWidth={2.5} />
+            <CheckCircle color={colors.secondary} size={64} strokeWidth={2.5} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -320,7 +322,7 @@ Earn it. Unlock it. Enjoy it 🚀
                   accessibilityLabel={`${item.experience.title} experience image`}
                 />
                 <View style={styles.giftOverlay}>
-                  <Gift color={Colors.white} size={20} />
+                  <Gift color={colors.white} size={20} />
                 </View>
 
                 <View style={styles.giftContent}>
@@ -350,7 +352,7 @@ Earn it. Unlock it. Enjoy it 🚀
                     <TextInput
                       style={styles.messageInput}
                       placeholder="Your message here..."
-                      placeholderTextColor={Colors.textMuted}
+                      placeholderTextColor={colors.textMuted}
                       multiline
                       value={personalizedMessages[item.gift.id || ''] || ''}
                       onChangeText={(text) => handleMessageChange(item.gift.id || '', text)}
@@ -374,7 +376,7 @@ Earn it. Unlock it. Enjoy it 🚀
                     )}
                     {messageSentStatus[item.gift.id || ''] && (
                       <View style={styles.messageSentBadge}>
-                        <CheckCircle color={Colors.secondary} size={16} />
+                        <CheckCircle color={colors.secondary} size={16} />
                         <Text style={styles.messageSentText}>Message sent!</Text>
                       </View>
                     )}
@@ -395,7 +397,7 @@ Earn it. Unlock it. Enjoy it 🚀
                         accessibilityRole="button"
                         accessibilityLabel={`Copy gift code for ${item.experience?.title}`}
                       >
-                        <Copy color={Colors.secondary} size={18} />
+                        <Copy color={colors.secondary} size={18} />
                         <Text style={styles.copyCodeText}>Copy</Text>
                       </TouchableOpacity>
 
@@ -407,7 +409,7 @@ Earn it. Unlock it. Enjoy it 🚀
                         accessibilityLabel={`Share gift code for ${item.experience?.title}`}
                       >
                         <Text style={styles.shareCodeText}>Share</Text>
-                        <ArrowRight color={Colors.white} size={18} />
+                        <ArrowRight color={colors.white} size={18} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -482,23 +484,23 @@ Earn it. Unlock it. Enjoy it 🚀
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   loadingText: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   heroSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
@@ -510,13 +512,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   heroSubtitle: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -526,10 +528,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xl,
   },
   giftCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -538,7 +540,7 @@ const styles = StyleSheet.create({
   giftImage: {
     width: '100%',
     height: vh(180),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   giftOverlay: {
     position: 'absolute',
@@ -547,7 +549,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.primaryOverlay,
+    backgroundColor: colors.primaryOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -556,17 +558,17 @@ const styles = StyleSheet.create({
   },
   giftTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   giftSubtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   priceTag: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.sm,
@@ -574,7 +576,7 @@ const styles = StyleSheet.create({
   },
   priceAmount: {
     ...Typography.large,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   messageSection: {
     marginTop: Spacing.lg,
@@ -587,33 +589,33 @@ const styles = StyleSheet.create({
   },
   messageLabel: {
     ...Typography.tiny,
-    color: Colors.secondary,
+    color: colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   charCounter: {
     ...Typography.tiny,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   messageSubtitle: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   messageInput: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.sm,
     padding: Spacing.md,
     ...Typography.small,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     minHeight: 80,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: Spacing.sm,
   },
   sendMessageButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
@@ -623,7 +625,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sendMessageButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '600',
   },
@@ -636,7 +638,7 @@ const styles = StyleSheet.create({
   },
   messageSentText: {
     ...Typography.caption,
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
   codeSection: {
@@ -645,23 +647,23 @@ const styles = StyleSheet.create({
   codeLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   codeDisplay: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.md,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   codeText: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.secondary,
+    color: colors.secondary,
     textAlign: 'center',
     letterSpacing: 4,
   },
@@ -675,16 +677,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
   },
   copyCodeText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   shareCodeButton: {
     flex: 1,
@@ -692,22 +694,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
   },
   shareCodeText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.white,
+    color: colors.white,
   },
   howItWorksSection: {
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxxl,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -715,7 +717,7 @@ const styles = StyleSheet.create({
   },
   howItWorksTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xl,
   },
   stepsContainer: {
@@ -732,19 +734,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepNumber: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   stepLine: {
     width: 2,
     flex: 1,
-    backgroundColor: Colors.primaryTint,
+    backgroundColor: colors.primaryTint,
     marginVertical: Spacing.xs,
   },
   stepContent: {
@@ -754,12 +756,12 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   stepDesc: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   bottomBar: {
@@ -767,20 +769,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    shadowColor: Colors.black,
+    borderTopColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
   },
   homeButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
@@ -788,7 +790,7 @@ const styles = StyleSheet.create({
   homeButtonText: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.white,
+    color: colors.white,
   },
 });
 

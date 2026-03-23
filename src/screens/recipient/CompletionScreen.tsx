@@ -1,19 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   Linking,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useRoute } from '@react-navigation/native';
 import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Star, Zap, Flame, Share as ShareIcon } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
@@ -37,7 +38,7 @@ import { generateCouponForGoal } from '../../services/CouponService';
 import { logger } from '../../utils/logger';
 import ErrorRetry from '../../components/ErrorRetry';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -52,6 +53,8 @@ const CompletionScreen = () => {
   const route = useRoute();
   const { state, dispatch } = useApp();
   const { showError, showInfo } = useToast();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -215,6 +218,8 @@ const CompletionScreen = () => {
     setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
 
     // ???? EPIC CELEBRATION SEQUENCE
+    // Haptic feedback for goal completion
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Fire confetti after brief delay
     animTimeoutRef.current = setTimeout(() => {
       confettiRef.current?.start();
@@ -544,7 +549,7 @@ const CompletionScreen = () => {
       <MainScreen activeRoute="Goals">
         <StatusBar style="light" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -603,7 +608,7 @@ const CompletionScreen = () => {
         autoStart={false}
         fadeOut={true}
         fallSpeed={3000}
-        colors={[Colors.celebrationGold, Colors.warning, Colors.secondary, Colors.secondary, Colors.categoryPink]}
+        colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
       />
 
       {/* Off-screen Share Card for capture */}
@@ -613,12 +618,12 @@ const CompletionScreen = () => {
           style={{
             width: 1080,
             height: shareFormat === 'story' ? 1920 : 1080,
-            backgroundColor: Colors.cyan,
+            backgroundColor: colors.cyan,
           }}
           collapsable={false}
         >
           <LinearGradient
-            colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+            colors={[colors.secondary, colors.cyan, colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
@@ -632,35 +637,35 @@ const CompletionScreen = () => {
                   borderRadius: BorderRadius.pill,
                   marginBottom: 60,
                 }}
-                resizeMode="cover"
+                contentFit="cover" cachePolicy="memory-disk"
               />
             ) : null}
 
-            <Trophy color={Colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={Colors.celebrationGold} />
+            <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
 
-            <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
+            <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
               Goal Completed!
             </Text>
 
-            <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: Colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+            <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
               {goal?.title || goal?.description || ''}
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{totalSessions}</Text>
-                <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
+                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
+                <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{goal?.targetCount || 0}</Text>
-                <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
+                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{goal?.targetCount || 0}</Text>
+                <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
               </View>
             </View>
 
             {sessionStreak >= 3 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.blackAlpha20, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.huge, borderRadius: BorderRadius.pill, gap: Spacing.md, marginBottom: Spacing.huge }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.blackAlpha20, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.huge, borderRadius: BorderRadius.pill, gap: Spacing.md, marginBottom: Spacing.huge }}>
                 <Text style={{ ...Typography.display }}>🔥</Text>
-                <Text style={{ ...Typography.display, fontWeight: '800', color: Colors.warningLight }}>{sessionStreak}-session streak</Text>
+                <Text style={{ ...Typography.display, fontWeight: '800', color: colors.warningLight }}>{sessionStreak}-session streak</Text>
               </View>
             )}
 
@@ -668,9 +673,9 @@ const CompletionScreen = () => {
               <Image
                 source={require('../../assets/favicon.png')}
                 style={{ width: 60, height: 60, marginBottom: Spacing.md }}
-                resizeMode="contain"
+                contentFit="contain" cachePolicy="memory-disk"
               />
-              <Text style={{ ...Typography.display, fontWeight: '600', color: Colors.overlayLight }}>
+              <Text style={{ ...Typography.display, fontWeight: '600', color: colors.overlayLight }}>
                 Earned with Ernit
               </Text>
             </View>
@@ -681,7 +686,7 @@ const CompletionScreen = () => {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section - EPIC CELEBRATION */}
         <LinearGradient
-          colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+          colors={[colors.secondary, colors.cyan, colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroSection}
@@ -708,7 +713,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Star color={Colors.celebrationGold} size={20} fill={Colors.celebrationGold} />
+            <Star color={colors.celebrationGold} size={20} fill={colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View
@@ -732,7 +737,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Zap color={Colors.warning} size={24} fill={Colors.warning} />
+            <Zap color={colors.warning} size={24} fill={colors.warning} />
           </Animated.View>
 
           {/* ? Enhanced sparkle effects */}
@@ -746,7 +751,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Sparkles color={Colors.celebrationGoldLight} size={32} />
+            <Sparkles color={colors.celebrationGoldLight} size={32} />
           </Animated.View>
           <Animated.View
             style={[
@@ -761,7 +766,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Sparkles color={Colors.celebrationGoldBorder} size={28} />
+            <Sparkles color={colors.celebrationGoldBorder} size={28} />
           </Animated.View>
 
           {/* Larger trophy with glow */}
@@ -776,7 +781,7 @@ const CompletionScreen = () => {
               },
             ]}
           >
-            <Trophy color={Colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={Colors.celebrationGold} />
+            <Trophy color={colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={colors.celebrationGold} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -808,7 +813,7 @@ const CompletionScreen = () => {
         {/* Stats Card - Enhanced */}
         <View style={styles.statsCard}>
           <View style={styles.statsHeader}>
-            <CheckCircle color={Colors.secondary} size={24} />
+            <CheckCircle color={colors.secondary} size={24} />
             <Text style={styles.statsTitle}>Your Achievement</Text>
           </View>
 
@@ -816,7 +821,7 @@ const CompletionScreen = () => {
           <Text style={styles.goalDesc}>{goal.description}</Text>
 
           <View style={styles.statsBadge}>
-            <Sparkles color={Colors.celebrationGold} size={20} />
+            <Sparkles color={colors.celebrationGold} size={20} />
             <Text style={styles.statsNumber}>{totalSessions}</Text>
             <Text style={styles.statsLabel}>Sessions Completed</Text>
           </View>
@@ -835,7 +840,7 @@ const CompletionScreen = () => {
               accessibilityRole="button"
               accessibilityLabel="Browse experiences"
             >
-              <Gift color={Colors.white} size={20} />
+              <Gift color={colors.white} size={20} />
               <Text style={styles.noRewardCtaButtonText}>Browse Experiences</Text>
             </TouchableOpacity>
           </View>
@@ -845,14 +850,14 @@ const CompletionScreen = () => {
         {hasReward && experienceGift && (
           <View style={styles.experienceCard}>
             <View style={styles.experienceHeader}>
-              <Gift color={Colors.secondary} size={24} />
+              <Gift color={colors.secondary} size={24} />
               <Text style={styles.experienceHeaderText}>Your Reward</Text>
             </View>
 
             <Image
               source={{ uri: experienceImage }}
               style={styles.experienceImage}
-              resizeMode="cover"
+              contentFit="cover" cachePolicy="memory-disk"
               accessibilityLabel={`${experience?.title || 'Experience'} image`}
             />
             <View style={styles.experienceContent}>
@@ -877,7 +882,7 @@ const CompletionScreen = () => {
         {/* Coupon Section - PREMIUM TICKET DESIGN */}
         {hasReward && experienceGift && <View style={styles.couponSection}>
           <View style={styles.couponHeader}>
-            <Ticket color={Colors.secondary} size={28} />
+            <Ticket color={colors.secondary} size={28} />
             <Text style={styles.couponHeaderText}>Your Exclusive Code</Text>
           </View>
 
@@ -905,7 +910,7 @@ const CompletionScreen = () => {
                     accessibilityRole="button"
                     accessibilityLabel="Copy coupon code"
                   >
-                    <Copy color={isCopied ? Colors.secondary : Colors.secondary} size={20} />
+                    <Copy color={isCopied ? colors.secondary : colors.secondary} size={20} />
                     <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                       {isCopied ? 'Copied!' : 'Copy Code'}
                     </Text>
@@ -914,7 +919,7 @@ const CompletionScreen = () => {
               </View>
 
               <View style={styles.validityBox}>
-                <CheckCircle color={Colors.secondary} size={18} />
+                <CheckCircle color={colors.secondary} size={18} />
                 <Text style={styles.validityText}>
                   Valid for 1 year from today
                 </Text>
@@ -940,9 +945,9 @@ const CompletionScreen = () => {
                           accessibilityLabel="Copy phone number"
                         >
                           {isPhoneCopied ? (
-                            <CheckCircle size={18} color={Colors.secondary} />
+                            <CheckCircle size={18} color={colors.secondary} />
                           ) : (
-                            <Copy size={18} color={Colors.gray600} />
+                            <Copy size={18} color={colors.gray600} />
                           )}
                         </TouchableOpacity>
                       </View>
@@ -964,9 +969,9 @@ const CompletionScreen = () => {
                           accessibilityLabel="Copy email address"
                         >
                           {isEmailCopied ? (
-                            <CheckCircle size={18} color={Colors.secondary} />
+                            <CheckCircle size={18} color={colors.secondary} />
                           ) : (
-                            <Copy size={18} color={Colors.gray600} />
+                            <Copy size={18} color={colors.gray600} />
                           )}
                         </TouchableOpacity>
                       </View>
@@ -986,12 +991,12 @@ const CompletionScreen = () => {
                         accessibilityLabel="Schedule via WhatsApp"
                       >
                         <LinearGradient
-                          colors={[Colors.whatsappGreen, Colors.whatsappGreenDark]}
+                          colors={[colors.whatsappGreen, colors.whatsappGreenDark]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.scheduleButton}
                         >
-                          <MessageCircle color={Colors.white} size={24} />
+                          <MessageCircle color={colors.white} size={24} />
                           <Text style={styles.scheduleButtonText}>Schedule via WhatsApp</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -1009,12 +1014,12 @@ const CompletionScreen = () => {
                         accessibilityLabel="Schedule via Email"
                       >
                         <LinearGradient
-                          colors={[Colors.secondary, Colors.primary]}
+                          colors={[colors.secondary, colors.primary]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.scheduleButton}
                         >
-                          <Mail color={Colors.white} size={24} />
+                          <Mail color={colors.white} size={24} />
                           <Text style={styles.scheduleButtonText}>Schedule via Email</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -1071,7 +1076,7 @@ const CompletionScreen = () => {
             accessibilityRole="button"
             accessibilityLabel="Share your achievement"
           >
-            <ShareIcon color={Colors.white} size={20} />
+            <ShareIcon color={colors.white} size={20} />
             <Text style={styles.shareButtonText}>
               {isSharing ? 'Preparing...' : 'Share'}
             </Text>
@@ -1082,7 +1087,7 @@ const CompletionScreen = () => {
         <View style={styles.streakCtaSection}>
           {sessionStreak >= 3 && (
             <View style={styles.streakBadge}>
-              <Flame color={Colors.warning} size={28} fill={Colors.warning} />
+              <Flame color={colors.warning} size={28} fill={colors.warning} />
               <Text style={styles.streakCount}>{sessionStreak}</Text>
               <Text style={styles.streakLabel}>session streak</Text>
             </View>
@@ -1148,10 +1153,10 @@ const CompletionScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   heroSection: {
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
@@ -1160,7 +1165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
@@ -1173,8 +1178,8 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xxl,
     padding: Spacing.xxl,
     borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.blackAlpha20,
-    shadowColor: Colors.warning,
+    backgroundColor: colors.blackAlpha20,
+    shadowColor: colors.warning,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 30,
@@ -1183,10 +1188,10 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: Typography.heroSub.fontSize,
     fontWeight: '900',
-    color: Colors.white,
+    color: colors.white,
     textAlign: 'center',
     marginBottom: Spacing.md,
-    textShadowColor: Colors.overlayLight,
+    textShadowColor: colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
     letterSpacing: 0.5,
@@ -1197,25 +1202,25 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     marginBottom: Spacing.md,
     textAlign: 'center',
-    color: Colors.warningLight,
+    color: colors.warningLight,
     letterSpacing: 1.5,
-    textShadowColor: Colors.overlayLight,
+    textShadowColor: colors.overlayLight,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
   heroSubtitle: {
     ...Typography.subheading,
-    color: Colors.primaryTint,
+    color: colors.primaryTint,
     textAlign: 'center',
     lineHeight: 24,
   },
   statsCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1230,21 +1235,21 @@ const styles = StyleSheet.create({
   statsTitle: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   goalTitle: {
     ...Typography.heading1,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   goalDesc: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: Spacing.xl,
   },
   statsBadge: {
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     flexDirection: 'row',
@@ -1255,20 +1260,20 @@ const styles = StyleSheet.create({
   statsNumber: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.warning,
+    color: colors.warning,
   },
   statsLabel: {
     ...Typography.subheading,
     fontWeight: '600',
-    color: Colors.warningDark,
+    color: colors.warningDark,
   },
   experienceCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1284,38 +1289,38 @@ const styles = StyleSheet.create({
   experienceHeaderText: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   experienceImage: {
     width: '100%',
     height: vh(220),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   experienceContent: {
     padding: Spacing.xl,
   },
   experienceTitle: {
     ...Typography.heading1,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   experienceSubtitle: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   experienceDescription: {
     ...Typography.body,
-    color: Colors.gray700,
+    color: colors.gray700,
     lineHeight: 22,
   },
   couponSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1330,11 +1335,11 @@ const styles = StyleSheet.create({
   couponHeaderText: {
     ...Typography.heading1,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   couponInstructions: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: Spacing.xxl,
     textAlign: 'center',
@@ -1346,13 +1351,13 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: Spacing.lg,
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   couponCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -1360,19 +1365,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   couponDisplay: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.lg,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   couponCode: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.secondary,
+    color: colors.secondary,
     textAlign: 'center',
     letterSpacing: 6,
   },
@@ -1386,22 +1391,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
   },
   copyCodeText: {
     ...Typography.subheading,
     fontWeight: '600',
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   copiedText: {
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   validityBox: {
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     flexDirection: 'row',
@@ -1411,7 +1416,7 @@ const styles = StyleSheet.create({
   },
   validityText: {
     ...Typography.small,
-    color: Colors.primaryDeep,
+    color: colors.primaryDeep,
     fontWeight: '600',
   },
   // Enhanced Schedule Buttons
@@ -1423,7 +1428,7 @@ const styles = StyleSheet.create({
   scheduleButtonWrapper: {
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -1438,7 +1443,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
   },
   scheduleButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.subheading,
     fontWeight: '700',
   },
@@ -1446,17 +1451,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contactInfoSection: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   contactInfoTitle: {
     ...Typography.body,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.md,
   },
   contactInfoRow: {
@@ -1465,12 +1470,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: colors.border,
   },
   contactInfoLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.gray600,
+    color: colors.gray600,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1478,14 +1483,14 @@ const styles = StyleSheet.create({
   contactInfoValue: {
     ...Typography.body,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   smallCopyButton: {
     padding: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   // Enhanced sparkle and decoration styles
   sparkle: {
@@ -1495,11 +1500,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: Spacing.xxl,
-    backgroundColor: Colors.whiteAlpha15,
+    backgroundColor: colors.whiteAlpha15,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.blackAlpha20,
+    borderColor: colors.blackAlpha20,
   },
   statItem: {
     flex: 1,
@@ -1508,14 +1513,14 @@ const styles = StyleSheet.create({
   statNumber: {
     ...Typography.display,
     fontWeight: '900',
-    color: Colors.white,
-    textShadowColor: Colors.blackAlpha20,
+    color: colors.white,
+    textShadowColor: colors.blackAlpha20,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   statLabel: {
     ...Typography.caption,
-    color: Colors.whiteAlpha90,
+    color: colors.whiteAlpha90,
     marginTop: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -1524,18 +1529,18 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 2,
     height: 50,
-    backgroundColor: Colors.whiteAlpha25,
+    backgroundColor: colors.whiteAlpha25,
     borderRadius: BorderRadius.xs,
   },
   // No-reward CTA
   noRewardCta: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1544,18 +1549,18 @@ const styles = StyleSheet.create({
   noRewardCtaTitle: {
     ...Typography.large,
     fontWeight: '700' as const,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   noRewardCtaMessage: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 22,
     marginBottom: Spacing.xl,
   },
   noRewardCtaButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: Spacing.sm,
@@ -1564,19 +1569,19 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   noRewardCtaButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.subheading,
     fontWeight: '700' as const,
   },
   // Share section
   shareSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1585,12 +1590,12 @@ const styles = StyleSheet.create({
   shareSectionTitle: {
     ...Typography.heading3,
     fontWeight: '700' as const,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.lg,
   },
   shareFormatToggle: {
     flexDirection: 'row' as const,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.md,
     padding: Spacing.xs,
     marginBottom: Spacing.lg,
@@ -1603,8 +1608,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: Colors.white,
-    shadowColor: Colors.black,
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1613,13 +1618,13 @@ const styles = StyleSheet.create({
   shareFormatText: {
     ...Typography.small,
     fontWeight: '600' as const,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   shareFormatTextActive: {
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   shareButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -1630,19 +1635,19 @@ const styles = StyleSheet.create({
     width: '100%' as any,
   },
   shareButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.subheading,
     fontWeight: '700' as const,
   },
   // Streak CTA section
   streakCtaSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
     alignItems: 'center' as const,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1652,7 +1657,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: Spacing.sm,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.xl,
@@ -1661,29 +1666,29 @@ const styles = StyleSheet.create({
   streakCount: {
     ...Typography.display,
     fontWeight: '800' as const,
-    color: Colors.warning,
+    color: colors.warning,
   },
   streakLabel: {
     ...Typography.body,
     fontWeight: '600' as const,
-    color: Colors.warningDark,
+    color: colors.warningDark,
   },
   streakCtaTitle: {
     ...Typography.large,
     fontWeight: '700' as const,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center' as const,
     marginBottom: Spacing.sm,
   },
   streakCtaMessage: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 20,
     marginBottom: Spacing.lg,
   },
   streakCtaPrimary: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
     borderRadius: BorderRadius.lg,
@@ -1692,7 +1697,7 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
   },
   streakCtaPrimaryText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.subheading,
     fontWeight: '700' as const,
   },
@@ -1704,10 +1709,10 @@ const styles = StyleSheet.create({
     width: '100%' as any,
     alignItems: 'center' as const,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   streakCtaSecondaryText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     ...Typography.subheading,
     fontWeight: '600' as const,
   },

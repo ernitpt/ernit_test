@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../config/colors';
 
 // ─── Experience categories ────────────────────────────────────────────────────
+// Note: This is a utility module (not a component), so it cannot use hooks.
+// Category colors reference the default (light) Colors object directly.
 export const EXPERIENCE_CATEGORIES = [
     { key: 'adventure', label: 'Adventure', emoji: '\u{1F3D4}\u{FE0F}', color: Colors.categoryAmber, match: ['adventure'] },
     { key: 'wellness', label: 'Wellness', emoji: '\u{1F9D8}', color: Colors.categoryPink, match: ['relaxation', 'spa', 'health', 'wellness'] },

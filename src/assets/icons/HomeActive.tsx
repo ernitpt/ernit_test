@@ -1,8 +1,9 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import Colors from '../../config/colors';
+import { useColors } from '../../config';
 
 export default function HomeActive({ width = 15, height = 17 }) {
+  const colors = useColors();
   const gradId = React.useId(); // unique gradient ID
 
   return (
@@ -20,8 +21,8 @@ export default function HomeActive({ width = 15, height = 17 }) {
           y2="0"
           gradientUnits="userSpaceOnUse" // <-- keeps true gradient direction
         >
-          <Stop stopColor={Colors.primaryDeep} />
-          <Stop offset="1" stopColor={Colors.accent} />
+          <Stop stopColor={colors.primaryDeep} />
+          <Stop offset="1" stopColor={colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

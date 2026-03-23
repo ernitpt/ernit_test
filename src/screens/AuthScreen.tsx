@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { vh } from '../utils/responsive';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -31,10 +31,10 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithCredential,
-  fetchSignInMethodsForEmail,
   sendPasswordResetEmail,
   sendEmailVerification,
 } from 'firebase/auth';
+import { sanitizeText } from '../utils/sanitization';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
@@ -49,6 +49,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from '../services/AnalyticsService';
 import { TextInput } from '../components/TextInput';
+import Button from '../components/Button';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -56,6 +57,7 @@ WebBrowser.maybeCompleteAuthSession();
 type AuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
 const AuthScreen = () => {
+  const colors = useColors();
   const navigation = useNavigation<AuthScreenNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
@@ -338,26 +340,30 @@ const AuthScreen = () => {
               const giftData = await getStorageItem('pending_gift_flow');
               if (giftData) {
                 logger.log('🎁 Navigating to gift flow after auth');
-                await removeStorageItem('pending_gift_flow');
                 const config = JSON.parse(giftData);
+                await removeStorageItem('pending_gift_flow');
                 navigation.navigate('GiftFlow', { prefill: config });
                 return;
               }
             } catch (error) {
               logger.error('Error handling pending gift flow after auth:', error);
+              await removeStorageItem('pending_gift_flow').catch(() => {});
+              showInfo('Your previous progress could not be restored. Please start again.');
             }
             // Check for pending free challenge
             try {
               const challengeData = await getStorageItem('pending_free_challenge');
               if (challengeData) {
-                logger.log('?? Navigating to challenge setup after auth');
-                await removeStorageItem('pending_free_challenge');
+                logger.log('🏆 Navigating to challenge setup after auth');
                 const config = JSON.parse(challengeData);
+                await removeStorageItem('pending_free_challenge');
                 navigation.navigate('ChallengeSetup', { prefill: config });
                 return;
               }
             } catch (error) {
               logger.error('Error handling pending challenge after auth:', error);
+              await removeStorageItem('pending_free_challenge').catch(() => {});
+              showInfo('Your previous progress could not be restored. Please start again.');
             }
             // Default: use auth guard to navigate
             handleAuthSuccess();
@@ -373,11 +379,10 @@ const AuthScreen = () => {
             try {
               const email = error.customData?.email;
               if (email) {
-                // Check existing sign-in methods
-                const methods = await fetchSignInMethodsForEmail(auth, email);
-
-                if (methods.includes('password')) {
-                  showInfo('An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.');
+                // Try signing in with Google credential directly — Firebase handles provider merging
+                // Note: fetchSignInMethodsForEmail is deprecated in Firebase Auth v10+
+                showInfo('An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.');
+                {
 
                   // The account is already linked by Firebase automatically in newer versions
                   // Just sign in with the credential
@@ -424,19 +429,22 @@ const AuthScreen = () => {
                       }
                     } catch (error) {
                       logger.error('Error handling pending gift flow after auth:', error);
+                      await removeStorageItem('pending_gift_flow').catch(() => {});
+                      showInfo('Your previous progress could not be restored. Please start again.');
                     }
                     // Check for pending free challenge
                     try {
                       const challengeData = await getStorageItem('pending_free_challenge');
                       if (challengeData) {
-                        logger.log('?? Navigating to challenge setup after auth');
-                        await removeStorageItem('pending_free_challenge');
                         const config = JSON.parse(challengeData);
+                        await removeStorageItem('pending_free_challenge');
                         navigation.navigate('ChallengeSetup', { prefill: config });
                         return;
                       }
                     } catch (error) {
                       logger.error('Error handling pending challenge after auth:', error);
+                      await removeStorageItem('pending_free_challenge').catch(() => {});
+                      showInfo('Your previous progress could not be restored. Please start again.');
                     }
                     // Default: use auth guard to navigate
                     handleAuthSuccess();
@@ -466,30 +474,6 @@ const AuthScreen = () => {
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  /**
-   * ? Comprehensive input sanitization
-   * Removes HTML tags, limits length, handles special characters
-   */
-  const sanitizeInput = (input: string, maxLength: number = 500): string => {
-    if (!input) return '';
-
-    let sanitized = input.trim();
-
-    // Remove HTML tags
-    sanitized = sanitized.replace(/<[^>]*>/g, '');
-
-    // Remove potentially dangerous characters
-    sanitized = sanitized.replace(/[<>\"'`]/g, '');
-
-    // Normalize whitespace
-    sanitized = sanitized.replace(/\s+/g, ' ');
-
-    // Limit length
-    sanitized = sanitized.substring(0, maxLength);
-
-    return sanitized;
-  };
-
   const validatePasswordStrength = (pwd: string) => {
     const checks = {
       minLength: pwd.length >= 8,
@@ -507,6 +491,11 @@ const AuthScreen = () => {
   };
 
   const checkEmailExists = async (emailToCheck: string) => {
+    // fetchSignInMethodsForEmail is deprecated in Firebase Auth v10+.
+    // We probe email existence by attempting sign-in with a sentinel password.
+    // auth/wrong-password / auth/invalid-credential → account exists
+    // auth/user-not-found → no account
+    // auth/too-many-requests → rate limited (treat as unknown, don't block signup)
     if (!validateEmail(emailToCheck)) {
       setEmailError('');
       return false;
@@ -514,27 +503,43 @@ const AuthScreen = () => {
 
     setIsCheckingEmail(true);
     try {
-      const methods = await fetchSignInMethodsForEmail(auth, emailToCheck);
-      if (methods.length > 0) {
-        setEmailError('Email already in use');
-        setIsCheckingEmail(false);
-        return true;
-      }
+      await signInWithEmailAndPassword(auth, emailToCheck, '\x00PROBE_ONLY');
+      // Unreachable — any valid sign-in would be unexpected during signup check
       setEmailError('');
       setIsCheckingEmail(false);
       return false;
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
-      if (firebaseError.code !== 'auth/email-already-in-use') {
-        setEmailError('');
+      if (
+        firebaseError.code === 'auth/wrong-password' ||
+        firebaseError.code === 'auth/invalid-credential'
+      ) {
+        // Account exists with email/password
+        setEmailError('Email already in use');
+        setIsCheckingEmail(false);
+        return true;
       }
+      if (firebaseError.code === 'auth/user-not-found') {
+        // No account — safe to sign up
+        setEmailError('');
+        setIsCheckingEmail(false);
+        return false;
+      }
+      if (firebaseError.code === 'auth/too-many-requests') {
+        // Rate limited — allow signup to proceed; duplicate will be caught by createUserWithEmailAndPassword
+        setEmailError('');
+        setIsCheckingEmail(false);
+        return false;
+      }
+      // Other errors (network, invalid-email, etc.) — don't block signup
+      setEmailError('');
       setIsCheckingEmail(false);
       return false;
     }
   };
 
   const handleEmailChange = async (text: string) => {
-    const sanitized = sanitizeInput(text);
+    const sanitized = sanitizeText(text, 254);
     setEmail(sanitized);
     // Clear email error when user starts typing
     if (emailError) {
@@ -558,13 +563,13 @@ const AuthScreen = () => {
   };
 
   const handleDisplayNameChange = (text: string) => {
-    const sanitized = sanitizeInput(text, 30); // Limit username to 30 characters
+    const sanitized = sanitizeText(text, 30); // Limit username to 30 characters
     setDisplayName(sanitized);
   };
 
   const handleAuth = async () => {
-    const sanitizedEmail = sanitizeInput(email);
-    const sanitizedDisplayName = sanitizeInput(displayName);
+    const sanitizedEmail = sanitizeText(email, 254);
+    const sanitizedDisplayName = sanitizeText(displayName, 30);
     // Passwords must NEVER be modified before being sent to Firebase Auth
     const rawPassword = password;
     const rawConfirmPassword = confirmPassword;
@@ -686,19 +691,22 @@ const AuthScreen = () => {
           }
         } catch (error) {
           logger.error('Error handling pending gift flow after auth:', error);
+          await removeStorageItem('pending_gift_flow').catch(() => {});
+          showInfo('Your previous progress could not be restored. Please start again.');
         }
         // Check for pending free challenge
         try {
           const challengeData = await getStorageItem('pending_free_challenge');
           if (challengeData) {
-            logger.log('?? Navigating to challenge setup after auth');
-            await removeStorageItem('pending_free_challenge');
             const config = JSON.parse(challengeData);
+            await removeStorageItem('pending_free_challenge');
             navigation.navigate('ChallengeSetup', { prefill: config });
             return;
           }
         } catch (error) {
           logger.error('Error handling pending challenge after auth:', error);
+          await removeStorageItem('pending_free_challenge').catch(() => {});
+          showInfo('Your previous progress could not be restored. Please start again.');
         }
         // Default: use auth guard to navigate
         handleAuthSuccess();
@@ -725,26 +733,11 @@ const AuthScreen = () => {
       setEmailError('');
       setPasswordError('');
 
-      // Check if this is a multi-provider issue
-      if (isLogin && (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/invalid-credential')) {
-        try {
-          // Check what sign-in methods are available for this email
-          const methods = await fetchSignInMethodsForEmail(auth, sanitizedEmail);
-
-          if (methods.includes('google.com') && !methods.includes('password')) {
-            errorMessage = 'This email is registered with Google Sign-In. Please use the "Continue with Google" button to sign in.';
-            setEmailError(errorMessage);
-            showError(errorMessage);
-            setIsLoading(false);
-            dispatch({ type: 'SET_LOADING', payload: false });
-            return;
-          } else if (methods.includes('google.com') && methods.includes('password')) {
-            errorMessage = 'This account has multiple sign-in methods. You can sign in with either email/password or Google.';
-          }
-        } catch (fetchError) {
-          logger.error('Error fetching sign-in methods:', fetchError);
-        }
-      }
+      // Note: fetchSignInMethodsForEmail is deprecated in Firebase Auth v10+.
+      // We rely solely on error codes to determine the appropriate message.
+      // auth/wrong-password / auth/invalid-credential → account exists, wrong password
+      // auth/user-not-found → no account with this email
+      // If the user may have signed up with Google, the standard error messages below guide them.
 
       // Standard error messages with inline error display
       if (isLogin) {
@@ -811,7 +804,7 @@ const AuthScreen = () => {
     }
 
     try {
-      await sendPasswordResetEmail(auth, sanitizeInput(email));
+      await sendPasswordResetEmail(auth, sanitizeText(email, 254));
       showSuccess('A password reset link has been sent to your email. Please check your spam folder.');
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
@@ -852,7 +845,7 @@ const AuthScreen = () => {
     <View style={{ flex: 1 }}>
       {/* Base gradient */}
       <LinearGradient
-        colors={Colors.gradientPrimary}
+        colors={colors.gradientPrimary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -871,7 +864,7 @@ const AuthScreen = () => {
         }}
       >
         <LinearGradient
-          colors={Colors.gradientAuth}
+          colors={colors.gradientAuth}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{ flex: 1 }}
@@ -898,10 +891,10 @@ const AuthScreen = () => {
                   width: 40,
                   height: 40,
                   borderRadius: BorderRadius.xl,
-                  backgroundColor: Colors.blackAlpha20,
+                  backgroundColor: colors.blackAlpha20,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  shadowColor: Colors.black,
+                  shadowColor: colors.black,
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
                   shadowRadius: 4,
@@ -912,7 +905,7 @@ const AuthScreen = () => {
                 accessibilityLabel="Go back"
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <ChevronLeft color={Colors.white} size={24} />
+                <ChevronLeft color={colors.white} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -930,10 +923,10 @@ const AuthScreen = () => {
                   resizeMode="contain"
                   accessibilityLabel="Ernit app logo"
                 />
-                <Text style={{ fontSize: Typography.emoji.fontSize, fontWeight: '700', color: Colors.white, textAlign: 'center', marginBottom: Spacing.lg }}>
+                <Text style={{ fontSize: Typography.emoji.fontSize, fontWeight: '700', color: colors.white, textAlign: 'center', marginBottom: Spacing.lg }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
-                <Text style={{ ...Typography.heading3, color: Colors.primaryTint, textAlign: 'center', maxWidth: 280 }}>
+                <Text style={{ ...Typography.heading3, color: colors.primaryTint, textAlign: 'center', maxWidth: 280 }}>
                   {isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
                 </Text>
               </View>
@@ -953,7 +946,7 @@ const AuthScreen = () => {
                   }}
                 >
                   <LinearGradient
-                    colors={Colors.gradientTriple}
+                    colors={colors.gradientTriple}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{ flex: 1, borderRadius: BorderRadius.pill }}
@@ -961,52 +954,25 @@ const AuthScreen = () => {
                 </Animated.View>
 
                 <View style={{
-                  backgroundColor: Colors.surfaceFrosted,
+                  backgroundColor: colors.surfaceFrosted,
                   borderRadius: BorderRadius.xxl,
                   padding: Spacing.xxl,
-                  shadowColor: Colors.black,
+                  shadowColor: colors.black,
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.2,
                   shadowRadius: 12,
                   elevation: 8,
                 }}>
                   {/* Google Sign-In Button - Primary Option */}
-                  <TouchableOpacity
+                  <Button
+                    variant="secondary"
                     onPress={() => promptAsync()}
                     disabled={isLoading || !request}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: Colors.white,
-                      borderRadius: BorderRadius.md,
-                      paddingVertical: Spacing.md,
-                      marginBottom: Spacing.xl,
-                      borderWidth: 1,
-                      borderColor: Colors.border,
-                      shadowColor: Colors.black,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                      elevation: 2,
-                    }}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue with Google"
-                  >
-                    <View style={{
-                      width: 20,
-                      height: 20,
-                      marginRight: Spacing.md,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}>
-                      <Text style={{ ...Typography.subheading, fontWeight: '700', color: Colors.googleBlue }}>G</Text>
-                    </View>
-                    <Text style={{ ...Typography.subheading, color: Colors.gray700 }}>
-                      Continue with Google
-                    </Text>
-                  </TouchableOpacity>
+                    fullWidth
+                    title="Continue with Google"
+                    icon={<Text style={{ ...Typography.subheading, fontWeight: '700', color: colors.googleBlue }}>G</Text>}
+                    style={{ marginBottom: Spacing.xl }}
+                  />
 
                   {/* OR Divider */}
                   <View style={{
@@ -1014,9 +980,9 @@ const AuthScreen = () => {
                     alignItems: 'center',
                     marginBottom: Spacing.xl,
                   }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
-                    <Text style={{ marginHorizontal: Spacing.lg, color: Colors.textSecondary, ...Typography.small, fontWeight: '500' }}>or</Text>
-                    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                    <Text style={{ marginHorizontal: Spacing.lg, color: colors.textSecondary, ...Typography.small, fontWeight: '500' }}>or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                   </View>
 
                   {!isLogin && (
@@ -1024,7 +990,8 @@ const AuthScreen = () => {
                       <TextInput
                         label="Username"
                         placeholder="Username"
-                        placeholderTextColor={Colors.textMuted}
+                        placeholderTextColor={colors.textMuted}
+                        maxLength={50}
                         value={displayName}
                         onChangeText={handleDisplayNameChange}
                         autoCapitalize="words"
@@ -1039,16 +1006,17 @@ const AuthScreen = () => {
                     <RNTextInput
                       ref={emailRef}
                       style={{
-                        backgroundColor: Colors.surface,
+                        backgroundColor: colors.surface,
                         borderRadius: BorderRadius.md,
                         paddingHorizontal: Spacing.lg,
                         paddingVertical: Spacing.md,
                         ...Typography.subheading,
                         borderWidth: 1,
-                        borderColor: emailError ? Colors.error : Colors.border,
+                        borderColor: emailError ? colors.error : colors.border,
                       }}
                       placeholder="Email address"
-                      placeholderTextColor={Colors.textMuted}
+                      placeholderTextColor={colors.textMuted}
+                      maxLength={254}
                       value={email}
                       onChangeText={handleEmailChange}
                       keyboardType="email-address"
@@ -1058,12 +1026,12 @@ const AuthScreen = () => {
                       onSubmitEditing={() => passwordRef.current?.focus()}
                     />
                     {emailError && (
-                      <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
+                      <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
                         {emailError}
                       </Text>
                     )}
                     {isCheckingEmail && (
-                      <Text style={{ color: Colors.textSecondary, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
+                      <Text style={{ color: colors.textSecondary, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
                         Checking email...
                       </Text>
                     )}
@@ -1074,17 +1042,18 @@ const AuthScreen = () => {
                       <RNTextInput
                         ref={passwordRef}
                         style={{
-                          backgroundColor: Colors.surface,
+                          backgroundColor: colors.surface,
                           borderRadius: BorderRadius.md,
                           paddingHorizontal: Spacing.lg,
                           paddingVertical: Spacing.md,
                           paddingRight: vh(60),
                           ...Typography.subheading,
                           borderWidth: 1,
-                          borderColor: passwordError ? Colors.error : Colors.border,
+                          borderColor: passwordError ? colors.error : colors.border,
                         }}
                         placeholder="Password"
-                        placeholderTextColor={Colors.textMuted}
+                        placeholderTextColor={colors.textMuted}
+                        maxLength={128}
                         value={password}
                         onChangeText={handlePasswordChange}
                         secureTextEntry={!showPassword}
@@ -1100,71 +1069,71 @@ const AuthScreen = () => {
                         accessibilityLabel={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
-                          <EyeOff size={20} color={Colors.textMuted} />
+                          <EyeOff size={20} color={colors.textMuted} />
                         ) : (
-                          <Eye size={20} color={Colors.textMuted} />
+                          <Eye size={20} color={colors.textMuted} />
                         )}
                       </TouchableOpacity>
                     </View>
                     {passwordError && (
-                      <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
+                      <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
                         {passwordError}
                       </Text>
                     )}
 
                     {!isLogin && password.length > 0 && (
-                      <View style={{ marginTop: Spacing.md, padding: Spacing.md, backgroundColor: Colors.backgroundLight, borderRadius: BorderRadius.sm }}>
-                        <Text style={{ ...Typography.caption, fontWeight: '600', color: Colors.gray700, marginBottom: Spacing.sm }}>
+                      <View style={{ marginTop: Spacing.md, padding: Spacing.md, backgroundColor: colors.backgroundLight, borderRadius: BorderRadius.sm }}>
+                        <Text style={{ ...Typography.caption, fontWeight: '600', color: colors.gray700, marginBottom: Spacing.sm }}>
                           Password Requirements:
                         </Text>
                         <View style={{ gap: Spacing.xs }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {passwordChecks.minLength ? (
-                              <Check size={14} color={Colors.secondary} style={{ marginRight: Spacing.sm }} />
+                              <Check size={14} color={colors.secondary} style={{ marginRight: Spacing.sm }} />
                             ) : (
-                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.textMuted, marginRight: Spacing.sm }} />
+                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
-                            <Text style={{ ...Typography.caption, color: passwordChecks.minLength ? Colors.secondary : Colors.textSecondary }}>
+                            <Text style={{ ...Typography.caption, color: passwordChecks.minLength ? colors.secondary : colors.textSecondary }}>
                               At least 8 characters
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {passwordChecks.hasUpperCase ? (
-                              <Check size={14} color={Colors.secondary} style={{ marginRight: Spacing.sm }} />
+                              <Check size={14} color={colors.secondary} style={{ marginRight: Spacing.sm }} />
                             ) : (
-                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.textMuted, marginRight: Spacing.sm }} />
+                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
-                            <Text style={{ ...Typography.caption, color: passwordChecks.hasUpperCase ? Colors.secondary : Colors.textSecondary }}>
+                            <Text style={{ ...Typography.caption, color: passwordChecks.hasUpperCase ? colors.secondary : colors.textSecondary }}>
                               One uppercase letter
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {passwordChecks.hasLowerCase ? (
-                              <Check size={14} color={Colors.secondary} style={{ marginRight: Spacing.sm }} />
+                              <Check size={14} color={colors.secondary} style={{ marginRight: Spacing.sm }} />
                             ) : (
-                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.textMuted, marginRight: Spacing.sm }} />
+                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
-                            <Text style={{ ...Typography.caption, color: passwordChecks.hasLowerCase ? Colors.secondary : Colors.textSecondary }}>
+                            <Text style={{ ...Typography.caption, color: passwordChecks.hasLowerCase ? colors.secondary : colors.textSecondary }}>
                               One lowercase letter
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {passwordChecks.hasNumber ? (
-                              <Check size={14} color={Colors.secondary} style={{ marginRight: Spacing.sm }} />
+                              <Check size={14} color={colors.secondary} style={{ marginRight: Spacing.sm }} />
                             ) : (
-                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.textMuted, marginRight: Spacing.sm }} />
+                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
-                            <Text style={{ ...Typography.caption, color: passwordChecks.hasNumber ? Colors.secondary : Colors.textSecondary }}>
+                            <Text style={{ ...Typography.caption, color: passwordChecks.hasNumber ? colors.secondary : colors.textSecondary }}>
                               One number
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {passwordChecks.hasSpecialChar ? (
-                              <Check size={14} color={Colors.secondary} style={{ marginRight: Spacing.sm }} />
+                              <Check size={14} color={colors.secondary} style={{ marginRight: Spacing.sm }} />
                             ) : (
-                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.textMuted, marginRight: Spacing.sm }} />
+                              <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
-                            <Text style={{ ...Typography.caption, color: passwordChecks.hasSpecialChar ? Colors.secondary : Colors.textSecondary }}>
+                            <Text style={{ ...Typography.caption, color: passwordChecks.hasSpecialChar ? colors.secondary : colors.textSecondary }}>
                               One special character
                             </Text>
                           </View>
@@ -1173,14 +1142,13 @@ const AuthScreen = () => {
                     )}
 
                     {isLogin && (
-                      <TouchableOpacity
+                      <Button
+                        variant="ghost"
                         onPress={handlePasswordReset}
+                        title="Forgot password?"
                         style={{ alignSelf: 'flex-end', marginTop: Spacing.sm }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Reset password"
-                      >
-                        <Text style={{ color: Colors.primary, ...Typography.small, fontWeight: '500' }}>Forgot password?</Text>
-                      </TouchableOpacity>
+                        textStyle={{ color: colors.primary, ...Typography.small, fontWeight: '500' }}
+                      />
                     )}
                   </View>
 
@@ -1190,17 +1158,18 @@ const AuthScreen = () => {
                         <RNTextInput
                           ref={confirmPasswordRef}
                           style={{
-                            backgroundColor: Colors.surface,
+                            backgroundColor: colors.surface,
                             borderRadius: BorderRadius.md,
                             paddingHorizontal: Spacing.lg,
                             paddingVertical: Spacing.md,
                             paddingRight: vh(60),
                             ...Typography.subheading,
                             borderWidth: 1,
-                            borderColor: confirmPassword && password !== confirmPassword ? Colors.error : Colors.border,
+                            borderColor: confirmPassword && password !== confirmPassword ? colors.error : colors.border,
                           }}
                           placeholder="Confirm password"
-                          placeholderTextColor={Colors.textMuted}
+                          placeholderTextColor={colors.textMuted}
+                          maxLength={128}
                           value={confirmPassword}
                           onChangeText={(text) => {
                             // SECURITY: Never sanitize passwords
@@ -1219,14 +1188,14 @@ const AuthScreen = () => {
                           accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                         >
                           {showConfirmPassword ? (
-                            <EyeOff size={20} color={Colors.textMuted} />
+                            <EyeOff size={20} color={colors.textMuted} />
                           ) : (
-                            <Eye size={20} color={Colors.textMuted} />
+                            <Eye size={20} color={colors.textMuted} />
                           )}
                         </TouchableOpacity>
                       </View>
                       {confirmPassword && password !== confirmPassword && (
-                        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
+                        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
                           Passwords do not match
                         </Text>
                       )}
@@ -1260,7 +1229,7 @@ const AuthScreen = () => {
                             }}
                           >
                             <LinearGradient
-                              colors={[Colors.primary + 'CC', Colors.primaryDark + 'CC']}
+                              colors={[colors.primary + 'CC', colors.primaryDark + 'CC']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={{ flex: 1, borderRadius: BorderRadius.xl }}
@@ -1280,13 +1249,13 @@ const AuthScreen = () => {
                         accessibilityLabel={isLogin ? "Sign in to your account" : "Create your account"}
                       >
                         <LinearGradient
-                          colors={isButtonDisabled ? [Colors.gray300, Colors.gray300] : Colors.gradientTriple}
+                          colors={isButtonDisabled ? [colors.gray300, colors.gray300] : colors.gradientTriple}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={{
                             borderRadius: BorderRadius.md,
                             paddingVertical: Spacing.lg,
-                            shadowColor: isButtonDisabled ? Colors.black : Colors.primary,
+                            shadowColor: isButtonDisabled ? colors.black : colors.primary,
                             shadowOffset: { width: 0, height: 8 },
                             shadowOpacity: isButtonDisabled ? 0.1 : 0.5,
                             shadowRadius: 16,
@@ -1304,12 +1273,12 @@ const AuthScreen = () => {
                                 transform: [{ scale: successScaleAnim }],
                               }}
                             >
-                              <Check color={Colors.white} size={20} strokeWidth={3} />
+                              <Check color={colors.white} size={20} strokeWidth={3} />
                               <Text
                                 style={{
                                   ...Typography.heading3,
                                   fontWeight: '700',
-                                  color: Colors.white,
+                                  color: colors.white,
                                   textAlign: 'center',
                                   letterSpacing: 0.5,
                                 }}
@@ -1319,14 +1288,14 @@ const AuthScreen = () => {
                             </Animated.View>
                           ) : isLoading ? (
                             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 2 }}>
-                              <ActivityIndicator size="small" color={Colors.white} />
+                              <ActivityIndicator size="small" color={colors.white} />
                             </View>
                           ) : (
                             <Text
                               style={{
                                 ...Typography.heading3,
                                 fontWeight: '700',
-                                color: isButtonDisabled ? Colors.textSecondary : Colors.white,
+                                color: isButtonDisabled ? colors.textSecondary : colors.white,
                                 textAlign: 'center',
                                 letterSpacing: 0.5,
                               }}
@@ -1340,7 +1309,8 @@ const AuthScreen = () => {
                   </Animated.View>
 
                   {/* Toggle between Sign In / Sign Up */}
-                  <TouchableOpacity
+                  <Button
+                    variant="ghost"
                     onPress={() => {
                       setIsLogin(!isLogin);
                       // Clear all form fields and errors when switching modes
@@ -1359,14 +1329,10 @@ const AuthScreen = () => {
                         hasSpecialChar: false,
                       });
                     }}
-                    style={{ alignItems: 'center' }}
-                    accessibilityRole="button"
-                    accessibilityLabel={isLogin ? "Switch to sign up" : "Switch to sign in"}
-                  >
-                    <Text style={{ ...Typography.subheading, color: Colors.primary, fontWeight: '600' }}>
-                      {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-                    </Text>
-                  </TouchableOpacity>
+                    title={isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+                    style={{ alignSelf: 'center' }}
+                    textStyle={{ ...Typography.subheading, color: colors.primary, fontWeight: '600' }}
+                  />
                 </View>
               </View>
             </View>
@@ -1380,6 +1346,4 @@ const AuthScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({});
-
-export default AuthScreen; 
+export default AuthScreen;

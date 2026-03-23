@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Trophy, Gift } from 'lucide-react-native';
 import Button from '../Button';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../../types';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../../config';
 import { vh } from '../../utils/responsive';
 
 interface FeedPostContentProps {
@@ -21,6 +22,8 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
     onEmpowerContext,
     onNavigate,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     return (
         <View style={styles.content}>
             {post.type === 'session_progress' && post.sessionNumber && post.totalSessions && (
@@ -39,8 +42,8 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                                     style={[
                                         styles.capsule,
                                         i < (post.weeklyCount || 0)
-                                            ? { backgroundColor: Colors.primary }
-                                            : { backgroundColor: Colors.border },
+                                            ? { backgroundColor: colors.primary }
+                                            : { backgroundColor: colors.border },
                                     ]}
                                 />
                             ))}
@@ -61,8 +64,8 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                                     style={[
                                         styles.capsule,
                                         i < Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))
-                                            ? { backgroundColor: Colors.secondary }
-                                            : { backgroundColor: Colors.border },
+                                            ? { backgroundColor: colors.secondary }
+                                            : { backgroundColor: colors.border },
                                     ]}
                                 />
                             ))}
@@ -73,11 +76,11 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
             {post.type === 'goal_completed' && post.experienceTitle && !(post.isFreeGoal && !post.experienceGiftId) ? (
                 <View style={styles.experienceSection}>
                     {post.isMystery ? (
-                        <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: Colors.warningLight }]}>
+                        <View style={[styles.experienceImage, styles.experienceImagePlaceholder, { backgroundColor: colors.warningLight }]}>
                             <Text style={styles.experienceImagePlaceholderText}>?</Text>
                         </View>
                     ) : post.experienceImageUrl ? (
-                        <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} />
+                        <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} cachePolicy="memory-disk" />
                     ) : (
                         <View style={[styles.experienceImage, styles.experienceImagePlaceholder]}>
                             <Text style={styles.experienceImagePlaceholderText}>🎁</Text>
@@ -106,7 +109,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                 <View style={styles.achievementCard}>
                     <View style={styles.achievementIconRow}>
                         <View style={styles.achievementIcon}>
-                            <Trophy size={18} color={Colors.primary} />
+                            <Trophy size={18} color={colors.primary} />
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.achievementGoal} numberOfLines={2}>{post.goalDescription}</Text>
@@ -127,7 +130,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                             variant="primary"
                             size="sm"
                             fullWidth
-                            icon={<Gift size={15} color={Colors.white} />}
+                            icon={<Gift size={15} color={colors.white} />}
                             style={{ marginTop: Spacing.md }}
                         />
                     )}
@@ -143,7 +146,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     content: {
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.md,
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     activityText: {
         ...Typography.body,
         lineHeight: 22,
-        color: Colors.gray700,
+        color: colors.gray700,
     },
     progressBlock: {
         marginBottom: Spacing.md,
@@ -164,12 +167,12 @@ const styles = StyleSheet.create({
     },
     progressLabel: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '500',
     },
     progressText: {
         ...Typography.caption,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         fontWeight: '600',
     },
     capsuleRow: {
@@ -184,15 +187,15 @@ const styles = StyleSheet.create({
     experienceSection: {
         borderRadius: BorderRadius.md,
         overflow: 'hidden',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         marginTop: Spacing.sm,
     },
     experienceImage: {
         width: '100%',
         height: vh(140),
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     experienceImagePlaceholder: {
         justifyContent: 'center',
@@ -208,31 +211,31 @@ const styles = StyleSheet.create({
     experienceTitle: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         marginBottom: Spacing.xs,
     },
     partnerName: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: Spacing.xs,
     },
     goalDescriptionText: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: 6,
     },
     experienceMeta: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     achievementCard: {
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         borderRadius: BorderRadius.md,
         padding: Spacing.lg,
         borderWidth: 1,
-        borderColor: Colors.primaryBorder,
+        borderColor: colors.primaryBorder,
         borderLeftWidth: 3,
-        borderLeftColor: Colors.primary,
+        borderLeftColor: colors.primary,
     },
     achievementIconRow: {
         flexDirection: 'row',
@@ -243,19 +246,19 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: Colors.primaryTint,
+        backgroundColor: colors.primaryTint,
         alignItems: 'center',
         justifyContent: 'center',
     },
     achievementGoal: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         lineHeight: 20,
     },
     achievementStats: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         marginTop: Spacing.xxs,
     },
 });

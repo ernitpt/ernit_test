@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius } from '../../config';
 import { Avatar } from '../Avatar';
 
 interface FeedPostHeaderProps {
@@ -22,6 +22,8 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
     typeColor,
     typeLabel,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     return (
         <View style={styles.header}>
             <TouchableOpacity
@@ -55,7 +57,7 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -69,7 +71,7 @@ const styles = StyleSheet.create({
     },
     userName: {
         ...Typography.small,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         marginBottom: Spacing.xxs,
     },
     metaRow: {
@@ -79,7 +81,7 @@ const styles = StyleSheet.create({
     },
     timeAgo: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     typeChip: {
         paddingHorizontal: Spacing.sm,

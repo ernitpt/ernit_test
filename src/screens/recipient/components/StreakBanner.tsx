@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native
 import { MotiView } from 'moti';
 import { Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { Typography } from '../../../config/typography';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Spacing } from '../../../config/spacing';
@@ -146,6 +146,8 @@ interface StreakBannerProps {
 }
 
 const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const config = useMemo(() => getStreakConfig(streak), [streak]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -322,7 +324,7 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   banner: {
     marginBottom: Spacing.md,
   },
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...Typography.caption,
-    color: Colors.warningDark,
+    color: colors.warningDark,
     lineHeight: 18,
   },
   spark: {

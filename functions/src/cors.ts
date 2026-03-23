@@ -9,6 +9,7 @@ const PRODUCTION_ORIGINS = [
   "https://ernit.app",
   "https://ernit.xyz",
   "https://ernitpartner.vercel.app",
+  "https://teams.ernit.app",
 ];
 
 const DEV_ORIGINS = [
@@ -19,7 +20,7 @@ const DEV_ORIGINS = [
 /** Whether we're running in the Firebase emulator */
 const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
 
-/** CORS origins to use in all Cloud Functions */
-export const allowedOrigins: string[] = isEmulator
-  ? [...DEV_ORIGINS, ...PRODUCTION_ORIGINS]
-  : PRODUCTION_ORIGINS;
+/** CORS origins to use in all Cloud Functions.
+ * Dev origins (localhost) are always included — they cannot be spoofed
+ * remotely and are needed for local dev against deployed functions. */
+export const allowedOrigins: string[] = [...DEV_ORIGINS, ...PRODUCTION_ORIGINS];

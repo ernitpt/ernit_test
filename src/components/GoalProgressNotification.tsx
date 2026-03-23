@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Platform } from 'react-native';
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Button from './Button';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +15,7 @@ import { useApp } from '../context/AppContext';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import { logger } from '../utils/logger';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { X } from 'lucide-react-native';
 import { useToast } from '../context/ToastContext';
 import { vh } from '../utils/responsive';
@@ -28,6 +29,8 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     notification,
     isLatest = true, // Default to true for backwards compatibility
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { state } = useApp();
     const { showError } = useToast();
     const [showHintModal, setShowHintModal] = useState(false);
@@ -35,6 +38,13 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
     const [goal, setGoal] = useState<Goal | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // Fetch goal on mount to check completion status
+    useEffect(() => {
+        const goalId = notification.data?.goalId;
+        if (!goalId) return;
+        goalService.getGoalById(goalId).then(setGoal).catch(() => {});
+    }, [notification.data?.goalId]);
 
     const handleLeaveHint = async () => {
         // Fetch goal to get latest data
@@ -142,7 +152,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     // Only show hint button if this is an actual session progress notification (has sessionNumber)
     // Start reminders like "Today's the day!" shouldn't have hint buttons
     const isActualProgress = notification.data?.sessionNumber != null;
-    const isDisabled = loading || hasPersonalizedHint || !isLatest || !isActualProgress;
+    const isDisabled = loading || hasPersonalizedHint || !isLatest || !isActualProgress || goal?.isCompleted;
 
     const handleClear = async () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -164,8 +174,8 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
 
                     <Text style={styles.cardMessage}>{notification.message}</Text>
 
-                    {/* Only show hint button for actual progress notifications */}
-                    {isActualProgress && (
+                    {/* Only show hint button for actual progress notifications on active goals */}
+                    {isActualProgress && !goal?.isCompleted && (
                         <Button
                             title={
                                 !isLatest || hasPersonalizedHint
@@ -183,7 +193,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                         />
                     )}
 
-                    {isActualProgress && (
+                    {isActualProgress && !goal?.isCompleted && (
                         <Button
                             title="View Hint History"
                             variant="ghost"
@@ -202,7 +212,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                     accessibilityLabel="Clear this notification"
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                    <X size={14} color={Colors.textMuted} />
+                    <X size={14} color={colors.textMuted} />
                 </TouchableOpacity>
             </View>
 
@@ -222,7 +232,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
 
             {/* Hint History Modal */}
             <BaseModal visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Hint History">
-                <ScrollView style={historyStyles.scrollView}>
+                <ScrollView style={styles.historyScrollView}>
                     {goal?.hints && goal.hints.length > 0 ? (
                         [...goal.hints].reverse().map((hint, index: number) => {
                             const isAudio = hint.type === 'audio' || hint.type === 'mixed';
@@ -244,12 +254,12 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                             }
 
                             return (
-                                <View key={hint.id || index} style={historyStyles.hintItem}>
-                                    <View style={historyStyles.hintHeader}>
-                                        <Text style={historyStyles.sessionLabel}>
+                                <View key={hint.id || index} style={styles.historyHintItem}>
+                                    <View style={styles.historyHintHeader}>
+                                        <Text style={styles.historySessionLabel}>
                                             Session {hint.session || index + 1}
                                         </Text>
-                                        <Text style={historyStyles.dateLabel}>
+                                        <Text style={styles.historyDateLabel}>
                                             {new Date(dateMs).toLocaleDateString()}
                                         </Text>
                                     </View>
@@ -261,18 +271,18 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                                         >
                                             <Image
                                                 source={{ uri: hint.imageUrl }}
-                                                style={historyStyles.hintImage}
-                                                resizeMode="cover"
+                                                style={styles.historyHintImage}
+                                                contentFit="cover" cachePolicy="memory-disk"
                                             />
                                         </TouchableOpacity>
                                     )}
 
                                     {text && (
-                                        <Text style={historyStyles.hintText}>{text}</Text>
+                                        <Text style={styles.historyHintText}>{text}</Text>
                                     )}
 
                                     {isAudio && hint.audioUrl && (
-                                        <View style={historyStyles.audioContainer}>
+                                        <View style={styles.historyAudioContainer}>
                                             <AudioPlayer uri={hint.audioUrl} duration={hint.duration} />
                                         </View>
                                     )}
@@ -280,7 +290,7 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
                             );
                         })
                     ) : (
-                        <Text style={historyStyles.emptyText}>
+                        <Text style={styles.historyEmptyText}>
                             No hints have been sent yet.
                         </Text>
                     )}
@@ -299,16 +309,16 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         marginBottom: Spacing.md,
         ...Shadows.sm,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderLeftWidth: 3,
-        borderLeftColor: Colors.primary,
+        borderLeftColor: colors.primary,
         overflow: 'hidden',
     },
     cardContent: {
@@ -323,11 +333,11 @@ const styles = StyleSheet.create({
     },
     cardTitle: {
         ...Typography.subheading,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         flex: 1,
     },
     cardMessage: {
-        color: Colors.gray600,
+        color: colors.gray600,
         ...Typography.small,
         marginBottom: Spacing.md,
         lineHeight: 20,
@@ -339,7 +349,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         justifyContent: 'center' as const,
         alignItems: 'center' as const,
     },
@@ -347,57 +357,54 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
         marginLeft: Spacing.sm,
     },
-});
-
-const historyStyles = StyleSheet.create({
-    scrollView: {
+    historyScrollView: {
         maxHeight: 500,
         padding: Spacing.xl,
     },
-    hintItem: {
+    historyHintItem: {
         marginBottom: Spacing.xl,
         padding: Spacing.lg,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
-    hintHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    historyHintHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
         marginBottom: Spacing.md,
     },
-    sessionLabel: {
+    historySessionLabel: {
         ...Typography.small,
-        fontWeight: '700',
-        color: Colors.primary,
+        fontWeight: '700' as const,
+        color: colors.primary,
     },
-    dateLabel: {
+    historyDateLabel: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
-    hintImage: {
-        width: '100%',
+    historyHintImage: {
+        width: '100%' as const,
         height: vh(150),
         borderRadius: BorderRadius.sm,
         marginBottom: Spacing.sm,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
-    hintText: {
+    historyHintText: {
         ...Typography.body,
         lineHeight: 22,
-        color: Colors.gray700,
+        color: colors.gray700,
         marginBottom: Spacing.sm,
     },
-    audioContainer: {
+    historyAudioContainer: {
         marginTop: Spacing.sm,
     },
-    emptyText: {
-        textAlign: 'center',
-        color: Colors.textMuted,
+    historyEmptyText: {
+        textAlign: 'center' as const,
+        color: colors.textMuted,
         ...Typography.body,
         paddingVertical: Spacing.huge,
     },

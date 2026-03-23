@@ -11,7 +11,7 @@ import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -27,6 +27,8 @@ const GoalDetailScreen: React.FC = () => {
   const route = useRoute();
   const { state } = useApp();
   const { goalId } = route.params as { goalId: string };
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [goal, setGoal] = useState<(Goal & { sessionsPerWeek: number }) | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -188,49 +190,49 @@ const GoalDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   header: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xxl,
     paddingTop: Spacing.xxxl,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
-  headerTitle: { ...Typography.heading1, fontWeight: '700', color: Colors.textPrimary, marginTop: Spacing.xs },
+  headerTitle: { ...Typography.heading1, fontWeight: '700', color: colors.textPrimary, marginTop: Spacing.xs },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.xl,
     ...Shadows.sm,
   },
-  title: { ...Typography.large, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
-  desc: { ...Typography.subheading, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.sm },
+  desc: { ...Typography.subheading, color: colors.textSecondary, marginBottom: Spacing.lg },
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  label: { ...Typography.small, color: Colors.gray600, fontWeight: '600' },
-  value: { ...Typography.small, color: Colors.textPrimary, fontWeight: '600' },
+  label: { ...Typography.small, color: colors.gray600, fontWeight: '600' },
+  value: { ...Typography.small, color: colors.textPrimary, fontWeight: '600' },
 
-  progressBg: { backgroundColor: Colors.border, borderRadius: BorderRadius.sm, height: 12 },
-  progressFill: { backgroundColor: Colors.secondary, height: 12, borderRadius: BorderRadius.sm },
-  progressFillAlt: { backgroundColor: Colors.secondary, height: 12, borderRadius: BorderRadius.sm },
+  progressBg: { backgroundColor: colors.border, borderRadius: BorderRadius.sm, height: 12 },
+  progressFill: { backgroundColor: colors.secondary, height: 12, borderRadius: BorderRadius.sm },
+  progressFillAlt: { backgroundColor: colors.secondary, height: 12, borderRadius: BorderRadius.sm },
 
   completedBox: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.lg,
     alignItems: 'center',
   },
-  completedText: { color: Colors.white, fontWeight: '600' },
+  completedText: { color: colors.white, fontWeight: '600' },
 
-  dayLetter: { color: Colors.textSecondary, fontWeight: '600' },
-  dayLetterToday: { color: Colors.primary, textDecorationLine: 'underline' },
-  weekWindowText: { marginTop: Spacing.xs, ...Typography.caption, color: Colors.gray700 },
-  weekWindowTextDim: { marginTop: Spacing.xs, ...Typography.caption, color: Colors.textMuted },
+  dayLetter: { color: colors.textSecondary, fontWeight: '600' },
+  dayLetterToday: { color: colors.primary, textDecorationLine: 'underline' },
+  weekWindowText: { marginTop: Spacing.xs, ...Typography.caption, color: colors.gray700 },
+  weekWindowTextDim: { marginTop: Spacing.xs, ...Typography.caption, color: colors.textMuted },
 });
 
 export default GoalDetailScreen;

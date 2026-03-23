@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MotiView, AnimatePresence } from 'moti';
 import {
     View,
@@ -11,9 +11,9 @@ import {
     Platform,
     ActivityIndicator,
     Animated,
-    Dimensions,
     KeyboardAvoidingView,
 } from 'react-native';
+import { vh } from '../utils/responsive';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { X, Send, MoreHorizontal, Edit2, Trash2, Heart } from 'lucide-react-native';
 import { Avatar } from './Avatar';
@@ -25,7 +25,7 @@ import { CommentSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import { getTimeAgo } from '../utils/timeUtils';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -40,11 +40,13 @@ interface CommentModalProps {
     onChange?: (newCount?: number) => void;
 }
 
-const MODAL_HEIGHT = Dimensions.get('window').height * 0.7;
+const MODAL_HEIGHT = vh(630);
 
 const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, onChange }) => {
     const { state } = useApp();
     const { showError } = useToast();
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -196,7 +198,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 accessibilityLabel="Comment options"
                                 accessibilityRole="button"
                             >
-                                <MoreHorizontal size={14} color={Colors.textMuted} />
+                                <MoreHorizontal size={14} color={colors.textMuted} />
                             </TouchableOpacity>
 
                             <AnimatePresence>
@@ -213,7 +215,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             style={styles.menuItem}
                                             onPress={() => startEditing(item)}
                                         >
-                                            <Edit2 size={14} color={Colors.gray600} />
+                                            <Edit2 size={14} color={colors.gray600} />
                                             <Text style={styles.menuText}>Edit</Text>
                                         </TouchableOpacity>
                                         <View style={styles.menuDivider} />
@@ -221,8 +223,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             style={styles.menuItem}
                                             onPress={() => handleDeleteComment(item.id)}
                                         >
-                                            <Trash2 size={14} color={Colors.error} />
-                                            <Text style={[styles.menuText, { color: Colors.error }]}>Delete</Text>
+                                            <Trash2 size={14} color={colors.error} />
+                                            <Text style={[styles.menuText, { color: colors.error }]}>Delete</Text>
                                         </TouchableOpacity>
                                     </MotiView>
                                 )}
@@ -245,11 +247,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     >
                         <Heart
                             size={13}
-                            color={isLiked ? Colors.error : Colors.textMuted}
-                            fill={isLiked ? Colors.error : 'none'}
+                            color={isLiked ? colors.error : colors.textMuted}
+                            fill={isLiked ? colors.error : 'none'}
                         />
                         {likeCount > 0 && (
-                            <Text style={[styles.likeCount, isLiked && { color: Colors.error }]}>
+                            <Text style={[styles.likeCount, isLiked && { color: colors.error }]}>
                                 {likeCount}
                             </Text>
                         )}
@@ -291,7 +293,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         accessibilityLabel="Close comments"
                         accessibilityRole="button"
                     >
-                        <X color={Colors.textSecondary} size={24} />
+                        <X color={colors.textSecondary} size={24} />
                     </TouchableOpacity>
                 </View>
 
@@ -328,14 +330,14 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                             style={styles.cancelEditButton}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <X size={20} color={Colors.textSecondary} />
+                            <X size={20} color={colors.textSecondary} />
                         </TouchableOpacity>
                     )}
                     <View style={styles.inputWrapper}>
                         <TextInput
                             style={styles.input}
                             placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
-                            placeholderTextColor={Colors.textMuted}
+                            placeholderTextColor={colors.textMuted}
                             value={commentText}
                             onChangeText={setCommentText}
                             multiline
@@ -344,7 +346,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                             returnKeyType="send"
                             onSubmitEditing={handleSendComment}
                         />
-                        <Text style={[styles.charCount, commentText.length > 280 && { color: Colors.error }]}>
+                        <Text style={[styles.charCount, commentText.length > 280 && { color: colors.error }]}>
                             {commentText.length}/300
                         </Text>
                     </View>
@@ -357,11 +359,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         disabled={!commentText.trim() || isSending}
                     >
                         {isSending ? (
-                            <ActivityIndicator size="small" color={Colors.white} />
+                            <ActivityIndicator size="small" color={colors.white} />
                         ) : editingCommentId ? (
-                            <Edit2 color={Colors.white} size={18} />
+                            <Edit2 color={colors.white} size={18} />
                         ) : (
-                            <Send color={Colors.white} size={20} />
+                            <Send color={colors.white} size={20} />
                         )}
                     </TouchableOpacity>
                 </View>
@@ -380,10 +382,10 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: Colors.overlay,
+        backgroundColor: colors.overlay,
     },
     modalContainer: {
         position: 'absolute',
@@ -391,10 +393,10 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: MODAL_HEIGHT,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderTopLeftRadius: BorderRadius.xxl,
         borderTopRightRadius: BorderRadius.xxl,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
@@ -408,11 +410,11 @@ const styles = StyleSheet.create({
         paddingTop: Spacing.xl,
         paddingBottom: Spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
+        borderBottomColor: colors.backgroundLight,
     },
     headerTitle: {
         ...Typography.large,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
     },
     closeButton: {
         padding: Spacing.xs,
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.xl,
     },
     commentBubble: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.lg,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
@@ -440,12 +442,12 @@ const styles = StyleSheet.create({
     },
     userName: {
         ...Typography.smallBold,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         flex: 1,
     },
     commentText: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         lineHeight: 21,
     },
     bubbleMeta: {
@@ -456,48 +458,48 @@ const styles = StyleSheet.create({
     },
     timestamp: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     editedTag: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         fontStyle: 'italic',
     },
     inputContainer: {
         flexDirection: 'row',
         padding: Spacing.lg,
         borderTopWidth: 1,
-        borderTopColor: Colors.backgroundLight,
+        borderTopColor: colors.backgroundLight,
         gap: Spacing.md,
         alignItems: 'flex-end',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
     },
     inputWrapper: {
         flex: 1,
     },
     input: {
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         borderRadius: BorderRadius.xl,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
         ...Typography.body,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         maxHeight: 100,
     },
     sendButton: {
         width: 44,
         height: 44,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     sendButtonDisabled: {
-        backgroundColor: Colors.gray300,
+        backgroundColor: colors.gray300,
     },
     charCount: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         textAlign: 'right' as const,
         marginTop: Spacing.xs,
         paddingHorizontal: Spacing.lg,
@@ -509,9 +511,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 30,
         right: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.md,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 12,
@@ -519,7 +521,7 @@ const styles = StyleSheet.create({
         zIndex: 1000,
         minWidth: 140,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     menuItem: {
         flexDirection: 'row',
@@ -529,12 +531,12 @@ const styles = StyleSheet.create({
     },
     menuText: {
         ...Typography.small,
-        color: Colors.gray700,
+        color: colors.gray700,
         fontWeight: '500',
     },
     menuDivider: {
         height: 1,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     cancelEditButton: {
         padding: Spacing.sm,
@@ -550,7 +552,7 @@ const styles = StyleSheet.create({
     },
     likeCount: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         fontWeight: '600',
     },
 });

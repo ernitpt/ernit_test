@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -22,7 +22,7 @@ import {
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Check, Info } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -40,6 +40,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { config } from '../config/environment';
 import { BaseModal } from '../components/BaseModal';
+import Button from '../components/Button';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import ModernSlider from '../components/ModernSlider';
@@ -47,6 +48,17 @@ import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
 import { sanitizeText } from '../utils/sanitization';
 import { vh } from '../utils/responsive';
+import * as Haptics from 'expo-haptics';
+import Svg, { Circle, Path } from 'react-native-svg';
+import ExperienceDetailModal from '../components/ExperienceDetailModal';
+
+// ─── Goal type options (Together flow) ───────────────────────────────────────
+const GOAL_TYPES = [
+    { icon: '\u{1F3CB}\uFE0F', name: 'Gym', color: '#10B981' },
+    { icon: '\u{1F9D8}', name: 'Yoga', color: '#8B5CF6' },
+    { icon: '\u{1F57A}', name: 'Dance', color: '#F59E0B' },
+    { icon: '\u270F\uFE0F', name: 'Add your own', color: '#6B7280' },
+];
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
 const SOLO_STEP_TITLES = [
@@ -67,7 +79,9 @@ const SOLO_STEP_SUBTITLES = [
 
 const TOGETHER_STEP_TITLES = [
     'Who takes the challenge?',
-    'Set your goal',
+    'What type of challenge?',
+    'Set your challenge',
+    'How long per session?',
     'Pick the reward',
     'Secure the reward',
     'How is the reward revealed?',
@@ -76,7 +90,9 @@ const TOGETHER_STEP_TITLES = [
 
 const TOGETHER_STEP_SUBTITLES = [
     'Choose how they will work towards their goal.',
+    'Pick the activity for your challenge',
     'Set the challenge intensity for both of you.',
+    'Set the duration for each time you show up.',
     "Pick a category. We'll recommend the perfect reward!",
     "Choose how you'd like to back this challenge.",
     "Should they know what you're both working towards?",
@@ -84,38 +100,38 @@ const TOGETHER_STEP_SUBTITLES = [
 ];
 
 // ─── Challenge type options ───────────────────────────────────────────────────
-const TYPE_OPTIONS: { key: GiftChallengeType; emoji: string; label: string; tagline: string; color: string }[] = [
+const getTypeOptions = (colors: typeof Colors): { key: GiftChallengeType; emoji: string; label: string; tagline: string; color: string }[] => [
     {
         key: 'solo',
         emoji: '👤',
         label: 'Just them',
         tagline: 'They work on the goal. You gift the reward when they succeed.',
-        color: Colors.warning,
+        color: colors.warning,
     },
     {
         key: 'shared',
         emoji: '👥',
         label: 'Together',
         tagline: 'You both commit to a goal. The reward unlocks for both of you.',
-        color: Colors.secondary,
+        color: colors.secondary,
     },
 ];
 
 // ─── Reveal options ───────────────────────────────────────────────────────────
-const REVEAL_OPTIONS: { key: GiftRevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string }[] = [
+const getRevealOptions = (colors: typeof Colors): { key: GiftRevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string }[] => [
     {
         key: 'revealed',
         emoji: '👁️',
         label: 'Revealed',
         tagline: 'They know the reward from day one. Full motivation to earn it.',
-        color: Colors.warning,
+        color: colors.warning,
     },
     {
         key: 'secret',
         emoji: '🔒',
         label: 'Secret',
         tagline: 'The reward stays hidden. Ernit drops hints every session.',
-        color: Colors.secondary,
+        color: colors.secondary,
         badge: 'Surprise factor',
     },
 ];
@@ -125,6 +141,10 @@ const ProgressBar = WizardProgressBar;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function GiftFlowScreen() {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors), [colors]);
+    const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
     const navigation = useRootNavigation();
     const route = useRoute();
     const routeParams = route.params as { prefill?: GiftFlowPrefill } | undefined;
@@ -137,17 +157,24 @@ export default function GiftFlowScreen() {
     // Step 1: Challenge type
     const [challengeType, setChallengeType] = useState<GiftChallengeType | null>(null);
 
-    // Step 2 (together only): Goal config
+    // Step 2 (together only): Goal type
+    const [selectedGoalType, setSelectedGoalType] = useState<string | null>(null);
+    const [customGoalType, setCustomGoalType] = useState('');
+
+    // Step 3 (together only): Goal config
     const [weeks, setWeeks] = useState(3);
     const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
     const [hours, setHours] = useState('');
     const [minutes, setMinutes] = useState('');
+    const [sessionMinutes, setSessionMinutes] = useState(30);
+    const [showCustomTime, setShowCustomTime] = useState(false);
     // Experience selection
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
     const [loadingExperiences, setLoadingExperiences] = useState(true);
     const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
     const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+    const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
 
@@ -174,11 +201,15 @@ export default function GiftFlowScreen() {
         paymentChoice: false,
     });
 
-    // Dynamic step count — reveal step only exists when paymentChoice === 'payLater'
-    const hasRevealStep = paymentChoice === 'payLater';
+    // Dynamic step count
+    // Solo: Type → Experience → Reveal → Payment → Confirm = 5 (always)
+    // Together: Type → Intensity → Time → Experience → Reveal → Payment → Confirm = 7
+    //   (if category chosen instead of browse: skip Payment step = 6)
+    const hasRevealStep = true; // Always show reveal step now (secret default)
+    const needsPaymentStep = challengeType === 'solo' || !!selectedExperience;
     const totalSteps = challengeType === 'shared'
-        ? (hasRevealStep ? 6 : 5)
-        : (hasRevealStep ? 5 : 4);
+        ? (needsPaymentStep ? 8 : 7)
+        : 5; // Solo is always 5 steps
 
     // Animations
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -191,19 +222,19 @@ export default function GiftFlowScreen() {
     const getStepTitle = (): string => {
         if (currentStep === 1) return 'Choose a type';
         if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_TITLES[1];
-        const expStep = getExperienceStep();
-        if (currentStep === expStep) return 'Pick a reward';
-        const payStep = getPaymentStep();
-        if (currentStep === payStep) return 'Secure the reward';
-        const revealStep = getRevealStep();
-        if (hasRevealStep && currentStep === revealStep) return 'How is the reward revealed?';
-        const confirmStep = getConfirmStep();
-        if (currentStep === confirmStep) return 'Confirm your gift';
+        if (challengeType === 'shared' && currentStep === 3) return TOGETHER_STEP_TITLES[2];
+        if (challengeType === 'shared' && currentStep === 4) return TOGETHER_STEP_TITLES[3];
+        if (currentStep === getExperienceStep()) return challengeType === 'solo' ? 'Pick a reward' : 'Pick a reward';
+        if (currentStep === getRevealStep()) return 'How is the reward revealed?';
+        if (needsPaymentStep && currentStep === getPaymentStep()) return 'Secure the reward';
+        if (currentStep === getConfirmStep()) return 'Confirm your gift';
         return '';
     };
     const getStepSubtitle = (): string => {
         if (currentStep === 1) return 'Choose how they will work towards their goal.';
         if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_SUBTITLES[1];
+        if (challengeType === 'shared' && currentStep === 3) return TOGETHER_STEP_SUBTITLES[2];
+        if (challengeType === 'shared' && currentStep === 4) return TOGETHER_STEP_SUBTITLES[3];
         const expStep = getExperienceStep();
         if (currentStep === expStep) return "Pick a category. We'll recommend the perfect reward!";
         const payStep = getPaymentStep();
@@ -240,10 +271,17 @@ export default function GiftFlowScreen() {
             const p = routeParams.prefill;
             if (p.currentStep) setCurrentStep(p.currentStep);
             if (p.challengeType) setChallengeType(p.challengeType);
-            if (p.durationWeeks) setWeeks(p.durationWeeks);
+            // Support both saved key formats (weeks from storage, durationWeeks from type)
+            if (p.weeks) setWeeks(p.weeks);
+            else if (p.durationWeeks) setWeeks(p.durationWeeks);
             if (p.sessionsPerWeek) setSessionsPerWeek(p.sessionsPerWeek);
-            if (p.targetHours !== undefined) setHours(String(p.targetHours));
-            if (p.targetMinutes !== undefined) setMinutes(String(p.targetMinutes));
+            // Support both saved key formats (hours/minutes strings from storage, targetHours/targetMinutes numbers from type)
+            if (p.hours !== undefined) setHours(String(p.hours));
+            else if (p.targetHours !== undefined) setHours(String(p.targetHours));
+            if (p.minutes !== undefined) setMinutes(String(p.minutes));
+            else if (p.targetMinutes !== undefined) setMinutes(String(p.targetMinutes));
+            if (p.sessionMinutes) setSessionMinutes(p.sessionMinutes);
+            if (p.showCustomTime) setShowCustomTime(p.showCustomTime);
             if (p.experience) setSelectedExperience(p.experience);
             if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory as ExperienceCategory);
             if (p.revealMode) setRevealMode(p.revealMode);
@@ -288,24 +326,23 @@ export default function GiftFlowScreen() {
         }
     }, [isSubmitting]);
 
-    // Reset revealMode when paymentChoice changes to 'free'
+    // Clamp currentStep if totalSteps changes (e.g., switching from browse to category in Together)
     useEffect(() => {
-        if (paymentChoice === 'free') {
-            setRevealMode(null);
+        if (currentStep > totalSteps) {
+            setCurrentStep(totalSteps);
         }
-    }, [paymentChoice]);
+    }, [totalSteps, currentStep]);
 
     // ─── Map logical step number to absolute step index ───────────────────────
-    // Solo (payLater):  1=Type, 2=Experience, 3=Payment, 4=Reveal, 5=Confirm
-    // Solo (free):      1=Type, 2=Experience, 3=Payment, 4=Confirm
-    // Together (payLater): 1=Type, 2=Goal, 3=Experience, 4=Payment, 5=Reveal, 6=Confirm
-    // Together (free):     1=Type, 2=Goal, 3=Experience, 4=Payment, 5=Confirm
-    const getExperienceStep = () => challengeType === 'shared' ? 3 : 2;
-    const getPaymentStep = () => challengeType === 'shared' ? 4 : 3;
-    const getRevealStep = () => challengeType === 'shared' ? 5 : 4; // only valid when hasRevealStep
-    const getConfirmStep = () => hasRevealStep
-        ? (challengeType === 'shared' ? 6 : 5)
-        : (challengeType === 'shared' ? 5 : 4);
+    // Solo:    1=Type, 2=Experience, 3=Reveal, 4=Payment, 5=Confirm
+    // Together (browse): 1=Type, 2=Intensity, 3=Time, 4=Experience, 5=Reveal, 6=Payment, 7=Confirm
+    // Together (category): 1=Type, 2=Intensity, 3=Time, 4=Experience, 5=Reveal, 6=Confirm
+    const getExperienceStep = () => challengeType === 'shared' ? 5 : 2;
+    const getRevealStep = () => challengeType === 'shared' ? 6 : 3;
+    const getPaymentStep = () => challengeType === 'shared' ? 7 : 4;
+    const getConfirmStep = () => needsPaymentStep
+        ? (challengeType === 'shared' ? 8 : 5)
+        : (challengeType === 'shared' ? 7 : 5); // Solo always 5
 
     // ─── Per-step validation ──────────────────────────────────────────────────
     const validateCurrentStep = (): boolean => {
@@ -319,22 +356,53 @@ export default function GiftFlowScreen() {
         }
 
         if (challengeType === 'shared' && currentStep === 2) {
-            const hoursNum = parseInt(hours || '0', 10);
-            const minutesNum = parseInt(minutes || '0', 10);
-            if ((!hours && !minutes) || (hoursNum === 0 && minutesNum === 0)) {
-                setValidationErrors(prev => ({ ...prev, time: true }));
+            // Goal type selection
+            if (!selectedGoalType) {
+                showError('Please select a challenge type');
                 return false;
             }
-            if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-                showError('Each session cannot exceed 3 hours.');
+            if (selectedGoalType === 'Add your own' && !customGoalType.trim()) {
+                showError('Please enter your custom challenge type');
                 return false;
+            }
+            return true;
+        }
+
+        if (challengeType === 'shared' && currentStep === 3) {
+            // Sliders have defaults — always valid
+            return true;
+        }
+
+        if (challengeType === 'shared' && currentStep === 4) {
+            // Time per session (clock dial or custom input)
+            if (showCustomTime) {
+                const hoursNum = parseInt(hours || '0', 10);
+                const minutesNum = parseInt(minutes || '0', 10);
+                if ((!hours && !minutes) || (hoursNum === 0 && minutesNum === 0)) {
+                    setValidationErrors(prev => ({ ...prev, time: true }));
+                    return false;
+                }
+                if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
+                    showError('Each session cannot exceed 3 hours.');
+                    return false;
+                }
+            } else {
+                if (sessionMinutes < 5) {
+                    setValidationErrors(prev => ({ ...prev, time: true }));
+                    return false;
+                }
             }
             setValidationErrors(prev => ({ ...prev, time: false }));
             return true;
         }
 
         if (currentStep === getExperienceStep()) {
-            if (!selectedExperience && !preferredRewardCategory) {
+            // Solo: must pick specific experience. Together: experience or category.
+            if (challengeType === 'solo' && !selectedExperience) {
+                setValidationErrors(prev => ({ ...prev, experience: true }));
+                return false;
+            }
+            if (challengeType === 'shared' && !selectedExperience && !preferredRewardCategory) {
                 setValidationErrors(prev => ({ ...prev, experience: true }));
                 return false;
             }
@@ -342,21 +410,21 @@ export default function GiftFlowScreen() {
             return true;
         }
 
-        if (currentStep === getPaymentStep()) {
+        if (currentStep === getRevealStep()) {
+            // Reveal mode defaults to 'secret' — always valid since we auto-set it
+            if (!revealMode) {
+                setRevealMode('secret');
+            }
+            setValidationErrors(prev => ({ ...prev, revealMode: false }));
+            return true;
+        }
+
+        if (needsPaymentStep && currentStep === getPaymentStep()) {
             if (!paymentChoice) {
                 setValidationErrors(prev => ({ ...prev, paymentChoice: true }));
                 return false;
             }
             setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
-            return true;
-        }
-
-        if (hasRevealStep && currentStep === getRevealStep()) {
-            if (!revealMode) {
-                setValidationErrors(prev => ({ ...prev, revealMode: true }));
-                return false;
-            }
-            setValidationErrors(prev => ({ ...prev, revealMode: false }));
             return true;
         }
 
@@ -366,6 +434,7 @@ export default function GiftFlowScreen() {
     const handleNext = () => {
         if (!validateCurrentStep()) return;
         if (currentStep < totalSteps) {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setCurrentStep(prev => prev + 1);
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }
@@ -399,6 +468,8 @@ export default function GiftFlowScreen() {
                 sessionsPerWeek,
                 hours,
                 minutes,
+                sessionMinutes,
+                showCustomTime,
                 experience: selectedExperience || null,
                 preferredRewardCategory: preferredRewardCategory || null,
                 revealMode,
@@ -419,30 +490,26 @@ export default function GiftFlowScreen() {
     const confirmCreateGoal = async () => {
         if (isSubmitting || !state.user?.id) return;
 
-        // Bug 2 fix: payLater requires a specific experience (the Cloud Function
-        // rejects an empty experienceId and we cannot charge for a category-only pick).
-        if (paymentChoice === 'payLater' && !selectedExperience) {
-            showError('Please select a specific experience to commit to');
+        // Giver flows require a specific experience (no free option)
+        if (!selectedExperience) {
+            showError('Please select a specific experience');
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // payLater or free: call the appropriate cloud function
-            const functionName = paymentChoice === 'free'
-                ? config.giftFunctions.createFreeGift
-                : config.giftFunctions.createDeferredGift;
+            // Both payNow and payLater create the gift doc via createDeferredGift.
+            // payNow then routes to ExperienceCheckout for immediate payment.
+            // payLater routes to DeferredSetup to save card for future charging.
+            const functionName = config.giftFunctions.createDeferredGift;
 
-            const hoursNum = parseInt(hours || '0');
-            const minutesNum = parseInt(minutes || '0');
+            const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
+            const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
 
             const token = await auth.currentUser?.getIdToken();
             if (!token) throw new Error('Not authenticated');
 
-            // Bug 4 note: recipientEmail is not yet collected by this wizard.
-            // The Cloud Function supports it for notification emails — add a wizard
-            // step to collect it when email notification UX is implemented.
             const response = await fetch(
                 `${config.functionsUrl}/${functionName}`,
                 {
@@ -452,13 +519,14 @@ export default function GiftFlowScreen() {
                         'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({
-                        experienceId: selectedExperience?.id || '',
+                        experienceId: selectedExperience.id,
                         challengeType,
                         revealMode,
                         giverName: state.user.displayName || '',
                         personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
                         ...(challengeType === 'shared' ? {
                             goalName: `${weeks}-week challenge`,
+                            goalType: selectedGoalType === 'Gym' ? 'gym' : selectedGoalType === 'Yoga' ? 'yoga' : selectedGoalType === 'Dance' ? 'dance' : 'custom',
                             duration: `${weeks} weeks`,
                             frequency: `${sessionsPerWeek}x per week`,
                             sessionTime: `${hoursNum}h ${minutesNum}m`,
@@ -476,11 +544,14 @@ export default function GiftFlowScreen() {
             const result = await response.json();
             setShowConfirm(false);
 
-            // Bug 1 fix: for payLater gifts the server returns a setupIntentClientSecret
-            // so the giver can save their card now for off-session charging later.
-            // Without this step, chargeDeferredGift will always fail because no
-            // payment_method is attached to the SetupIntent.
-            if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
+            if (paymentChoice === 'payNow') {
+                // Lock it in: route to ExperienceCheckout for immediate payment
+                navigation.navigate('ExperienceCheckout' as any, {
+                    cartItems: [{ experienceId: selectedExperience!.id, quantity: 1 }],
+                    giftId: result.gift?.id,
+                });
+            } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
+                // Pay on success: save card now, charge when recipient completes
                 navigation.navigate('DeferredSetup', {
                     setupIntentClientSecret: result.setupIntentClientSecret,
                     experienceGift: result.gift,
@@ -540,7 +611,7 @@ export default function GiftFlowScreen() {
                                     <Text style={styles.rewardChoiceDesc}>{option.tagline}</Text>
                                 </View>
                                 {isActive && (
-                                    <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
+                                    <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
                                 )}
                             </View>
                         </TouchableOpacity>
@@ -550,7 +621,49 @@ export default function GiftFlowScreen() {
         </View>
     );
 
-    // Step 2 (Together only): Set YOUR Goal — identical to ChallengeSetupScreen step 2
+    // Step 2 (Together only): Goal type selection
+    const renderGoalTypeStepTogether = () => (
+        <View style={styles.stepContent}>
+            <View style={styles.goalTypeGrid}>
+                {GOAL_TYPES.map((type) => {
+                    const isSelected = selectedGoalType === type.name;
+                    const isCustom = type.name === 'Add your own';
+                    return (
+                        <TouchableOpacity
+                            key={type.name}
+                            style={[styles.goalTypeCard, isSelected && styles.goalTypeCardActive]}
+                            onPress={() => {
+                                setSelectedGoalType(type.name);
+                                if (!isCustom) {
+                                    // Auto-advance for preset types
+                                    setTimeout(() => setCurrentStep(prev => prev + 1), 200);
+                                }
+                            }}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Select ${type.name} goal type`}
+                        >
+                            <Text style={styles.goalTypeEmoji}>{type.icon}</Text>
+                            <Text style={[styles.goalTypeName, isSelected && styles.goalTypeNameActive]}>{type.name}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+            {selectedGoalType === 'Add your own' && (
+                <View style={{ marginTop: 16 }}>
+                    <TextInput
+                        label="What's your challenge?"
+                        placeholder="e.g., Swimming, Pilates, Boxing..."
+                        value={customGoalType}
+                        onChangeText={setCustomGoalType}
+                        maxLength={50}
+                    />
+                </View>
+            )}
+        </View>
+    );
+
+    // Step 3 (Together only): Set YOUR Goal — sliders only
     const renderStep2Together = () => (
         <View style={styles.stepContent}>
             <View style={styles.section}>
@@ -578,12 +691,156 @@ export default function GiftFlowScreen() {
                     rightLabel="Beast"
                 />
             </View>
+        </View>
+    );
 
-            <View style={styles.section}>
-                <View style={styles.sliderContainer}>
-                    <Text style={styles.sliderTitle}>Time per session</Text>
+    // Step 3 (Together only): Time per session — clock dial matching ChallengeSetupScreen
+    const DIAL_SIZE = vh(250);
+    const DIAL_RADIUS = DIAL_SIZE / 2;
+    const DIAL_STROKE = 8;
 
-                    <View style={styles.timeRow}>
+    const renderStep3Together = () => {
+        const angle = (sessionMinutes / 60) * 360;
+        const angleRad = ((angle - 90) * Math.PI) / 180;
+        const arcRadius = DIAL_RADIUS - 20;
+        const handleX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
+        const handleY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
+
+        const startAngleRad = (-90 * Math.PI) / 180;
+        const largeArc = angle > 180 ? 1 : 0;
+        const startX = DIAL_RADIUS + arcRadius * Math.cos(startAngleRad);
+        const startY = DIAL_RADIUS + arcRadius * Math.sin(startAngleRad);
+        const endX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
+        const endY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
+        const isFullCircle = sessionMinutes >= 60;
+        const arcPath = (!isFullCircle && sessionMinutes > 0)
+            ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
+            : '';
+
+        const handleTouch = (event: any) => {
+            const { locationX, locationY } = event.nativeEvent;
+            const dx = locationX - DIAL_RADIUS;
+            const dy = locationY - DIAL_RADIUS;
+            let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+            if (a < 0) a += 360;
+            const mins = Math.round((a / 360) * 60 / 5) * 5;
+            setSessionMinutes(Math.max(5, Math.min(60, mins)));
+        };
+
+        return (
+            <View style={styles.stepContent}>
+                <View style={{ alignItems: 'center', marginTop: vh(10) }}>
+                    <View
+                        style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => true}
+                        onResponderGrant={handleTouch}
+                        onResponderMove={handleTouch}
+                    >
+                        <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
+                            <Circle
+                                cx={DIAL_RADIUS}
+                                cy={DIAL_RADIUS}
+                                r={arcRadius}
+                                stroke={colors.backgroundLight}
+                                strokeWidth={DIAL_STROKE}
+                                fill="none"
+                            />
+                            {isFullCircle ? (
+                                <Circle
+                                    cx={DIAL_RADIUS}
+                                    cy={DIAL_RADIUS}
+                                    r={arcRadius}
+                                    stroke={colors.secondary}
+                                    strokeWidth={DIAL_STROKE}
+                                    fill="none"
+                                />
+                            ) : sessionMinutes > 0 ? (
+                                <Path
+                                    d={arcPath}
+                                    stroke={colors.secondary}
+                                    strokeWidth={DIAL_STROKE}
+                                    strokeLinecap="round"
+                                    fill="none"
+                                />
+                            ) : null}
+                            <Circle
+                                cx={handleX}
+                                cy={handleY}
+                                r={14}
+                                fill={colors.secondary}
+                            />
+                        </Svg>
+
+                        <View style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
+                            <Text style={{
+                                fontSize: vh(48),
+                                fontWeight: '800',
+                                color: colors.secondary,
+                                letterSpacing: -2,
+                            }}>
+                                {sessionMinutes}
+                            </Text>
+                            <Text style={{
+                                ...Typography.caption,
+                                fontWeight: '700',
+                                color: colors.textMuted,
+                                textTransform: 'uppercase',
+                                letterSpacing: 2,
+                            }}>
+                                MINUTES
+                            </Text>
+                        </View>
+
+                        {[0, 15, 30, 45].map((m) => {
+                            const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
+                            const markerR = DIAL_RADIUS + 16;
+                            const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
+                            const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
+                            return (
+                                <Text key={m} style={{
+                                    position: 'absolute',
+                                    left: mx - 10,
+                                    top: my - 8,
+                                    ...Typography.caption,
+                                    fontWeight: '600',
+                                    color: colors.textMuted,
+                                    width: 20,
+                                    textAlign: 'center',
+                                }}>
+                                    {m}
+                                </Text>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    style={{ alignSelf: 'center', marginTop: vh(36) }}
+                    onPress={() => setShowCustomTime(!showCustomTime)}
+                    activeOpacity={0.7}
+                >
+                    <Text style={{
+                        ...Typography.body,
+                        color: colors.primary,
+                        fontWeight: '600',
+                    }}>
+                        {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
+                    </Text>
+                </TouchableOpacity>
+
+                {showCustomTime && (
+                    <MotiView
+                        from={{ opacity: 0, translateY: -10 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ type: 'timing', duration: 200 }}
+                        style={{ marginTop: Spacing.lg, flexDirection: 'row', justifyContent: 'center', gap: Spacing.md }}
+                    >
                         <View style={styles.timeInputGroup}>
                             <RNTextInput
                                 style={styles.timeInput}
@@ -595,7 +852,7 @@ export default function GiftFlowScreen() {
                                 keyboardType="numeric"
                                 maxLength={1}
                                 placeholder="0"
-                                placeholderTextColor={Colors.textMuted}
+                                placeholderTextColor={colors.textMuted}
                                 returnKeyType="next"
                                 onSubmitEditing={() => minutesRef.current?.focus()}
                                 accessibilityLabel="Hours per session"
@@ -616,23 +873,23 @@ export default function GiftFlowScreen() {
                                 keyboardType="numeric"
                                 maxLength={2}
                                 placeholder="00"
-                                placeholderTextColor={Colors.textMuted}
+                                placeholderTextColor={colors.textMuted}
                                 returnKeyType="done"
                                 accessibilityLabel="Minutes per session"
                             />
                             <Text style={styles.timeLabel}>min</Text>
                         </View>
-                    </View>
+                    </MotiView>
+                )}
 
-                    {validationErrors.time && (
-                        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
-                            Please set a time per session (at least 1 minute)
-                        </Text>
-                    )}
-                </View>
+                {validationErrors.time && (
+                    <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
+                        Please set a time per session (at least 5 minutes)
+                    </Text>
+                )}
             </View>
-        </View>
-    );
+        );
+    };
 
     // Experience step — exact same as ChallengeSetupScreen step 4
     const getExperiencesForCategory = (catKey: string, matchList?: string[]) => {
@@ -666,6 +923,15 @@ export default function GiftFlowScreen() {
                         accessibilityLabel={exp.title}
                     />
                 </View>
+                <TouchableOpacity
+                    style={styles.expInfoButton}
+                    onPress={() => setDetailExperience(exp)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View details for ${exp.title}`}
+                >
+                    <Info size={14} color={colors.white} />
+                </TouchableOpacity>
                 <View style={styles.expTextContainer}>
                     <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
                     <View style={styles.expMeta}>
@@ -674,7 +940,7 @@ export default function GiftFlowScreen() {
                     </View>
                 </View>
                 {isSelected && (
-                    <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
+                    <View style={styles.checkBadge}><Check color={colors.white} size={12} strokeWidth={3} /></View>
                 )}
             </TouchableOpacity>
         );
@@ -699,9 +965,24 @@ export default function GiftFlowScreen() {
                         }}
                         activeOpacity={0.7}
                     >
-                        <ChevronLeft color={Colors.primary} size={18} strokeWidth={2.5} />
+                        <ChevronLeft color={colors.primary} size={18} strokeWidth={2.5} />
                         <Text style={styles.browseBackText}>Back to categories</Text>
                     </TouchableOpacity>
+
+                    {/* Need help choosing? — solo flow only */}
+                    {challengeType === 'solo' && !selectedExperience && (
+                        <View style={styles.helpChoosingCard}>
+                            <Text style={styles.helpChoosingTitle}>Need help choosing?</Text>
+                            <Text style={styles.helpChoosingDesc}>Here are our most popular experiences:</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
+                                {experiences
+                                    .filter(e => e.status !== 'draft')
+                                    .sort((a, b) => (a.order || 999) - (b.order || 999))
+                                    .slice(0, 3)
+                                    .map((exp) => renderExperienceCard(exp))}
+                            </ScrollView>
+                        </View>
+                    )}
 
                     {/* Category filter chips */}
                     <View style={styles.sectionHeaderRow}>
@@ -742,7 +1023,7 @@ export default function GiftFlowScreen() {
                             {showFilterScrollHint && (
                                 <View style={styles.categoryFadeIndicator} pointerEvents="none">
                                     <View style={styles.categoryGradient} />
-                                    <ChevronRight color={Colors.textMuted} size={14} />
+                                    <ChevronRight color={colors.textMuted} size={14} />
                                 </View>
                             )}
                         </View>
@@ -803,6 +1084,15 @@ export default function GiftFlowScreen() {
                                                                 accessibilityLabel={exp.title}
                                                             />
                                                         </View>
+                                                        <TouchableOpacity
+                                                            style={styles.expInfoButton}
+                                                            onPress={() => setDetailExperience(exp)}
+                                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel={`View details for ${exp.title}`}
+                                                        >
+                                                            <Info size={14} color={colors.white} />
+                                                        </TouchableOpacity>
                                                         <View style={styles.expTextContainer}>
                                                             <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
                                                             <View style={styles.expMeta}>
@@ -811,7 +1101,7 @@ export default function GiftFlowScreen() {
                                                             </View>
                                                         </View>
                                                         {isSelected && (
-                                                            <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
+                                                            <View style={styles.checkBadge}><Check color={colors.white} size={12} strokeWidth={3} /></View>
                                                         )}
                                                     </TouchableOpacity>
                                                 );
@@ -826,11 +1116,20 @@ export default function GiftFlowScreen() {
             );
         }
 
-        // Default view: category preference cards (derived from shared EXPERIENCE_CATEGORIES constant)
+        // Solo giver: mandatory specific experience — go straight to browse
+        if (challengeType === 'solo') {
+            // Auto-open the experience picker for solo
+            if (!showExperiencePicker) {
+                setShowExperiencePicker(true);
+            }
+            return null; // browse mode handles rendering (above)
+        }
+
+        // Together giver: equal fork (same pattern as ChallengeSetupScreen)
         const CATEGORY_TAGLINES: Record<string, string> = {
-            adventure: 'Explore something new',
-            wellness: 'Treat yourself',
-            creative: 'Make something amazing',
+            adventure: 'Explore something new together',
+            wellness: 'Treat yourselves',
+            creative: 'Make something amazing together',
         };
         const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] =
             EXPERIENCE_CATEGORIES.map(cat => ({
@@ -845,18 +1144,62 @@ export default function GiftFlowScreen() {
             <View style={styles.stepContent}>
                 {validationErrors.experience && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Please pick a reward category</Text>
+                        <Text style={styles.errorText}>Please pick a reward option</Text>
                     </View>
                 )}
 
+                {/* Equal fork: Browse experiences (prominent button) */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 16 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 300 }}
+                >
+                    <TouchableOpacity
+                        style={[
+                            styles.rewardCategoryCard,
+                            selectedExperience && { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primary + '08' },
+                        ]}
+                        onPress={() => setShowExperiencePicker(true)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Choose a shared experience"
+                    >
+                        <Text style={styles.rewardCategoryEmoji}>{'\u{1F3AF}'}</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[
+                                styles.rewardCategoryLabel,
+                                selectedExperience && { color: colors.primary },
+                            ]}>{selectedExperience ? selectedExperience.title : 'Choose your experience'}</Text>
+                            <Text style={styles.rewardCategoryTagline}>
+                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Browse shared experiences for 2'}
+                            </Text>
+                        </View>
+                        {selectedExperience ? (
+                            <View style={[styles.rewardCategoryCheck, { backgroundColor: colors.primary }]}>
+                                <Check color={colors.white} size={14} strokeWidth={3} />
+                            </View>
+                        ) : (
+                            <ChevronRight color={colors.primary} size={20} strokeWidth={2} />
+                        )}
+                    </TouchableOpacity>
+                </MotiView>
+
+                {/* Divider */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or surprise them</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                </View>
+
+                {/* Category cards */}
                 {CATEGORY_CARDS.map((cat, index) => {
-                    const isActive = preferredRewardCategory === cat.key;
+                    const isActive = preferredRewardCategory === cat.key && !selectedExperience;
                     return (
                         <MotiView
                             key={cat.key}
                             from={{ opacity: 0, translateY: 16 }}
                             animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'timing', duration: 300, delay: index * 80 }}
+                            transition={{ type: 'timing', duration: 300, delay: (index + 1) * 80 }}
                         >
                             <TouchableOpacity
                                 style={[
@@ -866,6 +1209,7 @@ export default function GiftFlowScreen() {
                                 onPress={() => {
                                     setPreferredRewardCategory(cat.key);
                                     setSelectedExperience(null);
+                                    setPaymentChoice(null);
                                     setValidationErrors(prev => ({ ...prev, experience: false }));
                                 }}
                                 activeOpacity={0.8}
@@ -882,164 +1226,146 @@ export default function GiftFlowScreen() {
                                 </View>
                                 {isActive && (
                                     <View style={[styles.rewardCategoryCheck, { backgroundColor: cat.color }]}>
-                                        <Check color={Colors.white} size={14} strokeWidth={3} />
+                                        <Check color={colors.white} size={14} strokeWidth={3} />
                                     </View>
                                 )}
                             </TouchableOpacity>
                         </MotiView>
                     );
                 })}
-
-                {/* Browse experiences link */}
-                <TouchableOpacity
-                    style={styles.browseLink}
-                    onPress={() => setShowExperiencePicker(true)}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.browseLinkText}>Already know what you want?</Text>
-                    <View style={styles.browseLinkAction}>
-                        <Text style={styles.browseLinkActionText}>Browse & pick a reward</Text>
-                        <ChevronRight color={Colors.primary} size={16} strokeWidth={2.5} />
-                    </View>
-                </TouchableOpacity>
             </View>
         );
     };
 
-    // Auto-reset secret mode if experience deselected
+    // Default to secret reveal mode
     useEffect(() => {
-        if (!selectedExperience && revealMode === 'secret') {
-            setRevealMode('revealed');
+        if (!revealMode) {
+            setRevealMode('secret');
         }
-    }, [selectedExperience]);
+    }, [revealMode]);
 
-    // Reveal/Secret step
-    const secretDisabled = !selectedExperience || paymentChoice === 'free';
+    // Reveal step — secret is default, "Reveal instead" is a small escape hatch
     const renderRevealStep = () => (
         <View style={styles.stepContent}>
-            {validationErrors.revealMode && (
-                <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please choose how the reward is revealed</Text>
-                </View>
-            )}
-            {REVEAL_OPTIONS.map((option, index) => {
-                const isActive = revealMode === option.key;
-                const isSecretAndDisabled = option.key === 'secret' && secretDisabled;
-                return (
-                    <MotiView
-                        key={option.key}
-                        from={{ opacity: 0, translateY: 16 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 300, delay: index * 80 }}
-                    >
-                        <TouchableOpacity
-                            style={[
-                                styles.rewardChoice,
-                                isActive && styles.rewardChoiceActive,
-                                isSecretAndDisabled && { opacity: 0.4 },
-                            ]}
-                            onPress={() => {
-                                if (isSecretAndDisabled) return;
-                                setRevealMode(option.key);
-                                setValidationErrors(prev => ({ ...prev, revealMode: false }));
-                            }}
-                            activeOpacity={isSecretAndDisabled ? 1 : 0.8}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Select ${option.label} reveal mode`}
-                        >
-                            <View style={styles.rewardChoiceHeader}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.rewardChoiceTitle, isActive && styles.rewardChoiceTitleActive]}>{option.label}</Text>
-                                    <Text style={styles.rewardChoiceDesc}>{option.tagline}</Text>
-                                    {option.badge && !isSecretAndDisabled && (
-                                        <View style={styles.revealBadge}>
-                                            <Text style={styles.revealBadgeText}>{option.badge}</Text>
-                                        </View>
-                                    )}
-                                    {isSecretAndDisabled && (
-                                        <Text style={{ ...Typography.caption, color: Colors.textMuted, marginTop: Spacing.xs }}>
-                                            Pick a specific reward to unlock mystery mode
-                                        </Text>
-                                    )}
-                                </View>
-                                {isActive && !isSecretAndDisabled && (
-                                    <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
-                                )}
+            {/* Secret mode card (default, prominent) */}
+            <MotiView
+                from={{ opacity: 0, translateY: 16 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 300 }}
+            >
+                <TouchableOpacity
+                    style={[styles.rewardChoice, revealMode === 'secret' && styles.rewardChoiceActive]}
+                    onPress={() => {
+                        setRevealMode('secret');
+                        setValidationErrors(prev => ({ ...prev, revealMode: false }));
+                    }}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Keep reward as a secret surprise"
+                >
+                    <View style={styles.rewardChoiceHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.rewardChoiceTitle, revealMode === 'secret' && styles.rewardChoiceTitleActive]}>Keep it a surprise</Text>
+                            <Text style={styles.rewardChoiceDesc}>
+                                The reward stays hidden. They'll receive hints with every session, building anticipation until the big reveal.
+                            </Text>
+                            <View style={styles.revealBadge}>
+                                <Text style={styles.revealBadgeText}>Recommended</Text>
                             </View>
-                        </TouchableOpacity>
-                    </MotiView>
-                );
-            })}
+                        </View>
+                        {revealMode === 'secret' && (
+                            <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
+                        )}
+                    </View>
+                </TouchableOpacity>
+            </MotiView>
+
+            {/* Reveal escape hatch (small link) */}
+            <TouchableOpacity
+                style={{ paddingVertical: Spacing.md, alignItems: 'center' }}
+                onPress={() => {
+                    setRevealMode('revealed');
+                    setValidationErrors(prev => ({ ...prev, revealMode: false }));
+                }}
+                activeOpacity={0.7}
+            >
+                <Text style={{
+                    ...Typography.small,
+                    color: revealMode === 'revealed' ? colors.primary : colors.textMuted,
+                    textDecorationLine: revealMode === 'revealed' ? 'none' : 'underline',
+                }}>
+                    {revealMode === 'revealed' ? '\u2713 Reward will be revealed from day one' : 'Reveal the experience instead'}
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 
     // Payment step
+    // Default payment to payNow (Lock it in) for giver flows
+    useEffect(() => {
+        if (challengeType && !paymentChoice) {
+            setPaymentChoice('payNow');
+        }
+    }, [challengeType]);
+
     const renderPaymentStep = () => (
         <View style={styles.stepContent}>
             {validationErrors.paymentChoice && (
                 <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please choose an option to continue</Text>
+                    <Text style={styles.errorText}>Please choose a payment option</Text>
                 </View>
             )}
 
-            {/* Option A: Commit & pay later */}
+            {/* Option A: Lock it in (pay now) — default */}
             <TouchableOpacity
-                style={[styles.rewardChoice, paymentChoice === 'payLater' && styles.rewardChoiceActive]}
+                style={[styles.rewardChoice, paymentChoice === 'payNow' && styles.rewardChoiceActive]}
+                onPress={() => {
+                    setPaymentChoice('payNow');
+                    setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
+                }}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Lock it in, pay now"
+            >
+                <View style={styles.rewardChoiceHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>Lock it in</Text>
+                        <Text style={styles.rewardChoiceDesc}>
+                            Pay now. Experience secured immediately. They'll know you believe in them.
+                        </Text>
+                        <View style={styles.revealBadge}>
+                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>Recommended</Text>
+                        </View>
+                    </View>
+                    {paymentChoice === 'payNow' && (
+                        <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
+                    )}
+                </View>
+            </TouchableOpacity>
+
+            {/* Small escape hatch: pay on success */}
+            <TouchableOpacity
+                style={{ paddingVertical: Spacing.md, alignItems: 'center' }}
                 onPress={() => {
                     setPaymentChoice('payLater');
                     setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
                 }}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Commit and pay later"
+                activeOpacity={0.7}
             >
-                <View style={styles.rewardChoiceHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>Commit & pay later</Text>
-                        <Text style={styles.rewardChoiceDesc}>
-                            Save your payment method. Only charged when they succeed. Zero risk.
-                        </Text>
-                        <View style={styles.revealBadge}>
-                            <Text style={[styles.revealBadgeText, { color: Colors.warning }]}>Recommended</Text>
-                        </View>
-                    </View>
-                    {paymentChoice === 'payLater' && (
-                        <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
-                    )}
-                </View>
+                <Text style={{
+                    ...Typography.small,
+                    color: colors.textMuted,
+                    textDecorationLine: 'underline',
+                }}>
+                    Or save card & pay on success
+                </Text>
             </TouchableOpacity>
-
-            {/* Option C: Send free */}
-            <TouchableOpacity
-                style={[styles.rewardChoice, paymentChoice === 'free' && styles.rewardChoiceActive]}
-                onPress={() => {
-                    setPaymentChoice('free');
-                    setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
-                }}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Send challenge for free"
-            >
-                <View style={styles.rewardChoiceHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'free' && styles.rewardChoiceTitleActive]}>Send free</Text>
-                        <Text style={styles.rewardChoiceDesc}>
-                            Send the challenge without payment. Attach a reward later.
-                        </Text>
-                    </View>
-                    {paymentChoice === 'free' && (
-                        <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
-                    )}
-                </View>
-            </TouchableOpacity>
-
-            <Text style={styles.rewardChoiceNote}>All options are great — pick what works for you!</Text>
 
             {/* Motivational stat */}
             <View style={styles.statCard}>
                 <Text style={styles.statNumber}>Invest in their success.</Text>
                 <Text style={styles.statText}>
-                    When you commit upfront, you show them you believe in them.
+                    When you commit upfront, you show them you believe in them. They'll know someone is rooting for them.
                 </Text>
             </View>
         </View>
@@ -1065,7 +1391,7 @@ export default function GiftFlowScreen() {
                         </Text>
                         <Text style={styles.confirmSummaryRow}>
                             <Text style={styles.confirmSummaryLabel}>Per session: </Text>
-                            {hours || '0'}h {minutes || '0'}m
+                            {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
                         </Text>
                     </>
                 )}
@@ -1111,40 +1437,40 @@ export default function GiftFlowScreen() {
         if (currentStep === 1) return renderStep1();
 
         const confirmStep = getConfirmStep();
-        const revealStep = getRevealStep(); // only valid when hasRevealStep
+        const experienceStep = getExperienceStep();
+        const revealStep = getRevealStep();
+        const paymentStep = getPaymentStep();
 
         if (currentStep === confirmStep) return renderConfirmStep();
-        if (hasRevealStep && currentStep === revealStep) return renderRevealStep();
+        if (currentStep === revealStep) return renderRevealStep();
+        if (needsPaymentStep && currentStep === paymentStep) return renderPaymentStep();
+        if (currentStep === experienceStep) return renderExperienceStep();
 
         if (challengeType === 'shared') {
             switch (currentStep) {
-                case 2: return renderStep2Together();
-                case 3: return renderExperienceStep();
-                case 4: return renderPaymentStep();
-                default: return null;
-            }
-        } else {
-            // solo
-            switch (currentStep) {
-                case 2: return renderExperienceStep();
-                case 3: return renderPaymentStep();
+                case 2: return renderGoalTypeStepTogether();
+                case 3: return renderStep2Together();
+                case 4: return renderStep3Together();
                 default: return null;
             }
         }
+
+        return null;
     };
 
     // ─── Derived display values ───────────────────────────────────────────────
     const typeLabel = challengeType === 'shared' ? 'Together' : 'Just them';
 
     const getPaymentLabel = () => {
+        if (paymentChoice === 'payNow') return 'Paid upfront';
         if (paymentChoice === 'payLater') return 'Pay on success';
-        if (paymentChoice === 'free') return 'Free';
         return '';
     };
 
     const getCtaLabel = () => {
-        if (paymentChoice === 'payLater') return isSubmitting ? 'Sending...' : 'Commit & Send (pay on success)';
-        return isSubmitting ? 'Sending...' : 'Send Free Challenge';
+        if (isSubmitting) return 'Sending...';
+        if (paymentChoice === 'payNow') return 'Pay & Send';
+        return 'Commit & Send (pay on success)';
     };
 
     const userId = state.user?.id || '';
@@ -1167,7 +1493,7 @@ export default function GiftFlowScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Go back"
                     >
-                        <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                        <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Gift a Challenge</Text>
                     <View style={styles.stepIndicator}>
@@ -1237,6 +1563,14 @@ export default function GiftFlowScreen() {
                                             {selectedExperience.title}
                                         </Text>
                                     </View>
+                                    <TouchableOpacity
+                                        onPress={() => setDetailExperience(selectedExperience)}
+                                        style={styles.heroDetailsButton}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="View experience details"
+                                    >
+                                        <Text style={styles.heroDetailsText}>View details</Text>
+                                    </TouchableOpacity>
                                 </View>
 
                                 {challengeType && (
@@ -1282,13 +1616,13 @@ export default function GiftFlowScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={state.user?.id ? 'Send gift' : 'Sign up and send gift'}
                         >
-                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>
                                     {state.user?.id
-                                        ? (paymentChoice === 'payLater' ? 'Commit & Send' : 'Send Free Challenge')
+                                        ? (paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
                                         : 'Sign Up & Send Gift'}
                                 </Text>
-                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     ) : (
@@ -1299,9 +1633,9 @@ export default function GiftFlowScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Continue to next step"
                         >
-                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>Next</Text>
-                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     )}
@@ -1366,40 +1700,46 @@ export default function GiftFlowScreen() {
                         </View>
 
                         <Text style={styles.pledgeNote}>
-                            {paymentChoice === 'payLater'
-                                ? 'Your card will only be charged when they succeed.'
-                                : 'You can attach a reward to this challenge at any time.'}
+                            {paymentChoice === 'payNow'
+                                ? 'Experience will be secured immediately after payment.'
+                                : 'Your card will only be charged when they succeed.'}
                         </Text>
 
                         <View style={styles.modalButtons}>
-                            <TouchableOpacity
+                            <Button
+                                variant="ghost"
                                 onPress={() => setShowConfirm(false)}
-                                style={[styles.modalButton, styles.cancelButton]}
-                                activeOpacity={0.8}
                                 disabled={isSubmitting}
-                                accessibilityRole="button"
-                                accessibilityLabel="Cancel gift creation"
-                            >
-                                <Text style={styles.cancelText}>Cancel</Text>
-                            </TouchableOpacity>
+                                title="Cancel"
+                                style={styles.modalButton}
+                            />
 
                             <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
-                                <TouchableOpacity
+                                <Button
+                                    variant="primary"
                                     onPress={confirmCreateGoal}
-                                    style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
-                                    activeOpacity={0.8}
-                                    disabled={isSubmitting}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={isSubmitting ? 'Sending gift' : getCtaLabel()}
-                                >
-                                    <Text style={styles.confirmText}>
-                                        {getCtaLabel()}
-                                    </Text>
-                                </TouchableOpacity>
+                                    loading={isSubmitting}
+                                    title={getCtaLabel()}
+                                    fullWidth
+                                    style={styles.modalButton}
+                                />
                             </Animated.View>
                         </View>
                     </View>
                 </BaseModal>
+
+                {/* Experience Detail Modal */}
+                <ExperienceDetailModal
+                    visible={!!detailExperience}
+                    experience={detailExperience}
+                    onClose={() => setDetailExperience(null)}
+                    onSelect={(exp) => {
+                        setSelectedExperience(exp);
+                        setPreferredRewardCategory(null);
+                        setValidationErrors(prev => ({ ...prev, experience: false }));
+                    }}
+                    isSelected={selectedExperience?.id === detailExperience?.id}
+                />
             </View>
             </KeyboardAvoidingView>
         </ErrorBoundary>
@@ -1407,10 +1747,10 @@ export default function GiftFlowScreen() {
 }
 
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
     },
     header: {
         flexDirection: 'row',
@@ -1419,24 +1759,24 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
         paddingBottom: vh(14),
         paddingHorizontal: Spacing.xl,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
+        borderBottomColor: colors.backgroundLight,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     headerTitle: {
         ...Typography.heading3,
-        color: Colors.gray800,
+        color: colors.gray800,
     },
     stepIndicator: {
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.md,
@@ -1444,7 +1784,7 @@ const styles = StyleSheet.create({
     stepIndicatorText: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.primary,
+        color: colors.primary,
     },
 
     // Step content
@@ -1459,12 +1799,12 @@ const styles = StyleSheet.create({
     stepTitle: {
         ...Typography.heading1,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: vh(8),
     },
     stepSubtitle: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: vh(24),
     },
     stepContent: {
@@ -1474,32 +1814,65 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.xl,
     },
 
+    // Goal type grid (Together step 2)
+    goalTypeGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: Spacing.md,
+        justifyContent: 'center',
+    },
+    goalTypeCard: {
+        width: '45%',
+        backgroundColor: colors.white,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.border,
+    },
+    goalTypeCardActive: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySurface,
+    },
+    goalTypeEmoji: {
+        fontSize: 32,
+        marginBottom: Spacing.sm,
+    },
+    goalTypeName: {
+        ...Typography.bodyBold,
+        color: colors.textPrimary,
+        textAlign: 'center',
+    },
+    goalTypeNameActive: {
+        color: colors.primary,
+    },
+
     // Error
     errorBanner: {
-        backgroundColor: Colors.errorLight,
+        backgroundColor: colors.errorLight,
         borderRadius: BorderRadius.md,
         paddingVertical: Spacing.sm,
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.errorBorder,
+        borderColor: colors.errorBorder,
     },
     errorText: {
         ...Typography.smallBold,
-        color: Colors.error,
+        color: colors.error,
     },
 
     // Sliders
     sliderContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         padding: Spacing.xxl,
         borderWidth: 1,
-        borderColor: Colors.backgroundLight,
+        borderColor: colors.backgroundLight,
     },
     sliderTitle: {
         ...Typography.smallBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: vh(6),
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -1513,11 +1886,11 @@ const styles = StyleSheet.create({
     sliderValue: {
         ...Typography.display,
         fontWeight: '900',
-        color: Colors.gray800,
+        color: colors.gray800,
     },
     sliderUnit: {
         ...Typography.heading3,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     sliderLabels: {
         flexDirection: 'row',
@@ -1527,18 +1900,18 @@ const styles = StyleSheet.create({
     sliderLabelText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     sliderTrack: {
         height: 8,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
         borderRadius: BorderRadius.xs,
         position: 'relative',
         width: '100%',
     },
     sliderProgress: {
         height: '100%',
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         borderRadius: BorderRadius.xs,
     },
     sliderThumb: {
@@ -1548,10 +1921,10 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
@@ -1561,7 +1934,7 @@ const styles = StyleSheet.create({
         width: 12,
         height: 12,
         borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
 
     // Time inputs
@@ -1577,26 +1950,26 @@ const styles = StyleSheet.create({
     timeInput: {
         width: 60,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderRadius: BorderRadius.md,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
         ...Typography.heading3,
         fontWeight: '700',
         textAlign: 'center',
-        backgroundColor: Colors.white,
-        color: Colors.gray800,
+        backgroundColor: colors.white,
+        color: colors.gray800,
     },
     timeLabel: {
         ...Typography.bodyBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // Experience cards
     expCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderWidth: 2,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderRadius: BorderRadius.lg,
         padding: Spacing.md,
         marginRight: Spacing.md,
@@ -1605,16 +1978,28 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     expCardActive: {
-        borderColor: Colors.primary,
-        backgroundColor: Colors.primarySurface,
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySurface,
     },
     expIconBox: {
         width: '100%',
         height: vh(100),
         borderRadius: BorderRadius.lg,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         overflow: 'hidden',
         marginBottom: Spacing.sm,
+    },
+    expInfoButton: {
+        position: 'absolute',
+        top: Spacing.md + 4,
+        left: Spacing.md + 4,
+        width: 26,
+        height: 26,
+        borderRadius: BorderRadius.circle,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
     },
     expImage: {
         width: '100%',
@@ -1629,11 +2014,11 @@ const styles = StyleSheet.create({
     expTitle: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     },
     expTitleActive: {
-        color: Colors.primary,
+        color: colors.primary,
     },
     expMeta: {
         flexDirection: 'row',
@@ -1643,11 +2028,11 @@ const styles = StyleSheet.create({
     },
     expPrice: {
         ...Typography.captionBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
     expLocation: {
         ...Typography.tiny,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         flex: 1,
     },
     checkBadge: {
@@ -1657,7 +2042,7 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1671,16 +2056,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.xl,
         paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
         paddingTop: vh(14),
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderTopWidth: 1,
-        borderTopColor: Colors.backgroundLight,
+        borderTopColor: colors.backgroundLight,
         ...Shadows.md,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: -4 },
     },
     createButton: {
         borderRadius: BorderRadius.lg,
-        shadowColor: Colors.primary,
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -1697,18 +2082,18 @@ const styles = StyleSheet.create({
     createButtonText: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.white,
+        color: colors.white,
     },
 
     // Footer hero card
     footerHeroCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         padding: Spacing.md,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.backgroundLight,
-        shadowColor: Colors.black,
+        borderColor: colors.backgroundLight,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 6,
@@ -1722,7 +2107,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: BorderRadius.lg,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         overflow: 'hidden',
     },
     heroImage: {
@@ -1733,16 +2118,25 @@ const styles = StyleSheet.create({
         flex: 1,
         marginLeft: Spacing.lg,
     },
+    heroDetailsButton: {
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+    },
+    heroDetailsText: {
+        ...Typography.caption,
+        fontWeight: '600',
+        color: colors.primary,
+    },
     footerHeroTitle: {
         ...Typography.subheading,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
     heroContextRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.sm,
         padding: Spacing.sm,
         marginTop: Spacing.sm,
@@ -1759,65 +2153,65 @@ const styles = StyleSheet.create({
     contextText: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.gray600,
+        color: colors.gray600,
     },
     contextDivider: {
         width: 1,
         height: 16,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     contextLabel: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // Modal
     modalBox: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         width: '90%',
         maxWidth: 360,
         paddingVertical: Spacing.xxl,
         paddingHorizontal: Spacing.xl,
         ...Shadows.md,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOpacity: 0.15,
         alignItems: 'center',
     },
     modalTitle: {
         ...Typography.large,
-        color: Colors.primaryDeep,
+        color: colors.primaryDeep,
         marginBottom: Spacing.sm,
     },
     modalSubtitle: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: Spacing.xl,
         textAlign: 'center',
     },
     modalDetails: {
         width: '100%',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         paddingVertical: Spacing.md,
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     modalRow: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         marginBottom: Spacing.xs,
     },
     modalLabel: {
         fontWeight: '600',
-        color: Colors.primaryDeep,
+        color: colors.primaryDeep,
     },
     pledgeNote: {
         ...Typography.caption,
-        color: Colors.successMedium,
+        color: colors.successMedium,
         textAlign: 'center',
         marginBottom: Spacing.lg,
         fontStyle: 'italic',
@@ -1835,18 +2229,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     confirmButton: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
     cancelText: {
         ...Typography.subheading,
-        color: Colors.gray700,
+        color: colors.gray700,
     },
     confirmText: {
         ...Typography.subheading,
-        color: Colors.white,
+        color: colors.white,
     },
 
     // Carousel filter chips
@@ -1870,18 +2264,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.xl,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         marginLeft: Spacing.xs,
     },
     filterChipActive: {
-        backgroundColor: Colors.gray800,
+        backgroundColor: colors.gray800,
     },
     filterText: {
         ...Typography.captionBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     filterTextActive: {
-        color: Colors.white,
+        color: colors.white,
     },
     categoryFadeIndicator: {
         position: 'absolute',
@@ -1899,7 +2293,7 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         width: 52,
-        backgroundColor: 'rgba(249, 250, 251, 0.92)',
+        backgroundColor: colors.surfaceFrosted92,
     },
     cardScroll: {
         marginTop: Spacing.xs,
@@ -1923,7 +2317,7 @@ const styles = StyleSheet.create({
     },
     categorySectionTitle: {
         ...Typography.subheading,
-        color: Colors.gray800,
+        color: colors.gray800,
         flex: 1,
     },
     categorySectionBadge: {
@@ -1939,14 +2333,14 @@ const styles = StyleSheet.create({
     rewardCategoryCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         padding: Spacing.xl,
         marginBottom: Spacing.md,
         borderWidth: 1.5,
-        borderColor: Colors.backgroundLight,
+        borderColor: colors.backgroundLight,
         ...Shadows.sm,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 1 },
     },
     rewardCategoryEmoji: {
@@ -1956,12 +2350,12 @@ const styles = StyleSheet.create({
     rewardCategoryLabel: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
     rewardCategoryTagline: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     rewardCategoryCheck: {
         width: 26,
@@ -1975,7 +2369,7 @@ const styles = StyleSheet.create({
     // Reveal badge (Secret "Surprise factor" pill)
     revealBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: Colors.categoryAmber + '20',
+        backgroundColor: colors.categoryAmber + '20',
         borderRadius: BorderRadius.sm,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,
@@ -1983,7 +2377,7 @@ const styles = StyleSheet.create({
     },
     revealBadgeText: {
         ...Typography.tiny,
-        color: Colors.categoryAmber,
+        color: colors.categoryAmber,
         fontWeight: '700',
     },
 
@@ -1994,7 +2388,7 @@ const styles = StyleSheet.create({
     },
     browseLinkText: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         marginBottom: Spacing.xs,
     },
     browseLinkAction: {
@@ -2004,7 +2398,7 @@ const styles = StyleSheet.create({
     },
     browseLinkActionText: {
         ...Typography.smallBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
     browseBackButton: {
         flexDirection: 'row',
@@ -2014,21 +2408,39 @@ const styles = StyleSheet.create({
     },
     browseBackText: {
         ...Typography.smallBold,
-        color: Colors.primary,
+        color: colors.primary,
+    },
+    helpChoosingCard: {
+        backgroundColor: colors.primarySurface,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        marginBottom: Spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.primaryBorder,
+    },
+    helpChoosingTitle: {
+        ...Typography.subheading,
+        color: colors.primary,
+        marginBottom: Spacing.xxs,
+    },
+    helpChoosingDesc: {
+        ...Typography.small,
+        color: colors.textSecondary,
+        marginBottom: Spacing.md,
     },
 
     // Payment step
     rewardChoice: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         padding: Spacing.lg,
         borderWidth: 2,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         marginBottom: vh(10),
     },
     rewardChoiceActive: {
-        borderColor: Colors.primary,
-        backgroundColor: Colors.primarySurface,
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySurface,
     },
     rewardChoiceHeader: {
         flexDirection: 'row',
@@ -2037,28 +2449,28 @@ const styles = StyleSheet.create({
     },
     rewardChoiceTitle: {
         ...Typography.subheading,
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
     rewardChoiceTitleActive: {
-        color: Colors.primary,
+        color: colors.primary,
     },
     rewardChoiceDesc: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         lineHeight: 18,
     },
     rewardChoiceCheck: {
         width: 24,
         height: 24,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     rewardChoiceNote: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         textAlign: 'center',
         marginTop: Spacing.xs,
         fontStyle: 'italic',
@@ -2066,44 +2478,44 @@ const styles = StyleSheet.create({
 
     // Confirm step summary card
     confirmSummaryCard: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         paddingVertical: Spacing.md,
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.xl,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     confirmSummaryRow: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         marginBottom: Spacing.xs,
     },
     confirmSummaryLabel: {
         fontWeight: '600',
-        color: Colors.primaryDeep,
+        color: colors.primaryDeep,
     },
 
     // Motivational stat card
     statCard: {
-        backgroundColor: Colors.successLighter,
+        backgroundColor: colors.successLighter,
         borderRadius: BorderRadius.md,
         padding: Spacing.md,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.successBorder,
+        borderColor: colors.successBorder,
         marginTop: vh(16),
         marginBottom: 0,
     },
     statNumber: {
         ...Typography.heading2,
         fontWeight: '800',
-        color: Colors.primary,
+        color: colors.primary,
         marginBottom: Spacing.xxs,
     },
     statText: {
         ...Typography.caption,
-        color: Colors.gray700,
+        color: colors.gray700,
         textAlign: 'center',
     },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   View,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';
@@ -42,6 +42,9 @@ export const BaseModal = React.memo<BaseModalProps>(({
   noPadding = false,
   style,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const slideAnim = useModalAnimation(visible, {
     initialValue: variant === 'bottom' ? SCREEN_HEIGHT : 300,
     toValue: 0,
@@ -88,7 +91,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
                   accessibilityLabel="Close"
                   accessibilityRole="button"
                 >
-                  <X size={22} color={Colors.textSecondary} />
+                  <X size={22} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -109,59 +112,60 @@ export const BaseModal = React.memo<BaseModalProps>(({
 
 BaseModal.displayName = 'BaseModal';
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.overlayLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
-    width: '90%',
-    maxHeight: '85%',
-    ...Shadows.lg,
-  },
-  bottomContainer: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: BorderRadius.xxl,
-    borderTopRightRadius: BorderRadius.xxl,
-    width: '100%',
-    maxHeight: '85%',
-    position: 'absolute',
-    bottom: 0,
-    ...Shadows.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.screenPadding,
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: {
-    ...Typography.heading3,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  closeButton: {
-    padding: Spacing.xs,
-  },
-  content: {
-    padding: Spacing.screenPadding,
-  },
-  dragHandle: {
-    alignItems: 'center',
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-  },
-  dragHandlePill: {
-    width: 36,
-    height: 4,
-    borderRadius: BorderRadius.xs,
-    backgroundColor: Colors.gray300,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.overlayLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    centerContainer: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.xl,
+      width: '90%',
+      maxHeight: '85%',
+      ...Shadows.lg,
+    },
+    bottomContainer: {
+      backgroundColor: colors.white,
+      borderTopLeftRadius: BorderRadius.xxl,
+      borderTopRightRadius: BorderRadius.xxl,
+      width: '100%',
+      maxHeight: '85%',
+      position: 'absolute',
+      bottom: 0,
+      ...Shadows.lg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.screenPadding,
+      paddingVertical: Spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      ...Typography.heading3,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    closeButton: {
+      padding: Spacing.xs,
+    },
+    content: {
+      padding: Spacing.screenPadding,
+    },
+    dragHandle: {
+      alignItems: 'center',
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.xs,
+    },
+    dragHandlePill: {
+      width: 36,
+      height: 4,
+      borderRadius: BorderRadius.xs,
+      backgroundColor: colors.gray300,
+    },
+  });

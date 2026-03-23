@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { friendService } from '../services/FriendService';
 import { notificationService } from '../services/NotificationService';
 import { Timestamp } from 'firebase/firestore';
 import { logger } from '../utils/logger';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { useToast } from '../context/ToastContext';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +28,8 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
   const [isHandling, setIsHandling] = useState(false);
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleAccept = async () => {
     if (!notification.data?.friendRequestId) return;
@@ -109,7 +111,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           accessibilityLabel="Decline friend request"
         >
           {isHandling ? (
-            <ActivityIndicator size="small" color={Colors.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={styles.declineButtonText}>Decline</Text>
           )}
@@ -123,7 +125,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           accessibilityLabel="Accept friend request"
         >
           {isHandling ? (
-            <ActivityIndicator size="small" color={Colors.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={styles.acceptButtonText}>Accept</Text>
           )}
@@ -133,83 +135,84 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.info,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    ...Typography.subheading,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xxs,
-  },
-  userCountry: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-  },
-  timestamp: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-  },
-  messageContainer: {
-    marginBottom: Spacing.lg,
-  },
-  message: {
-    ...Typography.small,
-    color: Colors.gray700,
-    lineHeight: 20,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: Spacing.xxxl,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptButton: {
-    backgroundColor: Colors.approveLight,
-    marginRight: Spacing.xxl,
-  },
-  acceptButtonText: {
-    color: Colors.approveDark,
-    ...Typography.small,
-    fontWeight: '600',
-  },
-  declineButton: {
-    backgroundColor: Colors.declineLight,
-    marginLeft: Spacing.xxl,
-  },
-  declineButtonText: {
-    color: Colors.declineDark,
-    ...Typography.small,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      marginBottom: Spacing.md,
+      ...Shadows.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.info,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: Spacing.md,
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    userDetails: {
+      flex: 1,
+    },
+    userName: {
+      ...Typography.subheading,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xxs,
+    },
+    userCountry: {
+      ...Typography.small,
+      color: colors.textSecondary,
+    },
+    timestamp: {
+      ...Typography.caption,
+      color: colors.textMuted,
+    },
+    messageContainer: {
+      marginBottom: Spacing.lg,
+    },
+    message: {
+      ...Typography.small,
+      color: colors.gray700,
+      lineHeight: 20,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      gap: Spacing.xxxl,
+    },
+    button: {
+      flex: 1,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    acceptButton: {
+      backgroundColor: colors.approveLight,
+      marginRight: Spacing.xxl,
+    },
+    acceptButtonText: {
+      color: colors.approveDark,
+      ...Typography.small,
+      fontWeight: '600',
+    },
+    declineButton: {
+      backgroundColor: colors.declineLight,
+      marginLeft: Spacing.xxl,
+    },
+    declineButtonText: {
+      color: colors.declineDark,
+      ...Typography.small,
+      fontWeight: '600',
+    },
+  });
 
 export default FriendRequestNotification;

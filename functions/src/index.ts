@@ -15,6 +15,7 @@ import { sendBookingReminders_Test } from "./scheduled/sendBookingReminders_Test
 import { createFreeGift_Test } from "./createFreeGift_Test";
 import { createDeferredGift_Test } from "./createDeferredGift_Test";
 import { chargeDeferredGift_Test } from "./triggers/chargeDeferredGift_Test";
+import { deleteGoal_Test } from "./deleteGoal_Test";
 // Production functions
 import { stripeCreatePaymentIntent } from "./stripeCreatePaymentIntent";
 import { getGiftsByPaymentIntent } from "./getGiftsByPaymentIntent";
@@ -64,6 +65,7 @@ export {
     createFreeGift_Test,
     createDeferredGift_Test,
     chargeDeferredGift_Test,
+    deleteGoal_Test,
     // Production
     stripeCreatePaymentIntent,
     getGiftsByPaymentIntent,
@@ -84,3 +86,12 @@ export {
 export { createExperience } from "./createExperience";
 export { updateExperience } from "./updateExperience";
 export { deleteExperience } from "./deleteExperience";
+export { deleteGoal } from "./deleteGoal";
+
+// B2B functions (ernitxfi database)
+export { b2bCreateCompany } from "./b2bCreateCompany";
+export { b2bInviteEmployee } from "./b2bInviteEmployee";
+export { b2bAcceptInvite } from "./b2bAcceptInvite";
+export { b2bCreateGoal } from "./b2bCreateGoal";
+export { b2bLogSession } from "./b2bLogSession";
+export { b2bGoalMilestone } from "./b2bGoalMilestone";

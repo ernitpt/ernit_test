@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ernit for Teams | Transforme objetivos da empresa em recompensas reais</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --surface-alt: #f4f3f0;
+      --ink: #1a1a1a;
+      --ink-soft: #5c5c5c;
+      --ink-muted: #8a8a8a;
+      --accent: #0d9465;
+      --accent-light: #12b87e;
+      --accent-glow: rgba(13, 148, 101, 0.12);
+      --accent-surface: #eefbf4;
+      --dark: #111111;
+      --dark-soft: #1c1c1c;
+      --dark-border: #2a2a2a;
+      --border: #e5e4e1;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 36px 44px 28px;
+    }
+
+    /* ═══════ ICONS (uniform stroke style) ═══════ */
+    .icon-svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    /* ═══════ HEADER ═══════ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .brand-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--ink);
+    }
+
+    .brand-name span {
+      font-weight: 400;
+      color: var(--ink-muted);
+      margin-left: 2px;
+    }
+
+    .header-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--ink-muted);
+      border: 1px solid var(--border);
+      padding: 5px 14px;
+      border-radius: 100px;
+    }
+
+    /* ═══════ HERO ═══════ */
+    .hero {
+      background: var(--dark);
+      border-radius: 16px;
+      padding: 36px 40px 32px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle at center, rgba(13, 148, 101, 0.18) 0%, transparent 65%);
+      transform: translate(40%, -40%);
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    .hero-overline {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--accent-light);
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-overline::before {
+      content: '';
+      width: 16px;
+      height: 1px;
+      background: var(--accent-light);
+    }
+
+    .hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.15;
+      letter-spacing: -0.8px;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent-light);
+    }
+
+    .hero-body {
+      font-size: 13.5px;
+      color: #9a9a9a;
+      line-height: 1.65;
+      position: relative;
+      z-index: 1;
+      max-width: 560px;
+    }
+
+    /* ═══════ STEPS ═══════ */
+    .steps-section {
+      margin-bottom: 24px;
+    }
+
+    .section-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--ink-muted);
+      margin-bottom: 14px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 14px 14px;
+      text-align: center;
+      position: relative;
+    }
+
+    .step-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-surface);
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .step-icon svg {
+      stroke: var(--accent);
+    }
+
+    .step-num {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--border);
+    }
+
+    .step h4 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 3px;
+    }
+
+    .step p {
+      font-size: 10.5px;
+      color: var(--ink-muted);
+      line-height: 1.4;
+    }
+
+    .step-connector {
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      color: var(--border);
+    }
+
+    .step-connector svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--ink-muted);
+      stroke-width: 2;
+    }
+
+    /* ═══════ SHOWCASE ═══════ */
+    .showcase {
+      margin-bottom: 24px;
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .showcase-card {
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: box-shadow 0.25s ease;
+    }
+
+    .showcase-card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+
+    .showcase-img-wrap {
+      position: relative;
+      height: 96px;
+      overflow: hidden;
+    }
+
+    .showcase-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .showcase-img-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.35), transparent 50%);
+    }
+
+    .showcase-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 8px;
+      z-index: 2;
+      font-family: 'Outfit', sans-serif;
+      font-size: 8.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #fff;
+      background: rgba(13, 148, 101, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .showcase-body {
+      padding: 12px 12px 10px;
+    }
+
+    .showcase-kpi {
+      font-family: 'Outfit', sans-serif;
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .showcase-exp {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .showcase-desc {
+      font-size: 10.5px;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+
+    .showcase-note {
+      font-size: 11px;
+      color: var(--ink-soft);
+      font-style: italic;
+      text-align: center;
+      padding-top: 4px;
+    }
+
+    /* ═══════ FEATURES ═══════ */
+    .features-section {
+      margin-bottom: 24px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 13px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.2s;
+    }
+
+    .feature:hover {
+      border-color: var(--accent);
+    }
+
+    .feat-icon {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      background: var(--accent-surface);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feat-icon svg {
+      stroke: var(--accent);
+    }
+
+    .feature h4 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      font-family: 'Outfit', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent);
+      background: var(--accent-surface);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .feature p {
+      font-size: 10.5px;
+      color: var(--ink-muted);
+      line-height: 1.4;
+    }
+
+    /* ═══════ PILOT ═══════ */
+    .pilot {
+      background: var(--dark);
+      border-radius: 14px;
+      padding: 26px 28px 22px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .pilot::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(13, 148, 101, 0.12) 0%, transparent 65%);
+      transform: translate(30%, 30%);
+    }
+
+    .pilot-left, .pilot-right {
+      position: relative;
+      z-index: 1;
+    }
+
+    .pilot-overline {
+      font-family: 'Outfit', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent-light);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pilot-overline::before {
+      content: '';
+      width: 10px;
+      height: 1px;
+      background: var(--accent-light);
+    }
+
+    .pilot h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    .pilot-desc {
+      font-size: 12px;
+      color: #8a8a8a;
+      line-height: 1.6;
+    }
+
+    .pilot-desc strong {
+      color: var(--accent-light);
+    }
+
+    .pilot-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat {
+      background: var(--dark-soft);
+      border: 1px solid var(--dark-border);
+      border-radius: 10px;
+      padding: 14px 14px 12px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #6a6a6a;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-value.green {
+      color: var(--accent-light);
+    }
+
+    /* ═══════ WHY ═══════ */
+    .why-section {
+      margin-bottom: 22px;
+    }
+
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .why-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px 14px;
+      text-align: center;
+    }
+
+    .why-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--accent-surface);
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .why-icon svg {
+      stroke: var(--accent);
+    }
+
+    .why-card h4 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .why-card p {
+      font-size: 10.5px;
+      color: var(--ink-muted);
+      line-height: 1.45;
+    }
+
+    /* ═══════ FOOTER ═══════ */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-left p {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.3px;
+    }
+
+    .footer-left p em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .footer-left .footer-sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    .footer-right {
+      text-align: right;
+    }
+
+    .footer-contact {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .footer-contact svg {
+      stroke: var(--accent);
+    }
+
+    .footer-site {
+      font-size: 10px;
+      color: var(--ink-muted);
+      margin-top: 3px;
+    }
+
+    /* ═══════ PRINT ═══════ */
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff; }
+      .page { padding: 16px 24px; max-width: 100%; }
+      .feature:hover, .showcase-card:hover { border-color: var(--border); box-shadow: none; }
+      @page { size: A4; margin: 8mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo">
+          <img src="src/assets/icon.png" alt="Ernit logo">
+        </div>
+        <div class="brand-name">Ernit <span>for Teams</span></div>
+      </div>
+      <div class="header-label">Proposta Piloto</div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-overline">Plataforma de Objetivos Gamificados</div>
+      <h1>Os seus KPIs merecem mais do que uma <em>folha de Excel.</em></h1>
+      <p class="hero-body">Os objetivos e KPIs da empresa sofrem de baixo envolvimento e pouca consistência. Os programas de incentivo tradicionais parecem transacionais. A Ernit transforma os objetivos da empresa numa jornada partilhada, onde os colaboradores acompanham o progresso semanal, motivam-se em equipa e desbloqueiam experiências reais quando cumprem as metas.</p>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="steps-section">
+      <div class="section-label">Como Funciona</div>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">01</span>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
+          <h4>Definir</h4>
+          <p>A empresa define os KPIs com duração e metas semanais</p>
+          <span class="step-connector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
+        </div>
+        <div class="step">
+          <span class="step-num">02</span>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <h4>Registar</h4>
+          <p>Colaboradores registam o progresso semanal, criando sequências</p>
+          <span class="step-connector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
+        </div>
+        <div class="step">
+          <span class="step-num">03</span>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h4>Motivar</h4>
+          <p>Colegas reagem, motivam e celebram no feed da equipa</p>
+          <span class="step-connector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
+        </div>
+        <div class="step">
+          <span class="step-num">04</span>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </div>
+          <h4>Recompensar</h4>
+          <p>Meta atingida, experiência desbloqueada, colaborador desfruta</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHOWCASE -->
+    <section class="showcase">
+      <div class="section-label">Objetivo KPI → Recompensa em Experiência</div>
+      <div class="showcase-grid">
+        <div class="showcase-card">
+          <div class="showcase-img-wrap">
+            <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=200&fit=crop&crop=center" alt="Aventura na montanha">
+            <span class="showcase-badge">Aventura</span>
+          </div>
+          <div class="showcase-body">
+            <div class="showcase-kpi">Atingir Meta de Vendas Q1</div>
+            <div class="showcase-exp">Aventura na Montanha</div>
+            <div class="showcase-desc">Experiência de caminhada guiada com a equipa</div>
+          </div>
+        </div>
+        <div class="showcase-card">
+          <div class="showcase-img-wrap">
+            <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=200&fit=crop&crop=center" alt="Jantar gourmet">
+            <span class="showcase-badge">Gastronomia</span>
+          </div>
+          <div class="showcase-body">
+            <div class="showcase-kpi">Concluir Certificação</div>
+            <div class="showcase-exp">Experiência Gastronómica</div>
+            <div class="showcase-desc">Menu de degustação num restaurante de referência</div>
+          </div>
+        </div>
+        <div class="showcase-card">
+          <div class="showcase-img-wrap">
+            <img src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=200&fit=crop&crop=center" alt="Workshop criativo">
+            <span class="showcase-badge">Criativo</span>
+          </div>
+          <div class="showcase-body">
+            <div class="showcase-kpi">Entregar Marco do Projeto</div>
+            <div class="showcase-exp">Workshop Criativo</div>
+            <div class="showcase-desc">Aula prática de culinária ou cerâmica</div>
+          </div>
+        </div>
+      </div>
+      <div class="showcase-note">Procuramos experiências adaptadas às preferências da sua equipa. Diga-nos o que inspira os seus colaboradores.</div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features-section">
+      <div class="section-label">Funcionalidades da Plataforma</div>
+      <div class="features">
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div>
+            <h4>KPIs Definidos pela Empresa</h4>
+            <p>Metas de vendas, certificações, marcos de projeto, onboarding. Qualquer objetivo mensurável</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <polyline points="20 12 20 22 4 22 4 12"/>
+              <rect x="2" y="7" width="20" height="5"/>
+              <line x1="12" y1="22" x2="12" y2="7"/>
+              <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+              <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Experiências como Recompensa</h4>
+            <p>A empresa escolhe as experiências que os colaboradores desbloqueiam ao atingir os objetivos</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Desafios de Equipa</h4>
+            <p>Pares ou grupos trabalham em KPIs partilhados. Recompensas só desbloqueiam quando todos entregam</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Feed Social e Motivação</h4>
+            <p>Celebrações de progresso, reações e encorajamento. Constrói cultura de equipa</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Sistema de Dicas com IA</h4>
+            <p>Pistas divertidas sobre a recompensa criam expectativa à medida que os colaboradores progridem</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Pagamento por Conclusão</h4>
+            <p>Zero custos iniciais. A empresa paga apenas quando os colaboradores atingem as metas</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Dashboard de RH <span class="badge">Em Breve</span></h4>
+            <p>Métricas de envolvimento, taxas de conclusão e desempenho da equipa</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <circle cx="12" cy="8" r="7"/>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            </svg>
+          </div>
+          <div>
+            <h4>Leaderboards <span class="badge">Em Breve</span></h4>
+            <p>Visibilidade do progresso individual e da equipa para competição saudável</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PILOT -->
+    <section class="pilot">
+      <div class="pilot-left">
+        <div class="pilot-overline">Proposta Piloto</div>
+        <h3>Teste sem risco.<br>Pague apenas por resultados.</h3>
+        <p class="pilot-desc"><strong>Feito para se adaptar.</strong> Como startup em fase inicial, construímos à medida das suas necessidades. Tipos de KPI personalizados, integrações e fluxos desenhados para a sua equipa. Diga-nos o que precisa, nós fazemos acontecer.</p>
+      </div>
+      <div class="pilot-right">
+        <div class="pilot-stats">
+          <div class="stat">
+            <div class="stat-label">Equipa</div>
+            <div class="stat-value">5 a 10</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Duração</div>
+            <div class="stat-value">1 a 3 meses</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Plataforma</div>
+            <div class="stat-value green">Gratuita</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Experiências</div>
+            <div class="stat-value green">Paga ao concluir</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY -->
+    <section class="why-section">
+      <div class="section-label">Porquê a Ernit</div>
+      <div class="why-grid">
+        <div class="why-card">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <h4>Experiências Reais</h4>
+          <p>Recompensas tangíveis que os colaboradores realmente querem. Não pontos ou crachás</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h4>Responsabilidade Social</h4>
+          <p>Visibilidade e encorajamento da equipa impulsionam taxas de conclusão mais altas</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">
+            <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h4>Risco Zero</h4>
+          <p>Investe apenas quando os colaboradores entregam resultados reais</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-left">
+        <p>Vamos construir isto <em>juntos.</em></p>
+        <div class="footer-sub">Pronto para transformar os objetivos da sua equipa em experiências inesquecíveis?</div>
+      </div>
+      <div class="footer-right">
+        <a href="mailto:raul@ernit.app" class="footer-contact">
+          <svg viewBox="0 0 24 24" class="icon-svg" stroke="currentColor" style="width:16px;height:16px;">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          raul@ernit.app
+        </a>
+        <div class="footer-site">ernit.app · Objetivos Gamificados para Equipas</div>
+      </div>
+    </footer>
+
+  </div>
+</body>
+</html>

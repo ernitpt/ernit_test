@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
 import { Goal, PersonalizedHint } from '../types';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -27,6 +27,8 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
     goal,
     onClose,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const hints = goal.hints || [];
 
     const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
@@ -69,11 +71,11 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
                     <View style={styles.hintHeader}>
                         <View style={styles.hintTypeIcon}>
                             {pHint.type === 'audio' || pHint.type === 'mixed' ? (
-                                <Mic size={16} color={Colors.primary} />
+                                <Mic size={16} color={colors.primary} />
                             ) : pHint.type === 'image' ? (
-                                <ImageIcon size={16} color={Colors.primary} />
+                                <ImageIcon size={16} color={colors.primary} />
                             ) : (
-                                <MessageCircle size={16} color={Colors.primary} />
+                                <MessageCircle size={16} color={colors.primary} />
                             )}
                         </View>
                         <View style={{ flex: 1 }}>
@@ -95,7 +97,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
 
                     {pHint.audioUrl && (
                         <View style={styles.audioIndicator}>
-                            <Mic size={16} color={Colors.textSecondary} />
+                            <Mic size={16} color={colors.textSecondary} />
                             <Text style={styles.audioText}>
                                 Voice message{pHint.duration ? ` (${pHint.duration}s)` : ''}
                             </Text>
@@ -110,13 +112,13 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
                 <View key={index} style={styles.hintCard}>
                     <View style={styles.hintHeader}>
                         <View style={styles.hintTypeIcon}>
-                            <MessageCircle size={16} color={Colors.primary} />
+                            <MessageCircle size={16} color={colors.primary} />
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.sessionLabel}>Session {legacyHint.session}</Text>
                             <Text style={styles.dateText}>{formatDate(legacyHint.date)}</Text>
                         </View>
-                        <View style={[styles.typeBadge, { backgroundColor: Colors.infoLight }]}>
+                        <View style={[styles.typeBadge, { backgroundColor: colors.infoLight }]}>
                             <Text style={styles.typeBadgeText}>text</Text>
                         </View>
                     </View>
@@ -129,13 +131,13 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
     const getTypeBadgeColor = (type: string) => {
         switch (type) {
             case 'audio':
-                return Colors.warningLight;
+                return colors.warningLight;
             case 'image':
-                return Colors.infoLight;
+                return colors.infoLight;
             case 'mixed':
-                return Colors.primarySurface;
+                return colors.primarySurface;
             default:
-                return Colors.infoLight;
+                return colors.infoLight;
         }
     };
 
@@ -161,10 +163,10 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     subtitle: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         paddingHorizontal: Spacing.xxl,
         marginBottom: Spacing.xl,
     },
@@ -172,12 +174,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.xxl,
     },
     hintCard: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         padding: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     hintHeader: {
         flexDirection: 'row',
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: Spacing.md,
@@ -196,12 +198,12 @@ const styles = StyleSheet.create({
     sessionLabel: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         marginBottom: Spacing.xxs,
     },
     dateText: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     typeBadge: {
         paddingHorizontal: Spacing.sm,
@@ -211,12 +213,12 @@ const styles = StyleSheet.create({
     typeBadgeText: {
         ...Typography.tiny,
         fontWeight: '600',
-        color: Colors.gray600,
+        color: colors.gray600,
         textTransform: 'uppercase',
     },
     hintText: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         lineHeight: 22,
     },
     hintImage: {
@@ -224,22 +226,22 @@ const styles = StyleSheet.create({
         height: vh(180),
         borderRadius: BorderRadius.sm,
         marginTop: Spacing.md,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     audioIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
         marginTop: Spacing.sm,
         padding: Spacing.sm,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.sm,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     audioText: {
         marginLeft: Spacing.sm,
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '500',
     },
 });

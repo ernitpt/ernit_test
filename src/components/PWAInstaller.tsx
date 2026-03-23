@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { Share, X } from 'lucide-react-native';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -18,6 +18,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const PWAInstaller: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const [showIOSPrompt, setShowIOSPrompt] = useState(false);
     const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -142,7 +145,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleIOSDismiss}
                         >
-                            <X size={24} color={Colors.textMuted} />
+                            <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>
 
                         {/* Header */}
@@ -161,7 +164,7 @@ export const PWAInstaller: React.FC = () => {
                                 <View style={styles.stepContent}>
                                     <Text style={styles.stepTitle}>Tap the Share button</Text>
                                     <View style={styles.shareIconDemo}>
-                                        <Share size={20} color={Colors.accent} />
+                                        <Share size={20} color={colors.accent} />
                                     </View>
                                     <Text style={styles.stepDescription}>
                                         Look for the share icon in your Safari toolbar (bottom of screen)
@@ -227,7 +230,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleAndroidDismiss}
                         >
-                            <X size={24} color={Colors.textMuted} />
+                            <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>
 
                         {/* Header */}
@@ -269,121 +272,122 @@ export const PWAInstaller: React.FC = () => {
     return null;
 };
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: Colors.overlayHeavy,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: Spacing.xl,
-    },
-    modalContainer: {
-        backgroundColor: Colors.gray800,
-        borderRadius: BorderRadius.xxl,
-        padding: Spacing.xxl,
-        width: '100%',
-        maxWidth: 400,
-        position: 'relative',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        zIndex: 10,
-        padding: Spacing.sm,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: Spacing.xxl,
-        gap: Spacing.lg,
-    },
-    title: {
-        ...Typography.heading1,
-        fontWeight: 'bold',
-        color: Colors.white,
-        marginBottom: Spacing.sm,
-    },
-    subtitle: {
-        ...Typography.body,
-        color: Colors.textMuted,
-        textAlign: 'center',
-    },
-    instructions: {
-        marginBottom: Spacing.xxl,
-    },
-    step: {
-        flexDirection: 'row',
-        marginBottom: Spacing.xl,
-    },
-    stepNumber: {
-        width: 32,
-        height: 32,
-        borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.secondary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: Spacing.md,
-    },
-    stepNumberText: {
-        color: Colors.white,
-        ...Typography.subheading,
-        fontWeight: 'bold',
-    },
-    stepContent: {
-        flex: 1,
-    },
-    stepTitle: {
-        ...Typography.subheading,
-        fontWeight: '600',
-        color: Colors.white,
-        marginBottom: Spacing.xxs,
-    },
-    stepDescription: {
-        ...Typography.small,
-        color: Colors.textMuted,
-    },
-    shareIconDemo: {
-        marginVertical: Spacing.sm,
-        padding: Spacing.sm,
-        backgroundColor: Colors.gray700,
-        borderRadius: BorderRadius.sm,
-        alignSelf: 'flex-start',
-    },
-    benefits: {
-        backgroundColor: Colors.gray700,
-        borderRadius: BorderRadius.md,
-        padding: Spacing.lg,
-        marginBottom: Spacing.xl,
-    },
-    benefitsTitle: {
-        ...Typography.small,
-        fontWeight: '600',
-        color: Colors.white,
-        marginBottom: Spacing.md,
-    },
-    benefit: {
-        ...Typography.small,
-        color: Colors.gray300,
-        marginBottom: Spacing.sm,
-    },
-    installButton: {
-        backgroundColor: Colors.secondary,
-        borderRadius: BorderRadius.md,
-        padding: Spacing.lg,
-        alignItems: 'center',
-        marginBottom: Spacing.md,
-    },
-    installButtonText: {
-        color: Colors.white,
-        ...Typography.subheading,
-        fontWeight: '600',
-    },
-    dismissButton: {
-        padding: Spacing.md,
-        alignItems: 'center',
-    },
-    dismissButtonText: {
-        color: Colors.textMuted,
-        ...Typography.small,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        overlay: {
+            flex: 1,
+            backgroundColor: colors.overlayHeavy,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: Spacing.xl,
+        },
+        modalContainer: {
+            backgroundColor: colors.gray800,
+            borderRadius: BorderRadius.xxl,
+            padding: Spacing.xxl,
+            width: '100%',
+            maxWidth: 400,
+            position: 'relative',
+        },
+        closeButton: {
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10,
+            padding: Spacing.sm,
+        },
+        header: {
+            alignItems: 'center',
+            marginBottom: Spacing.xxl,
+            gap: Spacing.lg,
+        },
+        title: {
+            ...Typography.heading1,
+            fontWeight: 'bold',
+            color: colors.white,
+            marginBottom: Spacing.sm,
+        },
+        subtitle: {
+            ...Typography.body,
+            color: colors.textMuted,
+            textAlign: 'center',
+        },
+        instructions: {
+            marginBottom: Spacing.xxl,
+        },
+        step: {
+            flexDirection: 'row',
+            marginBottom: Spacing.xl,
+        },
+        stepNumber: {
+            width: 32,
+            height: 32,
+            borderRadius: BorderRadius.circle,
+            backgroundColor: colors.secondary,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: Spacing.md,
+        },
+        stepNumberText: {
+            color: colors.white,
+            ...Typography.subheading,
+            fontWeight: 'bold',
+        },
+        stepContent: {
+            flex: 1,
+        },
+        stepTitle: {
+            ...Typography.subheading,
+            fontWeight: '600',
+            color: colors.white,
+            marginBottom: Spacing.xxs,
+        },
+        stepDescription: {
+            ...Typography.small,
+            color: colors.textMuted,
+        },
+        shareIconDemo: {
+            marginVertical: Spacing.sm,
+            padding: Spacing.sm,
+            backgroundColor: colors.gray700,
+            borderRadius: BorderRadius.sm,
+            alignSelf: 'flex-start',
+        },
+        benefits: {
+            backgroundColor: colors.gray700,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.lg,
+            marginBottom: Spacing.xl,
+        },
+        benefitsTitle: {
+            ...Typography.small,
+            fontWeight: '600',
+            color: colors.white,
+            marginBottom: Spacing.md,
+        },
+        benefit: {
+            ...Typography.small,
+            color: colors.gray300,
+            marginBottom: Spacing.sm,
+        },
+        installButton: {
+            backgroundColor: colors.secondary,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.lg,
+            alignItems: 'center',
+            marginBottom: Spacing.md,
+        },
+        installButtonText: {
+            color: colors.white,
+            ...Typography.subheading,
+            fontWeight: '600',
+        },
+        dismissButton: {
+            padding: Spacing.md,
+            alignItems: 'center',
+        },
+        dismissButtonText: {
+            color: colors.textMuted,
+            ...Typography.small,
+        },
+    });

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';
@@ -18,27 +18,33 @@ interface ChipProps {
 
 export const Chip = React.memo<ChipProps>(({
   label,
-  color = Colors.textSecondary,
-  backgroundColor = Colors.backgroundLight,
+  color,
+  backgroundColor,
   selected = false,
   onPress,
   icon,
   size = 'sm',
   style,
 }) => {
+  const colors = useColors();
+
+  // Resolve defaults inside component so they use the current color scheme
+  const resolvedColor = color ?? colors.textSecondary;
+  const resolvedBg = backgroundColor ?? colors.backgroundLight;
+
   const isSmall = size === 'sm';
   const containerStyle: ViewStyle = {
-    backgroundColor: selected ? Colors.primaryTint : backgroundColor,
+    backgroundColor: selected ? colors.primaryTint : resolvedBg,
     paddingVertical: isSmall ? Spacing.xs : Spacing.sm,
     paddingHorizontal: isSmall ? Spacing.sm : Spacing.md,
     borderRadius: BorderRadius.pill,
     borderWidth: selected ? 1 : 0,
-    borderColor: selected ? Colors.primaryBorder : 'transparent',
+    borderColor: selected ? colors.primaryBorder : 'transparent',
   };
 
   const textStyle: TextStyle = {
     ...(isSmall ? Typography.caption : Typography.small),
-    color: selected ? Colors.primaryDark : color,
+    color: selected ? colors.primaryDark : resolvedColor,
     fontWeight: selected ? '600' : '500',
   };
 

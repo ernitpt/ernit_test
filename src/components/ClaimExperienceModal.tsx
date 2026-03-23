@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    ActivityIndicator,
     Platform,
 } from 'react-native';
 import { ShoppingBag, Search } from 'lucide-react-native';
@@ -13,9 +12,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
-import { Colors, Typography, Spacing, BorderRadius } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius } from '../config';
 import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
+import { SkeletonBox } from './SkeletonLoader';
 
 interface ClaimExperienceModalProps {
     visible: boolean;
@@ -36,6 +36,8 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
     preferredRewardCategory,
     onClose,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state, dispatch } = useApp();
     const [isNavigating, setIsNavigating] = useState(false);
@@ -90,7 +92,9 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
         <BaseModal visible={visible} onClose={onClose} title="Claim Your Experience">
             {isNavigating ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <SkeletonBox width="100%" height={52} borderRadius={12} />
+                    <SkeletonBox width="100%" height={44} borderRadius={12} />
+                    <SkeletonBox width="60%" height={36} borderRadius={8} />
                     <Text style={styles.loadingText}>Taking you there...</Text>
                 </View>
             ) : (
@@ -106,7 +110,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
                             onPress={handleDirect}
                             activeOpacity={0.8}
                         >
-                            <ShoppingBag size={18} color={Colors.white} />
+                            <ShoppingBag size={18} color={colors.white} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.optionPrimaryText} numberOfLines={1}>
                                     Claim "{experienceTitle}"
@@ -131,7 +135,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
                         variant="secondary"
                         size="md"
                         fullWidth
-                        icon={<Search size={18} color={Colors.primary} />}
+                        icon={<Search size={18} color={colors.primary} />}
                         style={{ marginBottom: Spacing.sm }}
                     />
 
@@ -149,17 +153,17 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     subtitle: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: Spacing.xl,
     },
     optionPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.md,
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
         paddingVertical: Spacing.lg,
         paddingHorizontal: Spacing.cardPadding,
         borderRadius: BorderRadius.lg,
@@ -167,11 +171,11 @@ const styles = StyleSheet.create({
     },
     optionPrimaryText: {
         ...Typography.bodyBold,
-        color: Colors.white,
+        color: colors.white,
     },
     optionPrice: {
         ...Typography.caption,
-        color: Colors.whiteAlpha80,
+        color: colors.whiteAlpha80,
         fontWeight: '600',
         marginTop: Spacing.xxs,
     },
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 });
 

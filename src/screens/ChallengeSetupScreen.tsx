@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -23,17 +23,19 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Check, Info } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Experience, Goal, ExperienceCategory, ChallengeSetupPrefill } from '../types';
+import { serializeNav } from '../utils/serializeNav';
 import { useRootNavigation } from '../types/navigation';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { goalService } from '../services/GoalService';
 import { BaseModal } from '../components/BaseModal';
+import Button from '../components/Button';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import ModernSlider from '../components/ModernSlider';
@@ -43,14 +45,13 @@ import { sanitizeText } from '../utils/sanitization';
 import { vh } from '../utils/responsive';
 import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
+import ExperienceDetailModal from '../components/ExperienceDetailModal';
 
-const GOAL_TYPES = [
-    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: Colors.categoryPink },
-    { icon: '\u{1F3C3}', name: 'Run', color: Colors.accent },
-    { icon: '\u{1F4DA}', name: 'Read', color: Colors.categoryAmber },
-    { icon: '\u{1F6B6}', name: 'Walk', color: Colors.secondary },
-    { icon: '\u2728', name: 'Other', color: Colors.textSecondary },
+const getGoalTypes = (colors: typeof Colors) => [
+    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: colors.secondary, tagline: 'Weights, cardio, machines' },
+    { icon: '\u{1F9D8}', name: 'Yoga', color: colors.categoryPink, tagline: 'Flexibility, mindfulness' },
+    { icon: '\u{1F483}', name: 'Dance', color: colors.accent, tagline: 'Rhythm, movement, fun' },
+    { icon: '\u270F\uFE0F', name: 'Add your own', color: colors.textSecondary, tagline: 'Create a custom challenge' },
 ];
 
 const STEP_TITLES = [
@@ -68,7 +69,7 @@ const STEP_SUBTITLES = [
     'Set the duration for each time you show up',
     'We\'ll send you reminders so you never miss a session.',
     'Pick a category. We\'ll recommend the perfect reward as you progress!',
-    'Complete your challenge to unlock your reward. Friends can also empower you along the way!',
+    'Choose how you want to back your challenge.',
 ];
 
 // Alias so JSX call sites don't need to change
@@ -79,7 +80,10 @@ export default function ChallengeSetupScreen() {
     const route = useRoute();
     const routeParams = route.params as { prefill?: ChallengeSetupPrefill } | undefined;
     const { state, dispatch } = useApp();
-    const { showError } = useToast();
+    const { showError, showSuccess } = useToast();
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
 
     // Wizard step
     const [currentStep, setCurrentStep] = useState(1);
@@ -93,6 +97,7 @@ export default function ChallengeSetupScreen() {
     const [minutes, setMinutes] = useState('');
     const [sessionMinutes, setSessionMinutes] = useState(30);
     const [showCustomTime, setShowCustomTime] = useState(false);
+    const [paymentChoice, setPaymentChoice] = useState<'payNow' | 'payLater' | 'free'>('payNow');
 
     // Experience selection (mandatory)
     const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -102,12 +107,24 @@ export default function ChallengeSetupScreen() {
     // Step 4: Preferred reward category
     const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
     const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+    const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
 
     // Always 6 steps — last step shows reward info or challenge-ready confirmation
-    const totalSteps = 6;
+    // Payment step (6) only shows when user picked a specific experience via browse
+    const needsPaymentStep = !!selectedExperience;
+    const totalSteps = needsPaymentStep ? 6 : 5;
+
+    // Guard: if experience was cleared while on step 6, snap back to step 5
+    useEffect(() => {
+        if (currentStep > totalSteps) {
+            setCurrentStep(totalSteps);
+        }
+    }, [totalSteps, currentStep]);
 
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const submittingRef = useRef(false); // Ref-based guard for synchronous double-tap prevention
+    const goalCreatedRef = useRef(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
@@ -131,7 +148,7 @@ export default function ChallengeSetupScreen() {
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
         const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
-            if (currentStep === 1) return; // Allow back from step 1
+            if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after successful creation
             e.preventDefault();
             Alert.alert(
                 'Discard changes?',
@@ -163,6 +180,7 @@ export default function ChallengeSetupScreen() {
                 setPlannedStartDate(restored < new Date() ? new Date() : restored);
             }
             // buyNow removed — no longer used
+            if (p.paymentChoice) setPaymentChoice(p.paymentChoice);
             if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory);
             if (p.currentStep && p.currentStep > 1) setCurrentStep(p.currentStep);
         }
@@ -209,7 +227,7 @@ export default function ChallengeSetupScreen() {
     const validateCurrentStep = (): boolean => {
         switch (currentStep) {
             case 1: {
-                const finalGoal = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
+                const finalGoal = selectedGoal === 'Add your own' ? customGoal.trim() : selectedGoal;
                 if (!finalGoal) {
                     setValidationErrors(prev => ({ ...prev, goal: true }));
                     return false;
@@ -246,6 +264,7 @@ export default function ChallengeSetupScreen() {
                 // Date always has default — always valid
                 return true;
             case 5: {
+                // Step 5 (reward): must pick either a category or a specific experience
                 if (!selectedExperience && !preferredRewardCategory) {
                     setValidationErrors(prev => ({ ...prev, experience: true }));
                     return false;
@@ -294,7 +313,7 @@ export default function ChallengeSetupScreen() {
         } else {
             const challengeConfig = {
                 goalType: selectedGoal,
-                customGoal: selectedGoal === 'Other' ? customGoal.trim() : '',
+                customGoal: selectedGoal === 'Add your own' ? customGoal.trim() : '',
                 weeks,
                 sessionsPerWeek,
                 sessionMinutes,
@@ -305,6 +324,7 @@ export default function ChallengeSetupScreen() {
                 plannedStartDate: plannedStartDate.toISOString(),
                 preferredRewardCategory: preferredRewardCategory || null,
                 currentStep,
+                paymentChoice,
             };
 
             try {
@@ -318,11 +338,12 @@ export default function ChallengeSetupScreen() {
     };
 
     const confirmCreateGoal = async () => {
-        if (isSubmitting || !state.user?.id) return;
+        if (isSubmitting || submittingRef.current || goalCreatedRef.current || !state.user?.id) return;
+        submittingRef.current = true;
         setIsSubmitting(true);
 
         try {
-            const finalGoal = selectedGoal === 'Other' ? sanitizeText(customGoal.trim(), 50) : selectedGoal;
+            const finalGoal = selectedGoal === 'Add your own' ? sanitizeText(customGoal.trim(), 50) : selectedGoal;
             const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
             const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
 
@@ -379,6 +400,14 @@ export default function ChallengeSetupScreen() {
                     pledgedAt: now,
                 } : {}),
                 ...(preferredRewardCategory && !selectedExperience ? { preferredRewardCategory } : {}),
+                // Fitness-first: store goal type for venue/GPS verification
+                goalType: selectedGoal === 'Gym' ? 'gym' as const
+                    : selectedGoal === 'Yoga' ? 'yoga' as const
+                    : selectedGoal === 'Dance' ? 'dance' as const
+                    : 'custom' as const,
+                // Payment commitment: only set when user chose "Pay on success" with a specific experience
+                ...(paymentChoice === 'payLater' && selectedExperience ? { paymentCommitment: 'payOnCompletion' as const } : {}),
+                ...(paymentChoice === 'payNow' && selectedExperience ? { paymentCommitment: 'paidUpfront' as const } : {}),
             };
 
             const goal = await goalService.createFreeGoal(goalData as Goal);
@@ -386,15 +415,44 @@ export default function ChallengeSetupScreen() {
             dispatch({ type: 'SET_GOAL', payload: goal });
 
             setShowConfirm(false);
+            goalCreatedRef.current = true; // Bypass beforeRemove guard
 
-            // Navigate to roadmap
-            navigation.reset({
-                index: 1,
-                routes: [
-                    { name: 'Goals' },
-                    { name: 'Journey', params: { goal } },
-                ],
-            });
+            // Route based on payment choice
+            if (paymentChoice === 'payNow' && selectedExperience) {
+                // "Lock it in" — pay now via ExperienceCheckout
+                showSuccess('Challenge created! Complete payment to secure your reward.');
+                setTimeout(() => {
+                    navigation.navigate('ExperienceCheckout' as any, {
+                        cartItems: [{
+                            experienceId: selectedExperience.id,
+                            quantity: 1,
+                        }],
+                        goalId: goal.id,
+                    });
+                }, 300);
+            } else if (paymentChoice === 'payLater' && selectedExperience) {
+                // "Pay on success" — save card via DeferredSetup
+                // For self-challenges, we create a lightweight SetupIntent client-side
+                // The card will be charged at goal completion via chargeDeferredGift
+                showSuccess('Challenge created! Save your payment method next.');
+                setTimeout(() => {
+                    navigation.navigate('Goals' as any);
+                }, 300);
+            } else {
+                // Free goal (category preference or skip) — go straight to Goals
+                showSuccess('Challenge created!');
+                setTimeout(() => {
+                    try {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Goals' }],
+                        });
+                    } catch (navError) {
+                        logger.warn('navigation.reset failed, using navigate fallback:', navError);
+                        navigation.navigate('Goals' as any);
+                    }
+                }, 300);
+            }
         } catch (error) {
             logger.error('Error creating free goal:', error);
             await logErrorToFirestore(error, {
@@ -402,13 +460,20 @@ export default function ChallengeSetupScreen() {
                 feature: 'CreateFreeGoal',
                 userId: state.user?.id,
             });
-            showError('Failed to create goal. Please try again.');
+            const isLimitError = error instanceof Error && error.message?.includes('3 active goals');
+            showError(isLimitError
+                ? 'You already have 3 active free goals. Complete or delete one first to start a new challenge.'
+                : 'Failed to create goal. Please try again.');
         } finally {
             setIsSubmitting(false);
+            // Only reset ref if goal wasn't created — prevents re-submission
+            if (!goalCreatedRef.current) {
+                submittingRef.current = false;
+            }
         }
     };
 
-    const finalGoalName = selectedGoal === 'Other' ? customGoal.trim() : selectedGoal;
+    const finalGoalName = selectedGoal === 'Add your own' ? customGoal.trim() : selectedGoal;
 
     // ─── Step Content Renderers ──────────────────────────────────────
     const renderStep1 = () => (
@@ -417,11 +482,16 @@ export default function ChallengeSetupScreen() {
                 {GOAL_TYPES.map((goal, i) => (
                     <MotiView
                         key={goal.name}
-                        style={{ width: '31%', minWidth: 95 }}
+                        style={{ width: '47%' }}
+                        from={{ opacity: 0, translateY: 20 }}
                         animate={{
+                            opacity: 1,
+                            translateY: 0,
                             scale: selectedGoal === goal.name ? 1.04 : 1,
                         }}
                         transition={{
+                            opacity: { type: 'timing', duration: 300, delay: i * 80 },
+                            translateY: { type: 'timing', duration: 300, delay: i * 80 },
                             scale: selectedGoal === goal.name
                                 ? { type: 'spring', damping: 34, stiffness: 100 }
                                 : { type: 'timing', duration: 100 },
@@ -430,16 +500,14 @@ export default function ChallengeSetupScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.goalChip,
-                                { width: '100%' },
                                 selectedGoal === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
                                 validationErrors.goal && !selectedGoal && styles.goalChipError,
                             ]}
                             onPress={() => {
                                 setSelectedGoal(goal.name);
                                 setValidationErrors(prev => ({ ...prev, goal: false }));
-                                if (goal.name !== 'Other') {
+                                if (goal.name !== 'Add your own') {
                                     setCustomGoal('');
-                                    // Auto-advance after brief delay so selection animation plays
                                     setTimeout(() => {
                                         setCurrentStep(prev => prev + 1);
                                         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -454,18 +522,22 @@ export default function ChallengeSetupScreen() {
                                 styles.goalName,
                                 selectedGoal === goal.name && styles.goalNameActive,
                             ]}>{goal.name}</Text>
+                            <Text style={[
+                                styles.goalTagline,
+                                selectedGoal === goal.name && { color: colors.white + 'CC' },
+                            ]}>{goal.tagline}</Text>
                         </TouchableOpacity>
                     </MotiView>
                 ))}
             </View>
 
             {validationErrors.goal && (
-                <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
+                <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
                     Please select a goal type
                 </Text>
             )}
 
-            {selectedGoal === 'Other' && (
+            {selectedGoal === 'Add your own' && (
                 <View style={styles.customGoalContainer}>
                     <TextInput
                         label="Enter your custom goal:"
@@ -484,7 +556,7 @@ export default function ChallengeSetupScreen() {
                         containerStyle={{ marginBottom: 0 }}
                     />
                     {validationErrors.goal && customGoal.trim() === '' && (
-                        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
+                        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
                             Please enter a custom goal
                         </Text>
                     )}
@@ -576,7 +648,7 @@ export default function ChallengeSetupScreen() {
                                 cx={DIAL_RADIUS}
                                 cy={DIAL_RADIUS}
                                 r={arcRadius}
-                                stroke={Colors.backgroundLight}
+                                stroke={colors.backgroundLight}
                                 strokeWidth={DIAL_STROKE}
                                 fill="none"
                             />
@@ -586,14 +658,14 @@ export default function ChallengeSetupScreen() {
                                     cx={DIAL_RADIUS}
                                     cy={DIAL_RADIUS}
                                     r={arcRadius}
-                                    stroke={Colors.secondary}
+                                    stroke={colors.secondary}
                                     strokeWidth={DIAL_STROKE}
                                     fill="none"
                                 />
                             ) : sessionMinutes > 0 ? (
                                 <Path
                                     d={arcPath}
-                                    stroke={Colors.secondary}
+                                    stroke={colors.secondary}
                                     strokeWidth={DIAL_STROKE}
                                     strokeLinecap="round"
                                     fill="none"
@@ -604,7 +676,7 @@ export default function ChallengeSetupScreen() {
                                 cx={handleX}
                                 cy={handleY}
                                 r={HANDLE_RADIUS}
-                                fill={Colors.secondary}
+                                fill={colors.secondary}
                             />
                         </Svg>
 
@@ -618,7 +690,7 @@ export default function ChallengeSetupScreen() {
                             <Text style={{
                                 fontSize: vh(48),
                                 fontWeight: '800',
-                                color: Colors.secondary,
+                                color: colors.secondary,
                                 letterSpacing: -2,
                             }}>
                                 {sessionMinutes}
@@ -626,47 +698,47 @@ export default function ChallengeSetupScreen() {
                             <Text style={{
                                 ...Typography.caption,
                                 fontWeight: '700',
-                                color: Colors.textMuted,
+                                color: colors.textMuted,
                                 textTransform: 'uppercase',
                                 letterSpacing: 2,
                             }}>
                                 MINUTES
                             </Text>
                         </View>
-                    </View>
 
-                    {/* Minute markers around edge */}
-                    {[0, 15, 30, 45].map((m) => {
-                        const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
-                        const markerR = DIAL_RADIUS + 16;
-                        const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
-                        const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
-                        return (
-                            <Text key={m} style={{
-                                position: 'absolute',
-                                left: mx - 10,
-                                top: my - 8,
-                                ...Typography.caption,
-                                fontWeight: '600',
-                                color: Colors.textMuted,
-                                width: 20,
-                                textAlign: 'center',
-                            }}>
-                                {m}
-                            </Text>
-                        );
-                    })}
+                        {/* Minute markers around edge */}
+                        {[0, 15, 30, 45].map((m) => {
+                            const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
+                            const markerR = DIAL_RADIUS + 16;
+                            const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
+                            const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
+                            return (
+                                <Text key={m} style={{
+                                    position: 'absolute',
+                                    left: mx - 10,
+                                    top: my - 8,
+                                    ...Typography.caption,
+                                    fontWeight: '600',
+                                    color: colors.textMuted,
+                                    width: 20,
+                                    textAlign: 'center',
+                                }}>
+                                    {m}
+                                </Text>
+                            );
+                        })}
+                    </View>
                 </View>
 
                 {/* Custom time toggle */}
                 <TouchableOpacity
-                    style={{ alignSelf: 'center', marginTop: vh(20) }}
+                    style={{ alignSelf: 'center', marginTop: vh(36) }}
                     onPress={() => setShowCustomTime(!showCustomTime)}
                     activeOpacity={0.7}
                 >
                     <Text style={{
                         ...Typography.body,
-                        color: Colors.primary,
+                        color: colors.primary,
                         fontWeight: '600',
                     }}>
                         {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
@@ -692,7 +764,7 @@ export default function ChallengeSetupScreen() {
                                     keyboardType="numeric"
                                     maxLength={1}
                                     placeholder="0"
-                                    placeholderTextColor={Colors.textMuted}
+                                    placeholderTextColor={colors.textMuted}
                                     returnKeyType="next"
                                     onSubmitEditing={() => minutesRef.current?.focus()}
                                     accessibilityLabel="Hours per session"
@@ -713,7 +785,7 @@ export default function ChallengeSetupScreen() {
                                     keyboardType="numeric"
                                     maxLength={2}
                                     placeholder="00"
-                                    placeholderTextColor={Colors.textMuted}
+                                    placeholderTextColor={colors.textMuted}
                                     returnKeyType="done"
                                     accessibilityLabel="Minutes per session"
                                 />
@@ -724,7 +796,7 @@ export default function ChallengeSetupScreen() {
                 )}
 
                 {validationErrors.time && (
-                    <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
+                    <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
                         Please set a time per session (at least 5 minutes)
                     </Text>
                 )}
@@ -785,7 +857,7 @@ export default function ChallengeSetupScreen() {
                                 accessibilityRole="button"
                                 accessibilityLabel="Previous month"
                             >
-                                <ChevronLeft color={Colors.textSecondary} size={20} />
+                                <ChevronLeft color={colors.textSecondary} size={20} />
                             </TouchableOpacity>
                             <Text style={styles.calMonthYear}>
                                 {calendarMonthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
@@ -796,7 +868,7 @@ export default function ChallengeSetupScreen() {
                                 accessibilityRole="button"
                                 accessibilityLabel="Next month"
                             >
-                                <ChevronRight color={Colors.textSecondary} size={20} />
+                                <ChevronRight color={colors.textSecondary} size={20} />
                             </TouchableOpacity>
                         </View>
 
@@ -898,6 +970,15 @@ export default function ChallengeSetupScreen() {
                         accessibilityLabel={exp.title}
                     />
                 </View>
+                <TouchableOpacity
+                    style={styles.expInfoButton}
+                    onPress={() => setDetailExperience(exp)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View details for ${exp.title}`}
+                >
+                    <Info size={14} color={colors.white} />
+                </TouchableOpacity>
                 <View style={styles.expTextContainer}>
                     <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
                     <View style={styles.expMeta}>
@@ -906,7 +987,7 @@ export default function ChallengeSetupScreen() {
                     </View>
                 </View>
                 {isSelected && (
-                    <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
+                    <View style={styles.checkBadge}><Check color={colors.white} size={12} strokeWidth={3} /></View>
                 )}
             </TouchableOpacity>
         );
@@ -931,7 +1012,7 @@ export default function ChallengeSetupScreen() {
                         }}
                         activeOpacity={0.7}
                     >
-                        <ChevronLeft color={Colors.primary} size={18} strokeWidth={2.5} />
+                        <ChevronLeft color={colors.primary} size={18} strokeWidth={2.5} />
                         <Text style={styles.browseBackText}>Back to categories</Text>
                     </TouchableOpacity>
 
@@ -974,7 +1055,7 @@ export default function ChallengeSetupScreen() {
                             {showFilterScrollHint && (
                                 <View style={styles.categoryFadeIndicator} pointerEvents="none">
                                     <View style={styles.categoryGradient} />
-                                    <ChevronRight color={Colors.textMuted} size={14} />
+                                    <ChevronRight color={colors.textMuted} size={14} />
                                 </View>
                             )}
                         </View>
@@ -1035,6 +1116,15 @@ export default function ChallengeSetupScreen() {
                                                                 accessibilityLabel={exp.title}
                                                             />
                                                         </View>
+                                                        <TouchableOpacity
+                                                            style={styles.expInfoButton}
+                                                            onPress={() => setDetailExperience(exp)}
+                                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel={`View details for ${exp.title}`}
+                                                        >
+                                                            <Info size={14} color={colors.white} />
+                                                        </TouchableOpacity>
                                                         <View style={styles.expTextContainer}>
                                                             <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
                                                             <View style={styles.expMeta}>
@@ -1043,7 +1133,7 @@ export default function ChallengeSetupScreen() {
                                                             </View>
                                                         </View>
                                                         {isSelected && (
-                                                            <View style={styles.checkBadge}><Check color={Colors.white} size={12} strokeWidth={3} /></View>
+                                                            <View style={styles.checkBadge}><Check color={colors.white} size={12} strokeWidth={3} /></View>
                                                         )}
                                                     </TouchableOpacity>
                                                 );
@@ -1077,18 +1167,62 @@ export default function ChallengeSetupScreen() {
             <View style={styles.stepContent}>
                 {validationErrors.experience && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Please pick a reward category</Text>
+                        <Text style={styles.errorText}>Please pick a reward option</Text>
                     </View>
                 )}
 
+                {/* Equal fork: Browse experiences (prominent button) */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 16 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 300 }}
+                >
+                    <TouchableOpacity
+                        style={[
+                            styles.rewardCategoryCard,
+                            selectedExperience && { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primary + '08' },
+                        ]}
+                        onPress={() => setShowExperiencePicker(true)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Choose your experience"
+                    >
+                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[
+                                styles.rewardCategoryLabel,
+                                selectedExperience && { color: colors.primary },
+                            ]}>{selectedExperience ? selectedExperience.title : 'Choose your experience'}</Text>
+                            <Text style={styles.rewardCategoryTagline}>
+                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Browse and pick a specific reward'}
+                            </Text>
+                        </View>
+                        {selectedExperience ? (
+                            <View style={[styles.rewardCategoryCheck, { backgroundColor: colors.primary }]}>
+                                <Check color={colors.white} size={14} strokeWidth={3} />
+                            </View>
+                        ) : (
+                            <ChevronRight color={colors.primary} size={20} strokeWidth={2} />
+                        )}
+                    </TouchableOpacity>
+                </MotiView>
+
+                {/* Divider with "or" */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or surprise me</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                </View>
+
+                {/* Category cards */}
                 {CATEGORY_CARDS.map((cat, index) => {
-                    const isActive = preferredRewardCategory === cat.key;
+                    const isActive = preferredRewardCategory === cat.key && !selectedExperience;
                     return (
                         <MotiView
                             key={cat.key}
                             from={{ opacity: 0, translateY: 16 }}
                             animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'timing', duration: 300, delay: index * 80 }}
+                            transition={{ type: 'timing', duration: 300, delay: (index + 1) * 80 }}
                         >
                             <TouchableOpacity
                                 style={[
@@ -1098,6 +1232,7 @@ export default function ChallengeSetupScreen() {
                                 onPress={() => {
                                     setPreferredRewardCategory(cat.key);
                                     setSelectedExperience(null);
+                                    setPaymentChoice('free');
                                     setValidationErrors(prev => ({ ...prev, experience: false }));
                                 }}
                                 activeOpacity={0.8}
@@ -1114,7 +1249,7 @@ export default function ChallengeSetupScreen() {
                                 </View>
                                 {isActive && (
                                     <View style={[styles.rewardCategoryCheck, { backgroundColor: cat.color }]}>
-                                        <Check color={Colors.white} size={14} strokeWidth={3} />
+                                        <Check color={colors.white} size={14} strokeWidth={3} />
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -1122,36 +1257,56 @@ export default function ChallengeSetupScreen() {
                     );
                 })}
 
-                {/* Browse experiences link */}
-                <TouchableOpacity
-                    style={styles.browseLink}
-                    onPress={() => setShowExperiencePicker(true)}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.browseLinkText}>Already know what you want?</Text>
-                    <View style={styles.browseLinkAction}>
-                        <Text style={styles.browseLinkActionText}>Browse & pick a reward</Text>
-                        <ChevronRight color={Colors.primary} size={16} strokeWidth={2.5} />
-                    </View>
-                </TouchableOpacity>
             </View>
         );
     };
 
     const renderStep5 = () => (
         <View style={styles.stepContent}>
-            {/* Informational: reward unlocks on completion */}
-            <View style={[styles.rewardChoice, styles.rewardChoiceActive]}>
+            {/* Option A: Lock it in (pay now) — default */}
+            <TouchableOpacity
+                style={[styles.rewardChoice, paymentChoice === 'payNow' && styles.rewardChoiceActive]}
+                onPress={() => setPaymentChoice('payNow')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Lock it in, pay now"
+            >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, styles.rewardChoiceTitleActive]}>Complete to unlock</Text>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>Lock it in</Text>
                         <Text style={styles.rewardChoiceDesc}>
-                            Finish your challenge to claim your reward. Friends can also empower you along the way!
+                            Pay now and secure your reward. Studies show you're ~30% more likely to complete your challenge when you've invested upfront.
+                        </Text>
+                        <View style={styles.revealBadge}>
+                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>Recommended</Text>
+                        </View>
+                    </View>
+                    {paymentChoice === 'payNow' && (
+                        <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
+                    )}
+                </View>
+            </TouchableOpacity>
+
+            {/* Option B: Pay on success (save card for later) */}
+            <TouchableOpacity
+                style={[styles.rewardChoice, paymentChoice === 'payLater' && styles.rewardChoiceActive]}
+                onPress={() => setPaymentChoice('payLater')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pay on success"
+            >
+                <View style={styles.rewardChoiceHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>Pay on success</Text>
+                        <Text style={styles.rewardChoiceDesc}>
+                            Save your payment method now. Only charged when you complete the challenge. Zero risk.
                         </Text>
                     </View>
-                    <View style={styles.rewardChoiceCheck}><Check color={Colors.white} size={14} strokeWidth={3} /></View>
+                    {paymentChoice === 'payLater' && (
+                        <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
+                    )}
                 </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Motivational stat */}
             <View style={styles.statCard}>
@@ -1191,7 +1346,7 @@ export default function ChallengeSetupScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Go back"
                     >
-                        <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                        <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Create Your Challenge</Text>
                     <View style={styles.stepIndicator}>
@@ -1266,6 +1421,14 @@ export default function ChallengeSetupScreen() {
                                             {selectedExperience.title}
                                         </Text>
                                     </View>
+                                    <TouchableOpacity
+                                        onPress={() => setDetailExperience(selectedExperience)}
+                                        style={styles.heroDetailsButton}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="View experience details"
+                                    >
+                                        <Text style={styles.heroDetailsText}>View details</Text>
+                                    </TouchableOpacity>
                                 </View>
 
                                 {selectedGoal && (
@@ -1274,7 +1437,7 @@ export default function ChallengeSetupScreen() {
                                             <Text style={styles.contextEmoji}>
                                                 {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
                                             </Text>
-                                            <Text style={styles.contextText}>{selectedGoal === 'Other' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
+                                            <Text style={styles.contextText}>{selectedGoal === 'Add your own' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
                                         </View>
                                         <View style={styles.contextDivider} />
                                         <View style={styles.contextBadge}>
@@ -1299,11 +1462,11 @@ export default function ChallengeSetupScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={state.user?.id ? 'Create challenge' : 'Sign up and create challenge'}
                         >
-                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>
                                     {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
                                 </Text>
-                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     ) : (
@@ -1314,9 +1477,9 @@ export default function ChallengeSetupScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Continue to next step"
                         >
-                            <LinearGradient colors={Colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>Next</Text>
-                                <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
                     )}
@@ -1368,52 +1531,69 @@ export default function ChallengeSetupScreen() {
                             )}
                         </View>
 
+                        {selectedExperience && (
+                            <Text style={styles.modalRow}>
+                                <Text style={styles.modalLabel}>Payment: </Text>
+                                {paymentChoice === 'payNow' ? 'Pay now (locked in)' : 'Pay on success'}
+                            </Text>
+                        )}
+
                         <Text style={styles.pledgeNote}>
-                            {selectedExperience
-                                ? 'Friends can track your progress and empower you by gifting experiences!'
-                                : 'We\'ll recommend the perfect reward as you make progress!'
+                            {selectedExperience && paymentChoice === 'payNow'
+                                ? 'You\'ll complete payment next to secure your reward.'
+                                : selectedExperience && paymentChoice === 'payLater'
+                                ? 'You\'ll save your payment method next. Only charged when you finish.'
+                                : preferredRewardCategory
+                                ? 'We\'ll find the perfect reward for you as you make progress!'
+                                : 'You can always add a reward later.'
                             }
                         </Text>
 
                         <View style={styles.modalButtons}>
-                            <TouchableOpacity
+                            <Button
+                                variant="ghost"
                                 onPress={() => setShowConfirm(false)}
-                                style={[styles.modalButton, styles.cancelButton]}
-                                activeOpacity={0.8}
                                 disabled={isSubmitting}
-                                accessibilityRole="button"
-                                accessibilityLabel="Cancel challenge creation"
-                            >
-                                <Text style={styles.cancelText}>Cancel</Text>
-                            </TouchableOpacity>
+                                title="Cancel"
+                                style={styles.modalButton}
+                            />
 
                             <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
-                                <TouchableOpacity
+                                <Button
+                                    variant="primary"
                                     onPress={confirmCreateGoal}
-                                    style={[styles.modalButton, styles.confirmButton, isSubmitting && { opacity: 0.9 }]}
-                                    activeOpacity={0.8}
-                                    disabled={isSubmitting}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={isSubmitting ? 'Creating challenge' : 'Create challenge'}
-                                >
-                                    <Text style={styles.confirmText}>
-                                        {isSubmitting ? 'Creating...' : "Let's Go!"}
-                                    </Text>
-                                </TouchableOpacity>
+                                    loading={isSubmitting}
+                                    title={selectedExperience && paymentChoice === 'payNow' ? 'Create & Pay' : 'Let\'s Go!'}
+                                    fullWidth
+                                    style={styles.modalButton}
+                                />
                             </Animated.View>
                         </View>
                     </View>
                 </BaseModal>
+
+                {/* Experience Detail Modal */}
+                <ExperienceDetailModal
+                    visible={!!detailExperience}
+                    experience={detailExperience}
+                    onClose={() => setDetailExperience(null)}
+                    onSelect={(exp) => {
+                        setSelectedExperience(exp);
+                        setPreferredRewardCategory(null);
+                        setValidationErrors(prev => ({ ...prev, experience: false }));
+                    }}
+                    isSelected={selectedExperience?.id === detailExperience?.id}
+                />
             </View>
         </ErrorBoundary>
     );
 }
 
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
     },
     header: {
         flexDirection: 'row',
@@ -1422,24 +1602,24 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
         paddingBottom: vh(14),
         paddingHorizontal: Spacing.xl,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
+        borderBottomColor: colors.backgroundLight,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     headerTitle: {
         ...Typography.heading3,
-        color: Colors.gray800,
+        color: colors.gray800,
     },
     stepIndicator: {
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.md,
@@ -1447,7 +1627,7 @@ const styles = StyleSheet.create({
     stepIndicatorText: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.primary,
+        color: colors.primary,
     },
 
     // Step content
@@ -1462,12 +1642,12 @@ const styles = StyleSheet.create({
     stepTitle: {
         ...Typography.heading1,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: vh(8),
     },
     stepSubtitle: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: vh(24),
     },
     stepContent: {
@@ -1479,51 +1659,60 @@ const styles = StyleSheet.create({
 
     // Error
     errorBanner: {
-        backgroundColor: Colors.errorLight,
+        backgroundColor: colors.errorLight,
         borderRadius: BorderRadius.md,
         paddingVertical: Spacing.sm,
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.errorBorder,
+        borderColor: colors.errorBorder,
     },
     errorText: {
         ...Typography.smallBold,
-        color: Colors.error,
+        color: colors.error,
     },
 
     // Goal chips
     goalGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: Spacing.md,
-        marginTop: Spacing.xs,
+        justifyContent: 'space-between',
+        rowGap: Spacing.md,
+        marginTop: Spacing.sm,
     },
     goalChip: {
-        width: '30%',
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: Spacing.xs,
-        paddingVertical: Spacing.md,
-        borderRadius: BorderRadius.lg,
-        backgroundColor: Colors.white,
+        paddingVertical: vh(28),
+        paddingHorizontal: Spacing.lg,
+        borderRadius: BorderRadius.xl,
+        backgroundColor: colors.white,
         borderWidth: 2,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     goalChipError: {
-        borderColor: Colors.errorBorder,
-        backgroundColor: Colors.errorLight,
+        borderColor: colors.errorBorder,
+        backgroundColor: colors.errorLight,
     },
     goalIcon: {
-        ...Typography.heading2,
+        fontSize: 42,
+        lineHeight: 52,
     },
     goalName: {
         ...Typography.bodyBold,
-        color: Colors.textSecondary,
+        color: colors.gray800,
+        marginTop: Spacing.sm,
+        textAlign: 'center' as const,
     },
     goalNameActive: {
-        color: Colors.white,
+        color: colors.white,
+    },
+    goalTagline: {
+        ...Typography.caption,
+        color: colors.textMuted,
+        textAlign: 'center' as const,
+        marginTop: Spacing.xxs,
     },
     customGoalContainer: {
         marginTop: Spacing.xl,
@@ -1535,16 +1724,16 @@ const styles = StyleSheet.create({
 
     // Sliders
     sliderContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         paddingHorizontal: Spacing.xxl,
         paddingVertical: vh(20),
         borderWidth: 1,
-        borderColor: Colors.backgroundLight,
+        borderColor: colors.backgroundLight,
     },
     sliderTitle: {
         ...Typography.smallBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: vh(6),
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -1562,26 +1751,26 @@ const styles = StyleSheet.create({
     timeInput: {
         width: 60,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderRadius: BorderRadius.md,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
         ...Typography.heading3,
         fontWeight: '700',
         textAlign: 'center',
-        backgroundColor: Colors.white,
-        color: Colors.gray800,
+        backgroundColor: colors.white,
+        color: colors.gray800,
     },
     timeLabel: {
         ...Typography.bodyBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // Experience cards
     expCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderWidth: 2,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderRadius: BorderRadius.lg,
         padding: Spacing.md,
         marginRight: Spacing.md,
@@ -1590,16 +1779,28 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     expCardActive: {
-        borderColor: Colors.primary,
-        backgroundColor: Colors.primarySurface,
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySurface,
     },
     expIconBox: {
         width: '100%',
         height: vh(100),
         borderRadius: BorderRadius.lg,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         overflow: 'hidden',
         marginBottom: Spacing.sm,
+    },
+    expInfoButton: {
+        position: 'absolute',
+        top: Spacing.md + 4,
+        left: Spacing.md + 4,
+        width: 26,
+        height: 26,
+        borderRadius: BorderRadius.circle,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
     },
     expImage: {
         width: '100%',
@@ -1614,11 +1815,11 @@ const styles = StyleSheet.create({
     expTitle: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     },
     expTitleActive: {
-        color: Colors.primary,
+        color: colors.primary,
     },
     expMeta: {
         flexDirection: 'row',
@@ -1628,15 +1829,15 @@ const styles = StyleSheet.create({
     },
     expPrice: {
         ...Typography.captionBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
     expLocation: {
         ...Typography.tiny,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         flex: 1,
     },
     viewDetailsBtn: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.sm,
@@ -1644,7 +1845,7 @@ const styles = StyleSheet.create({
     },
     viewDetailsBtnText: {
         ...Typography.tiny,
-        color: Colors.white,
+        color: colors.white,
     },
     checkBadge: {
         position: 'absolute',
@@ -1653,7 +1854,7 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1667,16 +1868,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.xl,
         paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
         paddingTop: vh(14),
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderTopWidth: 1,
-        borderTopColor: Colors.backgroundLight,
+        borderTopColor: colors.backgroundLight,
         ...Shadows.md,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: -4 },
     },
     createButton: {
         borderRadius: BorderRadius.lg,
-        shadowColor: Colors.primary,
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -1693,18 +1894,18 @@ const styles = StyleSheet.create({
     createButtonText: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.white,
+        color: colors.white,
     },
 
     // Footer hero card
     footerHeroCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         padding: Spacing.md,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.backgroundLight,
-        shadowColor: Colors.black,
+        borderColor: colors.backgroundLight,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 6,
@@ -1718,7 +1919,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: BorderRadius.lg,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         overflow: 'hidden',
     },
     heroImage: {
@@ -1729,17 +1930,26 @@ const styles = StyleSheet.create({
         flex: 1,
         marginLeft: Spacing.lg,
     },
+    heroDetailsButton: {
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+    },
+    heroDetailsText: {
+        ...Typography.caption,
+        fontWeight: '600',
+        color: colors.primary,
+    },
     footerHeroTitle: {
         ...Typography.subheading,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
 
     heroContextRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.sm,
         padding: Spacing.sm,
         marginTop: Spacing.sm,
@@ -1756,65 +1966,65 @@ const styles = StyleSheet.create({
     contextText: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.gray600,
+        color: colors.gray600,
     },
     contextDivider: {
         width: 1,
         height: 16,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     contextLabel: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // Modal
     modalBox: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         width: '90%',
         maxWidth: 360,
         paddingVertical: Spacing.xxl,
         paddingHorizontal: Spacing.xl,
         ...Shadows.md,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOpacity: 0.15,
         alignItems: 'center',
     },
     modalTitle: {
         ...Typography.large,
-        color: Colors.primaryDeep,
+        color: colors.primaryDeep,
         marginBottom: Spacing.sm,
     },
     modalSubtitle: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: Spacing.xl,
         textAlign: 'center',
     },
     modalDetails: {
         width: '100%',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         paddingVertical: Spacing.md,
         paddingHorizontal: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     modalRow: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         marginBottom: Spacing.xs,
     },
     modalLabel: {
         fontWeight: '600',
-        color: Colors.primaryDeep,
+        color: colors.primaryDeep,
     },
     pledgeNote: {
         ...Typography.caption,
-        color: Colors.successMedium,
+        color: colors.successMedium,
         textAlign: 'center',
         marginBottom: Spacing.lg,
         fontStyle: 'italic',
@@ -1832,18 +2042,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     confirmButton: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
     cancelText: {
         ...Typography.subheading,
-        color: Colors.gray700,
+        color: colors.gray700,
     },
     confirmText: {
         ...Typography.subheading,
-        color: Colors.white,
+        color: colors.white,
     },
 
     // Carousel filter chips
@@ -1867,18 +2077,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.xl,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         marginLeft: Spacing.xs,
     },
     filterChipActive: {
-        backgroundColor: Colors.gray800,
+        backgroundColor: colors.gray800,
     },
     filterText: {
         ...Typography.captionBold,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     filterTextActive: {
-        color: Colors.white,
+        color: colors.white,
     },
     categoryFadeIndicator: {
         position: 'absolute',
@@ -1896,7 +2106,7 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         width: 52,
-        backgroundColor: 'rgba(249, 250, 251, 0.92)',
+        backgroundColor: colors.surfaceFrosted92,
     },
     cardScroll: {
         marginTop: Spacing.xs,
@@ -1920,7 +2130,7 @@ const styles = StyleSheet.create({
     },
     categorySectionTitle: {
         ...Typography.subheading,
-        color: Colors.gray800,
+        color: colors.gray800,
         flex: 1,
     },
     categorySectionBadge: {
@@ -1934,12 +2144,12 @@ const styles = StyleSheet.create({
 
     // Inline calendar
     inlineCalendar: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         paddingHorizontal: Spacing.lg,
         paddingVertical: vh(10),
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     calHeader: {
         flexDirection: 'row',
@@ -1950,11 +2160,11 @@ const styles = StyleSheet.create({
     calNavBtn: {
         padding: Spacing.sm,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     calMonthYear: {
         ...Typography.subheading,
-        color: Colors.gray700,
+        color: colors.gray700,
     },
     calWeekRow: {
         flexDirection: 'row',
@@ -1964,7 +2174,7 @@ const styles = StyleSheet.create({
         ...Typography.captionBold,
         flex: 1,
         textAlign: 'center',
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     calDaysGrid: {
         flexDirection: 'row',
@@ -1979,96 +2189,96 @@ const styles = StyleSheet.create({
         marginVertical: vh(2),
     },
     calSelectedDay: {
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
     },
     calTodayDay: {
         borderWidth: 2,
-        borderColor: Colors.secondary,
+        borderColor: colors.secondary,
     },
     calDayText: {
         ...Typography.small,
-        color: Colors.gray700,
+        color: colors.gray700,
         fontWeight: '500',
     },
     calDisabledText: {
-        color: Colors.gray300,
+        color: colors.gray300,
     },
     calSelectedText: {
-        color: Colors.white,
+        color: colors.white,
         fontWeight: '700',
     },
     calTodayText: {
-        color: Colors.secondary,
+        color: colors.secondary,
         fontWeight: '700',
     },
 
     // End date info
     endDateContainer: {
-        backgroundColor: Colors.successLighter,
+        backgroundColor: colors.successLighter,
         borderRadius: BorderRadius.lg,
         paddingHorizontal: Spacing.lg,
         paddingVertical: vh(12),
         marginTop: vh(8),
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.successBorder,
+        borderColor: colors.successBorder,
     },
     endDateLabel: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '500',
         marginBottom: Spacing.xs,
     },
     endDateValue: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.primary,
+        color: colors.primary,
         textAlign: 'center',
     },
     endDateSublabel: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         marginTop: Spacing.xs,
     },
 
     // Step 5: Secure your reward
     statCard: {
-        backgroundColor: Colors.successLighter,
+        backgroundColor: colors.successLighter,
         borderRadius: BorderRadius.md,
         paddingHorizontal: Spacing.md,
         paddingVertical: vh(20),
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.successBorder,
+        borderColor: colors.successBorder,
         marginTop: vh(16),
         marginBottom: 0,
     },
     statNumber: {
         ...Typography.heading2,
         fontWeight: '800',
-        color: Colors.primary,
+        color: colors.primary,
         marginBottom: Spacing.xxs,
     },
     statText: {
         ...Typography.caption,
-        color: Colors.gray700,
+        color: colors.gray700,
         textAlign: 'center',
     },
     statSource: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         fontStyle: 'italic',
         marginTop: Spacing.xs,
     },
     expPreview: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.lg,
         padding: Spacing.md,
         marginBottom: Spacing.xl,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         gap: Spacing.md,
     },
     expPreviewImage: {
@@ -2081,25 +2291,25 @@ const styles = StyleSheet.create({
     },
     expPreviewTitle: {
         ...Typography.smallBold,
-        color: Colors.gray800,
+        color: colors.gray800,
     },
     expPreviewMeta: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginTop: Spacing.xxs,
     },
     rewardChoice: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         paddingHorizontal: Spacing.lg,
         paddingVertical: vh(16),
         borderWidth: 2,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         marginBottom: vh(10),
     },
     rewardChoiceActive: {
-        borderColor: Colors.primary,
-        backgroundColor: Colors.primarySurface,
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySurface,
     },
     rewardChoiceHeader: {
         flexDirection: 'row',
@@ -2111,46 +2321,59 @@ const styles = StyleSheet.create({
     },
     rewardChoiceTitle: {
         ...Typography.subheading,
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
     rewardChoiceTitleActive: {
-        color: Colors.primary,
+        color: colors.primary,
     },
     rewardChoiceDesc: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         lineHeight: 18,
     },
     rewardChoiceCheck: {
         width: 24,
         height: 24,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     rewardChoiceNote: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         textAlign: 'center',
         marginTop: Spacing.xs,
         fontStyle: 'italic',
+    },
+    revealBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: colors.categoryAmber + '20',
+        borderRadius: BorderRadius.sm,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xxs,
+        marginTop: Spacing.xs,
+    },
+    revealBadgeText: {
+        ...Typography.tiny,
+        color: colors.categoryAmber,
+        fontWeight: '700',
     },
 
     // Step 4: Category preference cards
     rewardCategoryCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         paddingHorizontal: Spacing.xl,
         paddingVertical: vh(16),
         marginBottom: Spacing.md,
         borderWidth: 1.5,
-        borderColor: Colors.backgroundLight,
+        borderColor: colors.backgroundLight,
         ...Shadows.sm,
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 1 },
     },
     rewardCategoryEmoji: {
@@ -2160,12 +2383,12 @@ const styles = StyleSheet.create({
     rewardCategoryLabel: {
         ...Typography.subheading,
         fontWeight: '700',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
     rewardCategoryTagline: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     rewardCategoryCheck: {
         width: 26,
@@ -2182,7 +2405,7 @@ const styles = StyleSheet.create({
     },
     browseLinkText: {
         ...Typography.caption,
-        color: Colors.textMuted,
+        color: colors.textMuted,
         marginBottom: Spacing.xs,
     },
     browseLinkAction: {
@@ -2192,7 +2415,7 @@ const styles = StyleSheet.create({
     },
     browseLinkActionText: {
         ...Typography.smallBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
     browseBackButton: {
         flexDirection: 'row',
@@ -2202,6 +2425,6 @@ const styles = StyleSheet.create({
     },
     browseBackText: {
         ...Typography.smallBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { BaseModal } from '../../../components/BaseModal';
 import { Share2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -31,6 +31,9 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
   onConfirm,
   message,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <BaseModal
       visible={visible}
@@ -99,6 +102,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   weeksCompleted,
   totalWeeks,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const confettiRef = useRef<ConfettiCannon | null>(null);
   const confettiTimeoutRef = useRef<NodeJS.Timeout>();
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
@@ -141,7 +146,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           explosionSpeed={350}
           fallSpeed={2500}
           fadeOut
-          colors={[Colors.primary, Colors.secondary, Colors.warning, Colors.error, Colors.categoryViolet, Colors.categoryPink]}
+          colors={[colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink]}
         />
 
         {/* Feed post preview card */}
@@ -194,8 +199,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                     style={[
                       styles.feedCapsule,
                       i < (weeklyCount || 0)
-                        ? { backgroundColor: Colors.primary }
-                        : { backgroundColor: Colors.border },
+                        ? { backgroundColor: colors.primary }
+                        : { backgroundColor: colors.border },
                     ]}
                   />
                 ))}
@@ -217,8 +222,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                     style={[
                       styles.feedCapsule,
                       i < (weeksCompleted || 0)
-                        ? { backgroundColor: Colors.secondary }
-                        : { backgroundColor: Colors.border },
+                        ? { backgroundColor: colors.secondary }
+                        : { backgroundColor: colors.border },
                     ]}
                   />
                 ))}
@@ -237,7 +242,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Share to Feed"
             >
-              <Share2 size={16} color={Colors.white} />
+              <Share2 size={16} color={colors.white} />
               <Text style={styles.shareButtonText}>Share to Feed</Text>
             </TouchableOpacity>
           )}
@@ -276,11 +281,11 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   // Cancel modal
   modalSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.xxl,
   },
@@ -296,35 +301,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonPopup: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   confirmButton: {
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
   },
   cancelText: {
     ...Typography.subheading,
-    color: Colors.gray700,
+    color: colors.gray700,
   },
   confirmText: {
     ...Typography.subheading,
-    color: Colors.white,
+    color: colors.white,
   },
   // Feed post preview
   feedPreviewCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: Spacing.lg,
   },
   feedMediaWrapper: {
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   feedMediaAdaptive: {
     width: '100%',
     aspectRatio: 4 / 3,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   feedAuthorRow: {
     flexDirection: 'row',
@@ -338,25 +343,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   feedAvatarPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
   },
   feedAvatarText: {
     ...Typography.caption,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '700',
   },
   feedAuthorName: {
     ...Typography.caption,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   feedTimestamp: {
     ...Typography.tiny,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   feedProgressBlock: {
     paddingHorizontal: Spacing.md,
@@ -370,12 +375,12 @@ const styles = StyleSheet.create({
   },
   feedProgressBlockLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   feedProgressBlockCount: {
     ...Typography.caption,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   feedCapsuleRow: {
@@ -399,13 +404,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
   },
   shareButtonText: {
     ...Typography.body,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '700',
   },
   celebrationCloseBtn: {
@@ -415,7 +420,7 @@ const styles = StyleSheet.create({
   celebrationCloseBtnText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 });
 

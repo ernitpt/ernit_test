@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { MotiView } from 'moti';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 
@@ -16,18 +16,24 @@ interface ProgressBarProps {
 export const ProgressBar = React.memo<ProgressBarProps>(({
   progress,
   height = 4,
-  trackColor = Colors.backgroundLight,
-  fillColor = Colors.secondary,
+  trackColor,
+  fillColor,
   style,
 }) => {
+  const colors = useColors();
+
+  // Resolve defaults inside component so they use the current color scheme
+  const resolvedTrackColor = trackColor ?? colors.backgroundLight;
+  const resolvedFillColor = fillColor ?? colors.secondary;
+
   const clampedProgress = Math.min(1, Math.max(0, progress));
 
   return (
-    <View style={[styles.track, { height, backgroundColor: trackColor, borderRadius: height / 2 }, style]}>
+    <View style={[styles.track, { height, backgroundColor: resolvedTrackColor, borderRadius: height / 2 }, style]}>
       <MotiView
         animate={{ width: `${clampedProgress * 100}%` }}
         transition={{ type: 'spring', damping: 100, stiffness: 320 }}
-        style={[styles.fill, { height, backgroundColor: fillColor, borderRadius: height / 2 }]}
+        style={[styles.fill, { height, backgroundColor: resolvedFillColor, borderRadius: height / 2 }]}
       />
     </View>
   );

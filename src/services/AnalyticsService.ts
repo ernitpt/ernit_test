@@ -9,7 +9,7 @@
  */
 
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { Platform, AppState, type AppStateStatus } from 'react-native';
 import { trackPageView, trackEvent as trackGA4Event } from '../utils/analytics';
 import { logger } from '../utils/logger';
@@ -72,6 +72,11 @@ class AnalyticsService {
   /** Flush any remaining events (call on app background / unmount) */
   async flush() {
     if (this.buffer.length === 0) return;
+    // Skip flush if user is not authenticated — Firestore rules require auth
+    if (!auth.currentUser) {
+      this.buffer = []; // Discard events from unauthenticated sessions
+      return;
+    }
 
     const eventsToFlush = [...this.buffer];
     this.buffer = [];
@@ -111,10 +116,18 @@ class AnalyticsService {
   }) {
     try {
       if (this.isEventRateLimited()) return;
+      // Strip undefined values from properties — Firestore rejects undefined
+      const cleanProps: Record<string, unknown> = {};
+      if (partial.properties) {
+        for (const [k, v] of Object.entries(partial.properties)) {
+          if (v !== undefined) cleanProps[k] = v;
+        }
+      }
+
       const event: AnalyticsEvent = {
         eventName: partial.eventName,
         category: partial.category,
-        properties: partial.properties || {},
+        properties: cleanProps,
         screenName: partial.screenName || null,
         userId: this.userId,
         sessionId: this.sessionId,

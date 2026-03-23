@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native';
-import Colors from '../config/colors';
+import { Colors } from '../config/colors';
 
-export const commonStyles = StyleSheet.create({
+export const createCommonStyles = (colors: typeof Colors) => StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: Colors.overlay,
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },

@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══ HELPER FUNCTIONS ═══
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isCompanyMember(companyId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/companyMembers/$(companyId + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/companyMembers/$(companyId + '_' + request.auth.uid)).data.status == 'active';
+    }
+
+    function isCompanyAdmin(companyId) {
+      return isCompanyMember(companyId) &&
+        get(/databases/$(database)/documents/companyMembers/$(companyId + '_' + request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ═══ COMPANIES ═══
+
+    match /companies/{companyId} {
+      allow read: if isCompanyMember(companyId);
+      allow create: if isAuthenticated();
+      allow update: if isCompanyAdmin(companyId);
+      allow delete: if false; // Deletion via Cloud Functions only
+    }
+
+    // ═══ COMPANY MEMBERS ═══
+    // Document ID format: {companyId}_{userId}
+
+    match /companyMembers/{memberId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isCompanyAdmin(resource.data.companyId)
+      );
+      // Writes handled by Cloud Functions only (invite, accept, deactivate)
+      allow create, update, delete: if false;
+    }
+
+    // ═══ COMPANY KPIs ═══
+
+    match /companyKPIs/{kpiId} {
+      allow read: if isAuthenticated() && isCompanyMember(resource.data.companyId);
+      allow create: if isAuthenticated() && isCompanyAdmin(request.resource.data.companyId);
+      allow update: if isAuthenticated() && isCompanyAdmin(resource.data.companyId);
+      allow delete: if false; // Archive, don't delete
+    }
+
+    // ═══ GOALS ═══
+
+    match /goals/{goalId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isCompanyAdmin(resource.data.companyId)
+      );
+      allow create: if false; // Cloud Functions only
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ═══ FEED POSTS ═══
+
+    match /feedPosts/{postId} {
+      allow read: if isAuthenticated() && isCompanyMember(resource.data.companyId);
+      allow create: if isAuthenticated() && isCompanyMember(request.resource.data.companyId);
+      allow update: if isAuthenticated() && isCompanyMember(resource.data.companyId);
+      allow delete: if false;
+    }
+
+    // ═══ USERS (B2B profiles) ═══
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // ═══ COMPANY INVITES ═══
+
+    match /companyInvites/{inviteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.email == request.auth.token.email ||
+        isCompanyAdmin(resource.data.companyId)
+      );
+      // Writes handled by Cloud Functions only
+      allow create, update, delete: if false;
+    }
+
+    // ═══ BILLING EVENTS ═══
+
+    match /billingEvents/{eventId} {
+      allow read: if isAuthenticated() && isCompanyAdmin(resource.data.companyId);
+      // Writes handled by Cloud Functions only
+      allow create, update, delete: if false;
+    }
+  }
+}

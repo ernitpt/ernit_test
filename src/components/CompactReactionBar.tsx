@@ -11,8 +11,7 @@ import {
 import { SmilePlus } from 'lucide-react-native';
 import type { ReactionType } from '../types';
 import ReactionPicker from './ReactionPicker';
-import Colors from '../config/colors';
-import { BorderRadius } from '../config';
+import { Colors, useColors, BorderRadius } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 
@@ -45,6 +44,8 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
     onReact,
     onViewReactions,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [showPicker, setShowPicker] = useState(false);
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -206,11 +207,12 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                         ]}
                         onPress={handleTogglePicker}
                         activeOpacity={0.8}
+                        accessibilityRole="button"
                         accessibilityLabel="React to this post"
                         accessibilityHint="Opens reaction picker"
                     >
                         <SmilePlus
-                            color={(showPicker || userReaction) ? Colors.secondary : Colors.textSecondary}
+                            color={(showPicker || userReaction) ? colors.secondary : colors.textSecondary}
                             size={20}
                         />
                     </TouchableOpacity>
@@ -250,6 +252,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                                     onPress={onViewReactions}
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                    accessibilityRole="button"
                                     accessibilityLabel={`${reactionCounts[type]} ${type} reactions`}
                                 >
                                     <Animated.Image
@@ -281,7 +284,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         paddingVertical: Spacing.sm,
         position: 'relative',
@@ -299,12 +302,12 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
     },
     reactButtonActive: {
-        backgroundColor: Colors.primaryTint,
+        backgroundColor: colors.primaryTint,
     },
     countsContainer: {
         flexDirection: 'row',
@@ -314,16 +317,16 @@ const styles = StyleSheet.create({
     reactionCount: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.pill,
         gap: Spacing.xs,
     },
     userReactionCount: {
-        backgroundColor: Colors.primaryTint,
+        backgroundColor: colors.primaryTint,
         borderWidth: 1,
-        borderColor: Colors.secondary,
+        borderColor: colors.secondary,
     },
     reactionImage: {
         width: 28,
@@ -332,10 +335,10 @@ const styles = StyleSheet.create({
     countText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     userCountText: {
-        color: Colors.secondary,
+        color: colors.secondary,
     },
 });
 

@@ -3,7 +3,8 @@
 // The server creates the SetupIntent in createDeferredGift; this screen presents the
 // PaymentElement in setup mode so the giver's card is saved for off-session charging later.
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -26,7 +27,7 @@ import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
@@ -47,6 +48,8 @@ type SetupInnerProps = {
 };
 
 const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NavigationProp>();
   const { state } = useApp();
   const { showError, showInfo } = useToast();
@@ -61,6 +64,11 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
     setIsProcessing(true);
 
     try {
+      // Save gift ID for SCA recovery — if 3D Secure redirects, we can recover context
+      if (experienceGift?.id) {
+        await AsyncStorage.setItem('pending_sca_gift', experienceGift.id);
+      }
+
       // Confirm the SetupIntent — this saves the payment method for future off-session use
       const { error, setupIntent } = await stripe.confirmSetup({
         elements,
@@ -77,6 +85,8 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
         // User cancelled or entered invalid details — inform them but let them proceed
         if (error.type === 'validation_error') {
           showError(error.message || 'Please check your card details.');
+          // Clear SCA recovery key since user is still on screen and can retry
+          await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
           return; // Stay on screen so they can correct it
         }
         // Any other error: warn and proceed to confirmation (gift already created)
@@ -87,7 +97,8 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       }
 
       if (setupIntent?.status === 'succeeded') {
-        // Card saved — proceed to confirmation
+        // Card saved — clear SCA recovery key and proceed
+        await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
         navigation.replace('Confirmation', { experienceGift });
       } else {
         // Unexpected state — still navigate forward
@@ -130,17 +141,17 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               accessibilityLabel="Skip card setup"
               disabled={isProcessing}
             >
-              <ChevronLeft color={Colors.textPrimary} size={24} />
+              <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Secure Your Gift</Text>
             <View style={styles.lockIcon}>
-              <Lock color={Colors.secondary} size={20} />
+              <Lock color={colors.secondary} size={20} />
             </View>
           </View>
 
           {isProcessing && (
             <View style={styles.processingOverlay}>
-              <ActivityIndicator color={Colors.secondary} size="large" />
+              <ActivityIndicator color={colors.secondary} size="large" />
               <Text style={styles.processingText}>Saving your card...</Text>
             </View>
           )}
@@ -162,7 +173,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
             {/* Stripe PaymentElement (card form) */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <CreditCard color={Colors.secondary} size={20} />
+                <CreditCard color={colors.secondary} size={20} />
                 <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>Card Details</Text>
               </View>
               <View style={styles.paymentBox}>
@@ -177,7 +188,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
 
             {/* Security note */}
             <View style={styles.securityNotice}>
-              <Lock color={Colors.textSecondary} size={16} />
+              <Lock color={colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
                 Your payment information is encrypted and secure
               </Text>
@@ -217,6 +228,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
 // Outer wrapper — initialises Stripe <Elements> with the SetupIntent secret
 // ──────────────────────────────────────────────────────────────────────────────
 const DeferredSetupScreen: React.FC = () => {
+  const colors = useColors();
   const route = useRoute();
   const navigation = useNavigation<NavigationProp>();
   const { state } = useApp();
@@ -235,7 +247,7 @@ const DeferredSetupScreen: React.FC = () => {
     if (experienceGift) {
       navigation.replace('Confirmation', { experienceGift });
     } else {
-      navigation.replace('PurchasedGifts');
+      navigation.replace('ChallengeLanding');
     }
     return null;
   }
@@ -249,10 +261,10 @@ const DeferredSetupScreen: React.FC = () => {
           appearance: {
             theme: 'stripe',
             variables: {
-              colorPrimary: Colors.secondary,
-              colorBackground: Colors.white,
-              colorText: Colors.textPrimary,
-              colorDanger: Colors.error,
+              colorPrimary: colors.secondary,
+              colorBackground: colors.white,
+              colorText: colors.textPrimary,
+              colorDanger: colors.error,
               fontFamily: 'system-ui, -apple-system, sans-serif',
               spacingUnit: '4px',
               borderRadius: '8px',
@@ -268,10 +280,10 @@ const DeferredSetupScreen: React.FC = () => {
 
 export default DeferredSetupScreen;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   header: {
     flexDirection: 'row',
@@ -280,21 +292,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Platform.OS === 'ios' ? vh(50) : vh(40),
     paddingBottom: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
     textAlign: 'center',
   },
@@ -302,7 +314,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.successLighter,
+    backgroundColor: colors.successLighter,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -311,24 +323,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   infoCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginTop: Spacing.xl,
     marginBottom: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     ...Shadows.card,
   },
   infoTitle: {
     ...Typography.heading3,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '700',
     marginBottom: Spacing.sm,
   },
   infoSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
   },
   section: {
@@ -342,15 +354,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   paymentBox: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.black,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -363,13 +375,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.xl,
   },
   securityText: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   skipButton: {
@@ -379,7 +391,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textDecorationLine: 'underline',
   },
   bottomBar: {
@@ -387,13 +399,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    shadowColor: Colors.black,
+    borderTopColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -405,7 +417,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.surfaceFrosted,
+    backgroundColor: colors.surfaceFrosted,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -413,7 +425,7 @@ const styles = StyleSheet.create({
   processingText: {
     marginTop: Spacing.md,
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

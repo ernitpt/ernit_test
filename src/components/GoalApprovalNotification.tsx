@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
 import { sanitizeText } from '../utils/sanitization';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import Button from './Button';
 
 interface GoalApprovalNotificationProps {
@@ -37,6 +37,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const initialWeeks = notification.data?.initialTargetCount || 0;
   const initialSessions = notification.data?.initialSessionsPerWeek || 0;
@@ -256,7 +258,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Approve</Text>
             )}
@@ -346,7 +348,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Suggest</Text>
             )}
@@ -357,121 +359,121 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.warning,
-    overflow: 'hidden',
-  },
-  content: {
-    marginBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.subheading,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  message: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
-  },
-  details: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: Spacing.xxl,
-  },
-  buttonFlex: {
-    flex: 1,
-  },
-  modalSubtitle: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  inputGroup: {
-    flex: 1,
-  },
-  inputLabel: {
-    ...Typography.caption,
-    color: Colors.gray700,
-    marginBottom: Spacing.xs,
-    fontWeight: '500',
-  },
-  numberInput: {
-    borderWidth: 1,
-    borderColor: Colors.gray300,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    ...Typography.subheading,
-  },
-  messageInput: {
-    borderWidth: 1,
-    borderColor: Colors.gray300,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    ...Typography.small,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: Spacing.lg,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: Colors.backgroundLight,
-  },
-  confirmButton: {
-    backgroundColor: Colors.primary,
-  },
-  cancelButtonText: {
-    color: Colors.gray700,
-    fontWeight: '600',
-    ...Typography.body,
-  },
-  confirmButtonText: {
-    color: Colors.white,
-    fontWeight: '600',
-    ...Typography.body,
-  },
-  errorBox: {
-    backgroundColor: Colors.errorLight,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.error,
-  },
-  errorText: {
-    color: Colors.errorDark,
-    ...Typography.small,
-    fontWeight: '500',
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      marginBottom: Spacing.md,
+      ...Shadows.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.warning,
+      overflow: 'hidden',
+    },
+    content: {
+      marginBottom: Spacing.md,
+    },
+    title: {
+      ...Typography.subheading,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
+    message: {
+      ...Typography.small,
+      color: colors.textSecondary,
+      marginBottom: Spacing.sm,
+    },
+    details: {
+      ...Typography.caption,
+      color: colors.textMuted,
+    },
+    buttons: {
+      flexDirection: 'row',
+      gap: Spacing.xxl,
+    },
+    buttonFlex: {
+      flex: 1,
+    },
+    modalSubtitle: {
+      ...Typography.small,
+      color: colors.textSecondary,
+      marginBottom: Spacing.lg,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    inputGroup: {
+      flex: 1,
+    },
+    inputLabel: {
+      ...Typography.caption,
+      color: colors.gray700,
+      marginBottom: Spacing.xs,
+      fontWeight: '500',
+    },
+    numberInput: {
+      borderWidth: 1,
+      borderColor: colors.gray300,
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      ...Typography.subheading,
+    },
+    messageInput: {
+      borderWidth: 1,
+      borderColor: colors.gray300,
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      ...Typography.small,
+      minHeight: 80,
+      textAlignVertical: 'top',
+      marginBottom: Spacing.lg,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: Spacing.md,
+      borderRadius: BorderRadius.sm,
+      alignItems: 'center',
+    },
+    cancelButton: {
+      backgroundColor: colors.backgroundLight,
+    },
+    confirmButton: {
+      backgroundColor: colors.primary,
+    },
+    cancelButtonText: {
+      color: colors.gray700,
+      fontWeight: '600',
+      ...Typography.body,
+    },
+    confirmButtonText: {
+      color: colors.white,
+      fontWeight: '600',
+      ...Typography.body,
+    },
+    errorBox: {
+      backgroundColor: colors.errorLight,
+      borderRadius: BorderRadius.sm,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.error,
+    },
+    errorText: {
+      color: colors.errorDark,
+      ...Typography.small,
+      fontWeight: '500',
+    },
+  });
 
 export default GoalApprovalNotification;
-

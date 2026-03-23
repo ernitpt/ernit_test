@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
 } from 'react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -18,6 +18,9 @@ interface HowItWorksModalProps {
 }
 
 export default function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <BaseModal visible={visible} onClose={onClose} title="How Ernit Works" variant="bottom" noPadding>
             <ScrollView
@@ -108,82 +111,83 @@ export default function HowItWorksModal({ visible, onClose }: HowItWorksModalPro
     );
 }
 
-const styles = StyleSheet.create({
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: Spacing.xl,
-        paddingBottom: Spacing.sm,
-    },
-    exampleHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: Spacing.xxl,
-        backgroundColor: Colors.surface,
-        padding: Spacing.lg,
-        borderRadius: BorderRadius.md,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    exampleIcon: {
-        fontSize: Typography.display.fontSize,
-        marginRight: Spacing.md,
-    },
-    exampleTitle: {
-        ...Typography.subheading,
-        color: Colors.textPrimary,
-        flex: 1,
-    },
-    step: {
-        flexDirection: 'row',
-        marginBottom: Spacing.xl,
-    },
-    stepNumber: {
-        width: 36,
-        height: 36,
-        borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.secondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: Spacing.lg,
-        marginTop: Spacing.xxs,
-    },
-    stepNumberText: {
-        color: Colors.white,
-        ...Typography.subheading,
-        fontWeight: '700',
-    },
-    stepContent: {
-        flex: 1,
-    },
-    stepTitle: {
-        ...Typography.subheading,
-        color: Colors.textPrimary,
-        marginBottom: Spacing.xs,
-    },
-    stepDescription: {
-        ...Typography.body,
-        color: Colors.textSecondary,
-        lineHeight: 21,
-    },
-    ctaContainer: {
-        marginTop: Spacing.md,
-        padding: Spacing.lg,
-        backgroundColor: Colors.infoLight,
-        borderRadius: BorderRadius.md,
-        borderWidth: 1,
-        borderColor: Colors.infoLight,
-    },
-    ctaText: {
-        ...Typography.subheading,
-        color: Colors.secondary,
-        textAlign: 'center',
-    },
-    buttonContainer: {
-        padding: Spacing.xl,
-        paddingTop: Spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: Colors.backgroundLight,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        scrollView: {
+            flex: 1,
+        },
+        scrollContent: {
+            padding: Spacing.xl,
+            paddingBottom: Spacing.sm,
+        },
+        exampleHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: Spacing.xxl,
+            backgroundColor: colors.surface,
+            padding: Spacing.lg,
+            borderRadius: BorderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        exampleIcon: {
+            fontSize: Typography.display.fontSize,
+            marginRight: Spacing.md,
+        },
+        exampleTitle: {
+            ...Typography.subheading,
+            color: colors.textPrimary,
+            flex: 1,
+        },
+        step: {
+            flexDirection: 'row',
+            marginBottom: Spacing.xl,
+        },
+        stepNumber: {
+            width: 36,
+            height: 36,
+            borderRadius: BorderRadius.circle,
+            backgroundColor: colors.secondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: Spacing.lg,
+            marginTop: Spacing.xxs,
+        },
+        stepNumberText: {
+            color: colors.white,
+            ...Typography.subheading,
+            fontWeight: '700',
+        },
+        stepContent: {
+            flex: 1,
+        },
+        stepTitle: {
+            ...Typography.subheading,
+            color: colors.textPrimary,
+            marginBottom: Spacing.xs,
+        },
+        stepDescription: {
+            ...Typography.body,
+            color: colors.textSecondary,
+            lineHeight: 21,
+        },
+        ctaContainer: {
+            marginTop: Spacing.md,
+            padding: Spacing.lg,
+            backgroundColor: colors.infoLight,
+            borderRadius: BorderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.infoLight,
+        },
+        ctaText: {
+            ...Typography.subheading,
+            color: colors.secondary,
+            textAlign: 'center',
+        },
+        buttonContainer: {
+            padding: Spacing.xl,
+            paddingTop: Spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: colors.backgroundLight,
+        },
+    });

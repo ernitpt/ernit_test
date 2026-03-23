@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
     Dimensions,
     FlatList,
@@ -17,7 +17,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 
 interface ImageViewerProps {
@@ -35,6 +35,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     initialIndex = 0,
     onClose,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { width, height } = Dimensions.get('window');
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList<string>>(null);
@@ -83,8 +85,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     const renderItem = ({ item, index }: { item: string; index: number }) => (
         <View style={{ width, height, justifyContent: 'center', alignItems: 'center' }}>
             {imageErrors.has(index) ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.backgroundLight }}>
-                    <Text style={{ color: Colors.textMuted }}>Image failed to load</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundLight }}>
+                    <Text style={{ color: colors.textMuted }}>Image failed to load</Text>
                 </View>
             ) : (
                 <Image
@@ -108,8 +110,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     const renderWebContent = () => (
         <View style={styles.webImageContainer}>
             {imageErrors.has(currentIndex) ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.backgroundLight }}>
-                    <Text style={{ color: Colors.textMuted }}>Image failed to load</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundLight }}>
+                    <Text style={{ color: colors.textMuted }}>Image failed to load</Text>
                 </View>
             ) : (
                 <Image
@@ -128,7 +130,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                     accessibilityLabel="Previous image"
                     accessibilityRole="button"
                 >
-                    <ChevronLeft size={28} color={Colors.white} />
+                    <ChevronLeft size={28} color={colors.white} />
                 </TouchableOpacity>
             )}
             {images.length > 1 && currentIndex < images.length - 1 && (
@@ -138,7 +140,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                     accessibilityLabel="Next image"
                     accessibilityRole="button"
                 >
-                    <ChevronRight size={28} color={Colors.white} />
+                    <ChevronRight size={28} color={colors.white} />
                 </TouchableOpacity>
             )}
         </View>
@@ -181,7 +183,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                     accessibilityRole="button"
                 >
                     <View style={styles.closeButtonCircle}>
-                        <X size={24} color={Colors.white} />
+                        <X size={24} color={colors.white} />
                     </View>
                 </TouchableOpacity>
 
@@ -209,10 +211,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.overlayDark,
+        backgroundColor: colors.overlayDark,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.whiteAlpha25,
+        backgroundColor: colors.whiteAlpha25,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -247,7 +249,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: Colors.overlay,
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -272,10 +274,10 @@ const styles = StyleSheet.create({
         marginHorizontal: 4,
     },
     dotActive: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
     },
     dotInactive: {
-        backgroundColor: Colors.whiteAlpha40,
+        backgroundColor: colors.whiteAlpha40,
     },
 });
 

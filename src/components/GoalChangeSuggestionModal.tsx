@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { notificationService } from '../services/NotificationService';
 import { userService } from '../services/userService';
 import { logger } from '../utils/logger';
 import { sanitizeText } from '../utils/sanitization';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -34,6 +34,9 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   onClose,
   onGoalUpdated,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const initialWeeks = goal?.initialTargetCount || goal?.targetCount || 0;
   const initialSessions = goal?.initialSessionsPerWeek || goal?.sessionsPerWeek || 0;
   const suggestedWeeks = goal?.suggestedTargetCount || goal?.targetCount || 0;
@@ -332,135 +335,135 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  messageBox: {
-    backgroundColor: Colors.infoLight,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.info,
-  },
-  messageLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.info,
-    marginBottom: Spacing.xs,
-  },
-  messageText: {
-    ...Typography.small,
-    color: Colors.gray700,
-    fontStyle: 'italic',
-  },
-  goalInfo: {
-    marginBottom: Spacing.md,
-  },
-  infoLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
-  infoText: {
-    ...Typography.body,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  selectorContainer: {
-    marginVertical: Spacing.xl,
-  },
-  selectorLabel: {
-    ...Typography.body,
-    fontWeight: '600',
-    color: Colors.gray700,
-    marginBottom: Spacing.sm,
-  },
-  selectorValue: {
-    ...Typography.heading3,
-    color: Colors.primary,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-  },
-  rangeInfo: {
-    marginBottom: Spacing.lg,
-  },
-  rangeText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: Spacing.lg,
-  },
-  inputLabel: {
-    ...Typography.small,
-    fontWeight: '500',
-    color: Colors.gray700,
-    marginBottom: Spacing.sm,
-  },
-  numberInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  adjustButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  adjustButtonDisabled: {
-    backgroundColor: Colors.gray300,
-    opacity: 0.5,
-  },
-  adjustButtonText: {
-    color: Colors.white,
-    fontSize: Typography.large.fontSize,
-    fontWeight: '600',
-  },
-  adjustButtonTextDisabled: {
-    color: Colors.textMuted,
-  },
-  numberInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: Colors.gray300,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    ...Typography.subheading,
-    textAlign: 'center',
-  },
-  messageInput: {
-    borderWidth: 1,
-    borderColor: Colors.gray300,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    ...Typography.small,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: Spacing.xl,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  errorBox: {
-    backgroundColor: Colors.errorLight,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.error,
-  },
-  errorText: {
-    color: Colors.errorDark,
-    ...Typography.small,
-    fontWeight: '500',
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    messageBox: {
+      backgroundColor: colors.infoLight,
+      borderRadius: BorderRadius.sm,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.info,
+    },
+    messageLabel: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.info,
+      marginBottom: Spacing.xs,
+    },
+    messageText: {
+      ...Typography.small,
+      color: colors.gray700,
+      fontStyle: 'italic',
+    },
+    goalInfo: {
+      marginBottom: Spacing.md,
+    },
+    infoLabel: {
+      ...Typography.caption,
+      color: colors.textSecondary,
+      marginBottom: Spacing.xs,
+    },
+    infoText: {
+      ...Typography.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    selectorContainer: {
+      marginVertical: Spacing.xl,
+    },
+    selectorLabel: {
+      ...Typography.body,
+      fontWeight: '600',
+      color: colors.gray700,
+      marginBottom: Spacing.sm,
+    },
+    selectorValue: {
+      ...Typography.heading3,
+      color: colors.primary,
+      textAlign: 'center',
+      marginBottom: Spacing.md,
+    },
+    rangeInfo: {
+      marginBottom: Spacing.lg,
+    },
+    rangeText: {
+      ...Typography.caption,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    inputGroup: {
+      marginBottom: Spacing.lg,
+    },
+    inputLabel: {
+      ...Typography.small,
+      fontWeight: '500',
+      color: colors.gray700,
+      marginBottom: Spacing.sm,
+    },
+    numberInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    adjustButton: {
+      width: 44,
+      height: 44,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    adjustButtonDisabled: {
+      backgroundColor: colors.gray300,
+      opacity: 0.5,
+    },
+    adjustButtonText: {
+      color: colors.white,
+      fontSize: Typography.large.fontSize,
+      fontWeight: '600',
+    },
+    adjustButtonTextDisabled: {
+      color: colors.textMuted,
+    },
+    numberInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.gray300,
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      ...Typography.subheading,
+      textAlign: 'center',
+    },
+    messageInput: {
+      borderWidth: 1,
+      borderColor: colors.gray300,
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      ...Typography.small,
+      minHeight: 80,
+      textAlignVertical: 'top',
+      marginBottom: Spacing.xl,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+    },
+    errorBox: {
+      backgroundColor: colors.errorLight,
+      borderRadius: BorderRadius.sm,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.error,
+    },
+    errorText: {
+      color: colors.errorDark,
+      ...Typography.small,
+      fontWeight: '500',
+    },
+  });
 
 export default GoalChangeSuggestionModal;
-

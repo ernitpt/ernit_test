@@ -11,7 +11,7 @@ import { reactionService } from '../services/ReactionService';
 import { ReactionSkeleton } from './SkeletonLoader';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import { Colors, Typography, Spacing, BorderRadius } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius } from '../config';
 import { EmptyState } from './EmptyState';
 import { BaseModal } from './BaseModal';
 import { Avatar } from './Avatar';
@@ -42,6 +42,8 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     const [reactions, setReactions] = useState<Reaction[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState<ReactionType | 'all'>('all');
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
 
     useEffect(() => {
         if (visible) {
@@ -182,67 +184,68 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    tabsContainer: {
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    tabsContent: {
-        paddingHorizontal: Spacing.cardPadding,
-        paddingVertical: Spacing.md,
-        gap: Spacing.sm,
-    },
-    tab: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.cardPadding,
-        paddingVertical: Spacing.sm,
-        borderRadius: BorderRadius.xl,
-        backgroundColor: Colors.backgroundLight,
-        gap: Spacing.xs,
-        marginRight: Spacing.sm,
-    },
-    tabActive: {
-        backgroundColor: Colors.primarySurface,
-        borderWidth: 1.5,
-        borderColor: Colors.secondary,
-    },
-    tabEmoji: {
-        fontSize: Typography.subheading.fontSize,
-    },
-    tabText: {
-        ...Typography.smallBold,
-        color: Colors.textSecondary,
-    },
-    tabTextActive: {
-        color: Colors.secondary,
-    },
-    reactionsList: {
-        paddingHorizontal: Spacing.screenPadding,
-        paddingTop: Spacing.md,
-    },
-    loadingContainer: {
-        paddingVertical: Spacing.huge,
-        alignItems: 'center',
-    },
-    reactionItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: Spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
-    },
-    userInfo: {
-        flex: 1,
-        marginLeft: Spacing.md,
-    },
-    userName: {
-        ...Typography.bodyBold,
-        color: Colors.textPrimary,
-    },
-    reactionEmoji: {
-        fontSize: Typography.large.fontSize,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        tabsContainer: {
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+        },
+        tabsContent: {
+            paddingHorizontal: Spacing.cardPadding,
+            paddingVertical: Spacing.md,
+            gap: Spacing.sm,
+        },
+        tab: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: Spacing.cardPadding,
+            paddingVertical: Spacing.sm,
+            borderRadius: BorderRadius.xl,
+            backgroundColor: colors.backgroundLight,
+            gap: Spacing.xs,
+            marginRight: Spacing.sm,
+        },
+        tabActive: {
+            backgroundColor: colors.primarySurface,
+            borderWidth: 1.5,
+            borderColor: colors.secondary,
+        },
+        tabEmoji: {
+            fontSize: Typography.subheading.fontSize,
+        },
+        tabText: {
+            ...Typography.smallBold,
+            color: colors.textSecondary,
+        },
+        tabTextActive: {
+            color: colors.secondary,
+        },
+        reactionsList: {
+            paddingHorizontal: Spacing.screenPadding,
+            paddingTop: Spacing.md,
+        },
+        loadingContainer: {
+            paddingVertical: Spacing.huge,
+            alignItems: 'center',
+        },
+        reactionItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: Spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.backgroundLight,
+        },
+        userInfo: {
+            flex: 1,
+            marginLeft: Spacing.md,
+        },
+        userName: {
+            ...Typography.bodyBold,
+            color: colors.textPrimary,
+        },
+        reactionEmoji: {
+            fontSize: Typography.large.fontSize,
+        },
+    });
 
 export default ReactionViewerModal;

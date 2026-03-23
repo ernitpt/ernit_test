@@ -25,5 +25,9 @@
       "Bash(npm update:*)",
       "Bash(test:*)"
     ]
-  }
+  },
+  "disabledMcpjsonServers": [
+    "figma",
+    "gluestack-ui"
+  ]
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import { db } from '../services/firebase';
 import SharedHeader from '../components/SharedHeader';
 import { GiftCardSkeleton, SkeletonBox, ListItemSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -53,6 +53,8 @@ const formatDate = (date: Date | { toDate(): Date } | number | string | null | u
 };
 
 const GiftItem = ({ item }: { item: ExperienceGift }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
   const [claimedByName, setClaimedByName] = useState<string | null>(null);
   const [loadingName, setLoadingName] = useState(false);
@@ -113,15 +115,15 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
         <Text
           style={[
             styles.status,
-            item.status === 'claimed' ? styles.statusClaimed : styles.statusPending,
+            item.status === 'claimed' ? styles.statusClaimed : item.status === 'expired' ? styles.statusExpired : styles.statusPending,
           ]}
         >
-          {item.status ? item.status.toUpperCase() : 'PENDING'}
+          {item.status === 'expired' ? 'Expired' : item.status ? item.status.toUpperCase() : 'PENDING'}
         </Text>
       </View>
 
       {item.status === 'claimed' ? (
-        <Text style={[styles.detail, { color: Colors.primaryDeep, fontWeight: '500' }]}>
+        <Text style={[styles.detail, { color: colors.primaryDeep, fontWeight: '500' }]}>
           Claimed by:{' '}
           {loadingName ? (
             <SkeletonBox width={80} height={14} borderRadius={4} />
@@ -139,6 +141,8 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
 };
 
 const PurchasedGiftsScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { state } = useApp();
   const userId = state.user?.id;
   const [gifts, setGifts] = useState<ExperienceGift[]>([]);
@@ -286,8 +290,8 @@ const PurchasedGiftsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[Colors.secondary]}
-              tintColor={Colors.secondary}
+              colors={[colors.secondary]}
+              tintColor={colors.secondary}
             />
           }
         />
@@ -297,7 +301,7 @@ const PurchasedGiftsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   listContainer: {
     padding: Spacing.xl,
   },
@@ -312,7 +316,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
     marginRight: Spacing.sm,
   },
@@ -325,15 +329,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   statusClaimed: {
-    backgroundColor: Colors.successLight,
-    color: Colors.primaryDeep,
+    backgroundColor: colors.successLight,
+    color: colors.primaryDeep,
   },
   statusPending: {
-    backgroundColor: Colors.warningLight,
-    color: Colors.warningDeep,
+    backgroundColor: colors.warningLight,
+    color: colors.warningDeep,
+  },
+  statusExpired: {
+    backgroundColor: colors.backgroundLight,
+    color: colors.gray600,
   },
   detail: {
-    color: Colors.gray600,
+    color: colors.gray600,
     ...Typography.small,
     lineHeight: 20,
   },
@@ -342,31 +350,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   filterTab: {
     flex: 1,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   filterTabActive: {
-    backgroundColor: Colors.secondary,
-    borderColor: Colors.secondary,
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   filterText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   filterTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
 });
 

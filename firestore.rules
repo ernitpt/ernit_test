@@ -140,14 +140,13 @@ service cloud.firestore {
      * 🎯 GOALS
      * ===================== **/
     match /goals/{goalId} {
-      // Read: goal owner, giver (empoweredBy), or friends of goal owner
-      // NOTE: list queries use where('userId', '==', uid) which Firestore enforces.
-      // get access is broader to support feed, notifications, and friend profile views.
-      allow read: if request.auth != null &&
-        (request.auth.uid == resource.data.userId ||
-         request.auth.uid == resource.data.empoweredBy ||
-         exists(/databases/$(database)/documents/friends/$(request.auth.uid + '_' + resource.data.userId)) ||
-         exists(/databases/$(database)/documents/friends/$(resource.data.userId + '_' + request.auth.uid)));
+      // Read: any authenticated user can get a goal by ID.
+      // This is required for feed motivation checks, friend profile views,
+      // partner progress display, and notification handling.
+      // NOTE: list queries still use where('userId', '==', uid) so users can only
+      // list their OWN goals. But get-by-ID is open to all authenticated users.
+      // Sensitive goal data (session details, media) is in subcollections with tighter rules.
+      allow read: if request.auth != null;
 
       /* ===============================
          RECEIVER PERMISSIONS
@@ -477,13 +476,12 @@ service cloud.firestore {
       // already knows to query for. Consider a Cloud Function proxy for stricter isolation.
       allow list: if request.auth != null && request.query.limit <= 10;
 
-      // Get: allow giver or recipient only.
-      // NOTE: The claim flow uses getDocs() (a list query, not a get-by-ID), so removing
-      // the broad 'pending' / 'no recipientId' conditions here does NOT break claiming.
-      // The list rule above (limit <= 10) covers the claimCode query in CouponEntryScreen.
+      // Get: allow giver, recipient, or any authenticated user for unclaimed pending/active gifts.
+      // The pending/active check is needed because the claim transaction does a get() before update().
       allow get: if request.auth != null &&
         (resource.data.giverId == request.auth.uid ||
-         resource.data.recipientId == request.auth.uid);
+         resource.data.recipientId == request.auth.uid ||
+         (resource.data.status in ['pending', 'active'] && !('recipientId' in resource.data)));
 
       // Create: only via cloud functions (server-side)
       allow create: if false;
@@ -931,12 +929,21 @@ service cloud.firestore {
       // Write-only: authenticated users can create events, no client reads
       // SECURITY FIX (HIGH-5): Added field validation to prevent arbitrary data injection
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['eventName', 'category', 'userId', 'timestamp', 'properties', 'sessionId'])
+        && request.resource.data.keys().hasOnly(['eventName', 'category', 'userId', 'timestamp', 'properties', 'sessionId', 'screenName', 'userAgent', 'environment'])
         && request.resource.data.eventName is string
         && request.resource.data.eventName.size() <= 100
         && request.resource.data.category is string
         && request.resource.data.category.size() <= 50
-        && request.resource.data.userId is string;
+        && request.resource.data.userId is string
+        && (!('screenName' in request.resource.data) || (
+          request.resource.data.screenName is string &&
+          request.resource.data.screenName.size() <= 100))
+        && (!('userAgent' in request.resource.data) || (
+          request.resource.data.userAgent is string &&
+          request.resource.data.userAgent.size() <= 500))
+        && (!('environment' in request.resource.data) || (
+          request.resource.data.environment is string &&
+          request.resource.data.environment.size() <= 20));
       allow read, update, delete: if false;
     }
 

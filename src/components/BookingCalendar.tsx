@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useModalAnimation } from '../hooks/useModalAnimation';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -24,6 +24,8 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
     onCancel,
     minimumDate = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })(),
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState(initialDate);
     const slideAnim = useModalAnimation(visible);
@@ -136,7 +138,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                         {/* Header */}
                         <View style={styles.header}>
                             <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel="Previous month" accessibilityRole="button">
-                                <ChevronLeft color={Colors.secondary} size={24} />
+                                <ChevronLeft color={colors.secondary} size={24} />
                             </TouchableOpacity>
 
                             <Text style={styles.monthYear}>
@@ -144,7 +146,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                             </Text>
 
                             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel="Next month" accessibilityRole="button">
-                                <ChevronRight color={Colors.secondary} size={24} />
+                                <ChevronRight color={colors.secondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
@@ -218,19 +220,19 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: Colors.overlay,
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },
     calendarContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         padding: Spacing.xl,
         width: Math.min(Dimensions.get('window').width * 0.9, 400),
-        shadowColor: Colors.black,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 12,
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
     },
     title: {
         ...Typography.heading3,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         textAlign: 'center',
     },
     header: {
@@ -257,7 +259,7 @@ const styles = StyleSheet.create({
     },
     monthYear: {
         ...Typography.heading3,
-        color: Colors.gray700,
+        color: colors.gray700,
     },
     weekDaysRow: {
         flexDirection: 'row',
@@ -268,7 +270,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     daysGrid: {
         flexDirection: 'row',
@@ -283,26 +285,26 @@ const styles = StyleSheet.create({
         marginVertical: Spacing.xxs,
     },
     selectedDay: {
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
     },
     todayDay: {
         borderWidth: 2,
-        borderColor: Colors.secondary,
+        borderColor: colors.secondary,
     },
     dayText: {
         ...Typography.body,
-        color: Colors.gray700,
+        color: colors.gray700,
         fontWeight: '500',
     },
     disabledDayText: {
-        color: Colors.gray300,
+        color: colors.gray300,
     },
     selectedDayText: {
-        color: Colors.white,
+        color: colors.white,
         fontWeight: '700',
     },
     todayDayText: {
-        color: Colors.secondary,
+        color: colors.secondary,
         fontWeight: '700',
     },
     footer: {
@@ -311,7 +313,7 @@ const styles = StyleSheet.create({
         marginTop: Spacing.lg,
         paddingTop: Spacing.lg,
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
+        borderTopColor: colors.border,
         gap: Spacing.md,
     },
     cancelButton: {
@@ -320,11 +322,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.lg,
         borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         alignItems: 'center',
     },
     cancelText: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         ...Typography.body,
         fontWeight: '600',
     },
@@ -333,11 +335,11 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.lg,
         paddingHorizontal: Spacing.lg,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
         alignItems: 'center',
     },
     confirmText: {
-        color: Colors.white,
+        color: colors.white,
         ...Typography.body,
         fontWeight: '700',
     },

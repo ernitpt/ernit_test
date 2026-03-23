@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import Button from '../components/Button';
@@ -10,13 +10,16 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types'; // Ensure this path is correct
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const LandingScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const navigation = useNavigation<LandingScreenNavigationProp>();
   const { state } = useApp();
 
@@ -38,7 +41,7 @@ const LandingScreen = () => {
   return (
     <ErrorBoundary screenName="LandingScreen">
     <LinearGradient
-      colors={Colors.gradientPrimary}
+      colors={colors.gradientPrimary}
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -109,48 +112,48 @@ const LandingScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xxxl,
-  },
-  topSection: {
-    alignItems: 'center',
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: Spacing.lg,
-  },
-  logoTextContainer: {
-    marginBottom: Spacing.xxxl,
-    alignItems: 'center',
-  },
-  title: {
-    ...Typography.brandLogo,
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  tagline: {
-    ...Typography.large,
-    color: Colors.primaryTint,
-    textAlign: 'center',
-  },
-  bottomSection: {
-    marginTop: Spacing.xxxl,
-  },
-  buttonWrapper: {
-    marginBottom: Spacing.lg,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    gradient: {
+      flex: 1,
+    },
+    safeArea: {
+      flex: 1,
+    },
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: Spacing.xxxl,
+    },
+    topSection: {
+      alignItems: 'center',
+    },
+    logo: {
+      width: 120,
+      height: 120,
+      marginBottom: Spacing.lg,
+    },
+    logoTextContainer: {
+      marginBottom: Spacing.xxxl,
+      alignItems: 'center',
+    },
+    title: {
+      ...Typography.brandLogo,
+      color: colors.white,
+      textAlign: 'center',
+      marginBottom: Spacing.sm,
+    },
+    tagline: {
+      ...Typography.large,
+      color: colors.primaryTint,
+      textAlign: 'center',
+    },
+    bottomSection: {
+      marginTop: Spacing.xxxl,
+    },
+    buttonWrapper: {
+      marginBottom: Spacing.lg,
+    },
+  });
 
 export default LandingScreen;
-

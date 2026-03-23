@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   TextInput as RNTextInput,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
   TextInputProps as RNTextInputProps,
 } from 'react-native';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';
@@ -39,15 +39,18 @@ export const TextInput = React.memo<TextInputProps>(({
   inputStyle,
   ...inputProps
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [isFocused, setIsFocused] = useState(false);
 
   const borderColor = error
-    ? Colors.error
+    ? colors.error
     : success
-      ? Colors.successBorder
+      ? colors.successBorder
       : isFocused
-        ? Colors.secondary
-        : Colors.border;
+        ? colors.secondary
+        : colors.border;
 
   const borderWidth = error || success || isFocused ? 1.5 : 1;
 
@@ -74,7 +77,7 @@ export const TextInput = React.memo<TextInputProps>(({
             inputProps.multiline && styles.multiline,
             inputStyle,
           ]}
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           onFocus={(e) => {
             setIsFocused(true);
             inputProps.onFocus?.(e);
@@ -95,62 +98,63 @@ export const TextInput = React.memo<TextInputProps>(({
 
 TextInput.displayName = 'TextInput';
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 0,
-  },
-  label: {
-    ...Typography.smallBold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-  iconContainer: {
-    paddingLeft: Spacing.md,
-  },
-  rightIconContainer: {
-    paddingRight: Spacing.md,
-  },
-  input: {
-    flex: 1,
-    ...Typography.body,
-    color: Colors.textPrimary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-  } as TextStyle,
-  inputWithIcon: {
-    paddingLeft: Spacing.sm,
-  },
-  inputWithRightIcon: {
-    paddingRight: Spacing.sm,
-  },
-  multiline: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  disabled: {
-    backgroundColor: Colors.backgroundLight,
-    opacity: 0.6,
-  },
-  errorText: {
-    ...Typography.caption,
-    color: Colors.error,
-    marginTop: Spacing.xs,
-  } as TextStyle,
-  successText: {
-    ...Typography.caption,
-    color: Colors.success,
-    marginTop: Spacing.xs,
-  } as TextStyle,
-  helperText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    marginTop: Spacing.xs,
-  } as TextStyle,
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: 0,
+    },
+    label: {
+      ...Typography.smallBold,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    } as TextStyle,
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.md,
+      overflow: 'hidden',
+    },
+    iconContainer: {
+      paddingLeft: Spacing.md,
+    },
+    rightIconContainer: {
+      paddingRight: Spacing.md,
+    },
+    input: {
+      flex: 1,
+      ...Typography.body,
+      color: colors.textPrimary,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+    } as TextStyle,
+    inputWithIcon: {
+      paddingLeft: Spacing.sm,
+    },
+    inputWithRightIcon: {
+      paddingRight: Spacing.sm,
+    },
+    multiline: {
+      minHeight: 100,
+      textAlignVertical: 'top',
+    },
+    disabled: {
+      backgroundColor: colors.backgroundLight,
+      opacity: 0.6,
+    },
+    errorText: {
+      ...Typography.caption,
+      color: colors.error,
+      marginTop: Spacing.xs,
+    } as TextStyle,
+    successText: {
+      ...Typography.caption,
+      color: colors.success,
+      marginTop: Spacing.xs,
+    } as TextStyle,
+    helperText: {
+      ...Typography.caption,
+      color: colors.textMuted,
+      marginTop: Spacing.xs,
+    } as TextStyle,
+  });

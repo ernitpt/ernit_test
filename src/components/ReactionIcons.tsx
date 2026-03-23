@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 
 interface ReactionIconProps {
     size?: number;
@@ -13,13 +13,14 @@ const useUniqueId = (prefix: string): string => {
 };
 
 export const ReactionLike: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+    const colors = useColors();
     const gradientId = useUniqueId('likeGradient');
     return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
             <Defs>
                 <LinearGradient id={gradientId} x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                    <Stop offset="0%" stopColor={Colors.secondary} />
-                    <Stop offset="100%" stopColor={Colors.accentDark} />
+                    <Stop offset="0%" stopColor={colors.secondary} />
+                    <Stop offset="100%" stopColor={colors.accentDark} />
                 </LinearGradient>
             </Defs>
             <Path
@@ -31,13 +32,14 @@ export const ReactionLike: React.FC<ReactionIconProps> = ({ size = 24 }) => {
 };
 
 export const ReactionHeart: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+    const colors = useColors();
     const gradientId = useUniqueId('heartGradient');
     return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
             <Defs>
                 <LinearGradient id={gradientId} x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                    <Stop offset="0%" stopColor={Colors.pink} />
-                    <Stop offset="100%" stopColor={Colors.error} />
+                    <Stop offset="0%" stopColor={colors.pink} />
+                    <Stop offset="100%" stopColor={colors.error} />
                 </LinearGradient>
             </Defs>
             <Path
@@ -49,13 +51,14 @@ export const ReactionHeart: React.FC<ReactionIconProps> = ({ size = 24 }) => {
 };
 
 export const ReactionMuscle: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+    const colors = useColors();
     const gradientId = useUniqueId('muscleGradient');
     return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
             <Defs>
                 <LinearGradient id={gradientId} x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                    <Stop offset="0%" stopColor={Colors.warning} />
-                    <Stop offset="100%" stopColor={Colors.warningDark} />
+                    <Stop offset="0%" stopColor={colors.warning} />
+                    <Stop offset="100%" stopColor={colors.warningDark} />
                 </LinearGradient>
             </Defs>
             <Path

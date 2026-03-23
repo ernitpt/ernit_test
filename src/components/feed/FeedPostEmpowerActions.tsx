@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
 import { Send } from 'lucide-react-native';
 import type { FeedPost as FeedPostType } from '../../types';
-import { Colors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
 
 interface FeedPostEmpowerActionsProps {
     post: FeedPostType;
@@ -21,6 +21,8 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
     onEmpower,
     onMotivate,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const empowerScale = useRef(new Animated.Value(1)).current;
     const motivateScale = useRef(new Animated.Value(1)).current;
 
@@ -125,7 +127,7 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                             accessibilityRole="button"
                             accessibilityLabel={`Send motivation message to ${post.userName}`}
                         >
-                            <Send color={Colors.primary} size={16} />
+                            <Send color={colors.primary} size={16} />
                             <Text style={styles.motivateButtonText}>Motivate</Text>
                         </TouchableOpacity>
                     </Animated.View>
@@ -135,7 +137,7 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     freeGoalActions: {
         flexDirection: 'row',
         gap: Spacing.sm,
@@ -156,8 +158,8 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.primary,
-        ...Shadows.colored(Colors.primary),
+        backgroundColor: colors.primary,
+        ...Shadows.colored(colors.primary),
     },
     empowerButtonLogo: {
         width: 18,
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
     empowerButtonText: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.white,
+        color: colors.white,
     },
     motivateButton: {
         flex: 1,
@@ -177,33 +179,33 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         borderWidth: 1,
-        borderColor: Colors.primaryTint,
+        borderColor: colors.primaryTint,
     },
     motivateButtonText: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.primary,
+        color: colors.primary,
     },
     experiencePreviewCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         borderRadius: BorderRadius.md,
         padding: Spacing.md,
         marginHorizontal: Spacing.lg,
         marginTop: Spacing.xs,
         marginBottom: Spacing.sm,
         borderWidth: 1,
-        borderColor: Colors.primaryTint,
+        borderColor: colors.primaryTint,
         ...Shadows.sm,
     },
     experiencePreviewImage: {
         width: 44,
         height: 44,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     experiencePreviewInfo: {
         flex: 1,
@@ -212,36 +214,36 @@ const styles = StyleSheet.create({
     experiencePreviewTitle: {
         ...Typography.caption,
         fontWeight: '700',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
     },
     experiencePreviewPrice: {
         ...Typography.caption,
         fontWeight: '800',
-        color: Colors.primary,
+        color: colors.primary,
         marginTop: Spacing.xxs,
     },
     experiencePreviewCta: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         borderRadius: BorderRadius.sm,
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.sm,
     },
     experiencePreviewCtaText: {
-        color: Colors.white,
+        color: colors.white,
         ...Typography.caption,
         fontWeight: '700',
     },
     categoryHintCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: BorderRadius.md,
         padding: Spacing.md,
         marginHorizontal: Spacing.lg,
         marginTop: Spacing.xs,
         marginBottom: Spacing.sm,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadows.sm,
     },
     categoryHintEmoji: {
@@ -254,7 +256,7 @@ const styles = StyleSheet.create({
     categoryHintText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.gray700,
+        color: colors.gray700,
     },
 });
 

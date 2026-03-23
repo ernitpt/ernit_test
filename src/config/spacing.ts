@@ -30,6 +30,9 @@ export const Spacing = {
 
     /** Gap between list items / card rows */
     listItemGap: 12,
+
+    /** Vertical padding for full-width landing page sections */
+    sectionVertical: 64,
 } as const;
 
 export default Spacing;

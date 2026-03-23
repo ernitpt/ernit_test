@@ -1,5 +1,5 @@
 import { Goal, PersonalizedHint } from '../../types';
-import Colors from '../../config/colors';
+import { Colors } from '../../config';
 
 // ─── Date utilities ─────────────────────────────────────────────────
 
@@ -155,8 +155,8 @@ export interface HintObject {
 /** @deprecated Use 'global_timer_state' AsyncStorage key directly (JSON object keyed by goalId) */
 export const TIMER_STORAGE_KEY = 'global_timer_state';
 
-export const CARD_COLORS = {
-  grayLight: Colors.border,
-  text: Colors.textPrimary,
-  sub: Colors.textSecondary,
-};
+export const createCardColors = (colors: typeof Colors) => ({
+  grayLight: colors.border,
+  text: colors.textPrimary,
+  sub: colors.textSecondary,
+});

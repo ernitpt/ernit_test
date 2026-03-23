@@ -187,6 +187,11 @@ export interface GoalCore {
   couponGeneratedAt?: Date;
   createdAt: Date;
   completedAt?: Date | Timestamp;
+  goalType?: 'gym' | 'yoga' | 'dance' | 'custom';
+  paymentCommitment?: 'payOnCompletion' | 'paidUpfront' | null;
+  venueId?: string;
+  venueName?: string;
+  venueLocation?: { lat: number; lng: number };
 }
 
 /** Weekly session tracking fields */
@@ -251,6 +256,24 @@ export interface GoalFreeGoal {
     location?: string;
   };
   preferredRewardCategory?: ExperienceCategory;
+  // Discovery engine fields (category-path goals)
+  discoveryPreferences?: Record<string, string>;
+  discoveryQuestionsCompleted?: number;
+  discoveredExperience?: {
+    experienceId: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    category: ExperienceCategory;
+    price: number;
+    coverImageUrl: string;
+    imageUrl: string[];
+    partnerId: string;
+    location?: string;
+  };
+  discoveredAt?: Date;
+  experienceRevealed?: boolean;
+  experienceRevealedAt?: Date;
   pledgedAt?: Date;
   giftAttachedAt?: Date;
   giftAttachDeadline?: Date;
@@ -554,6 +577,7 @@ export interface ChallengeSetupPrefill {
   sessionMinutes?: number;
   showCustomTime?: boolean;
   preferredRewardCategory?: ExperienceCategory;
+  paymentChoice?: 'payNow' | 'payLater' | 'free';
   currentStep?: number;
 }
 
@@ -570,11 +594,16 @@ export interface GiftFlowData {
   // Together mode only:
   duration?: string;
   durationWeeks?: number;
+  weeks?: number;
   frequency?: string;
   sessionsPerWeek?: number;
   sessionTime?: string;
   targetHours?: number;
   targetMinutes?: number;
+  hours?: string | number;
+  minutes?: string | number;
+  sessionMinutes?: number;
+  showCustomTime?: boolean;
   sameExperienceForBoth?: boolean;
   personalizedMessage?: string;
   preferredRewardCategory?: ExperienceCategory;
@@ -593,7 +622,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Journey: { goal: Goal };
   Goals: undefined;
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
   Completion: { goal: Goal; experienceGift?: ExperienceGift };
@@ -613,7 +642,7 @@ export type RootStackParamList = {
   FreeGoalCompletion: { goal: Goal };
   AchievementDetail: { goal: Goal };
   ChallengeLanding: { mode?: 'self' | 'gift' } | undefined;
-  MysteryChoice: { experience: Experience };
+  MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
   GiftLanding: { mode?: 'self' | 'gift' } | undefined;
   GiftFlow: { prefill?: GiftFlowPrefill } | undefined;
@@ -624,7 +653,7 @@ export type RootStackParamList = {
 export type GiverStackParamList = {
   CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
   ExperienceDetails: { experience: Experience };
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean };
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   Cart: undefined;
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
@@ -697,6 +726,7 @@ export type AnalyticsEventName =
   // Session & goal lifecycle
   | 'session_start'
   | 'weekly_goal_completed'
+  | 'goal_deleted'
   // Feed & discovery
   | 'feed_viewed'
   | 'app_open'

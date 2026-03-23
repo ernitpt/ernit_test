@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -14,6 +14,8 @@ const DEBUG_ALLOW_MULTIPLE_PER_DAY = config.debugEnabled;
 // ─── AlreadyLoggedTodayCard ─────────────────────────────────────────
 
 const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const checkScale = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -36,14 +38,14 @@ const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
   return (
     <Animated.View style={[styles.loggedTodayContainer, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={[Colors.primarySurface, Colors.white]}
+        colors={[colors.primarySurface, colors.white]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.loggedTodayGradient}
       >
         <Animated.View style={[styles.loggedTodayCheck, { transform: [{ scale: checkScale }] }]}>
           <LinearGradient
-            colors={Colors.gradientPrimary}
+            colors={colors.gradientPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.loggedTodayCheckCircle}
@@ -81,6 +83,8 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   loading,
   onStart,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isSelfGift = isSelfGifted(goal);
   const locked = isGoalLocked(goal);
 
@@ -134,8 +138,8 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
         </View>
       )}
       {showBanner1 && banner1Message && (
-        <View style={[styles.approvalMessageBox, { backgroundColor: Colors.successLighter, borderLeftColor: Colors.successMedium }]}>
-          <Text style={[styles.approvalMessageText, { color: Colors.primaryDeep }]}>
+        <View style={[styles.approvalMessageBox, { backgroundColor: colors.successLighter, borderLeftColor: colors.successMedium }]}>
+          <Text style={[styles.approvalMessageText, { color: colors.primaryDeep }]}>
             {banner1Message.message}
           </Text>
         </View>
@@ -168,64 +172,64 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   weekCompleteBox: {
     marginTop: Spacing.sm,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.successLighter,
+    backgroundColor: colors.successLighter,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: Colors.successBorder,
+    borderColor: colors.successBorder,
     alignItems: 'center',
   },
   weekCompleteText: {
     ...Typography.body,
-    color: Colors.primaryDeep,
+    color: colors.primaryDeep,
     fontWeight: '700',
     marginBottom: Spacing.xs,
   },
   weekCompleteSub: {
     ...Typography.caption,
-    color: Colors.primaryDark,
+    color: colors.primaryDark,
     fontWeight: '500',
   },
   approvalMessageBox: {
     padding: Spacing.md,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.warning,
+    borderLeftColor: colors.warning,
   },
   approvalMessageText: {
     ...Typography.caption,
-    color: Colors.warningDeep,
+    color: colors.warningDeep,
     lineHeight: 18,
   },
   disabledStartContainer: {
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     alignItems: 'center',
   },
   disabledStartText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
   },
-  startButton: { backgroundColor: Colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
-  startButtonText: { ...Typography.subheading, color: Colors.white, textAlign: 'center' },
+  startButton: { backgroundColor: colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  startButtonText: { ...Typography.subheading, color: colors.white, textAlign: 'center' },
   sessionDurationText: {
     marginTop: Spacing.sm,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     ...Typography.caption,
     textAlign: 'center',
   },
   hintIndicator: {
     ...Typography.caption,
-    color: Colors.secondary,
+    color: colors.secondary,
     textAlign: 'center',
     marginBottom: Spacing.md,
     opacity: 0.85,
@@ -241,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   loggedTodayCheck: {
     marginBottom: Spacing.sm,
@@ -255,18 +259,18 @@ const styles = StyleSheet.create({
   },
   loggedTodayCheckText: {
     ...Typography.large,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '800',
   },
   loggedTodayTitle: {
     ...Typography.subheading,
-    color: Colors.primaryDark,
+    color: colors.primaryDark,
     fontWeight: '700',
     marginBottom: Spacing.xs,
   },
   loggedTodaySub: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

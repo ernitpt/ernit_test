@@ -22,6 +22,48 @@ import {
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
 
+// PWA: Register service worker and inject manifest at module load time (before React renders).
+// This runs as early as possible so Chrome can detect installability before beforeinstallprompt fires.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  // Service worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  }
+
+  // Manifest link
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/manifest.json';
+    document.head.appendChild(link);
+  }
+
+  // Theme color
+  if (!document.querySelector('meta[name="theme-color"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.content = '#8B5CF6';
+    document.head.appendChild(meta);
+  }
+
+  // Apple PWA meta
+  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'apple-mobile-web-app-capable';
+    meta.content = 'yes';
+    document.head.appendChild(meta);
+  }
+
+  if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    const link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    link.href = '/icon_192.png';
+    document.head.appendChild(link);
+  }
+}
+
 export default function App() {
   logger.log('[App] Component mounting...');
 
@@ -44,26 +86,10 @@ export default function App() {
 
     // Set document title to "Ernit" on web and keep it constant
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      // Set initial title
       document.title = 'Ernit';
 
-      // Add manifest link to head
-      const manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      manifestLink.href = '/manifest.json';
-      document.head.appendChild(manifestLink);
-
-      // Add theme color meta tag
-      const themeColorMeta = document.createElement('meta');
-      themeColorMeta.name = 'theme-color';
-      themeColorMeta.content = Colors.primary;
-      document.head.appendChild(themeColorMeta);
-
-      // Add apple mobile web app capable
-      const appleMeta = document.createElement('meta');
-      appleMeta.name = 'apple-mobile-web-app-capable';
-      appleMeta.content = 'yes';
-      document.head.appendChild(appleMeta);
+      // Initialize Google Analytics 4 (web only)
+      initializeAnalytics();
 
       // Use MutationObserver to watch for title changes and reset to "Ernit"
       const titleObserver = new MutationObserver(() => {
@@ -81,9 +107,6 @@ export default function App() {
           characterData: true,
         });
       }
-
-      // Initialize Google Analytics 4 (web only)
-      initializeAnalytics();
 
       return () => {
         titleObserver.disconnect();

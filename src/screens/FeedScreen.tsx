@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -22,7 +22,7 @@ import { feedService } from '../services/FeedService';
 import { useApp } from '../context/AppContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -36,6 +36,8 @@ type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
 
 const FeedScreen: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { state } = useApp();
     const route = useRoute<FeedScreenRouteProp>();
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -234,7 +236,7 @@ const FeedScreen: React.FC = () => {
                     subtitle="See what you and your friends have achieved"
                 />
 
-                <View accessibilityLiveRegion="polite">
+                <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
                 {isLoading ? (
                     <View style={styles.list}>
                         <FeedPostSkeleton />
@@ -248,6 +250,8 @@ const FeedScreen: React.FC = () => {
                         keyExtractor={(item) => item.id}
                         renderItem={renderPost}
                         contentContainerStyle={styles.list}
+                        accessibilityRole="list"
+                        accessibilityLabel="Activity feed"
                         ListEmptyComponent={renderEmpty}
                         ListFooterComponent={isLoadingMore ? (
                             <View style={styles.loadingMore}>
@@ -276,8 +280,9 @@ const FeedScreen: React.FC = () => {
                             <RefreshControl
                                 refreshing={isRefreshing}
                                 onRefresh={handleRefresh}
-                                colors={[Colors.secondary]}
-                                tintColor={Colors.secondary}
+                                colors={[colors.secondary]}
+                                tintColor={colors.secondary}
+                                accessibilityLabel="Pull to refresh feed"
                             />
                         }
                     />
@@ -288,7 +293,7 @@ const FeedScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (_colors: typeof Colors) => StyleSheet.create({
     list: {
         padding: Spacing.lg,
     },

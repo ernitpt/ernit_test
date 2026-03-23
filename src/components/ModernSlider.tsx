@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent, LayoutChangeEvent } from 'react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -20,6 +20,9 @@ interface ModernSliderProps {
 const ModernSlider = ({
     label, value, min, max, onChange, leftLabel, rightLabel, unit, unitPlural,
 }: ModernSliderProps) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const { width } = useWindowDimensions();
     const [trackWidth, setTrackWidth] = useState(width - 96);
 
@@ -61,80 +64,81 @@ const ModernSlider = ({
     );
 };
 
-const styles = StyleSheet.create({
-    sliderContainer: {
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.xxl,
-        borderWidth: 1,
-        borderColor: Colors.backgroundLight,
-    },
-    sliderTitle: {
-        ...Typography.smallBold,
-        color: Colors.textSecondary,
-        marginBottom: Spacing.sm,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    sliderValueRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        marginBottom: Spacing.xl,
-        gap: Spacing.sm,
-    },
-    sliderValue: {
-        ...Typography.display,
-        fontWeight: '900',
-        color: Colors.gray800,
-    },
-    sliderUnit: {
-        ...Typography.heading3,
-        color: Colors.textSecondary,
-    },
-    sliderLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: Spacing.md,
-    },
-    sliderLabelText: {
-        ...Typography.caption,
-        fontWeight: '600',
-        color: Colors.textMuted,
-    },
-    sliderTrack: {
-        height: 8,
-        backgroundColor: Colors.border,
-        borderRadius: BorderRadius.xs,
-        position: 'relative',
-        width: '100%',
-    },
-    sliderProgress: {
-        height: '100%' as any,
-        backgroundColor: Colors.primary,
-        borderRadius: BorderRadius.xs,
-    },
-    sliderThumb: {
-        position: 'absolute',
-        top: -8,
-        marginLeft: -12,
-        width: 24,
-        height: 24,
-        borderRadius: BorderRadius.md,
-        backgroundColor: Colors.white,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: Colors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 4,
-    },
-    sliderThumbInner: {
-        width: 12,
-        height: 12,
-        borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.primary,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        sliderContainer: {
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.xl,
+            padding: Spacing.xxl,
+            borderWidth: 1,
+            borderColor: colors.backgroundLight,
+        },
+        sliderTitle: {
+            ...Typography.smallBold,
+            color: colors.textSecondary,
+            marginBottom: Spacing.sm,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+        },
+        sliderValueRow: {
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            marginBottom: Spacing.xl,
+            gap: Spacing.sm,
+        },
+        sliderValue: {
+            ...Typography.display,
+            fontWeight: '900',
+            color: colors.gray800,
+        },
+        sliderUnit: {
+            ...Typography.heading3,
+            color: colors.textSecondary,
+        },
+        sliderLabels: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginBottom: Spacing.md,
+        },
+        sliderLabelText: {
+            ...Typography.caption,
+            fontWeight: '600',
+            color: colors.textMuted,
+        },
+        sliderTrack: {
+            height: 8,
+            backgroundColor: colors.border,
+            borderRadius: BorderRadius.xs,
+            position: 'relative',
+            width: '100%',
+        },
+        sliderProgress: {
+            height: '100%' as any,
+            backgroundColor: colors.primary,
+            borderRadius: BorderRadius.xs,
+        },
+        sliderThumb: {
+            position: 'absolute',
+            top: -8,
+            marginLeft: -12,
+            width: 24,
+            height: 24,
+            borderRadius: BorderRadius.md,
+            backgroundColor: colors.white,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: colors.black,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 4,
+        },
+        sliderThumbInner: {
+            width: 12,
+            height: 12,
+            borderRadius: BorderRadius.xs,
+            backgroundColor: colors.primary,
+        },
+    });
 
 export default ModernSlider;

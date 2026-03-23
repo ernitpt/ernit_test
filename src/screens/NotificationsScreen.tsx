@@ -34,11 +34,12 @@ import Animated, { ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
 import { Bell, TrendingUp, Heart, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy } from 'lucide-react-native';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '../components/EmptyState';
+import Button from '../components/Button';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -82,6 +83,8 @@ const formatNotificationDate = (createdAt: Date | { toDate(): Date } | number | 
 };
 
 const NotificationsScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { state } = useApp();
   const { showSuccess, showError, showInfo } = useToast();
   const userId = state.user?.id;
@@ -110,6 +113,22 @@ const NotificationsScreen = () => {
       if (!map[goalId] || sessionNumber > (sessionNums[goalId] || 0)) {
         map[goalId] = n.id!;
         sessionNums[goalId] = sessionNumber;
+      }
+    }
+    return map;
+  }, [notifications]);
+
+  // Pre-compute latest free_goal_milestone notification per goal (same pattern)
+  const latestFreeGoalMilestoneMap = useMemo(() => {
+    const map: Record<string, string> = {}; // goalId -> notificationId of latest
+    const milestones: Record<string, number> = {}; // goalId -> highest milestone seen
+    for (const n of notifications) {
+      if (n.type !== 'free_goal_milestone' || !n.data?.goalId) continue;
+      const goalId = n.data.goalId;
+      const milestone = n.data?.milestone || 0;
+      if (!map[goalId] || milestone > (milestones[goalId] || 0)) {
+        map[goalId] = n.id!;
+        milestones[goalId] = milestone;
       }
     }
     return map;
@@ -195,6 +214,7 @@ const NotificationsScreen = () => {
     if (tappingRef.current) return;
     tappingRef.current = true;
     try {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
     analyticsService.trackEvent('notification_tapped', 'engagement', { type: n.type }, 'NotificationsScreen');
     await notificationService.markAsRead(n.id!);
 
@@ -350,6 +370,8 @@ const NotificationsScreen = () => {
       return;
     }
 
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       await notificationService.clearAllNotifications(userId);
       showSuccess('All notifications have been cleared.');
@@ -440,10 +462,15 @@ const NotificationsScreen = () => {
 
     // Handle free goal milestone/completion notifications with Empower + Motivate buttons
     if (item.type === 'free_goal_milestone' || item.type === 'free_goal_completed') {
+      const isMilestoneLatest = item.data?.goalId
+        ? latestFreeGoalMilestoneMap[item.data.goalId] === item.id
+        : true;
+
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <FreeGoalNotification
             notification={item}
+            isLatest={isMilestoneLatest}
             onActionComplete={handleFriendRequestHandled}
           />
         </Animated.View>
@@ -453,8 +480,8 @@ const NotificationsScreen = () => {
     // Handle goal approval response notifications (approved/rejected)
     if (item.type === 'goal_approval_response') {
       const isApproved = item.data?.approved !== false;
-      const accentColor = isApproved ? Colors.success : Colors.error;
-      const bgColor = isApproved ? Colors.successLight : Colors.errorLight;
+      const accentColor = isApproved ? colors.success : colors.error;
+      const bgColor = isApproved ? colors.successLight : colors.errorLight;
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
@@ -488,7 +515,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -507,7 +534,7 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+              { borderLeftWidth: 3, borderLeftColor: colors.primary },
             ]}
             accessibilityRole="button"
             accessibilityLabel={`${item.message}. Tap to view post`}
@@ -565,7 +592,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -582,11 +609,11 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.pink },
+              { borderLeftWidth: 3, borderLeftColor: colors.pink },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.pinkLight }]}>
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.pinkLight }]}>
                 <Avatar
                   uri={item.data?.senderProfileImageUrl}
                   name={item.data?.senderName}
@@ -609,7 +636,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -626,12 +653,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+              { borderLeftWidth: 3, borderLeftColor: colors.primary },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
-                <Bell size={24} color={Colors.primary} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.primarySurface }]}>
+                <Bell size={24} color={colors.primary} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -649,7 +676,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -670,12 +697,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.success },
+              { borderLeftWidth: 3, borderLeftColor: colors.success },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.successLight }]}>
-                <TrendingUp size={24} color={Colors.secondary} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.successLight }]}>
+                <TrendingUp size={24} color={colors.secondary} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -701,7 +728,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -718,12 +745,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+              { borderLeftWidth: 3, borderLeftColor: colors.warning },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.warningLight }]}>
-                <Gift size={24} color={Colors.warning} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.warningLight }]}>
+                <Gift size={24} color={colors.warning} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -741,7 +768,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -758,12 +785,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+              { borderLeftWidth: 3, borderLeftColor: colors.primary },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.primarySurface }]}>
-                <Activity size={24} color={Colors.primary} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.primarySurface }]}>
+                <Activity size={24} color={colors.primary} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -781,7 +808,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -790,8 +817,8 @@ const NotificationsScreen = () => {
 
     // Handle shared/together challenge notifications
     if (item.type === 'shared_start' || item.type === 'shared_unlock' || item.type === 'shared_completion') {
-      const accentColor = item.type === 'shared_unlock' ? Colors.success : Colors.primary;
-      const bgColor = item.type === 'shared_unlock' ? Colors.successLight : Colors.primarySurface;
+      const accentColor = item.type === 'shared_unlock' ? colors.success : colors.primary;
+      const bgColor = item.type === 'shared_unlock' ? colors.successLight : colors.primarySurface;
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
@@ -823,7 +850,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -833,8 +860,8 @@ const NotificationsScreen = () => {
     // Handle payment notifications
     if (item.type === 'payment_charged' || item.type === 'payment_failed') {
       const isFailure = item.type === 'payment_failed';
-      const accentColor = isFailure ? Colors.error : Colors.success;
-      const bgColor = isFailure ? Colors.errorLight : Colors.successLight;
+      const accentColor = isFailure ? colors.error : colors.success;
+      const bgColor = isFailure ? colors.errorLight : colors.successLight;
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <TouchableOpacity
@@ -868,7 +895,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -889,12 +916,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+              { borderLeftWidth: 3, borderLeftColor: colors.warning },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.warningLight }]}>
-                <Gift size={24} color={Colors.warning} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.warningLight }]}>
+                <Gift size={24} color={colors.warning} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -902,7 +929,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={[styles.reminderMessage, { color: Colors.warning, fontWeight: '600', marginTop: 4 }]}>
+                <Text style={[styles.reminderMessage, { color: colors.warning, fontWeight: '600', marginTop: 4 }]}>
                   Set up your goal →
                 </Text>
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
@@ -915,7 +942,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -931,12 +958,12 @@ const NotificationsScreen = () => {
             style={[
               styles.notificationCard,
               !item.read && styles.notificationCardUnread,
-              { borderLeftWidth: 3, borderLeftColor: Colors.success },
+              { borderLeftWidth: 3, borderLeftColor: colors.success },
             ]}
           >
             <View style={styles.reminderCardContent}>
-              <View style={[styles.reminderIconContainer, { backgroundColor: Colors.successLight }]}>
-                <Trophy size={24} color={Colors.success} />
+              <View style={[styles.reminderIconContainer, { backgroundColor: colors.successLight }]}>
+                <Trophy size={24} color={colors.success} />
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
@@ -954,7 +981,7 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
@@ -966,7 +993,7 @@ const NotificationsScreen = () => {
         <View style={[
           styles.notificationCard,
           !item.read && styles.notificationCardUnread,
-          { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+          { borderLeftWidth: 3, borderLeftColor: colors.primary },
         ]}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
@@ -996,13 +1023,13 @@ const NotificationsScreen = () => {
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={Colors.textMuted} />
+              <X size={14} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       </Animated.View>
     );
-  }, [handleFriendRequestHandled, handleApprovalActionTaken, handlePress, handleClearNotification, latestGoalProgressMap, userGoals]);
+  }, [handleFriendRequestHandled, handleApprovalActionTaken, handlePress, handleClearNotification, latestGoalProgressMap, latestFreeGoalMilestoneMap, userGoals]);
 
   return (
     <ErrorBoundary screenName="NotificationsScreen" userId={userId}>
@@ -1014,8 +1041,10 @@ const NotificationsScreen = () => {
           rightActions={
             notifications.length > 0 ? (
               <View style={styles.headerActions}>
-                <TouchableOpacity
-                  style={styles.markAllReadButton}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Mark Read"
                   onPress={async () => {
                     if (!userId) return;
                     try {
@@ -1025,19 +1054,13 @@ const NotificationsScreen = () => {
                       showError('Failed to mark all as read.');
                     }
                   }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Mark all notifications as read"
-                >
-                  <Text style={styles.markAllReadButtonText}>Mark Read</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.clearAllButton}
+                />
+                <Button
+                  variant="danger"
+                  size="sm"
+                  title="Clear All"
                   onPress={handleClearAll}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear all notifications"
-                >
-                  <Text style={styles.clearAllButtonText}>Clear All</Text>
-                </TouchableOpacity>
+                />
               </View>
             ) : null
           }
@@ -1090,8 +1113,8 @@ const NotificationsScreen = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                colors={[Colors.secondary]}
-                tintColor={Colors.secondary}
+                colors={[colors.secondary]}
+                tintColor={colors.secondary}
               />
             }
           />
@@ -1121,35 +1144,35 @@ const NotificationsScreen = () => {
 };
 
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
     alignItems: 'center',
   },
   markAllReadButton: {
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.xs,
     borderWidth: 1,
-    borderColor: Colors.success,
+    borderColor: colors.success,
   },
   markAllReadButtonText: {
-    color: Colors.success,
+    color: colors.success,
     ...Typography.small,
     fontWeight: '600',
   },
   clearAllButton: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.xs,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   clearAllButtonText: {
-    color: Colors.primary,
+    color: colors.primary,
     ...Typography.small,
     fontWeight: '600',
   },
@@ -1158,17 +1181,17 @@ const styles = StyleSheet.create({
   },
   // Unified card base — all notification types
   notificationCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     marginBottom: Spacing.md,
     ...Shadows.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   notificationCardUnread: {
-    borderColor: Colors.primaryBorder,
-    backgroundColor: Colors.primarySurface,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySurface,
   },
   // Default card inner layout (default / personalized_hint_left types)
   cardContent: {
@@ -1184,17 +1207,17 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   cardMessage: {
-    color: Colors.gray600,
+    color: colors.gray600,
     ...Typography.small,
     marginBottom: Spacing.xs,
     lineHeight: 20,
   },
   cardDate: {
-    color: Colors.textMuted,
+    color: colors.textMuted,
     ...Typography.caption,
   },
   cardFooter: {
@@ -1203,7 +1226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hintText: {
-    color: Colors.secondary,
+    color: colors.secondary,
     ...Typography.tiny,
     fontStyle: 'italic',
   },
@@ -1215,7 +1238,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1223,7 +1246,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 8,
     height: 8,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     borderRadius: BorderRadius.circle,
     marginTop: Spacing.xs,
   },
@@ -1248,13 +1271,13 @@ const styles = StyleSheet.create({
   reactionMessage: {
     ...Typography.body,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 20,
     flex: 1,
   },
   reactionDate: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginBottom: Spacing.xs,
   },
   reactionBadge: {
@@ -1293,12 +1316,12 @@ const styles = StyleSheet.create({
   reminderTitle: {
     ...Typography.body,
     fontWeight: '600' as const,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   reminderMessage: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   recapProgressContainer: {
@@ -1310,19 +1333,19 @@ const styles = StyleSheet.create({
   recapProgressBar: {
     flex: 1,
     height: 6,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     borderRadius: BorderRadius.xs,
     overflow: 'hidden' as const,
   },
   recapProgressFill: {
     height: '100%' as const,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     borderRadius: BorderRadius.xs,
   },
   recapProgressText: {
     ...Typography.caption,
     fontWeight: '600' as const,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
 });
 

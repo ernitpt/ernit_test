@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 
@@ -29,6 +29,9 @@ export const ConfirmationDialog = React.memo<ConfirmationDialogProps>(({
   variant = 'default',
   loading = false,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <BaseModal visible={visible} onClose={onCancel} title={title}>
       <Text style={styles.message}>{message}</Text>
@@ -54,18 +57,19 @@ export const ConfirmationDialog = React.memo<ConfirmationDialogProps>(({
 
 ConfirmationDialog.displayName = 'ConfirmationDialog';
 
-const styles = StyleSheet.create({
-  message: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.md,
-  },
-  button: {
-    flex: 1,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    message: {
+      ...Typography.body,
+      color: colors.textSecondary,
+      marginBottom: Spacing.xl,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: Spacing.md,
+    },
+    button: {
+      flex: 1,
+    },
+  });

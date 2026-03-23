@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -31,7 +31,7 @@ import { analyticsService } from '../services/AnalyticsService';
 import { goalService } from '../services/GoalService';
 import { getTimeAgo } from '../utils/timeUtils';
 import { Platform } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Spacing, BorderRadius, Shadows } from '../config';
 import { Typography } from '../config/typography';
 import * as Haptics from 'expo-haptics';
 
@@ -43,6 +43,8 @@ interface FeedPostProps {
 const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state, dispatch } = useApp();
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
     const [comments, setComments] = useState<CommentType[]>([]);
     const [reactionCounts, setReactionCounts] = useState(post.reactionCounts);
@@ -107,11 +109,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
     // Animated value for highlight effect
     const highlightAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        loadUserReaction();
-        loadComments();
-    }, [loadUserReaction, loadComments]);
 
     // Animate highlight effect
     useEffect(() => {
@@ -183,6 +180,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             setCommentCount(prev => prev + 1);
         }
     }, [loadComments]);
+
+    // Load reactions and comments on mount/post change
+    useEffect(() => {
+        loadUserReaction();
+        loadComments();
+    }, [loadUserReaction, loadComments]);
 
     const handleReact = async (type: ReactionType) => {
         if (!state.user?.id) return;
@@ -266,20 +269,20 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             case 'goal_started':
                 return {
                     text: 'set a new goal',
-                    color: Colors.accent,
+                    color: colors.accent,
                     typeLabel: 'New Goal',
                 };
             case 'goal_approved':
                 return {
                     text: 'got goal approved!',
-                    color: Colors.secondary,
+                    color: colors.secondary,
                     typeLabel: 'Approved',
                 };
             case 'session_progress':
             case 'goal_progress': // Support migrated posts with this type
                 return {
                     text: (<>completed <Text style={{ fontWeight: '500' }}>{getActivityType(post.goalDescription)}</Text> session</>),
-                    color: Colors.secondary,
+                    color: colors.secondary,
                     typeLabel: 'Session',
                 };
             case 'goal_completed':
@@ -287,31 +290,31 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     // Free goal without attached gift — they completed a challenge, not earned a reward
                     return {
                         text: 'completed their challenge!',
-                        color: Colors.success,
+                        color: colors.success,
                         typeLabel: 'Completed!',
                     };
                 }
                 if (post.experienceTitle) {
                     return {
                         text: (<>completed their goal and earned:</>),
-                        color: Colors.success,
+                        color: colors.success,
                         typeLabel: 'Completed!',
                     };
                 }
                 return {
                     text: 'completed their goal!',
-                    color: Colors.success,
+                    color: colors.success,
                     typeLabel: 'Completed!',
                 };
             default:
                 // Fallback for unknown post types
                 return {
                     text: 'made progress',
-                    color: Colors.textSecondary,
+                    color: colors.textSecondary,
                     typeLabel: '',
                 };
         }
-    }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle]);
+    }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle, colors]);
 
     const handleUserPress = () => {
         if (post.userId === state.user?.id) {
@@ -345,7 +348,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 borderLeftWidth: 3,
                 borderLeftColor: typeInfo.color,
                 // iOS shadow
-                shadowColor: isHighlighted ? Colors.secondary : Colors.textPrimary,
+                shadowColor: isHighlighted ? colors.secondary : colors.textPrimary,
                 shadowOffset: { width: 0, height: 2 },
                 shadowRadius: animatedShadowRadius,
                 shadowOpacity: animatedShadowOpacity,
@@ -422,7 +425,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     accessibilityRole="button"
                     accessibilityLabel={`View ${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
                 >
-                    <MessageCircle color={Colors.textSecondary} size={18} />
+                    <MessageCircle color={colors.textSecondary} size={18} />
                     {commentCount > 0 && (
                         <Text style={styles.commentCountText}>{commentCount}</Text>
                     )}
@@ -506,14 +509,14 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         overflow: 'hidden',
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadows.md,
     },
     interactionRow: {
@@ -531,22 +534,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.sm,
         borderRadius: BorderRadius.xl,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     commentCountText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     divider: {
         height: 1,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
         marginVertical: Spacing.sm,
         marginHorizontal: Spacing.lg,
     },
     // Session media (top of card)
     sessionMediaContainer: {
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     sessionMediaImage: {
         width: '100%',
@@ -558,12 +561,12 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: Colors.blackAlpha20,
+        backgroundColor: colors.blackAlpha20,
         alignItems: 'center',
         justifyContent: 'center',
     },
     sessionMediaPlayIcon: {
-        color: Colors.white,
+        color: colors.white,
         fontSize: 36,
     },
 });

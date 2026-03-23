@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,7 @@ import { motivationService } from '../services/MotivationService';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import MotivationModal from './MotivationModal';
 import EmpowerChoiceModal from './EmpowerChoiceModal';
 import Button from './Button';
@@ -24,31 +24,37 @@ import { Avatar } from './Avatar';
 
 interface FreeGoalNotificationProps {
     notification: Notification;
+    isLatest?: boolean;
     onActionComplete?: () => void;
 }
 
 const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     notification,
+    isLatest = true,
     onActionComplete,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { state } = useApp();
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
     const [showMotivationModal, setShowMotivationModal] = useState(false);
     const [alreadyEmpowered, setAlreadyEmpowered] = useState(false);
     const [alreadySentMotivation, setAlreadySentMotivation] = useState(false);
+    const [goalIsCompleted, setGoalIsCompleted] = useState(false);
     const [targetSession, setTargetSession] = useState<number>(1);
 
     const data = notification.data || {};
     const isCompleted = notification.type === 'free_goal_completed' || data.milestone === 100;
     const milestone = data.milestone || 0;
 
-    // Check if goal already has a gift attached and if user already sent motivation
+    // Check if goal already has a gift attached, is completed, and if user already sent motivation
     useEffect(() => {
         if (!data.goalId || !state.user?.id) return;
         const check = async () => {
             try {
                 const goal = await goalService.getGoalById(data.goalId);
                 if (goal?.giftAttachedAt) setAlreadyEmpowered(true);
+                if (goal?.isCompleted) setGoalIsCompleted(true);
                 if (goal) {
                     const currentDone = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0);
                     const nextSession = currentDone + 1;
@@ -96,7 +102,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     activeOpacity={0.7}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                    <X color={Colors.textMuted} size={14} />
+                    <X color={colors.textMuted} size={14} />
                 </TouchableOpacity>
 
                 {/* Header: Avatar + Title */}
@@ -138,7 +144,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 {/* Category Badge (for category-only goals) */}
                 {!data.experienceTitle && data.preferredRewardCategory && (
                     <View style={styles.experienceRow}>
-                        <View style={[styles.experienceImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.backgroundLight }]}>
+                        <View style={[styles.experienceImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundLight }]}>
                             <Text style={{ fontSize: Typography.heading2.fontSize }}>
                                 {data.preferredRewardCategory === 'adventure' ? '🏔️' : data.preferredRewardCategory === 'wellness' ? '🧘' : '🎨'}
                             </Text>
@@ -166,11 +172,12 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     </View>
                 )}
 
-                {/* Action Buttons */}
+                {/* Action Buttons (hidden on completed goals) */}
+                {!isCompleted && !goalIsCompleted && (
                 <View style={styles.actions}>
                     {alreadyEmpowered ? (
                         <View style={styles.empoweredBadge}>
-                            <CheckCircle size={16} color={Colors.primary} />
+                            <CheckCircle size={16} color={colors.primary} />
                             <Text style={styles.empoweredBadgeText}>Already Empowered</Text>
                         </View>
                     ) : (
@@ -179,23 +186,24 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                             variant="primary"
                             size="sm"
                             onPress={() => setShowEmpowerModal(true)}
-                            icon={<Gift size={16} color={Colors.white} />}
+                            icon={<Gift size={16} color={colors.white} />}
                             style={{ flex: 1 }}
                         />
                     )}
 
-                    {/* Only show Motivate for milestones (not completed) and if not already sent */}
-                    {!isCompleted && !alreadySentMotivation && (
+                    {/* Only show Motivate for latest milestone, not completed, not already sent */}
+                    {!isCompleted && !goalIsCompleted && !alreadySentMotivation && isLatest && (
                         <Button
                             title="Motivate"
                             variant="secondary"
                             size="sm"
                             onPress={() => setShowMotivationModal(true)}
-                            icon={<Heart size={16} color={Colors.primary} />}
+                            icon={<Heart size={16} color={colors.primary} />}
                             style={{ flex: 1 }}
                         />
                     )}
                 </View>
+                )}
             </View>
 
             {/* Empower Choice Modal */}
@@ -224,22 +232,22 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         marginBottom: Spacing.md,
         padding: Spacing.cardPadding,
         ...Shadows.sm,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderLeftWidth: 3,
-        borderLeftColor: Colors.secondary,
+        borderLeftColor: colors.secondary,
         overflow: 'hidden',
     },
     cardUnread: {
-        borderColor: Colors.primaryBorder,
-        backgroundColor: Colors.primarySurface,
+        borderColor: colors.primaryBorder,
+        backgroundColor: colors.primarySurface,
     },
     clearButton: {
         position: 'absolute',
@@ -248,7 +256,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1,
@@ -268,18 +276,18 @@ const styles = StyleSheet.create({
     },
     title: {
         ...Typography.bodyBold,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         flex: 1,
     },
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
     },
     message: {
         ...Typography.small,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         lineHeight: 20,
         marginBottom: Spacing.md,
     },
@@ -287,48 +295,48 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         padding: Spacing.sm,
         borderRadius: BorderRadius.md,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.backgroundLight,
+        borderColor: colors.backgroundLight,
     },
     experienceImage: {
         width: 48,
         height: 48,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     experienceInfo: {
         flex: 1,
     },
     experienceTitle: {
         ...Typography.smallBold,
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
     },
     experiencePrice: {
         ...Typography.captionBold,
-        color: Colors.primary,
+        color: colors.primary,
         marginTop: Spacing.xxs,
     },
     milestoneBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.sm,
         marginBottom: Spacing.md,
     },
     milestoneBadgeCompleted: {
-        backgroundColor: Colors.secondary,
+        backgroundColor: colors.secondary,
     },
     milestoneText: {
         ...Typography.captionBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
     milestoneTextCompleted: {
-        color: Colors.white,
+        color: colors.white,
     },
     actions: {
         flexDirection: 'row',
@@ -340,15 +348,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: Spacing.xs,
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: Colors.primaryBorder,
+        borderColor: colors.primaryBorder,
     },
     empoweredBadgeText: {
         ...Typography.smallBold,
-        color: Colors.primary,
+        color: colors.primary,
     },
 });
 

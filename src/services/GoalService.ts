@@ -133,15 +133,18 @@ export class GoalService {
         throw new AppError('INVALID_GOAL_DATA', 'Invalid free goal data: missing isFreeGoal', 'validation');
       }
 
-      // Check goal limit (max 3 active goals)
-      const activeGoalsQuery = query(
-        this.goalsCollection,
-        where('userId', '==', goal.userId),
-        where('isCompleted', '==', false),
-      );
-      const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
-      if (activeGoalsSnapshot.size >= 3) {
-        throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
+      // Check goal limit (max 3 active goals, exempt paid commitment goals)
+      const hasPaidCommitment = !!goal.paymentCommitment && goal.paymentCommitment !== null;
+      if (!hasPaidCommitment) {
+        const activeGoalsQuery = query(
+          this.goalsCollection,
+          where('userId', '==', goal.userId),
+          where('isCompleted', '==', false),
+        );
+        const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
+        if (activeGoalsSnapshot.size >= 3) {
+          throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
+        }
       }
 
       const normalized = normalizeGoal(goal);
@@ -176,7 +179,7 @@ export class GoalService {
         logger.error('Error creating feed post for free goal:', error);
       }
 
-      analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: true, pledgedExperienceId: normalized.pledgedExperience?.experienceId });
+      analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: true, ...(normalized.pledgedExperience?.experienceId ? { pledgedExperienceId: normalized.pledgedExperience.experienceId } : {}) });
       return { ...normalized, id: docRef.id };
     } catch (error) {
       await logErrorToFirestore(error, {
@@ -752,6 +755,29 @@ export class GoalService {
     }
     DateHelper.addOffset(-24 * 60 * 60 * 1000);
     logger.log('🕒 Rewound time by 1 day');
+  }
+  /** Remove an active goal via Cloud Function (soft-delete + cascading cleanup) */
+  async deleteGoal(goalId: string): Promise<void> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new AppError('AUTH', 'Not authenticated', 'auth');
+
+    const idToken = await currentUser.getIdToken();
+    const url = `${config.functionsUrl}/${config.goalFunctions.deleteGoal}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ goalId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new AppError('GOAL_DELETE', errorData.error || 'Failed to delete goal', 'business');
+    }
+
+    analyticsService.trackEvent('goal_deleted', 'engagement', { goalId });
   }
 }
 

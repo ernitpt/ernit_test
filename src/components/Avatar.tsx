@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ViewStyle, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -35,6 +35,9 @@ export const Avatar = React.memo<AvatarProps>(({
   size = 'md',
   style,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const dimension = SIZES[size];
   const fontSize = FONT_SIZES[size];
   const borderRadius = dimension / 2;
@@ -71,17 +74,18 @@ export const Avatar = React.memo<AvatarProps>(({
 
 Avatar.displayName = 'Avatar';
 
-const styles = StyleSheet.create({
-  image: {
-    backgroundColor: Colors.backgroundLight,
-  },
-  fallback: {
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fallbackText: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    image: {
+      backgroundColor: colors.backgroundLight,
+    },
+    fallback: {
+      backgroundColor: colors.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fallbackText: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+  });

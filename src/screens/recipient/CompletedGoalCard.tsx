@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import type { Goal } from '../../types';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -17,6 +17,8 @@ interface CompletedGoalCardProps {
 }
 
 const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const navigation = useRecipientNavigation();
     const { state } = useApp();
 
@@ -52,26 +54,26 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                         <View style={styles.titleArea}>
                             <Text style={styles.title} numberOfLines={1}>{goal.title}</Text>
                             <View style={styles.completedBadge}>
-                                <CheckCircle2 size={12} color={Colors.primary} />
+                                <CheckCircle2 size={12} color={colors.primary} />
                                 <Text style={styles.completedBadgeText}>Completed</Text>
                             </View>
                         </View>
                         <View style={styles.trophyCircle}>
-                            <Trophy size={16} color={Colors.primary} />
+                            <Trophy size={16} color={colors.primary} />
                         </View>
                     </View>
 
                     {/* Stats row */}
                     <View style={styles.statsRow}>
                         <View style={styles.stat}>
-                            <Calendar size={13} color={Colors.textSecondary} />
+                            <Calendar size={13} color={colors.textSecondary} />
                             <Text style={styles.statText}>
                                 {goal.targetCount} {goal.targetCount === 1 ? 'week' : 'weeks'}
                             </Text>
                         </View>
                         <View style={styles.statDot} />
                         <View style={styles.stat}>
-                            <Clock size={13} color={Colors.textSecondary} />
+                            <Clock size={13} color={colors.textSecondary} />
                             <Text style={styles.statText}>
                                 {totalSessions} {totalSessions === 1 ? 'session' : 'sessions'}
                             </Text>
@@ -108,16 +110,16 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     card: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.lg,
         marginBottom: Spacing.sm,
         borderWidth: 1,
-        borderColor: Colors.primaryBorder,
+        borderColor: colors.primaryBorder,
         overflow: 'hidden',
-        shadowColor: Colors.textPrimary,
+        shadowColor: colors.textPrimary,
         shadowOpacity: 0.04,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
     },
     accentBar: {
         width: 4,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
     content: {
         flex: 1,
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
     title: {
         ...Typography.body,
         fontWeight: '700',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         marginBottom: Spacing.xs,
     },
     completedBadge: {
@@ -155,13 +157,13 @@ const styles = StyleSheet.create({
     completedBadgeText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.primary,
+        color: colors.primary,
     },
     trophyCircle: {
         width: 34,
         height: 34,
         borderRadius: BorderRadius.xl,
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -178,14 +180,14 @@ const styles = StyleSheet.create({
     },
     statText: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '500',
     },
     statDot: {
         width: 3,
         height: 3,
         borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.textMuted,
+        backgroundColor: colors.textMuted,
     },
     experienceRow: {
         flexDirection: 'row',
@@ -194,30 +196,30 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
         paddingTop: Spacing.sm,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: Colors.border,
+        borderTopColor: colors.border,
     },
     experienceThumb: {
         width: 32,
         height: 32,
         borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
     },
     experienceTitle: {
         flex: 1,
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     selfBadge: {
         marginTop: Spacing.sm,
         paddingTop: Spacing.sm,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: Colors.border,
+        borderTopColor: colors.border,
     },
     selfBadgeText: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.primary,
+        color: colors.primary,
     },
 });
 

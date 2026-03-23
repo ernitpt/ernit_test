@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -17,10 +17,10 @@ import { X, Send, MessageSquare, LifeBuoy, CheckCircle } from 'lucide-react-nati
 import { TextInput } from '../components/TextInput';
 import { useApp } from '../context/AppContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
-import { commonStyles } from '../styles/commonStyles';
+import { createCommonStyles } from '../styles/commonStyles';
 import { contactService } from '../services/ContactService';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -32,6 +32,10 @@ interface ContactModalProps {
 }
 
 const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+
     const { state } = useApp();
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
@@ -133,18 +137,18 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                         {/* Header */}
                         <View style={styles.header}>
                             <View style={styles.headerTitleContainer}>
-                                <Icon color={Colors.secondary} size={24} />
+                                <Icon color={colors.secondary} size={24} />
                                 <Text style={styles.headerTitle}>{title}</Text>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <X color={Colors.textSecondary} size={24} />
+                                <X color={colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
 
                         {showSuccess ? (
                             // Success State
                             <View style={styles.successContainer}>
-                                <CheckCircle color={Colors.secondary} size={64} />
+                                <CheckCircle color={colors.secondary} size={64} />
                                 <Text style={styles.successTitle}>Message Sent!</Text>
                                 <Text style={styles.successMessage}>
                                     Thank you for your {type === 'feedback' ? 'feedback' : 'message'}.
@@ -213,7 +217,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     fullWidth
                                     disabled={!subject.trim() || !message.trim() || isSending}
                                     loading={isSending}
-                                    icon={<Send color={Colors.white} size={20} />}
+                                    icon={<Send color={colors.white} size={20} />}
                                     style={{ marginBottom: Spacing.xl }}
                                 />
                             </ScrollView>
@@ -225,92 +229,93 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
     );
 };
 
-const styles = StyleSheet.create({
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    modalContainer: {
-        height: '75%',
-        width: '100%',
-        backgroundColor: Colors.white,
-        borderTopLeftRadius: BorderRadius.xxl,
-        borderTopRightRadius: BorderRadius.xxl,
-        shadowColor: Colors.black,
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    keyboardView: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: Spacing.xl,
-        paddingBottom: Spacing.lg,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
-    },
-    headerTitleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.md,
-    },
-    headerTitle: {
-        ...Typography.large,
-        color: Colors.textPrimary,
-    },
-    closeButton: {
-        padding: Spacing.xs,
-    },
-    formContainer: {
-        flex: 1,
-        padding: Spacing.xl,
-    },
-    infoBox: {
-        backgroundColor: Colors.infoLight,
-        borderRadius: BorderRadius.md,
-        padding: Spacing.md,
-        marginBottom: Spacing.xl,
-        borderWidth: 1,
-        borderColor: Colors.info,
-    },
-    infoText: {
-        ...Typography.caption,
-        color: Colors.infoDark,
-        textAlign: 'center',
-    },
-    emailText: {
-        fontWeight: '600',
-        color: Colors.secondary,
-    },
-    errorText: {
-        color: Colors.error,
-        ...Typography.small,
-        textAlign: 'center',
-        marginBottom: Spacing.md,
-        fontWeight: '500',
-    },
-    successContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.huge,
-    },
-    successTitle: {
-        ...Typography.heading1,
-        color: Colors.textPrimary,
-        marginTop: Spacing.lg,
-        marginBottom: Spacing.md,
-    },
-    successMessage: {
-        ...Typography.body,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 22,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        backdrop: {
+            ...StyleSheet.absoluteFillObject,
+        },
+        modalContainer: {
+            height: '75%',
+            width: '100%',
+            backgroundColor: colors.white,
+            borderTopLeftRadius: BorderRadius.xxl,
+            borderTopRightRadius: BorderRadius.xxl,
+            shadowColor: colors.black,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 8,
+        },
+        keyboardView: {
+            flex: 1,
+        },
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: Spacing.xl,
+            paddingBottom: Spacing.lg,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.backgroundLight,
+        },
+        headerTitleContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.md,
+        },
+        headerTitle: {
+            ...Typography.large,
+            color: colors.textPrimary,
+        },
+        closeButton: {
+            padding: Spacing.xs,
+        },
+        formContainer: {
+            flex: 1,
+            padding: Spacing.xl,
+        },
+        infoBox: {
+            backgroundColor: colors.infoLight,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.md,
+            marginBottom: Spacing.xl,
+            borderWidth: 1,
+            borderColor: colors.info,
+        },
+        infoText: {
+            ...Typography.caption,
+            color: colors.infoDark,
+            textAlign: 'center',
+        },
+        emailText: {
+            fontWeight: '600',
+            color: colors.secondary,
+        },
+        errorText: {
+            color: colors.error,
+            ...Typography.small,
+            textAlign: 'center',
+            marginBottom: Spacing.md,
+            fontWeight: '500',
+        },
+        successContainer: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: Spacing.huge,
+        },
+        successTitle: {
+            ...Typography.heading1,
+            color: colors.textPrimary,
+            marginTop: Spacing.lg,
+            marginBottom: Spacing.md,
+        },
+        successMessage: {
+            ...Typography.body,
+            color: colors.textSecondary,
+            textAlign: 'center',
+            lineHeight: 22,
+        },
+    });
 
 export default ContactModal;

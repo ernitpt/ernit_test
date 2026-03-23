@@ -1,4 +1,15 @@
 {
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.rules"
+    },
+    {
+      "database": "ernitxfi",
+      "rules": "firestore.ernitxfi.rules",
+      "indexes": "firestore.ernitxfi.indexes.json"
+    }
+  ],
   "functions": [
     {
       "source": "functions",

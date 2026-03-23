@@ -463,25 +463,46 @@ export const aiGenerateHint = onCall(
       if (!goalDoc.exists) throw new HttpsError('not-found', 'Goal not found');
 
       const goalData = goalDoc.data();
-      if (!goalData?.experienceGiftId) throw new HttpsError('not-found', 'No gift attached to goal');
 
       // Verify the requesting user owns this goal
-      if (goalData.userId !== userId) {
+      if (goalData?.userId !== userId) {
         throw new HttpsError('permission-denied', 'You do not own this goal');
       }
 
-      const giftDoc = await db.collection('experienceGifts').doc(goalData.experienceGiftId).get();
-      if (!giftDoc.exists) throw new HttpsError('not-found', 'Gift not found');
+      // Resolve experience data from one of three sources:
+      // 1. experienceGiftId → gift → experience (gifted goals)
+      // 2. discoveredExperience (category-path goals, matched by discovery engine)
+      // 3. pledgedExperience (self-challenge goals with specific experience)
+      if (goalData?.experienceGiftId) {
+        const giftDoc = await db.collection('experienceGifts').doc(goalData.experienceGiftId).get();
+        if (!giftDoc.exists) throw new HttpsError('not-found', 'Gift not found');
 
-      const giftData = giftDoc.data();
-      const expDoc = await db.collection('experiences').doc(giftData?.experienceId).get();
-      if (!expDoc.exists) throw new HttpsError('not-found', 'Experience not found');
+        const giftData = giftDoc.data();
+        const expDoc = await db.collection('experiences').doc(giftData?.experienceId).get();
+        if (!expDoc.exists) throw new HttpsError('not-found', 'Experience not found');
 
-      const expData = expDoc.data();
-      experienceType = (expData?.title || 'experience').substring(0, 200);
-      experienceDescription = expData?.description?.substring(0, 500);
-      experienceCategory = expData?.category?.substring(0, 100);
-      experienceSubtitle = expData?.subtitle?.substring(0, 200);
+        const expData = expDoc.data();
+        experienceType = (expData?.title || 'experience').substring(0, 200);
+        experienceDescription = expData?.description?.substring(0, 500);
+        experienceCategory = expData?.category?.substring(0, 100);
+        experienceSubtitle = expData?.subtitle?.substring(0, 200);
+      } else if (goalData?.discoveredExperience) {
+        // Category-path: experience matched by discovery engine
+        const de = goalData.discoveredExperience;
+        experienceType = (de.title || 'experience').substring(0, 200);
+        experienceDescription = de.description?.substring(0, 500);
+        experienceCategory = de.category?.substring(0, 100);
+        experienceSubtitle = de.subtitle?.substring(0, 200);
+      } else if (goalData?.pledgedExperience) {
+        // Self-challenge with specific experience
+        const pe = goalData.pledgedExperience;
+        experienceType = (pe.title || 'experience').substring(0, 200);
+        experienceDescription = pe.description?.substring(0, 500);
+        experienceCategory = pe.category?.substring(0, 100);
+        experienceSubtitle = pe.subtitle?.substring(0, 200);
+      } else {
+        throw new HttpsError('not-found', 'No experience attached to goal');
+      }
 
       // Also pull session info from goal if not provided
       if (!totalSessions && goalData.targetCount && goalData.sessionsPerWeek) {

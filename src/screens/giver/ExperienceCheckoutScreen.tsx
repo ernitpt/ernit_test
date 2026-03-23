@@ -1,7 +1,7 @@
 ﻿// screens/ExperienceCheckoutScreen.tsx
 // ✅ Final version: supports multiple gifts via cartItems, with personal message
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -40,13 +40,14 @@ import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { analyticsService } from '../../services/AnalyticsService';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
+import * as Haptics from 'expo-haptics';
 
 const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
 
@@ -110,7 +111,10 @@ const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGif
         },
       }
     );
-    if (!response.ok) return [];
+    if (!response.ok) {
+      logger.warn(`Gift polling response: ${response.status} ${response.statusText}`);
+      return [];
+    }
 
     const gifts = await response.json();
     if (!Array.isArray(gifts)) return [];
@@ -140,12 +144,39 @@ const pollForGifts = async (
 
     const gifts = await checkGiftCreation(paymentIntentId);
 
-    if (gifts.length === expectedCount) {
+    if (gifts.length >= expectedCount) {
       return gifts;
+    }
+    // Log progress for debugging
+    if (gifts.length > 0) {
+      logger.log(`Polling attempt ${i + 1}: found ${gifts.length}/${expectedCount} gifts`);
     }
 
     await new Promise((res) => setTimeout(res, delayMs));
   }
+  // Final attempt via Cloud Function
+  const finalGifts = await checkGiftCreation(paymentIntentId);
+  if (finalGifts.length > 0) {
+    logger.log(`Polling complete: returning ${finalGifts.length} gifts (expected ${expectedCount})`);
+    return finalGifts;
+  }
+
+  // Last resort: query Firestore directly (bypasses Cloud Function)
+  try {
+    const { db } = await import('../../services/firebase');
+    const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
+    const snap = await getDocs(
+      query(collection(db, 'experienceGifts'), where('paymentIntentId', '==', paymentIntentId), limit(10))
+    );
+    if (!snap.empty) {
+      const directGifts = snap.docs.map(d => ({ id: d.id, ...d.data() } as ExperienceGift));
+      logger.log(`Direct Firestore query found ${directGifts.length} gifts`);
+      return directGifts;
+    }
+  } catch (directErr) {
+    logger.error('Direct Firestore gift query failed:', directErr);
+  }
+
   return [];
 };
 
@@ -159,6 +190,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   totalQuantity,
   goalId,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NavigationProp>();
   const { state, dispatch } = useApp();
   const { showSuccess, showError, showInfo } = useToast();
@@ -222,7 +255,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
         if (paymentIntent?.status === "succeeded") {
           logger.log("💰 Payment succeeded after redirect, checking gifts...");
-          const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 12, 1000, pollCancelledRef);
+          const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 20, 2000, pollCancelledRef);
 
           if (gifts.length === 1) {
             dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
@@ -233,6 +266,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               window.history.replaceState({}, document.title, window.location.pathname);
             }
 
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showSuccess("Your payment was processed successfully!");
             navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
@@ -241,6 +275,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             if (Platform.OS === "web" && typeof window !== "undefined") {
               window.history.replaceState({}, document.title, window.location.pathname);
             }
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
           } else {
             logger.warn("⚠️ Gifts not found after polling");
@@ -276,7 +311,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     const timer = setTimeout(() => checkRedirectReturn(), 500);
     return () => {
       clearTimeout(timer);
-      pollCancelledRef.current = true;
+      // NOTE: Do NOT set pollCancelledRef here — it cancels the handlePurchase polling
+      // when this effect re-runs due to dependency changes during payment processing.
     };
   }, [stripe, clientSecret, navigation, dispatch, totalQuantity]);
 
@@ -310,19 +346,22 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       if (!paymentIntent) throw new Error("No payment intent returned.");
 
       if (paymentIntent.status === "succeeded") {
-        logger.log("💰 Payment succeeded immediately, checking gifts...");
+        logger.log(`💰 Payment succeeded. PI: ${paymentIntent.id}, expecting ${totalQuantity} gifts`);
         analyticsService.trackEvent('payment_completed', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
-        const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 12, 1000, pollCancelledRef);
+        const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 20, 2000, pollCancelledRef);
+        logger.log(`Poll result: ${gifts.length} gifts found`);
 
         if (gifts.length === 1) {
           dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
+          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           showSuccess("Your payment was processed successfully!");
           navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
+          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
         } else {
           logger.warn("⚠️ Gifts not found after polling");
@@ -377,17 +416,17 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <ChevronLeft color={Colors.textPrimary} size={24} />
+              <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
             <View style={styles.lockIcon}>
-              <Lock color={Colors.secondary} size={20} />
+              <Lock color={colors.secondary} size={20} />
             </View>
           </View>
 
           {(isCheckingRedirect || isProcessing) && (
             <View style={styles.processingOverlay}>
-              <ActivityIndicator color={Colors.secondary} size="large" />
+              <ActivityIndicator color={colors.secondary} size="large" />
               <Text style={styles.processingText}>
                 {isCheckingRedirect ? "Verifying payment..." : "Processing payment..."}
               </Text>
@@ -428,7 +467,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             {/* Payment */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <CreditCard color={Colors.secondary} size={20} />
+                <CreditCard color={colors.secondary} size={20} />
                 <Text style={[styles.sectionTitle, { marginLeft: 8 }]}>Payment Details</Text>
               </View>
               <View style={styles.paymentBox}>
@@ -438,7 +477,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
             {/* Security note */}
             <View style={styles.securityNotice}>
-              <Lock color={Colors.textSecondary} size={16} />
+              <Lock color={colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
                 Your payment information is encrypted and secure
               </Text>
@@ -470,6 +509,8 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
 // ========== OUTER WRAPPER (creates PaymentIntent & <Elements>) ==========
 const ExperienceCheckoutScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute();
   const navigation = useNavigation<NavigationProp>();
   const { state } = useApp();
@@ -477,9 +518,10 @@ const ExperienceCheckoutScreen: React.FC = () => {
   const { showError } = useToast();
 
   // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string } | undefined;
+  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean } | undefined;
   const cartItems = routeParams?.cartItems || [];
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
+  const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
 
   // ✅ All useState hooks MUST be called unconditionally at the top (React Rules of Hooks)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -573,7 +615,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
           state.user?.displayName || "",
           firstExp.partnerId,
           cartMetadata,
-          "" // personalized message will be added on confirmation screen
+          "", // personalized message will be added on confirmation screen
+          isMystery
         );
 
         setClientSecret(response.clientSecret);
@@ -639,11 +682,11 @@ const ExperienceCheckoutScreen: React.FC = () => {
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <ChevronLeft color={Colors.textPrimary} size={24} />
+              <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
             <View style={styles.lockIcon}>
-              <Lock color={Colors.secondary} size={20} />
+              <Lock color={colors.secondary} size={20} />
             </View>
           </View>
           <View style={{ flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl }}>
@@ -714,8 +757,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
             <TouchableOpacity onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();
               else navigation.navigate('CategorySelection');
-            }} style={[styles.retryButton, { backgroundColor: Colors.backgroundLight }]}>
-              <Text style={[styles.retryButtonText, { color: Colors.textSecondary }]}>Go Back</Text>
+            }} style={[styles.retryButton, { backgroundColor: colors.backgroundLight }]}>
+              <Text style={[styles.retryButtonText, { color: colors.textSecondary }]}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -733,10 +776,10 @@ const ExperienceCheckoutScreen: React.FC = () => {
         appearance: {
           theme: "stripe",
           variables: {
-            colorPrimary: Colors.secondary,
-            colorBackground: Colors.white,
-            colorText: Colors.textPrimary,
-            colorDanger: Colors.error,
+            colorPrimary: colors.secondary,
+            colorBackground: colors.white,
+            colorText: colors.textPrimary,
+            colorDanger: colors.error,
             fontFamily: "system-ui, -apple-system, sans-serif",
             spacingUnit: "4px",
             borderRadius: "8px",
@@ -761,8 +804,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
 export default ExperienceCheckoutScreen;
 
 // --- Styles (based on your original) ---
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -770,15 +813,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Platform.OS === "ios" ? vh(50) : vh(40),
     paddingBottom: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -787,7 +830,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
     textAlign: "center",
   },
@@ -795,21 +838,21 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.successLighter,
+    backgroundColor: colors.successLighter,
     justifyContent: "center",
     alignItems: "center",
   },
   scrollView: { flex: 1, paddingHorizontal: Spacing.xl },
 
   summaryCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginTop: Spacing.xl,
     marginBottom: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.black,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -817,7 +860,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -828,7 +871,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   summaryInfo: {
     flex: 1,
@@ -836,13 +879,13 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
-  subtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  subtitle: { ...Typography.small, color: colors.textSecondary, marginTop: 2 },
   quantityText: {
     marginTop: Spacing.xs,
     ...Typography.caption,
-    color: Colors.gray600,
+    color: colors.gray600,
   },
   priceLine: {
     flexDirection: "row",
@@ -850,8 +893,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: Spacing.lg,
   },
-  priceLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
-  priceAmount: { ...Typography.heading3, fontWeight: "700", color: Colors.secondary },
+  priceLabel: { ...Typography.subheading, color: colors.textSecondary, fontWeight: "600" },
+  priceAmount: { ...Typography.heading3, fontWeight: "700", color: colors.secondary },
 
   section: { marginBottom: vh(24) },
   sectionHeader: {
@@ -860,16 +903,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: Spacing.sm,
   },
-  sectionTitle: { ...Typography.heading3, fontWeight: "700", color: Colors.textPrimary },
-  sectionSubtitle: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.md },
+  sectionTitle: { ...Typography.heading3, fontWeight: "700", color: colors.textPrimary },
+  sectionSubtitle: { ...Typography.small, color: colors.textSecondary, marginBottom: Spacing.md },
 
   paymentBox: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.black,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -882,24 +925,24 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.xl,
   },
-  securityText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: "500" },
+  securityText: { ...Typography.caption, color: colors.textSecondary, fontWeight: "500" },
 
   bottomBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
     paddingBottom: Platform.OS === "ios" ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    shadowColor: Colors.black,
+    borderTopColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -911,33 +954,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.md,
   },
-  totalLabel: { ...Typography.subheading, color: Colors.textSecondary, fontWeight: "600" },
-  totalAmount: { ...Typography.display, fontWeight: "700", color: Colors.textPrimary },
+  totalLabel: { ...Typography.subheading, color: colors.textSecondary, fontWeight: "600" },
+  totalAmount: { ...Typography.display, fontWeight: "700", color: colors.textPrimary },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
-  loadingText: { marginTop: Spacing.md, ...Typography.subheading, color: Colors.textSecondary },
-  errorText: { ...Typography.heading3, color: Colors.error, marginBottom: Spacing.lg },
+  loadingText: { marginTop: Spacing.md, ...Typography.subheading, color: colors.textSecondary },
+  errorText: { ...Typography.heading3, color: colors.error, marginBottom: Spacing.lg },
   retryButton: {
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     borderRadius: BorderRadius.sm,
   },
-  retryButtonText: { color: Colors.white, ...Typography.subheading, fontWeight: "600" },
+  retryButtonText: { color: colors.white, ...Typography.subheading, fontWeight: "600" },
   processingOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.surfaceFrosted,
+    backgroundColor: colors.surfaceFrosted,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
   },
-  processingText: { marginTop: Spacing.md, ...Typography.subheading, color: Colors.textSecondary, fontWeight: "500" },
+  processingText: { marginTop: Spacing.md, ...Typography.subheading, color: colors.textSecondary, fontWeight: "500" },
 });

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, Dimensions } from 'react-native';
 import { MotiView } from 'moti';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
@@ -22,6 +22,9 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
     borderRadius = 4,
     style,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <MotiView
             from={{ opacity: 0.3 }}
@@ -47,6 +50,9 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
 
 // Feed Post Skeleton
 export const FeedPostSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.feedPostSkeleton} accessibilityLabel="Loading">
             {/* Header */}
@@ -81,6 +87,9 @@ export const FeedPostSkeleton: React.FC = () => {
 
 // Goal Card Skeleton
 export const GoalCardSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.goalCardSkeleton} accessibilityLabel="Loading">
             <View style={styles.goalHeader}>
@@ -101,6 +110,9 @@ export const GoalCardSkeleton: React.FC = () => {
 
 // Experience Card Skeleton - Matches CategorySelectionScreen card dimensions
 export const ExperienceCardSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.experienceCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={175} height={100} borderRadius={12} style={{ marginBottom: 0 }} />
@@ -115,6 +127,9 @@ export const ExperienceCardSkeleton: React.FC = () => {
 
 // List Item Skeleton
 export const ListItemSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.listItemSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={48} height={48} borderRadius={24} />
@@ -128,6 +143,9 @@ export const ListItemSkeleton: React.FC = () => {
 
 // Notification Skeleton
 export const NotificationSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.notificationSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
@@ -142,6 +160,9 @@ export const NotificationSkeleton: React.FC = () => {
 
 // Comment Skeleton - for CommentModal loading state
 export const CommentSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.commentSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
@@ -156,6 +177,9 @@ export const CommentSkeleton: React.FC = () => {
 
 // Reaction Item Skeleton - for ReactionViewerModal loading state
 export const ReactionSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.reactionSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={44} height={44} borderRadius={22} />
@@ -169,6 +193,9 @@ export const ReactionSkeleton: React.FC = () => {
 
 // Gift Card Skeleton - for PurchasedGiftsScreen
 export const GiftCardSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.giftCardSkeleton} accessibilityLabel="Loading">
             <View style={styles.giftCardRow}>
@@ -183,6 +210,9 @@ export const GiftCardSkeleton: React.FC = () => {
 
 // Cart Item Skeleton - horizontal card for CartScreen
 export const CartItemSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.cartItemSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={120} height={120} borderRadius={0} />
@@ -201,6 +231,9 @@ export const CartItemSkeleton: React.FC = () => {
 
 // Experience Detail Skeleton — hero image + info sections
 export const ExperienceDetailSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.experienceDetailSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width="100%" height={250} borderRadius={0} />
@@ -218,6 +251,9 @@ export const ExperienceDetailSkeleton: React.FC = () => {
 
 // Checkout Summary Skeleton
 export const CheckoutSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.checkoutSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width="100%" height={120} borderRadius={12} style={{ marginBottom: Spacing.lg }} />
@@ -235,6 +271,9 @@ export const CheckoutSkeleton: React.FC = () => {
 
 // Session Card Skeleton — for JourneyScreen session list
 export const SessionCardSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.sessionCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
@@ -249,6 +288,9 @@ export const SessionCardSkeleton: React.FC = () => {
 
 // Profile Skeleton — avatar + name + stats + goal cards
 export const ProfileSkeleton: React.FC = () => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={styles.profileSkeleton} accessibilityLabel="Loading">
             <View style={{ alignItems: 'center', marginBottom: Spacing.xxl }}>
@@ -267,155 +309,156 @@ export const ProfileSkeleton: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    skeleton: {
-        backgroundColor: Colors.border,
-    },
-    feedPostSkeleton: {
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.lg,
-        marginBottom: Spacing.md,
-        ...Shadows.sm,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: Spacing.md,
-    },
-    headerInfo: {
-        marginLeft: Spacing.md,
-        flex: 1,
-    },
-    content: {
-        marginBottom: Spacing.md,
-    },
-    reactions: {
-        flexDirection: 'row',
-        gap: Spacing.md,
-        marginTop: Spacing.md,
-    },
-    goalCardSkeleton: {
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.xl,
-        marginBottom: Spacing.lg,
-        ...Shadows.sm,
-    },
-    goalHeader: {
-        marginBottom: Spacing.sm,
-    },
-    goalFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: Spacing.lg,
-    },
-    experienceCardSkeleton: {
-        width: (SCREEN_W - Spacing.lg * 3) / 2,
-        height: vh(200),
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.md,
-        marginRight: Spacing.md,
-        ...Shadows.sm,
-        overflow: 'hidden',
-    },
-    listItemSkeleton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: Spacing.lg,
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.md,
-        marginBottom: Spacing.sm,
-    },
-    listItemContent: {
-        marginLeft: Spacing.md,
-        flex: 1,
-    },
-    notificationSkeleton: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        padding: Spacing.lg,
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.md,
-        marginBottom: Spacing.sm,
-    },
-    notificationContent: {
-        marginLeft: Spacing.md,
-        flex: 1,
-    },
-    commentSkeleton: {
-        flexDirection: 'row',
-        marginBottom: Spacing.lg,
-        gap: Spacing.md,
-        alignItems: 'flex-start',
-    },
-    commentSkeletonContent: {
-        flex: 1,
-    },
-    reactionSkeleton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: Spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.backgroundLight,
-    },
-    giftCardSkeleton: {
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.md,
-        marginBottom: Spacing.md,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        padding: Spacing.lg,
-    },
-    giftCardRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    cartItemSkeleton: {
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.lg,
-        marginBottom: Spacing.lg,
-        overflow: 'hidden',
-        flexDirection: 'row',
-        shadowColor: Colors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    cartItemSkeletonContent: {
-        flex: 1,
-        padding: Spacing.lg,
-        justifyContent: 'space-between',
-    },
-    cartItemSkeletonFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: Spacing.md,
-    },
-    experienceDetailSkeleton: {
-        flex: 1,
-        backgroundColor: Colors.white,
-    },
-    checkoutSkeleton: {
-        padding: Spacing.xl,
-        backgroundColor: Colors.white,
-    },
-    sessionCardSkeleton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.md,
-        padding: Spacing.lg,
-        marginBottom: Spacing.sm,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    profileSkeleton: {
-        padding: Spacing.xl,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        skeleton: {
+            backgroundColor: colors.border,
+        },
+        feedPostSkeleton: {
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.lg,
+            marginBottom: Spacing.md,
+            ...Shadows.sm,
+        },
+        header: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: Spacing.md,
+        },
+        headerInfo: {
+            marginLeft: Spacing.md,
+            flex: 1,
+        },
+        content: {
+            marginBottom: Spacing.md,
+        },
+        reactions: {
+            flexDirection: 'row',
+            gap: Spacing.md,
+            marginTop: Spacing.md,
+        },
+        goalCardSkeleton: {
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.xl,
+            marginBottom: Spacing.lg,
+            ...Shadows.sm,
+        },
+        goalHeader: {
+            marginBottom: Spacing.sm,
+        },
+        goalFooter: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginTop: Spacing.lg,
+        },
+        experienceCardSkeleton: {
+            width: (SCREEN_W - Spacing.lg * 3) / 2,
+            height: vh(200),
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.md,
+            marginRight: Spacing.md,
+            ...Shadows.sm,
+            overflow: 'hidden',
+        },
+        listItemSkeleton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: Spacing.lg,
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.md,
+            marginBottom: Spacing.sm,
+        },
+        listItemContent: {
+            marginLeft: Spacing.md,
+            flex: 1,
+        },
+        notificationSkeleton: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            padding: Spacing.lg,
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.md,
+            marginBottom: Spacing.sm,
+        },
+        notificationContent: {
+            marginLeft: Spacing.md,
+            flex: 1,
+        },
+        commentSkeleton: {
+            flexDirection: 'row',
+            marginBottom: Spacing.lg,
+            gap: Spacing.md,
+            alignItems: 'flex-start',
+        },
+        commentSkeletonContent: {
+            flex: 1,
+        },
+        reactionSkeleton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: Spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.backgroundLight,
+        },
+        giftCardSkeleton: {
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.md,
+            marginBottom: Spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: Spacing.lg,
+        },
+        giftCardRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+        },
+        cartItemSkeleton: {
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.lg,
+            marginBottom: Spacing.lg,
+            overflow: 'hidden',
+            flexDirection: 'row',
+            shadowColor: colors.black,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+        },
+        cartItemSkeletonContent: {
+            flex: 1,
+            padding: Spacing.lg,
+            justifyContent: 'space-between',
+        },
+        cartItemSkeletonFooter: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: Spacing.md,
+        },
+        experienceDetailSkeleton: {
+            flex: 1,
+            backgroundColor: colors.white,
+        },
+        checkoutSkeleton: {
+            padding: Spacing.xl,
+            backgroundColor: colors.white,
+        },
+        sessionCardSkeleton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.lg,
+            marginBottom: Spacing.sm,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        profileSkeleton: {
+            padding: Spacing.xl,
+        },
+    });
 
 export default SkeletonBox;

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ViewStyle, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import Button from './Button';
@@ -23,6 +23,9 @@ export const EmptyState = React.memo<EmptyStateProps>(({
   onAction,
   style,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <MotiView
       from={{ opacity: 0, translateY: 8 }}
@@ -49,30 +52,31 @@ export const EmptyState = React.memo<EmptyStateProps>(({
 
 EmptyState.displayName = 'EmptyState';
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-  },
-  icon: {
-    fontSize: Typography.emoji.fontSize,
-    marginBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.heading3,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  message: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  action: {
-    marginTop: Spacing.sm,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: Spacing.xxl,
+      paddingHorizontal: Spacing.xl,
+    },
+    icon: {
+      fontSize: Typography.emoji.fontSize,
+      marginBottom: Spacing.md,
+    },
+    title: {
+      ...Typography.heading3,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: Spacing.sm,
+    },
+    message: {
+      ...Typography.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: Spacing.lg,
+    },
+    action: {
+      marginTop: Spacing.sm,
+    },
+  });

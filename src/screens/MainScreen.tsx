@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation from '../components/FooterNavigation';
@@ -9,7 +9,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { notificationService } from '../services/NotificationService';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 
@@ -25,6 +25,8 @@ type MainScreenProps = {
  * - Compatible with your existing FooterNavigation and SideMenu
  */
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
@@ -54,8 +56,8 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
       <SafeAreaView edges={['bottom']} style={styles.container}>
         {/* Offline Banner */}
         {!isConnected && (
-          <View style={{ backgroundColor: Colors.error, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, alignItems: 'center' }}>
-            <Text style={{ ...Typography.caption, color: Colors.white }}>You're offline — some features may not work</Text>
+          <View style={{ backgroundColor: colors.error, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, alignItems: 'center' }}>
+            <Text style={{ ...Typography.caption, color: colors.white }}>You're offline — some features may not work</Text>
           </View>
         )}
 
@@ -83,10 +85,10 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   content: {
     flex: 1,

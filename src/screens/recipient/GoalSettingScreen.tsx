@@ -1,5 +1,5 @@
 // screens/Recipient/GoalSettingScreen.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -37,12 +37,13 @@ import { addDoc, collection, deleteField, doc, runTransaction, serverTimestamp, 
 import { experienceService } from '../../services/ExperienceService';
 import { SkeletonBox } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
+import { serializeNav } from '../../utils/serializeNav';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
@@ -55,13 +56,10 @@ const TOTAL_STEPS = 4;
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
 const CATEGORIES = [
-  { icon: '\u{1F9D8}', name: 'Yoga', color: Colors.categoryPink },
-  { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: Colors.secondary },
-  { icon: '\u{1F3C3}\u200D\u2640\uFE0F', name: 'Running', color: Colors.accent },
-  { icon: '\u{1F4BB}', name: 'Courses', color: Colors.categoryAmber },
-  { icon: '\u{1F4DA}', name: 'Education', color: Colors.categoryViolet },
-  { icon: '\u{1F3B9}', name: 'Piano', color: Colors.categoryBlue },
-  { icon: '\u270F\uFE0F', name: 'Other', color: Colors.textSecondary },
+  { icon: '🏋️', name: 'Gym', color: '#10B981' },
+  { icon: '🧘', name: 'Yoga', color: '#8B5CF6' },
+  { icon: '🕺', name: 'Dance', color: '#F59E0B' },
+  { icon: '✏️', name: 'Other', color: '#6B7280' },
 ];
 
 const STEP_TITLES = [
@@ -82,6 +80,8 @@ const STEP_SUBTITLES = [
 const GoalSettingScreen = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
   const experienceGift = routeParams?.experienceGift;
   const { state, dispatch } = useApp();
@@ -99,6 +99,7 @@ const GoalSettingScreen = () => {
   const [minutes, setMinutes] = useState('');
   const [plannedStartDate, setPlannedStartDate] = useState(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const goalCreatedRef = useRef(false);
   const [validationErrors, setValidationErrors] = useState({ category: false, time: false });
   const [experience, setExperience] = useState<Experience | null>(null);
   const [hintPromise, setHintPromise] = useState<Promise<string> | null>(null);
@@ -117,7 +118,7 @@ const GoalSettingScreen = () => {
   // Exit confirmation for unsaved wizard progress
   useEffect(() => {
     const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
-      if (currentStep === 1) return; // Allow back from step 1
+      if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after creation
       e.preventDefault();
       Alert.alert(
         'Discard changes?',
@@ -441,7 +442,7 @@ const GoalSettingScreen = () => {
             userId: experienceGift.giverId,
             type: 'shared_start',
             title: 'Challenge Accepted!',
-            message: `${state.user?.displayName || state.user?.name || 'Your partner'} accepted your Together challenge!`,
+            message: `${state.user?.displayName || 'Your partner'} accepted your Together challenge!`,
             data: { goalId: goal.id, giftId: experienceGift.id },
             read: false,
             createdAt: serverTimestamp(),
@@ -477,6 +478,7 @@ const GoalSettingScreen = () => {
 
       dispatch({ type: 'SET_GOAL', payload: goal });
       setCreatedGoal(goal);
+      goalCreatedRef.current = true; // Bypass beforeRemove guard
 
       // Wait for pre-generated hint
       if (hintPromise) {
@@ -499,13 +501,13 @@ const GoalSettingScreen = () => {
           logger.error('Failed to get pre-generated hint:', hintError);
           navigation.reset({
             index: 1,
-            routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal } }],
+            routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
           });
         }
       } else {
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal } }],
+          routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
         });
       }
     } catch (error) {
@@ -530,7 +532,7 @@ const GoalSettingScreen = () => {
     if (createdGoal) {
       navigation.reset({
         index: 1,
-        routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: createdGoal } }],
+        routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(createdGoal) } }],
       });
     }
   };
@@ -597,11 +599,11 @@ const GoalSettingScreen = () => {
           style={{ marginBottom: Spacing.xl }}
         >
           <View style={{
-            backgroundColor: Colors.primarySurface,
+            backgroundColor: colors.primarySurface,
             borderRadius: BorderRadius.xl,
             padding: Spacing.xl,
             borderWidth: 1,
-            borderColor: Colors.primaryBorder,
+            borderColor: colors.primaryBorder,
             flexDirection: 'row',
             alignItems: 'center',
             gap: Spacing.lg,
@@ -613,7 +615,7 @@ const GoalSettingScreen = () => {
                   width: 64,
                   height: 64,
                   borderRadius: BorderRadius.lg,
-                  backgroundColor: Colors.border,
+                  backgroundColor: colors.border,
                 }}
                 resizeMode="cover"
               />
@@ -622,21 +624,21 @@ const GoalSettingScreen = () => {
                 width: 64,
                 height: 64,
                 borderRadius: BorderRadius.lg,
-                backgroundColor: Colors.primary,
+                backgroundColor: colors.primary,
                 justifyContent: 'center',
                 alignItems: 'center',
               }}>
-                <Text style={{ fontSize: 28 }}>🎁</Text>
+                <Text style={Typography.heading1}>🎁</Text>
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={{ ...Typography.smallBold, color: Colors.primary, marginBottom: Spacing.xs }}>
+              <Text style={{ ...Typography.smallBold, color: colors.primary, marginBottom: Spacing.xs }}>
                 YOUR REWARD
               </Text>
-              <Text style={{ ...Typography.heading3, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+              <Text style={{ ...Typography.heading3, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
                 {experience.title}
               </Text>
-              <Text style={{ ...Typography.caption, color: Colors.textSecondary }}>
+              <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
                 Complete your challenge to unlock this reward!
               </Text>
             </View>
@@ -652,29 +654,29 @@ const GoalSettingScreen = () => {
           transition={{ type: 'timing', duration: 300 }}
         >
           <View style={{
-            backgroundColor: Colors.warningLighter,
+            backgroundColor: colors.warningLighter,
             borderRadius: BorderRadius.lg,
             padding: Spacing.lg,
             marginBottom: Spacing.xl,
             borderWidth: 1,
-            borderColor: Colors.warningBorder,
+            borderColor: colors.warningBorder,
           }}>
-            <Text style={{ ...Typography.smallBold, color: Colors.warningDark, marginBottom: Spacing.sm }}>
+            <Text style={{ ...Typography.smallBold, color: colors.warningDark, marginBottom: Spacing.sm }}>
               {experienceGift?.giverName || 'Someone'} is doing this together with you!
             </Text>
             {togetherData.goalName ? (
-              <Text style={{ ...Typography.body, color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+              <Text style={{ ...Typography.body, color: colors.textPrimary, marginBottom: Spacing.xs }}>
                 Their goal: {togetherData.goalName}
               </Text>
             ) : null}
-            <Text style={{ ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.lg }}>
+            <Text style={{ ...Typography.caption, color: colors.textSecondary, marginBottom: Spacing.lg }}>
               {togetherData.duration} · {togetherData.frequency} · {togetherData.sessionTime}
             </Text>
             <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: Colors.warning,
+                  backgroundColor: colors.warning,
                   borderRadius: BorderRadius.md,
                   paddingVertical: Spacing.md,
                   alignItems: 'center',
@@ -682,22 +684,22 @@ const GoalSettingScreen = () => {
                 onPress={handleAcceptGiverGoal}
                 activeOpacity={0.8}
               >
-                <Text style={{ ...Typography.smallBold, color: Colors.white }}>Accept same challenge</Text>
+                <Text style={{ ...Typography.smallBold, color: colors.white }}>Accept same challenge</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: Colors.white,
+                  backgroundColor: colors.white,
                   borderRadius: BorderRadius.md,
                   paddingVertical: Spacing.md,
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: Colors.border,
+                  borderColor: colors.border,
                 }}
                 onPress={() => setAcceptedGiverGoal(true)}
                 activeOpacity={0.8}
               >
-                <Text style={{ ...Typography.smallBold, color: Colors.textSecondary }}>Create my own</Text>
+                <Text style={{ ...Typography.smallBold, color: colors.textSecondary }}>Create my own</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -742,7 +744,7 @@ const GoalSettingScreen = () => {
       </View>
 
       {validationErrors.category && (
-        <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
+        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
           Please select a goal category
         </Text>
       )}
@@ -814,7 +816,7 @@ const GoalSettingScreen = () => {
                 keyboardType="numeric"
                 maxLength={1}
                 placeholder="0"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 returnKeyType="next"
                 onSubmitEditing={() => minutesRef.current?.focus()}
                 accessibilityLabel="Hours per session"
@@ -835,7 +837,7 @@ const GoalSettingScreen = () => {
                 keyboardType="numeric"
                 maxLength={2}
                 placeholder="00"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
                 accessibilityLabel="Minutes per session"
               />
@@ -844,7 +846,7 @@ const GoalSettingScreen = () => {
           </View>
 
           {validationErrors.time && (
-            <Text style={{ color: Colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
+            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
               Please set a time per session (at least 1 minute)
             </Text>
           )}
@@ -869,7 +871,7 @@ const GoalSettingScreen = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Previous month"
               >
-                <ChevronLeft color={Colors.textSecondary} size={20} />
+                <ChevronLeft color={colors.textSecondary} size={20} />
               </TouchableOpacity>
               <Text style={styles.calMonthYear}>
                 {calendarMonthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
@@ -880,7 +882,7 @@ const GoalSettingScreen = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Next month"
               >
-                <ChevronRight color={Colors.textSecondary} size={20} />
+                <ChevronRight color={colors.textSecondary} size={20} />
               </TouchableOpacity>
             </View>
 
@@ -975,23 +977,29 @@ const GoalSettingScreen = () => {
         <View style={styles.reviewDivider} />
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>Finish date</Text>
-          <Text style={[styles.reviewValue, { color: Colors.primary }]}>
+          <Text style={[styles.reviewValue, { color: colors.primary }]}>
             {goalEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </Text>
         </View>
         <View style={styles.reviewDivider} />
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>Total sessions</Text>
-          <Text style={[styles.reviewValue, { color: Colors.primary, fontWeight: '800' }]}>
+          <Text style={[styles.reviewValue, { color: colors.primary, fontWeight: '800' }]}>
             {weeks * sessionsPerWeek}
           </Text>
         </View>
       </View>
 
-      {experience && (
+      {experience && experienceGift?.revealMode === 'revealed' && (
         <View style={styles.experiencePreview}>
           <Text style={styles.experiencePreviewLabel}>Experience Gift</Text>
           <Text style={styles.experiencePreviewTitle}>{experience.title}</Text>
+        </View>
+      )}
+      {experienceGift?.revealMode === 'secret' && (
+        <View style={styles.experiencePreview}>
+          <Text style={styles.experiencePreviewLabel}>Experience Gift</Text>
+          <Text style={styles.experiencePreviewTitle}>Mystery reward - complete your challenge to unlock!</Text>
         </View>
       )}
     </View>
@@ -1019,7 +1027,7 @@ const GoalSettingScreen = () => {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
-              <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+              <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Set Your Goal</Text>
             <View style={styles.stepIndicator}>
@@ -1074,7 +1082,7 @@ const GoalSettingScreen = () => {
               >
                 <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
                   <LinearGradient
-                    colors={Colors.gradientDark}
+                    colors={colors.gradientDark}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[styles.ctaGradient, isSubmitting && { opacity: 0.9 }]}
@@ -1082,20 +1090,20 @@ const GoalSettingScreen = () => {
                     <Text style={styles.ctaText}>
                       {isSubmitting ? 'Creating Goal...' : 'Create Goal'}
                     </Text>
-                    {!isSubmitting && <ChevronRight color={Colors.white} size={20} strokeWidth={3} />}
+                    {!isSubmitting && <ChevronRight color={colors.white} size={20} strokeWidth={3} />}
                   </LinearGradient>
                 </Animated.View>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.ctaButton} onPress={handleNext} activeOpacity={0.9}>
                 <LinearGradient
-                  colors={Colors.gradientDark}
+                  colors={colors.gradientDark}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.ctaGradient}
                 >
                   <Text style={styles.ctaText}>Next</Text>
-                  <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                  <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -1121,10 +1129,10 @@ const GoalSettingScreen = () => {
 };
 
 // ─── Styles ─────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   // Header
   header: {
@@ -1133,25 +1141,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.backgroundLight,
+    borderBottomColor: colors.backgroundLight,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   stepIndicator: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
@@ -1159,24 +1167,24 @@ const styles = StyleSheet.create({
   stepIndicatorText: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   // Progress bar
   progressBar: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
   },
   progressTrack: {
     height: 4,
     borderRadius: BorderRadius.xs,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: BorderRadius.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
   },
   // Scroll
   scroll: {
@@ -1190,12 +1198,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     ...Typography.heading1,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   stepSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: Spacing.xxxl,
   },
@@ -1205,16 +1213,16 @@ const styles = StyleSheet.create({
   },
   // Error banner
   errorBanner: {
-    backgroundColor: Colors.errorLight,
+    backgroundColor: colors.errorLight,
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.errorBorder,
+    borderColor: colors.errorBorder,
   },
   errorText: {
-    color: Colors.error,
+    color: colors.error,
     ...Typography.small,
     fontWeight: '600',
   },
@@ -1233,13 +1241,13 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   goalChipError: {
-    borderColor: Colors.errorBorder,
-    backgroundColor: Colors.errorLight,
+    borderColor: colors.errorBorder,
+    backgroundColor: colors.errorLight,
   },
   goalIcon: {
     ...Typography.heading2,
@@ -1247,10 +1255,10 @@ const styles = StyleSheet.create({
   goalName: {
     ...Typography.body,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   goalNameActive: {
-    color: Colors.white,
+    color: colors.white,
   },
   customGoalContainer: {
     marginTop: Spacing.xl,
@@ -1258,16 +1266,16 @@ const styles = StyleSheet.create({
   customGoalLabel: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   customGoalInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.xs,
   },
@@ -1278,21 +1286,21 @@ const styles = StyleSheet.create({
   customGoalInput: {
     flex: 1,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     paddingVertical: Spacing.sm,
   },
   // Sliders (Step 2)
   sliderContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.backgroundLight,
+    borderColor: colors.backgroundLight,
   },
   sliderTitle: {
     ...Typography.small,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1306,12 +1314,12 @@ const styles = StyleSheet.create({
   sliderValue: {
     ...Typography.display,
     fontWeight: '900',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   sliderUnit: {
     ...Typography.heading3,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   sliderLabels: {
     flexDirection: 'row',
@@ -1321,18 +1329,18 @@ const styles = StyleSheet.create({
   sliderLabelText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   sliderTrack: {
     height: 8,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     borderRadius: BorderRadius.xs,
     position: 'relative',
     width: '100%',
   },
   sliderProgress: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.xs,
   },
   sliderThumb: {
@@ -1342,10 +1350,10 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1355,7 +1363,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: BorderRadius.xs,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   // Time inputs (Step 2)
   timeRow: {
@@ -1370,28 +1378,28 @@ const styles = StyleSheet.create({
   timeInput: {
     width: 60,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     ...Typography.heading3,
     fontWeight: '700',
     textAlign: 'center',
-    backgroundColor: Colors.white,
-    color: Colors.textPrimary,
+    backgroundColor: colors.white,
+    color: colors.textPrimary,
   },
   timeLabel: {
     ...Typography.body,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   // Calendar (Step 3)
   inlineCalendar: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   calHeader: {
     flexDirection: 'row',
@@ -1402,12 +1410,12 @@ const styles = StyleSheet.create({
   calNavBtn: {
     padding: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   calMonthYear: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   calWeekRow: {
     flexDirection: 'row',
@@ -1418,7 +1426,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   calDaysGrid: {
     flexDirection: 'row',
@@ -1433,62 +1441,62 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   },
   calSelectedDay: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
   },
   calTodayDay: {
     borderWidth: 2,
-    borderColor: Colors.secondary,
+    borderColor: colors.secondary,
   },
   calDayText: {
     ...Typography.small,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   calDisabledText: {
-    color: Colors.disabled,
+    color: colors.disabled,
   },
   calSelectedText: {
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '700',
   },
   calTodayText: {
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '700',
   },
   // End date info (Step 3)
   endDateContainer: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginTop: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   endDateLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
     marginBottom: Spacing.xs,
   },
   endDateValue: {
     ...Typography.heading3,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
     textAlign: 'center',
   },
   endDateSublabel: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.xs,
   },
   // Review card (Step 4)
   reviewCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.backgroundLight,
+    borderColor: colors.backgroundLight,
   },
   reviewRow: {
     flexDirection: 'row',
@@ -1499,29 +1507,29 @@ const styles = StyleSheet.create({
   reviewLabel: {
     ...Typography.body,
     fontWeight: '500',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   reviewValue: {
     ...Typography.body,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   reviewDivider: {
     height: 1,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   experiencePreview: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginTop: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   experiencePreviewLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.primary,
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.xs,
@@ -1529,7 +1537,7 @@ const styles = StyleSheet.create({
   experiencePreviewTitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.primaryDeep,
+    color: colors.primaryDeep,
   },
   // Footer
   footer: {
@@ -1540,10 +1548,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
     paddingTop: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: Colors.backgroundLight,
-    shadowColor: Colors.black,
+    borderTopColor: colors.backgroundLight,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -1551,7 +1559,7 @@ const styles = StyleSheet.create({
   },
   ctaButton: {
     borderRadius: BorderRadius.lg,
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -1566,7 +1574,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   ctaText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.heading3,
     fontWeight: '700',
   },

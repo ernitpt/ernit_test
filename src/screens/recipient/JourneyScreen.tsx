@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Animated, Easing, Image, TouchableOpacity,
+  View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
   Platform, Linking, LayoutAnimation, RefreshControl, Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
@@ -45,7 +46,7 @@ import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle,
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -56,6 +57,7 @@ import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { vh } from '../../utils/responsive';
+import Button from '../../components/Button';
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -69,6 +71,8 @@ const SegmentedControl = React.memo(({
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
 }) => {
+  const colors = useColors();
+  const segStyles = useMemo(() => createSegStyles(colors), [colors]);
   const slideAnim = useRef(new Animated.Value(activeTab === TAB_SESSIONS ? 0 : 1)).current;
 
   useEffect(() => {
@@ -116,10 +120,10 @@ const SegmentedControl = React.memo(({
   );
 });
 
-const segStyles = StyleSheet.create({
+const createSegStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.md,
     padding: Spacing.xxs,
     marginBottom: Spacing.lg,
@@ -130,9 +134,9 @@ const segStyles = StyleSheet.create({
     top: 3,
     bottom: 3,
     width: '48%',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.sm,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
@@ -147,10 +151,10 @@ const segStyles = StyleSheet.create({
   tabLabel: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   tabLabelActive: {
-    color: Colors.primaryDark,
+    color: colors.primaryDark,
   },
 });
 
@@ -170,6 +174,8 @@ const SessionCard = React.memo(({
   onToggleExpand: () => void;
   onImagePress: (uri: string) => void;
 }) => {
+  const colors = useColors();
+  const sessStyles = useMemo(() => createSessStyles(colors), [colors]);
   const anim = useRef(new Animated.Value(0)).current;
   const [motivationsExpanded, setMotivationsExpanded] = useState(false);
   const videoRef = useRef<Video>(null);
@@ -237,7 +243,7 @@ const SessionCard = React.memo(({
               {fmtDate(session.timestamp)} · {fmtTime(session.timestamp)}
             </Text>
             <View style={sessStyles.metaRow}>
-              <Clock size={13} color={Colors.textSecondary} />
+              <Clock size={13} color={colors.textSecondary} />
               <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
               <Text style={sessStyles.weekBadge}>Week {session.weekNumber + 1}</Text>
             </View>
@@ -249,7 +255,7 @@ const SessionCard = React.memo(({
               <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
               {session.mediaType === 'video' && (
                 <View style={sessStyles.videoOverlay}>
-                  <PlayCircle size={18} color={Colors.white} />
+                  <PlayCircle size={18} color={colors.white} />
                 </View>
               )}
             </View>
@@ -287,7 +293,7 @@ const SessionCard = React.memo(({
                     <Image
                       source={{ uri: session.mediaUrl }}
                       style={sessStyles.expandedMedia}
-                      resizeMode="cover"
+                      contentFit="cover" cachePolicy="memory-disk"
                     />
                   </TouchableOpacity>
                 )}
@@ -318,7 +324,7 @@ const SessionCard = React.memo(({
             accessibilityRole="button"
             accessibilityLabel={`${motivationsExpanded ? 'Hide' : 'Show'} motivations`}
           >
-            <MessageCircle size={14} color={Colors.primary} />
+            <MessageCircle size={14} color={colors.primary} />
             <Text style={sessStyles.motivationToggleText}>
               {motivations.length} motivation{motivations.length !== 1 ? 's' : ''} from friends
             </Text>
@@ -349,7 +355,7 @@ const SessionCard = React.memo(({
                       <Image
                         source={{ uri: m.imageUrl }}
                         style={sessStyles.motivationImage}
-                        resizeMode="cover"
+                        contentFit="cover" cachePolicy="memory-disk"
                       />
                     )}
                     {m.audioUrl && (
@@ -366,22 +372,22 @@ const SessionCard = React.memo(({
   );
 });
 
-const sessStyles = StyleSheet.create({
+const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.backgroundLight,
-    shadowColor: Colors.black,
+    borderColor: colors.backgroundLight,
+    shadowColor: colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
   cardWithMotivations: {
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   cardMain: {
     flexDirection: 'row',
@@ -391,7 +397,7 @@ const sessStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -399,13 +405,13 @@ const sessStyles = StyleSheet.create({
   badgeText: {
     ...Typography.small,
     fontWeight: '800',
-    color: Colors.primary,
+    color: colors.primary,
   },
   details: { flex: 1 },
   date: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   metaRow: {
@@ -415,13 +421,13 @@ const sessStyles = StyleSheet.create({
   },
   metaText: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginRight: Spacing.sm,
   },
   weekBadge: {
     ...Typography.tiny,
-    color: Colors.primary,
-    backgroundColor: Colors.primarySurface,
+    color: colors.primary,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xxs,
     borderRadius: BorderRadius.xs,
@@ -437,11 +443,11 @@ const sessStyles = StyleSheet.create({
   thumbImg: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -452,12 +458,12 @@ const sessStyles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    borderTopColor: colors.border,
   },
   motivationToggleText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.primary,
+    color: colors.primary,
   },
   motivationList: {
     marginTop: Spacing.sm,
@@ -466,7 +472,7 @@ const sessStyles = StyleSheet.create({
   motivationItem: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     padding: Spacing.sm,
     borderRadius: BorderRadius.sm,
   },
@@ -479,14 +485,14 @@ const sessStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.primaryBorder,
+    backgroundColor: colors.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motivationAvatarText: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   motivationContent: {
     flex: 1,
@@ -500,15 +506,15 @@ const sessStyles = StyleSheet.create({
   motivationAuthor: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   motivationDate: {
     ...Typography.tiny,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   motivationMessage: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   motivationImage: {
@@ -516,11 +522,11 @@ const sessStyles = StyleSheet.create({
     height: vh(150),
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   expandedDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     marginVertical: Spacing.md,
   },
   expandedMediaContainer: {
@@ -531,7 +537,7 @@ const sessStyles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   notesContainer: {
     paddingVertical: Spacing.xs,
@@ -539,14 +545,14 @@ const sessStyles = StyleSheet.create({
   notesLabel: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.xs,
   },
   notesText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
 });
@@ -563,6 +569,8 @@ const HintItem = React.memo(({
   fmtDateTime: (ts: number) => string;
   onImagePress: (uri: string) => void;
 }) => {
+  const colors = useColors();
+  const hintStyles = useMemo(() => createHintStyles(colors), [colors]);
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -601,10 +609,10 @@ const HintItem = React.memo(({
         ],
         paddingVertical: Spacing.md,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: Colors.border,
+        borderBottomColor: colors.border,
       }}
     >
-      <Text style={{ fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs }}>
+      <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
         {fmt(dateMs)}
       </Text>
 
@@ -615,14 +623,14 @@ const HintItem = React.memo(({
           accessibilityRole="button"
           accessibilityLabel="View hint image"
         >
-          <Image source={{ uri: hint.imageUrl }} style={styles.hintImage} accessibilityLabel="Hint image" />
+          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" />
         </TouchableOpacity>
       )}
 
       {text && (
         <Text
           style={{
-            color: Colors.gray700,
+            color: colors.gray700,
             ...Typography.body,
             marginBottom: isAudio ? 8 : 0,
           }}
@@ -638,12 +646,25 @@ const HintItem = React.memo(({
   );
 });
 
+const createHintStyles = (colors: typeof Colors) => StyleSheet.create({
+  hintImage: {
+    width: '100%',
+    height: vh(200),
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: colors.backgroundLight,
+  },
+});
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 const JourneyScreen = () => {
   const navigation = useRecipientNavigation();
   const route = useRoute();
   const routeParams = route.params as { goal?: Goal } | undefined;
   const passedGoal = routeParams?.goal;
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const cStyles = useMemo(() => createCStyles(colors), [colors]);
 
   const [currentGoal, setCurrentGoal] = useState<Goal | null>(passedGoal || null);
   const [experienceGift, setExperienceGift] = useState<ExperienceGift | null>(null);
@@ -1153,7 +1174,7 @@ const JourneyScreen = () => {
         <StatusBar style="light" />
         <SharedHeader title="Journey" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
     );
@@ -1198,12 +1219,12 @@ const JourneyScreen = () => {
             style={{
               width: 1080,
               height: shareFormat === 'story' ? 1920 : 1080,
-              backgroundColor: Colors.cyan,
+              backgroundColor: colors.cyan,
             }}
             collapsable={false}
           >
             <LinearGradient
-              colors={[Colors.secondary, Colors.cyan, Colors.secondary]}
+              colors={[colors.secondary, colors.cyan, colors.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
@@ -1217,33 +1238,33 @@ const JourneyScreen = () => {
                     borderRadius: BorderRadius.pill,
                     marginBottom: 60,
                   }}
-                  resizeMode="cover"
+                  contentFit="cover" cachePolicy="memory-disk"
                 />
               ) : null}
-              <Trophy color={Colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={Colors.celebrationGold} />
-              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+              <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
+              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
                 Goal Completed!
               </Text>
-              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: Colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
                 {currentGoal.title || currentGoal.description || ''}
               </Text>
               <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{totalSessions}</Text>
-                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
+                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: Colors.white }}>{currentGoal.targetCount || 0}</Text>
-                  <Text style={{ ...Typography.display, color: Colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
+                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{currentGoal.targetCount || 0}</Text>
+                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
                 </View>
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image
                   source={require('../../assets/favicon.png')}
                   style={{ width: 60, height: 60, marginBottom: 12 }}
-                  resizeMode="contain"
+                  contentFit="contain" cachePolicy="memory-disk"
                 />
-                <Text style={{ ...Typography.display, fontWeight: '600', color: Colors.overlayLight }}>
+                <Text style={{ ...Typography.display, fontWeight: '600', color: colors.overlayLight }}>
                   Earned with Ernit
                 </Text>
               </View>
@@ -1256,7 +1277,7 @@ const JourneyScreen = () => {
           <View style={cStyles.heroInner}>
             <View style={cStyles.heroTopRow}>
               <View style={cStyles.heroTrophyCircle}>
-                <Trophy size={28} color={Colors.warning} strokeWidth={2.5} fill={Colors.celebrationGold} />
+                <Trophy size={28} color={colors.warning} strokeWidth={2.5} fill={colors.celebrationGold} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={cStyles.heroTitle}>Challenge Complete!</Text>
@@ -1285,7 +1306,7 @@ const JourneyScreen = () => {
         {(hasPledgedExperience || hasGift) && (
           <View style={cStyles.section}>
             <Text style={cStyles.sectionTitle}>
-              <Gift size={15} color={Colors.primary} />  Your Reward
+              <Gift size={15} color={colors.primary} />  Your Reward
             </Text>
 
             {/* Experience image + details */}
@@ -1312,33 +1333,30 @@ const JourneyScreen = () => {
                 {couponCode ? (
                   <View style={cStyles.couponCard}>
                     <View style={cStyles.couponRow}>
-                      <Ticket size={18} color={Colors.primary} />
+                      <Ticket size={18} color={colors.primary} />
                       <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
                     </View>
                     <View style={cStyles.couponCodeBox}>
                       <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                     </View>
                     <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
-                      {isCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.primary} />}
-                      <Text style={[cStyles.copyText, isCopied && { color: Colors.secondary }]}>
+                      {isCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.primary} />}
+                      <Text style={[cStyles.copyText, isCopied && { color: colors.secondary }]}>
                         {isCopied ? 'Copied!' : 'Copy Code'}
                       </Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={cStyles.generateCouponBtn}
+                  <Button
+                    variant="primary"
                     onPress={handleGenerateCoupon}
-                    activeOpacity={0.8}
+                    loading={couponLoading}
                     disabled={couponLoading}
-                    accessibilityRole="button"
-                    accessibilityLabel="Generate redemption code"
-                  >
-                    <Ticket size={16} color={Colors.white} />
-                    <Text style={cStyles.generateCouponText}>
-                      {couponLoading ? 'Generating...' : 'Generate Redemption Code'}
-                    </Text>
-                  </TouchableOpacity>
+                    title="Generate Redemption Code"
+                    icon={<Ticket size={16} color={colors.white} />}
+                    fullWidth
+                    style={cStyles.generateCouponBtn}
+                  />
                 )}
 
                 {/* Partner contact */}
@@ -1353,7 +1371,7 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactValue}>{partner.phone}</Text>
                         </View>
                         <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
-                          {isPhoneCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
+                          {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1365,7 +1383,7 @@ const JourneyScreen = () => {
                           <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                         </View>
                         <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
-                          {isEmailCopied ? <CheckCircle size={16} color={Colors.secondary} /> : <Copy size={16} color={Colors.textSecondary} />}
+                          {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1373,16 +1391,24 @@ const JourneyScreen = () => {
                     {/* Schedule buttons */}
                     <View style={cStyles.scheduleRow}>
                       {partner.phone && (
-                        <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via WhatsApp">
-                          <MessageCircle size={16} color={Colors.white} />
-                          <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
-                        </TouchableOpacity>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onPress={handleBookWhatsApp}
+                          title="WhatsApp"
+                          icon={<MessageCircle size={16} color={colors.white} />}
+                          style={cStyles.whatsappBtn}
+                        />
                       )}
                       {(partner.contactEmail || partner.email) && (
-                        <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via Email">
-                          <Mail size={16} color={Colors.white} />
-                          <Text style={cStyles.scheduleBtnText}>Email</Text>
-                        </TouchableOpacity>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onPress={handleBookEmail}
+                          title="Email"
+                          icon={<Mail size={16} color={colors.white} />}
+                          style={cStyles.emailBtn}
+                        />
                       )}
                     </View>
                   </View>
@@ -1396,21 +1422,19 @@ const JourneyScreen = () => {
                   <View style={cStyles.rewardDivider} />
                   <Text style={cStyles.buyCTATitle}>You've earned this!</Text>
                   <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
-                  <TouchableOpacity
-                    style={[styles.buyButton, { marginTop: Spacing.sm }]}
-                    activeOpacity={0.8}
+                  <Button
+                    variant="primary"
                     onPress={() => navigation.navigate('ExperienceCheckout', {
                       cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
                       goalId: currentGoal.id,
                     })}
-                  >
-                    <ShoppingBag size={15} color={Colors.white} />
-                    <Text style={styles.buyButtonText}>
-                      {currentGoal.pledgedExperience!.price > 0
-                        ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
-                        : 'Get This Experience'}
-                    </Text>
-                  </TouchableOpacity>
+                    title={currentGoal.pledgedExperience!.price > 0
+                      ? `Buy Now · \u20AC${currentGoal.pledgedExperience!.price}`
+                      : 'Get This Experience'}
+                    icon={<ShoppingBag size={15} color={colors.white} />}
+                    fullWidth
+                    style={[styles.buyButton, { marginTop: Spacing.sm }]}
+                  />
                 </>
               )}
 
@@ -1468,10 +1492,16 @@ const JourneyScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={cStyles.shareButton} onPress={handleShare} disabled={isSharing}>
-            <ShareIcon color={Colors.white} size={20} />
-            <Text style={cStyles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
-          </TouchableOpacity>
+          <Button
+            variant="primary"
+            onPress={handleShare}
+            loading={isSharing}
+            disabled={isSharing}
+            title="Share"
+            icon={<ShareIcon color={colors.white} size={20} />}
+            fullWidth
+            style={cStyles.shareButton}
+          />
         </View>
       </>
     );
@@ -1514,8 +1544,8 @@ const JourneyScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[Colors.primary]}
-            tintColor={Colors.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -1553,12 +1583,12 @@ const JourneyScreen = () => {
                   {currentGoal.isMystery ? (
                     <>
                       <View style={styles.mysteryShowcaseBanner}>
-                        <Sparkles color={Colors.warning} size={20} />
+                        <Sparkles color={colors.warning} size={20} />
                         <Text style={styles.mysteryShowcaseText}>?</Text>
                       </View>
                       <View style={styles.experienceInlineBody}>
                         <View style={styles.experienceHeader}>
-                          <Text style={[styles.experienceLabel, { color: Colors.warningDark }]}>Mystery Reward</Text>
+                          <Text style={[styles.experienceLabel, { color: colors.warningDark }]}>Mystery Reward</Text>
                         </View>
                         <Text style={styles.experienceTitle} numberOfLines={2}>
                           Complete your challenge to reveal it!
@@ -1570,7 +1600,7 @@ const JourneyScreen = () => {
                           return (
                             <View style={styles.experienceProgressArea}>
                               <View style={styles.experienceProgressTrack}>
-                                <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: Colors.warning }]} />
+                                <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: colors.warning }]} />
                               </View>
                               <Text style={styles.experienceProgressLabel}>
                                 {done}/{total} sessions to reveal
@@ -1618,21 +1648,19 @@ const JourneyScreen = () => {
                         })()}
 
                         {!currentGoal.giftAttachedAt && (
-                          <TouchableOpacity
-                            style={styles.buyButton}
-                            activeOpacity={0.8}
+                          <Button
+                            variant="primary"
                             onPress={() => navigation.navigate('ExperienceCheckout', {
                               cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
                               goalId: currentGoal.id,
                             })}
-                          >
-                            <ShoppingBag size={15} color={Colors.white} />
-                            <Text style={styles.buyButtonText}>
-                              {currentGoal.pledgedExperience!.price > 0
-                                ? `Buy Now · €${currentGoal.pledgedExperience!.price}`
-                                : 'Get This Experience'}
-                            </Text>
-                          </TouchableOpacity>
+                            title={currentGoal.pledgedExperience!.price > 0
+                              ? `Buy Now · \u20AC${currentGoal.pledgedExperience!.price}`
+                              : 'Get This Experience'}
+                            icon={<ShoppingBag size={15} color={colors.white} />}
+                            fullWidth
+                            style={styles.buyButton}
+                          />
                         )}
                       </View>
                     </>
@@ -1647,7 +1675,7 @@ const JourneyScreen = () => {
                 <View style={styles.sectionDivider} />
                 <View style={styles.recommendedSection}>
                   <View style={styles.recommendedHeader}>
-                    <Sparkles color={Colors.primary} size={16} />
+                    <Sparkles color={colors.primary} size={16} />
                     <Text style={styles.recommendedTitle}>Recommended for you</Text>
                   </View>
                   <ScrollView
@@ -1666,11 +1694,11 @@ const JourneyScreen = () => {
                           <Image
                             source={{ uri: exp.coverImageUrl }}
                             style={styles.recommendedImage}
-                            resizeMode="cover"
+                            contentFit="cover" cachePolicy="memory-disk"
                           />
                         ) : (
-                          <View style={[styles.recommendedImage, { backgroundColor: Colors.backgroundLight, justifyContent: 'center', alignItems: 'center' }]}>
-                            <Gift size={20} color={Colors.textMuted} />
+                          <View style={[styles.recommendedImage, { backgroundColor: colors.backgroundLight, justifyContent: 'center', alignItems: 'center' }]}>
+                            <Gift size={20} color={colors.textMuted} />
                           </View>
                         )}
                         <Text style={styles.recommendedName} numberOfLines={2}>{exp.title}</Text>
@@ -1765,22 +1793,22 @@ const JourneyScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   messageSection: {
     paddingBottom: Spacing.lg,
     marginBottom: Spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   messageText: {
     ...Typography.heading3,
     fontWeight: '500',
-    color: Colors.violet,
+    color: colors.violet,
     lineHeight: 26,
   },
   messageFrom: {
     ...Typography.small,
-    color: Colors.primaryDeep,
+    color: colors.primaryDeep,
     marginTop: Spacing.sm,
     fontWeight: '600',
   },
@@ -1788,10 +1816,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -1799,7 +1827,7 @@ const styles = StyleSheet.create({
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     marginVertical: Spacing.lg,
   },
   experienceInline: {
@@ -1812,20 +1840,20 @@ const styles = StyleSheet.create({
     width: '100%',
     height: vh(180),
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   experienceCover: {
     width: '100%',
     height: vh(140),
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   tabSectionInline: {
     // no card styling needed — inside unified card
   },
   tabContent: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
@@ -1838,12 +1866,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   emptyText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     ...Typography.subheading,
     fontWeight: '600',
   },
   emptySubText: {
-    color: Colors.textMuted,
+    color: colors.textMuted,
     ...Typography.small,
     textAlign: 'center',
     marginTop: Spacing.xs,
@@ -1851,13 +1879,6 @@ const styles = StyleSheet.create({
   },
   timeline: {
     marginTop: Spacing.xs,
-  },
-  hintImage: {
-    width: '100%',
-    height: vh(200),
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    backgroundColor: Colors.backgroundLight,
   },
   experienceHeader: {
     flexDirection: 'row',
@@ -1867,19 +1888,19 @@ const styles = StyleSheet.create({
   },
   experienceLabel: {
     ...Typography.tiny,
-    color: Colors.primary,
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   experiencePrice: {
     ...Typography.subheading,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   experienceTitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
     lineHeight: 22,
   },
@@ -1888,32 +1909,32 @@ const styles = StyleSheet.create({
   },
   experienceProgressTrack: {
     height: 6,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     borderRadius: BorderRadius.xs,
     overflow: 'hidden',
   },
   experienceProgressFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.xs,
   },
   experienceProgressLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   buyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
   },
   buyButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '700',
   },
@@ -1922,35 +1943,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   giftReceivedText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.primary,
+    color: colors.primary,
   },
   mysteryShowcaseBanner: {
     height: vh(120),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     gap: Spacing.sm,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: Colors.warningBorder,
+    borderColor: colors.warningBorder,
   },
   mysteryShowcaseText: {
     fontSize: Typography.displayLarge.fontSize,
     fontWeight: '800',
-    color: Colors.warning,
+    color: colors.warning,
   },
   // Recommended experiences
   recommendedSection: {
@@ -1966,15 +1987,15 @@ const styles = StyleSheet.create({
   recommendedTitle: {
     ...Typography.body,
     fontWeight: '700',
-    color: Colors.gray800,
+    color: colors.gray800,
   },
   recommendedCard: {
     width: 140,
     marginRight: Spacing.sm,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: Colors.backgroundLight,
+    borderColor: colors.backgroundLight,
     overflow: 'hidden',
   },
   recommendedImage: {
@@ -1986,7 +2007,7 @@ const styles = StyleSheet.create({
   recommendedName: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.gray800,
+    color: colors.gray800,
     paddingHorizontal: Spacing.sm,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
@@ -1994,7 +2015,7 @@ const styles = StyleSheet.create({
   recommendedPrice: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
     paddingHorizontal: Spacing.sm,
     paddingBottom: Spacing.sm,
   },
@@ -2006,19 +2027,19 @@ const styles = StyleSheet.create({
   browseAllText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.primary,
+    color: colors.primary,
   },
 });
 
 // ─── Completed Goal Styles ──────────────────────────────────────────────────
-const cStyles = StyleSheet.create({
+const createCStyles = (colors: typeof Colors) => StyleSheet.create({
   heroContainer: {
     marginBottom: Spacing.lg,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.black,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -2037,19 +2058,19 @@ const cStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.xxl,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroTitle: {
     ...Typography.heading3,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   heroGoalTitle: {
     ...Typography.small,
     fontWeight: '500',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: Spacing.xxs,
   },
   heroStatsRow: {
@@ -2058,7 +2079,7 @@ const cStyles = StyleSheet.create({
     gap: Spacing.sm,
   },
   heroStatPill: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.sm,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
@@ -2069,17 +2090,17 @@ const cStyles = StyleSheet.create({
   heroStatNumber: {
     ...Typography.body,
     fontWeight: '800',
-    color: Colors.primary,
+    color: colors.primary,
   },
   heroStatLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   heroDateText: {
     ...Typography.caption,
     fontWeight: '500',
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginLeft: 'auto',
   },
   section: {
@@ -2088,53 +2109,53 @@ const cStyles = StyleSheet.create({
   sectionTitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   countBadge: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   experienceBody: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     padding: Spacing.md,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     borderWidth: 1,
     borderTopWidth: 0,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   experienceName: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   experiencePrice: {
     ...Typography.body,
     fontWeight: '800',
-    color: Colors.primary,
+    color: colors.primary,
   },
   experienceSubtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   rewardDivider: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     marginVertical: Spacing.md,
   },
   redemptionArea: {
     marginTop: Spacing.md,
   },
   couponCard: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
     marginBottom: Spacing.md,
   },
   couponRow: {
@@ -2146,22 +2167,22 @@ const cStyles = StyleSheet.create({
   couponLabel: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   couponCodeBox: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.sm,
     padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: Spacing.sm,
   },
   couponCodeText: {
     ...Typography.large,
     fontWeight: '900',
     letterSpacing: 3,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   copyButton: {
     flexDirection: 'row',
@@ -2173,35 +2194,35 @@ const cStyles = StyleSheet.create({
   copyText: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.primary,
+    color: colors.primary,
   },
   generateCouponBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
   },
   generateCouponText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '700',
   },
   contactCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: Spacing.md,
   },
   contactTitle: {
     ...Typography.small,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.md,
   },
   contactRow: {
@@ -2209,18 +2230,18 @@ const cStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   contactLabel: {
     ...Typography.tiny,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   contactValue: {
     ...Typography.small,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginTop: Spacing.xxs,
   },
   smallCopyBtn: {
@@ -2237,7 +2258,7 @@ const cStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.whatsappGreen,
+    backgroundColor: colors.whatsappGreen,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
   },
@@ -2247,36 +2268,36 @@ const cStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
   },
   scheduleBtnText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.caption,
     fontWeight: '700',
   },
   buyCTACard: {
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
     marginTop: Spacing.md,
   },
   buyCTATitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   buyCTASubtext: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   expiredCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.sm,
     padding: Spacing.md,
     marginTop: Spacing.md,
@@ -2284,12 +2305,12 @@ const cStyles = StyleSheet.create({
   },
   expiredText: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   shareFormatToggle: {
     flexDirection: 'row',
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.md,
     padding: Spacing.xxs,
     marginBottom: Spacing.md,
@@ -2301,17 +2322,17 @@ const cStyles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: Colors.white,
-    shadowColor: Colors.black,
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  shareFormatText: { ...Typography.small, fontWeight: '600', color: Colors.textMuted },
-  shareFormatTextActive: { color: Colors.primaryDark },
+  shareFormatText: { ...Typography.small, fontWeight: '600', color: colors.textMuted },
+  shareFormatTextActive: { color: colors.primaryDark },
   shareButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2319,7 +2340,7 @@ const cStyles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
   },
-  shareButtonText: { color: Colors.white, ...Typography.body, fontWeight: '700' },
+  shareButtonText: { color: colors.white, ...Typography.body, fontWeight: '700' },
 });
 
 export default JourneyScreen;

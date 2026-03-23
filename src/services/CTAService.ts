@@ -42,7 +42,7 @@ const CTA_MESSAGES = [
 
 export interface CTADecision {
     shouldShow: boolean;
-    reason: 'every_3rd' | 'week_reset' | 'streak_milestone' | 'persistent' | null;
+    reason: 'every_3rd' | 'week_reset' | 'streak_milestone' | 'persistent' | '75_percent' | null;
     message: { stat: string; source: string | null };
 }
 
@@ -55,6 +55,7 @@ interface CTAContext {
     isWeekCompleted: boolean;
     currentCount: number;    // completed weeks
     previousWeeklyCount?: number; // weeklyCount before this session
+    totalSessions?: number;  // total sessions in the goal (for % completion checks)
 }
 
 class CTAService {
@@ -76,6 +77,14 @@ class CTAService {
         }
 
         const message = this.pickMessage(ctx.sessionNumber);
+
+        // 75% completion milestone — strong purchase prompt
+        if (ctx.totalSessions && ctx.totalSessions > 0) {
+            const pct = ctx.sessionNumber / ctx.totalSessions;
+            if (pct >= 0.75 && pct < 1) {
+                return { shouldShow: true, reason: '75_percent', message: this.pickMessage(ctx.sessionNumber) };
+            }
+        }
 
         // Streak milestones: 7, 14, 21
         const STREAK_MILESTONES = [7, 14, 21];

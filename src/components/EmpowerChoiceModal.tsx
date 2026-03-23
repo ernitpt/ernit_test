@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ExperienceCategory } from '../types';
 import { useApp } from '../context/AppContext';
-import { Colors, Typography, Spacing, BorderRadius } from '../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius } from '../config';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
 
@@ -41,6 +41,8 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
 }) => {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { dispatch } = useApp();
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
 
     const setEmpowerContext = () => {
         dispatch({
@@ -79,7 +81,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                 <Button
                     variant="primary"
                     title={`Gift "${experienceTitle}"${experiencePrice != null ? `  €${experiencePrice}` : ''}`}
-                    icon={<ShoppingBag size={18} color={Colors.white} />}
+                    icon={<ShoppingBag size={18} color={colors.white} />}
                     onPress={handleDirect}
                     style={styles.optionPrimary}
                     fullWidth
@@ -94,7 +96,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                         ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
                         : 'Choose Another Experience'
                 }
-                icon={<Gift size={18} color={Colors.primary} />}
+                icon={<Gift size={18} color={colors.primary} />}
                 onPress={handleBrowse}
                 style={styles.optionSecondary}
                 fullWidth
@@ -112,56 +114,57 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    subtitle: {
-        ...Typography.small,
-        color: Colors.textSecondary,
-        marginBottom: Spacing.xl,
-    },
-    optionPrimary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.md,
-        backgroundColor: Colors.secondary,
-        paddingVertical: Spacing.lg,
-        paddingHorizontal: Spacing.cardPadding,
-        borderRadius: BorderRadius.lg,
-        marginBottom: Spacing.sm,
-    },
-    optionPrimaryText: {
-        ...Typography.bodyBold,
-        color: Colors.white,
-    },
-    optionPrice: {
-        ...Typography.caption,
-        color: Colors.whiteAlpha80,
-        fontWeight: '600',
-        marginTop: Spacing.xxs,
-    },
-    optionSecondary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.md,
-        backgroundColor: Colors.primarySurface,
-        paddingVertical: Spacing.lg,
-        paddingHorizontal: Spacing.cardPadding,
-        borderRadius: BorderRadius.lg,
-        borderWidth: 1,
-        borderColor: Colors.primaryBorder,
-        marginBottom: Spacing.sm,
-    },
-    optionSecondaryText: {
-        ...Typography.bodyBold,
-        color: Colors.primary,
-    },
-    cancelButton: {
-        alignItems: 'center',
-        paddingVertical: Spacing.sm,
-    },
-    cancelText: {
-        ...Typography.small,
-        color: Colors.textMuted,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        subtitle: {
+            ...Typography.small,
+            color: colors.textSecondary,
+            marginBottom: Spacing.xl,
+        },
+        optionPrimary: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.md,
+            backgroundColor: colors.secondary,
+            paddingVertical: Spacing.lg,
+            paddingHorizontal: Spacing.cardPadding,
+            borderRadius: BorderRadius.lg,
+            marginBottom: Spacing.sm,
+        },
+        optionPrimaryText: {
+            ...Typography.bodyBold,
+            color: colors.white,
+        },
+        optionPrice: {
+            ...Typography.caption,
+            color: colors.whiteAlpha80,
+            fontWeight: '600',
+            marginTop: Spacing.xxs,
+        },
+        optionSecondary: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.md,
+            backgroundColor: colors.primarySurface,
+            paddingVertical: Spacing.lg,
+            paddingHorizontal: Spacing.cardPadding,
+            borderRadius: BorderRadius.lg,
+            borderWidth: 1,
+            borderColor: colors.primaryBorder,
+            marginBottom: Spacing.sm,
+        },
+        optionSecondaryText: {
+            ...Typography.bodyBold,
+            color: colors.primary,
+        },
+        cancelButton: {
+            alignItems: 'center',
+            paddingVertical: Spacing.sm,
+        },
+        cancelText: {
+            ...Typography.small,
+            color: colors.textMuted,
+        },
+    });
 
 export default EmpowerChoiceModal;

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Image,
@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LogOut } from 'lucide-react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -24,6 +24,9 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -77,30 +80,30 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
           fullWidth
           gradient
           onPress={handleConfirm}
-          icon={<LogOut color={Colors.white} size={20} strokeWidth={2.5} />}
+          icon={<LogOut color={colors.white} size={20} strokeWidth={2.5} />}
         />
       </View>
     </BaseModal>
   );
 };
 
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  message: {
-    ...Typography.subheading,
-    color: Colors.gray600,
-    marginBottom: Spacing.xxxl,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  buttonContainer: {
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    iconContainer: {
+      alignItems: 'center',
+      marginBottom: Spacing.xl,
+    },
+    message: {
+      ...Typography.subheading,
+      color: colors.gray600,
+      marginBottom: Spacing.xxxl,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    buttonContainer: {
+      gap: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+  });
 
 export default LogoutConfirmation;
-

@@ -1,3 +1,6 @@
+# B2B (separate repo)
+ErnitB2B/
+
 # Logs
 logs
 *.log
@@ -101,6 +104,9 @@ functions/.expo/
 
 # Windows reserved device name — cannot be a real file on Windows
 nul
+
+# Play Store service account key
+play-store-service-account.json
 
 # Claude Code worktrees
 .claude/worktrees/

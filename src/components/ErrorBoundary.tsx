@@ -1,9 +1,9 @@
-import React, { Component, ReactNode } from 'react';
+import React, { Component, ReactNode, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Button from './Button';
 import { analyticsService } from '../services/AnalyticsService';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { logger } from '../utils/logger';
@@ -12,6 +12,8 @@ interface Props {
     children: ReactNode;
     screenName: string;
     userId?: string;
+    colors: typeof Colors;
+    styles: ReturnType<typeof createStyles>;
 }
 
 interface State {
@@ -19,7 +21,7 @@ interface State {
     error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryClass extends Component<Props, State> {
     constructor(props: Props) {
         super(props);
         this.state = { hasError: false, error: null };
@@ -59,6 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
     };
 
     render() {
+        const { styles } = this.props;
         if (this.state.hasError) {
             return (
                 <View style={styles.container}>
@@ -81,30 +84,55 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: Spacing.xl,
-        backgroundColor: Colors.white,
-    },
-    emoji: {
-        fontSize: Typography.emojiLarge.fontSize,
-        marginBottom: Spacing.xl,
-    },
-    title: {
-        ...Typography.heading1,
-        fontWeight: '800',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.md,
-        textAlign: 'center',
-    },
-    message: {
-        ...Typography.subheading,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: Spacing.xxxl,
-    },
-});
+// ─── Public wrapper uses hooks to inject colors ────────────────────────────────
+
+interface ErrorBoundaryProps {
+    children: ReactNode;
+    screenName: string;
+    userId?: string;
+}
+
+export const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children, screenName, userId }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
+    return (
+        <ErrorBoundaryClass
+            screenName={screenName}
+            userId={userId}
+            colors={colors}
+            styles={styles}
+        >
+            {children}
+        </ErrorBoundaryClass>
+    );
+};
+
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: Spacing.xl,
+            backgroundColor: colors.white,
+        },
+        emoji: {
+            fontSize: Typography.emojiLarge.fontSize,
+            marginBottom: Spacing.xl,
+        },
+        title: {
+            ...Typography.heading1,
+            fontWeight: '800',
+            color: colors.textPrimary,
+            marginBottom: Spacing.md,
+            textAlign: 'center',
+        },
+        message: {
+            ...Typography.subheading,
+            color: colors.textSecondary,
+            textAlign: 'center',
+            lineHeight: 24,
+            marginBottom: Spacing.xxxl,
+        },
+    });

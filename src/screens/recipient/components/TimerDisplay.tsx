@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform, Pressable } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -21,6 +21,8 @@ interface TimerRingProps {
 }
 
 const TimerRing: React.FC<TimerRingProps> = React.memo(({ elapsed, total }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const progress = total > 0 ? Math.min(elapsed / total, 1) : 0;
   const strokeDashoffset = RING_CIRCUMFERENCE * (1 - progress);
 
@@ -31,7 +33,7 @@ const TimerRing: React.FC<TimerRingProps> = React.memo(({ elapsed, total }) => {
         cx={RING_SIZE / 2}
         cy={RING_SIZE / 2}
         r={RING_RADIUS}
-        stroke={Colors.border}
+        stroke={colors.border}
         strokeWidth={RING_STROKE}
         fill="transparent"
       />
@@ -40,7 +42,7 @@ const TimerRing: React.FC<TimerRingProps> = React.memo(({ elapsed, total }) => {
         cx={RING_SIZE / 2}
         cy={RING_SIZE / 2}
         r={RING_RADIUS}
-        stroke={progress >= 0.9 ? Colors.primary : Colors.accent}
+        stroke={progress >= 0.9 ? colors.primary : colors.accent}
         strokeWidth={RING_STROKE}
         fill="transparent"
         strokeDasharray={`${RING_CIRCUMFERENCE}`}
@@ -67,6 +69,8 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
   loading,
   onFinish,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const fillAnim = useRef(new Animated.Value(0)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const [pressing, setPressing] = useState(false);
@@ -124,7 +128,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
             StyleSheet.absoluteFill,
             {
               width: fillWidth,
-              backgroundColor: Colors.whiteAlpha25,
+              backgroundColor: colors.whiteAlpha25,
               borderRadius: BorderRadius.md,
             },
           ]}
@@ -156,7 +160,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
           StyleSheet.absoluteFill,
           {
             width: fillWidth,
-            backgroundColor: Colors.whiteAlpha25,
+            backgroundColor: colors.whiteAlpha25,
             borderRadius: BorderRadius.md,
           },
         ]}
@@ -193,6 +197,8 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   onFinish,
   onCancel,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const almostDone = totalGoalSeconds > 0 && timeElapsed >= totalGoalSeconds * 0.9;
   const isOvertime = totalGoalSeconds > 0 && timeElapsed >= totalGoalSeconds;
@@ -236,10 +242,10 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   };
 
   const timerColor = isOvertime
-    ? Colors.primary
+    ? colors.primary
     : almostDone
-      ? Colors.secondary
-      : Colors.textPrimary;
+      ? colors.secondary
+      : colors.textPrimary;
 
   return (
     <View style={styles.timerContainer}>
@@ -292,7 +298,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   timerContainer: { alignItems: 'center' },
   ringContainer: {
     width: RING_SIZE,
@@ -308,17 +314,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: { ...Typography.display, fontWeight: 'bold', color: Colors.textPrimary },
+  timerText: { ...Typography.display, fontWeight: 'bold', color: colors.textPrimary },
   almostDoneText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.secondary,
+    color: colors.secondary,
     marginTop: Spacing.xxs,
   },
   overtimeText: {
     ...Typography.caption,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
     marginTop: Spacing.xxs,
   },
   buttonsContainer: {
@@ -332,20 +338,20 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
   },
-  finishButtonActive: { backgroundColor: Colors.primary },
-  finishButtonDisabled: { backgroundColor: Colors.textMuted },
-  finishButtonText: { ...Typography.subheading, color: Colors.white, textAlign: 'center' },
+  finishButtonActive: { backgroundColor: colors.primary },
+  finishButtonDisabled: { backgroundColor: colors.textMuted },
+  finishButtonText: { ...Typography.subheading, color: colors.white, textAlign: 'center' },
   cancelButton: {
     marginTop: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.textMuted,
+    backgroundColor: colors.textMuted,
     width: '100%',
   },
-  cancelButtonText: { ...Typography.subheading, color: Colors.white, fontWeight: '400', textAlign: 'center' },
+  cancelButtonText: { ...Typography.subheading, color: colors.white, fontWeight: '400', textAlign: 'center' },
   sessionDurationText: {
     marginTop: Spacing.sm,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     ...Typography.caption,
     textAlign: 'center',
   },

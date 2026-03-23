@@ -1,5 +1,5 @@
 ﻿import { db } from './firebase';
-import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { ExperienceGift } from '../types';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
@@ -32,7 +32,7 @@ export class ExperienceGiftService {
       }
 
       // Fallback: try to find by field `id`
-      const q = query(this.experiencesCollection, where('id', '==', id));
+      const q = query(this.experiencesCollection, where('id', '==', id), limit(1));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -51,7 +51,7 @@ export class ExperienceGiftService {
   async getExperienceGiftsByUser(userId: string): Promise<ExperienceGift[]> {
     try {
       const ref = collection(db, 'experienceGifts');
-      const q = query(ref, where('giverId', '==', userId), orderBy('createdAt', 'desc'));
+      const q = query(ref, where('giverId', '==', userId), orderBy('createdAt', 'desc'), limit(10));
       const snap = await getDocs(q);
 
       return snap.docs.map((doc) => {
@@ -91,7 +91,7 @@ export class ExperienceGiftService {
       }
 
       // Fallback: find by field 'id'
-      const q = query(this.experiencesCollection, where('id', '==', giftId));
+      const q = query(this.experiencesCollection, where('id', '==', giftId), limit(1));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {

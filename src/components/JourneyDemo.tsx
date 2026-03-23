@@ -5,7 +5,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Experience } from '../types';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -22,6 +22,9 @@ const PHASES = ['Set Goal', 'Build Habit', 'Get Reward'] as const;
 
 // ─── JourneyDemo ─────────────────────────────────────────────────────
 const JourneyDemo: React.FC = React.memo(() => {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
+
   const [step, setStep] = useState<Step>(-1);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -287,7 +290,7 @@ const JourneyDemo: React.FC = React.memo(() => {
                   resizeMode="cover"
                 />
                 <LinearGradient
-                  colors={['transparent', Colors.overlayHeavy]}
+                  colors={['transparent', colors.overlayHeavy]}
                   start={{ x: 0, y: 0.3 }}
                   end={{ x: 0, y: 1 }}
                   style={s.rewardGradient}
@@ -343,261 +346,262 @@ export default JourneyDemo;
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    marginVertical: Spacing.huge,
-    width: '100%',
-  },
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    wrapper: {
+      alignItems: 'center',
+      marginVertical: Spacing.huge,
+      width: '100%',
+    },
 
-  // Replay button
-  replayRow: {
-    marginTop: Spacing.xl,
-    alignItems: 'center',
-  },
-  replayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.backgroundLight,
-  },
-  replayIcon: {
-    ...Typography.subheading,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-  },
-  replayText: {
-    ...Typography.small,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
+    // Replay button
+    replayRow: {
+      marginTop: Spacing.xl,
+      alignItems: 'center',
+    },
+    replayButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.xl,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.xl,
+      backgroundColor: colors.backgroundLight,
+    },
+    replayIcon: {
+      ...Typography.subheading,
+      color: colors.textSecondary,
+      fontWeight: '700',
+    },
+    replayText: {
+      ...Typography.small,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
 
-  // Demo card
-  card: {
-    width: CARD_W,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xxl,
-    padding: Spacing.xxl,
-    paddingTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.backgroundLight,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 8,
-    overflow: 'hidden',
-    minHeight: 200,
-  },
+    // Demo card
+    card: {
+      width: CARD_W,
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.xxl,
+      padding: Spacing.xxl,
+      paddingTop: Spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.backgroundLight,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.08,
+      shadowRadius: 32,
+      elevation: 8,
+      overflow: 'hidden',
+      minHeight: 200,
+    },
 
-  // Progress bar (inside card, at top)
-  progressTrack: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.backgroundLight,
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-    backgroundColor: Colors.secondary,
-  },
+    // Progress bar (inside card, at top)
+    progressTrack: {
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: colors.backgroundLight,
+      marginBottom: Spacing.lg,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 2,
+      backgroundColor: colors.secondary,
+    },
 
-  // Phase label
-  phaseLabel: {
-    marginBottom: Spacing.lg,
-  },
-  phaseLabelText: {
-    ...Typography.tiny,
-    fontWeight: '800',
-    color: Colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
+    // Phase label
+    phaseLabel: {
+      marginBottom: Spacing.lg,
+    },
+    phaseLabelText: {
+      ...Typography.tiny,
+      fontWeight: '800',
+      color: colors.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 1.2,
+    },
 
-  // Goal header
-  goalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  goalEmojiBox: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.infoLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goalEmoji: {
-    fontSize: 24,
-  },
-  goalInfo: {
-    flex: 1,
-  },
-  goalTitle: {
-    ...Typography.heading3,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  goalSubtitle: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  goalSubtitleComplete: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
+    // Goal header
+    goalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    goalEmojiBox: {
+      width: 48,
+      height: 48,
+      borderRadius: BorderRadius.lg,
+      backgroundColor: colors.infoLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    goalEmoji: {
+      fontSize: 24,
+    },
+    goalInfo: {
+      flex: 1,
+    },
+    goalTitle: {
+      ...Typography.heading3,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    goalSubtitle: {
+      ...Typography.caption,
+      color: colors.textMuted,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    goalSubtitleComplete: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
 
 
-  // Middle content (animated)
-  middleContentAnimated: {
-    overflow: 'hidden',
-  },
+    // Middle content (animated)
+    middleContentAnimated: {
+      overflow: 'hidden',
+    },
 
-  // Progress & Streak Row
-  progressStreakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  progressWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  capsuleContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: Spacing.xxs,
-  },
-  capsule: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.border,
-    overflow: 'hidden',
-  },
-  capsuleFill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 3,
-    backgroundColor: Colors.secondary,
-  },
-  progressCount: {
-    ...Typography.caption,
-    fontWeight: '800',
-    color: Colors.textSecondary,
-  },
+    // Progress & Streak Row
+    progressStreakRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.md,
+    },
+    progressWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    capsuleContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: Spacing.xxs,
+    },
+    capsule: {
+      flex: 1,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
+    },
+    capsuleFill: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: 3,
+      backgroundColor: colors.secondary,
+    },
+    progressCount: {
+      ...Typography.caption,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
 
-  // Streak badge
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: Colors.warningLighter,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xxs,
-    borderRadius: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.warningBorder,
-  },
-  streakFlame: {
-    ...Typography.caption,
-  },
-  streakNum: {
-    ...Typography.caption,
-    fontWeight: '800',
-    color: Colors.warningDark,
-  },
+    // Streak badge
+    streakBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: colors.warningLighter,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: Spacing.xxs,
+      borderRadius: Spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.warningBorder,
+    },
+    streakFlame: {
+      ...Typography.caption,
+    },
+    streakNum: {
+      ...Typography.caption,
+      fontWeight: '800',
+      color: colors.warningDark,
+    },
 
-  // Empowerment card (animated)
-  empowerCardAnimated: {
-    backgroundColor: Colors.primarySurface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
-    overflow: 'hidden',
-  },
-  empowerMessage: {
-    ...Typography.small,
-    fontStyle: 'italic',
-    color: Colors.gray700,
-  },
-  empowerAttribution: {
-    ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.primaryDeep,
-    marginTop: Spacing.sm,
-    textAlign: 'right',
-  },
+    // Empowerment card (animated)
+    empowerCardAnimated: {
+      backgroundColor: colors.primarySurface,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+      overflow: 'hidden',
+    },
+    empowerMessage: {
+      ...Typography.small,
+      fontStyle: 'italic',
+      color: colors.gray700,
+    },
+    empowerAttribution: {
+      ...Typography.caption,
+      fontWeight: '700',
+      color: colors.primaryDeep,
+      marginTop: Spacing.sm,
+      textAlign: 'right',
+    },
 
-  // Reward reveal (animated)
-  rewardWrapAnimated: {
-    overflow: 'hidden',
-  },
-  rewardTitle: {
-    ...Typography.body,
-    fontWeight: '800',
-    color: Colors.primaryDeep,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  rewardCard: {
-    width: '100%',
-    height: vh(160),
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  },
-  rewardImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  rewardGradient: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    padding: Spacing.lg,
-    gap: Spacing.xs,
-  },
-  earnedTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.whiteAlpha25,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: Colors.whiteAlpha40,
-  },
-  earnedTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: 0.3,
-  },
-  rewardExpTitle: {
-    ...Typography.subheading,
-    fontWeight: '800',
-    color: Colors.white,
-    textShadowColor: Colors.overlay,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  scheduleText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: Spacing.md,
-    fontStyle: 'italic',
-  },
-});
+    // Reward reveal (animated)
+    rewardWrapAnimated: {
+      overflow: 'hidden',
+    },
+    rewardTitle: {
+      ...Typography.body,
+      fontWeight: '800',
+      color: colors.primaryDeep,
+      textAlign: 'center',
+      marginBottom: 14,
+    },
+    rewardCard: {
+      width: '100%',
+      height: vh(160),
+      borderRadius: BorderRadius.lg,
+      overflow: 'hidden',
+    },
+    rewardImage: {
+      ...StyleSheet.absoluteFillObject,
+      width: '100%',
+      height: '100%',
+    },
+    rewardGradient: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'flex-end',
+      padding: Spacing.lg,
+      gap: Spacing.xs,
+    },
+    earnedTag: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.whiteAlpha25,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+      borderWidth: 1,
+      borderColor: colors.whiteAlpha40,
+    },
+    earnedTagText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: colors.white,
+      letterSpacing: 0.3,
+    },
+    rewardExpTitle: {
+      ...Typography.subheading,
+      fontWeight: '800',
+      color: colors.white,
+      textShadowColor: colors.overlay,
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
+    },
+    scheduleText: {
+      ...Typography.caption,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: Spacing.md,
+      fontStyle: 'italic',
+    },
+  });

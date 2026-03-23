@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,14 +21,15 @@ import { RecipientStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { sanitizeText } from '../../utils/sanitization';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Button from '../../components/Button';
 import { analyticsService } from '../../services/AnalyticsService';
 import { friendService } from '../../services/FriendService';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { vh } from '../../utils/responsive';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
@@ -38,6 +39,8 @@ type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
 
 const CouponEntryScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<CouponEntryNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
@@ -79,7 +82,7 @@ const CouponEntryScreen = () => {
   const handleClaimCode = async (codeOverride?: string) => {
     if (isLoading) return;
 
-    const trimmedCode = (codeOverride || claimCode).trim().toUpperCase();
+    const trimmedCode = sanitizeText((codeOverride || claimCode), 12).trim().toUpperCase();
     setErrorMessage('');
 
     if (!trimmedCode) {
@@ -110,7 +113,8 @@ const CouponEntryScreen = () => {
       const q = query(
         giftsRef,
         where('claimCode', '==', trimmedCode),
-        where('status', 'in', ['pending', 'active'])
+        where('status', 'in', ['pending', 'active']),
+        limit(1)
       );
       const querySnapshot = await getDocs(q);
 
@@ -205,7 +209,7 @@ const CouponEntryScreen = () => {
   return (
     <ErrorBoundary screenName="CouponEntryScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
-      <LinearGradient colors={Colors.gradientPrimary} style={{ flex: 1 }}>
+      <LinearGradient colors={colors.gradientPrimary} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <StatusBar style="light" />
           <KeyboardAvoidingView
@@ -268,7 +272,7 @@ const CouponEntryScreen = () => {
                   <Text
                     style={{
                       ...Typography.heading3,
-                      color: Colors.primaryTint,
+                      color: colors.primaryTint,
                       textAlign: 'center',
                       maxWidth: 300,
                     }}
@@ -294,17 +298,17 @@ const CouponEntryScreen = () => {
                         ...Typography.heading3,
                         textAlign: 'center',
                         letterSpacing: 4,
-                        shadowColor: Colors.black,
+                        shadowColor: colors.black,
                         shadowOffset: { width: 0, height: 2 },
                         shadowOpacity: 0.1,
                         shadowRadius: 8,
                         elevation: 3,
                         borderWidth: errorMessage ? 2 : 0,
-                        borderColor: errorMessage ? Colors.error : 'transparent',
+                        borderColor: errorMessage ? colors.error : 'transparent',
                         width: '100%',
                       }}
                       placeholder="ABC123DEF456"
-                      placeholderTextColor={Colors.textMuted}
+                      placeholderTextColor={colors.textMuted}
                       value={claimCode}
                       onChangeText={(text) => {
                         const clean = text.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -353,16 +357,16 @@ const CouponEntryScreen = () => {
                     fullWidth
                     style={{
                       backgroundColor:
-                        isLoading || claimCode.length < 12 ? Colors.disabled : Colors.white,
+                        isLoading || claimCode.length < 12 ? colors.disabled : colors.white,
                       borderRadius: BorderRadius.lg,
-                      shadowColor: Colors.black,
+                      shadowColor: colors.black,
                       shadowOffset: { width: 0, height: 4 },
                       shadowOpacity: 0.2,
                       shadowRadius: 6,
                       elevation: 5,
                     }}
                     textStyle={{
-                      color: Colors.primary,
+                      color: colors.primary,
                       ...Typography.heading3,
                       fontWeight: '700',
                     }}
@@ -372,7 +376,7 @@ const CouponEntryScreen = () => {
                 {/* Info Box */}
                 <View
                   style={{
-                    backgroundColor: Colors.whiteAlpha25,
+                    backgroundColor: colors.whiteAlpha25,
                     borderRadius: BorderRadius.xl,
                     padding: Spacing.xxl,
                     width: '100%',
@@ -393,22 +397,22 @@ const CouponEntryScreen = () => {
                   </Text>
                   <View style={{ gap: Spacing.sm }}>
                     <Text
-                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
+                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       1. Enter your claim code
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
+                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       2. Set personal goals to earn the reward
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
+                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       3. Receive hints as you progress
                     </Text>
                     <Text
-                      style={{ color: Colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
+                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
                     >
                       4. Achieve your goals and claim your reward!
                     </Text>
@@ -448,43 +452,43 @@ const CouponEntryScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   messageBox: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginBottom: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   messageText: {
     ...Typography.subheading,
     lineHeight: 24,
-    color: Colors.gray700,
+    color: colors.gray700,
     fontStyle: 'italic',
     textAlign: 'center',
   },
   signatureText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'right',
     marginBottom: Spacing.xl,
     marginTop: -8,
   },
   continueButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
     elevation: 12,
   },
   continueButtonText: {
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '700',
     ...Typography.heading3,
     letterSpacing: 0.3,

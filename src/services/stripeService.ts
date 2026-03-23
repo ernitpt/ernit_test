@@ -25,7 +25,8 @@ export const stripeService = {
       partnerId: string;
       quantity: number;
     }[],
-    personalizedMessage?: string
+    personalizedMessage?: string,
+    isMystery?: boolean
   ): Promise<{ clientSecret: string; paymentIntentId: string }> => {
     try {
       // Get the current user's ID token
@@ -52,6 +53,7 @@ export const stripeService = {
             partnerId: partnerId || "",
             cart: cartItems,
             personalizedMessage: personalizedMessage || "",
+            isMystery: isMystery || false,
           }),
           signal: controller.signal,
         });

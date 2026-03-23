@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import {
   Animated,
   Text,
@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
@@ -50,6 +50,9 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   gradient = false,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
@@ -65,24 +68,25 @@ const Button: React.FC<ButtonProps> = ({
       ...Animations.springs.bouncy,
     }).start();
   }, [scaleAnim]);
+
   const getVariantStyles = (): ViewStyle => {
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: Colors.secondary,
-          ...Shadows.colored(Colors.secondary),
+          backgroundColor: colors.secondary,
+          ...Shadows.colored(colors.secondary),
         };
       case 'secondary':
         return {
-          backgroundColor: Colors.primarySurface,
+          backgroundColor: colors.primarySurface,
           borderWidth: 1,
-          borderColor: Colors.primaryBorder,
+          borderColor: colors.primaryBorder,
         };
       case 'danger':
         return {
           backgroundColor: 'transparent',
           borderWidth: 1,
-          borderColor: Colors.error,
+          borderColor: colors.error,
         };
       case 'ghost':
         return {
@@ -90,7 +94,7 @@ const Button: React.FC<ButtonProps> = ({
         };
       case 'icon':
         return {
-          backgroundColor: Colors.secondary,
+          backgroundColor: colors.secondary,
           width: 44,
           height: 44,
           borderRadius: BorderRadius.circle,
@@ -143,19 +147,19 @@ const Button: React.FC<ButtonProps> = ({
 
     switch (variant) {
       case 'primary':
-        baseTextStyle.color = Colors.white;
+        baseTextStyle.color = colors.white;
         break;
       case 'secondary':
-        baseTextStyle.color = Colors.secondary;
+        baseTextStyle.color = colors.secondary;
         break;
       case 'danger':
-        baseTextStyle.color = Colors.error;
+        baseTextStyle.color = colors.error;
         break;
       case 'ghost':
-        baseTextStyle.color = Colors.textSecondary;
+        baseTextStyle.color = colors.textSecondary;
         break;
       case 'icon':
-        baseTextStyle.color = Colors.white;
+        baseTextStyle.color = colors.white;
         break;
     }
 
@@ -166,15 +170,15 @@ const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case 'primary':
       case 'icon':
-        return Colors.white;
+        return colors.white;
       case 'secondary':
-        return Colors.secondary;
+        return colors.secondary;
       case 'danger':
-        return Colors.error;
+        return colors.error;
       case 'ghost':
-        return Colors.textSecondary;
+        return colors.textSecondary;
       default:
-        return Colors.white;
+        return colors.white;
     }
   };
 
@@ -244,7 +248,7 @@ const Button: React.FC<ButtonProps> = ({
       <Animated.View style={[containerStyle, { transform: [{ scale: scaleAnim }] }]}>
         {useGradient ? (
           <LinearGradient
-            colors={Colors.gradientPrimary}
+            colors={colors.gradientPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.gradientInner, getSizeStyles(), variant === 'icon' && styles.gradientIcon]}
@@ -259,29 +263,30 @@ const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-  gradientInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    width: '100%',
-  },
-  gradientIcon: {
-    width: 44,
-    height: 44,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    borderRadius: BorderRadius.circle,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      borderRadius: BorderRadius.md,
+      overflow: 'hidden',
+    },
+    gradientInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      width: '100%',
+    },
+    gradientIcon: {
+      width: 44,
+      height: 44,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+      borderRadius: BorderRadius.circle,
+    },
+  });
 
 export default React.memo(Button);

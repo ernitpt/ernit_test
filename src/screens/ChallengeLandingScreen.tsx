@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, ReactNode } from 'react';
+import React, { useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
 import {
     View,
     Text,
@@ -20,7 +20,7 @@ import { MotiView } from 'moti';
 import { RootStackParamList } from '../types';
 import { useApp } from '../context/AppContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -88,15 +88,15 @@ interface ModeConfig {
     loginColor: string;
 }
 
-const SELF_CONFIG: ModeConfig = {
-    accentColor: Colors.secondary,
-    gradient: [Colors.primarySurface, Colors.successLighter, Colors.white] as const,
+const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
+    accentColor: colors.secondary,
+    gradient: [colors.primarySurface, colors.successLighter, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: Colors.secondary },
-        { word: 'read', color: Colors.accent },
-        { word: 'run', color: Colors.categoryPink },
-        { word: 'walk', color: Colors.secondary },
-        { word: 'do yoga', color: Colors.categoryAmber },
+        { word: 'workout', color: colors.secondary },
+        { word: 'read', color: colors.accent },
+        { word: 'run', color: colors.categoryPink },
+        { word: 'walk', color: colors.secondary },
+        { word: 'do yoga', color: colors.categoryAmber },
     ],
     titlePrefix: 'I want to',
     titleSuffix: ' more',
@@ -104,54 +104,54 @@ const SELF_CONFIG: ModeConfig = {
     stat: 'You are ',
     statSuffix: ' more likely to reach your goals with friends backing you.',
     statHighlight: '600%',
-    statColor: Colors.secondary,
+    statColor: colors.secondary,
     ctaText: 'Start My Challenge',
-    ctaGradient: Colors.gradientDark as unknown as readonly [string, string],
-    ctaShadowColor: Colors.primary,
+    ctaGradient: colors.gradientDark as unknown as readonly [string, string],
+    ctaShadowColor: colors.primary,
     badgeText: '100% Free',
-    badgeBg: Colors.primarySurface,
-    badgeBorder: Colors.primaryLight,
-    badgeTextColor: Colors.secondary,
+    badgeBg: colors.primarySurface,
+    badgeBorder: colors.primaryLight,
+    badgeTextColor: colors.secondary,
     navigateTo: 'ChallengeSetup',
     steps: [
         {
-            icon: <Target color={Colors.primary} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.primarySurface,
+            icon: <Target color={colors.primary} size={24} strokeWidth={2.5} />,
+            iconBg: colors.primarySurface,
             title: 'Pick Your Challenge',
             desc: 'Choose what you want to improve and for how long. Gym, yoga, running, reading, or anything you want',
         },
         {
-            icon: <Calendar color={Colors.accent} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.accentDeep + '18',
+            icon: <Calendar color={colors.accent} size={24} strokeWidth={2.5} />,
+            iconBg: colors.accentDeep + '18',
             title: 'Stick to It',
             desc: 'Do your sessions, build streaks, and get motivated by friends who follow your journey, and can even reward you along the way',
         },
         {
-            icon: <Users color={Colors.pink} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.pinkLight,
+            icon: <Users color={colors.pink} size={24} strokeWidth={2.5} />,
+            iconBg: colors.pinkLight,
             title: 'Earn it',
             desc: 'Finish your challenge and have the reward you deserve!',
         },
     ],
-    stepNumberBg: Colors.gray800,
-    stepDividerColor: Colors.backgroundLight,
-    sectionLabelColor: Colors.primary,
+    stepNumberBg: colors.gray800,
+    stepDividerColor: colors.backgroundLight,
+    sectionLabelColor: colors.primary,
     finalTitle: 'Ready to challenge\nyourself?',
     finalSubtitle: 'Join thousands building better habits with friends.',
     finalCtaText: 'Create My Challenge',
-    brandDotColor: Colors.secondary,
-    loginColor: Colors.primary,
-};
+    brandDotColor: colors.secondary,
+    loginColor: colors.primary,
+});
 
-const GIFT_CONFIG: ModeConfig = {
-    accentColor: Colors.warning,
-    gradient: [Colors.warningLighter, Colors.white, Colors.white] as const,
+const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
+    accentColor: colors.warning,
+    gradient: [colors.warningLighter, colors.white, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: Colors.warning },
-        { word: 'read', color: Colors.categoryAmber },
-        { word: 'run', color: Colors.warning },
-        { word: 'walk', color: Colors.categoryAmber },
-        { word: 'do yoga', color: Colors.warning },
+        { word: 'workout', color: colors.warning },
+        { word: 'read', color: colors.categoryAmber },
+        { word: 'run', color: colors.warning },
+        { word: 'walk', color: colors.categoryAmber },
+        { word: 'do yoga', color: colors.warning },
     ],
     titlePrefix: 'Help them',
     titleSuffix: ' more',
@@ -159,44 +159,44 @@ const GIFT_CONFIG: ModeConfig = {
     stat: 'People are ',
     statSuffix: ' more likely to reach your goals with friends backing you.',
     statHighlight: '600%',
-    statColor: Colors.warning,
+    statColor: colors.warning,
     ctaText: 'Gift an Experience',
-    ctaGradient: [Colors.warning, Colors.warningMedium] as const,
-    ctaShadowColor: Colors.warning,
+    ctaGradient: [colors.warning, colors.warningMedium] as const,
+    ctaShadowColor: colors.warning,
     badgeText: 'Pay only on success',
-    badgeBg: Colors.warningLight,
-    badgeBorder: Colors.warningBorder,
-    badgeTextColor: Colors.warningDark,
+    badgeBg: colors.warningLight,
+    badgeBorder: colors.warningBorder,
+    badgeTextColor: colors.warningDark,
     navigateTo: 'GiftFlow',
     steps: [
         {
-            icon: <Sparkles color={Colors.warning} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.warningLight,
+            icon: <Sparkles color={colors.warning} size={24} strokeWidth={2.5} />,
+            iconBg: colors.warningLight,
             title: 'Pick a Reward',
             desc: 'Choose an experience they\'ll earn once they achieve their goal',
         },
         {
-            icon: <Target color={Colors.warningMedium} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.warningLighter,
+            icon: <Target color={colors.warningMedium} size={24} strokeWidth={2.5} />,
+            iconBg: colors.warningLighter,
             title: 'They Set the Goal',
             desc: 'They pick their challenge and work towards it, day by day',
         },
         {
-            icon: <Trophy color={Colors.warningDark} size={24} strokeWidth={2.5} />,
-            iconBg: Colors.warningLight,
+            icon: <Trophy color={colors.warningDark} size={24} strokeWidth={2.5} />,
+            iconBg: colors.warningLight,
             title: 'Pay When They Succeed',
             desc: 'You only pay when they achieve their goal. Zero risk. All reward.',
         },
     ],
-    stepNumberBg: Colors.warningMedium,
-    stepDividerColor: Colors.warningBorder,
-    sectionLabelColor: Colors.warning,
+    stepNumberBg: colors.warningMedium,
+    stepDividerColor: colors.warningBorder,
+    sectionLabelColor: colors.warning,
     finalTitle: 'Ready to empower\nsomeone?',
     finalSubtitle: 'Give the gift that actually means something.',
     finalCtaText: 'Gift an Experience',
-    brandDotColor: Colors.warning,
-    loginColor: Colors.warning,
-};
+    brandDotColor: colors.warning,
+    loginColor: colors.warning,
+});
 
 // Left carousel — goal activity images
 const GOAL_IMAGES = [
@@ -227,6 +227,10 @@ function wrapOffset(i: number, current: number, total: number): number {
 type LandingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChallengeLanding'>;
 
 export default function ChallengeLandingScreen() {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    const SELF_CONFIG = useMemo(() => getSelfConfig(colors), [colors]);
+    const GIFT_CONFIG = useMemo(() => getGiftConfig(colors), [colors]);
     const navigation = useNavigation<LandingNavigationProp>();
     const route = useRoute<RouteProp<RootStackParamList, 'ChallengeLanding'>>();
     const { state } = useApp();
@@ -271,6 +275,9 @@ export default function ChallengeLandingScreen() {
     const switchMode = useCallback((newMode: LandingMode) => {
         if (newMode === mode) return;
 
+        // Cancel any in-progress fade animation to prevent stuck opacity
+        contentOpacity.stopAnimation();
+
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         analyticsService.trackEvent('landing_mode_toggled', 'engagement', { mode: newMode });
 
@@ -290,6 +297,9 @@ export default function ChallengeLandingScreen() {
             useNativeDriver: false,
         }).start(() => {
             setMode(newMode);
+            // Reset carousels to start position for the new mode
+            setWordIndex(0);
+            setRewardIndex(0);
             RNAnimated.timing(contentOpacity, {
                 toValue: 1,
                 duration: CONTENT_FADE_MS,
@@ -317,59 +327,59 @@ export default function ChallengeLandingScreen() {
 
     const sliderBgColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primary, Colors.warning],
+        outputRange: [colors.primary, colors.warning],
     });
     // Hero gradient cross-fade: gift overlay opacity
     const giftGradientOpacity = sliderAnim;
     // Accent colors
     const animBrandDot = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.secondary, Colors.warning],
+        outputRange: [colors.secondary, colors.warning],
     });
     const animLoginColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primary, Colors.warning],
+        outputRange: [colors.primary, colors.warning],
     });
     const animStatColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.secondary, Colors.warning],
+        outputRange: [colors.secondary, colors.warning],
     });
     const animSectionLabel = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primary, Colors.warning],
+        outputRange: [colors.primary, colors.warning],
     });
     const animStepNumberBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.gray800, Colors.warningMedium],
+        outputRange: [colors.gray800, colors.warningMedium],
     });
     const animStepDivider = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.backgroundLight, Colors.warningBorder],
+        outputRange: [colors.backgroundLight, colors.warningBorder],
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primarySurface, Colors.warningLight],
+        outputRange: [colors.primarySurface, colors.warningLight],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primaryLight, Colors.warningBorder],
+        outputRange: [colors.primaryLight, colors.warningBorder],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.secondary, Colors.warningDark],
+        outputRange: [colors.secondary, colors.warningDark],
     });
     // Founders section colors
     const animFoundersBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primarySurface, Colors.warningLighter],
+        outputRange: [colors.primarySurface, colors.warningLighter],
     });
     const animFounderRole = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primary, Colors.warning],
+        outputRange: [colors.primary, colors.warning],
     });
     const animIncubatorBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.primaryBorder, Colors.warningBorder],
+        outputRange: [colors.primaryBorder, colors.warningBorder],
     });
 
     return (
@@ -407,7 +417,7 @@ export default function ChallengeLandingScreen() {
                                 accessibilityRole="button"
                                 accessibilityLabel="Go back"
                             >
-                                <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2.5} />
+                                <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                             </TouchableOpacity>
                         )}
 
@@ -424,7 +434,7 @@ export default function ChallengeLandingScreen() {
                             <RNAnimated.Text style={[styles.loginButtonText, { color: animLoginColor }]}>
                                 {isLoggedIn ? 'Go to App' : 'Log In'}
                             </RNAnimated.Text>
-                            <RNAnimated.Text style={{ color: animLoginColor, fontSize: 16, fontWeight: '700', lineHeight: 18 }}>{'\u203A'}</RNAnimated.Text>
+                            <RNAnimated.Text style={{ color: animLoginColor, ...Typography.subheading, fontWeight: '700', lineHeight: 18 }}>{'\u203A'}</RNAnimated.Text>
                         </TouchableOpacity>
 
                         <View style={styles.heroWrapper}>
@@ -679,7 +689,7 @@ export default function ChallengeLandingScreen() {
                                         </RNAnimated.View>
                                         <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
                                             <Text style={styles.ctaText}>{config.ctaText}</Text>
-                                            <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                            <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                                         </RNAnimated.View>
                                     </View>
                                 </TouchableOpacity>
@@ -863,7 +873,7 @@ export default function ChallengeLandingScreen() {
                                 </RNAnimated.View>
                                 <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
                                     <Text style={styles.ctaText}>{config.finalCtaText}</Text>
-                                    <ChevronRight color={Colors.white} size={20} strokeWidth={3} />
+                                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                                 </RNAnimated.View>
                             </View>
                         </TouchableOpacity>
@@ -914,19 +924,19 @@ export default function ChallengeLandingScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
     },
     scrollContent: {
         flexGrow: 1,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
     },
     hero: {
         paddingTop: vh(Platform.OS === 'ios' ? 60 : 44),
-        paddingHorizontal: 24,
-        backgroundColor: Colors.white,
+        paddingHorizontal: Spacing.xxl,
+        backgroundColor: colors.white,
         position: 'relative',
         overflow: 'hidden',
         alignItems: 'center',
@@ -946,7 +956,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
@@ -972,7 +982,7 @@ const styles = StyleSheet.create({
         fontSize: vh(44),
         fontWeight: '900',
         fontStyle: 'italic',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
         letterSpacing: -1.5,
     },
 
@@ -984,7 +994,7 @@ const styles = StyleSheet.create({
     },
     toggleBar: {
         flexDirection: 'row',
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         borderRadius: BorderRadius.pill,
         padding: vh(4),
         position: 'relative',
@@ -1010,10 +1020,10 @@ const styles = StyleSheet.create({
     toggleBtnText: {
         ...Typography.small,
         fontWeight: '700',
-        color: Colors.textMuted,
+        color: colors.textMuted,
     },
     toggleBtnTextActive: {
-        color: Colors.white,
+        color: colors.white,
     },
 
     // ── Dial-style rotating word ──────────────────
@@ -1024,7 +1034,7 @@ const styles = StyleSheet.create({
     heroTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         lineHeight: vh(46),
         letterSpacing: -1,
         textAlign: 'center',
@@ -1059,7 +1069,7 @@ const styles = StyleSheet.create({
 
     heroSubtitle: {
         ...Typography.subheading,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         lineHeight: vh(30),
         marginBottom: vh(14),
         textAlign: 'center',
@@ -1096,7 +1106,7 @@ const styles = StyleSheet.create({
         height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
-        backgroundColor: Colors.gray300,
+        backgroundColor: colors.gray300,
     },
     cardImg: {
         width: '100%',
@@ -1113,8 +1123,8 @@ const styles = StyleSheet.create({
     cardLabel: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.white,
-        backgroundColor: 'rgba(0,0,0,0.45)',
+        color: colors.textOnImage,
+        backgroundColor: colors.overlayOnImage,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,
         borderRadius: BorderRadius.sm,
@@ -1129,7 +1139,7 @@ const styles = StyleSheet.create({
     },
     statText: {
         ...Typography.subheading,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     },
 
@@ -1172,15 +1182,15 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.xl,
     },
     ctaText: {
-        color: Colors.white,
+        color: colors.white,
         ...Typography.heading3,
     },
 
     // ── How It Works ────────────────────────────────
     howSection: {
-        paddingVertical: 64,
+        paddingVertical: Spacing.sectionVertical,
         paddingHorizontal: Spacing.xxl,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         alignItems: 'center',
     },
     howWrapper: {
@@ -1198,7 +1208,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.huge,
         textAlign: 'center',
     },
@@ -1235,10 +1245,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: Colors.white,
+        borderColor: colors.white,
     },
     stepNumberText: {
-        color: Colors.white,
+        color: colors.white,
         ...Typography.captionBold,
         fontWeight: '800',
     },
@@ -1248,18 +1258,18 @@ const styles = StyleSheet.create({
     },
     stepTitle: {
         ...Typography.large,
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.sm,
     },
     stepDesc: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // ── Final CTA ───────────────────────────────────
     finalCtaSection: {
-        paddingVertical: 64,
-        backgroundColor: Colors.surface,
+        paddingVertical: Spacing.sectionVertical,
+        backgroundColor: colors.surface,
         width: '100%',
         maxWidth: 1200,
         alignSelf: 'center',
@@ -1269,20 +1279,20 @@ const styles = StyleSheet.create({
     finalCtaTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.md,
         textAlign: 'center',
     },
     finalCtaSubtitle: {
         ...Typography.subheading,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: Spacing.xxxl,
         textAlign: 'center',
     },
 
     // ── Co-Founders Section ───────────────────────
     foundersSection: {
-        paddingVertical: 64,
+        paddingVertical: Spacing.sectionVertical,
         paddingHorizontal: Spacing.xxl,
         alignItems: 'center',
     },
@@ -1308,8 +1318,8 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.pill,
         marginBottom: Spacing.lg,
         borderWidth: 3,
-        borderColor: Colors.white,
-        shadowColor: Colors.black,
+        borderColor: colors.white,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 8,
         shadowOpacity: 0.1,
@@ -1317,7 +1327,7 @@ const styles = StyleSheet.create({
     founderName: {
         ...Typography.heading3,
         fontWeight: '800',
-        color: Colors.gray800,
+        color: colors.gray800,
         marginBottom: Spacing.xs,
         textAlign: 'center',
     },
@@ -1333,7 +1343,7 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         paddingHorizontal: Spacing.xl,
         paddingVertical: Spacing.md,
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
         borderRadius: BorderRadius.xxl,
         borderWidth: 1,
         ...Shadows.sm,
@@ -1342,7 +1352,7 @@ const styles = StyleSheet.create({
     incubatorText: {
         ...Typography.small,
         fontWeight: '500',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     incubatorLogo: {
         width: 120,
@@ -1354,13 +1364,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: Spacing.huge,
         paddingHorizontal: Spacing.xxl,
-        backgroundColor: Colors.textPrimary,
+        backgroundColor: colors.textPrimary,
     },
     footerBrand: {
         ...Typography.display,
         fontWeight: '900',
         fontStyle: 'italic',
-        color: Colors.white,
+        color: colors.white,
         letterSpacing: -1,
         marginBottom: Spacing.xl,
     },
@@ -1373,17 +1383,17 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: colors.whiteAlpha10,
         justifyContent: 'center',
         alignItems: 'center',
     },
     socialIcon: {
         ...Typography.bodyBold,
         fontWeight: '800',
-        color: Colors.white,
+        color: colors.white,
     },
     footerCopy: {
         ...Typography.caption,
-        color: Colors.whiteAlpha40,
+        color: colors.whiteAlpha40,
     },
 });

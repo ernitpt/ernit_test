@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
 import { Copy, CheckCircle, Gift, ArrowRight } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { ExperienceGift, Experience } from '../../types';
 import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
@@ -30,7 +33,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
 import ErrorRetry from '../../components/ErrorRetry';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -40,6 +43,8 @@ import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 
 const ConfirmationScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
   const rootNavigation = useRootNavigation();
   const route = useRoute();
@@ -48,7 +53,8 @@ const ConfirmationScreen = () => {
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { experienceGift?: ExperienceGift; goalId?: string } | undefined;
-  const experienceGift = routeParams?.experienceGift;
+  const [experienceGiftState, setExperienceGiftState] = useState<ExperienceGift | undefined>(routeParams?.experienceGift);
+  const experienceGift = experienceGiftState;
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
   const empowerContext = state.empowerContext;
   const isEmpower = Boolean(empowerContext && empowerContext.userId !== state.user?.id);
@@ -64,14 +70,33 @@ const ConfirmationScreen = () => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Redirect if data is missing (e.g., after page refresh)
+  // Redirect if data is missing (e.g., after page refresh or SCA redirect)
   useEffect(() => {
     if (!hasValidData) {
-      logger.warn('Missing/invalid experienceGift on ConfirmationScreen, redirecting to Home');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'CategorySelection' }],
-      });
+      // Try to recover from SCA redirect — gift ID may be saved in AsyncStorage
+      const tryRecoverSCA = async () => {
+        try {
+          const pendingGiftId = await AsyncStorage.getItem('pending_sca_gift');
+          if (pendingGiftId) {
+            const giftDoc = await getDoc(doc(db, 'experienceGifts', pendingGiftId));
+            if (giftDoc.exists()) {
+              // Gift exists — clear key and recover
+              await AsyncStorage.removeItem('pending_sca_gift');
+              const recoveredGift = { id: giftDoc.id, ...giftDoc.data() } as ExperienceGift;
+              setExperienceGiftState(recoveredGift);
+              return; // Don't redirect — we recovered the gift
+            }
+            // Gift doesn't exist — clear key and fall through to redirect
+            await AsyncStorage.removeItem('pending_sca_gift');
+          }
+        } catch (error) {
+          logger.warn('SCA recovery failed:', error);
+        }
+        // No recovery possible — redirect
+        logger.warn('Missing/invalid experienceGift on ConfirmationScreen, redirecting to Home');
+        navigation.reset({ index: 0, routes: [{ name: 'CategorySelection' }] });
+      };
+      tryRecoverSCA();
     }
   }, [hasValidData, navigation]);
 
@@ -199,7 +224,7 @@ const ConfirmationScreen = () => {
     return (
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
     );
@@ -345,7 +370,7 @@ Earn it. Unlock it. Enjoy it 🚀
               },
             ]}
           >
-            <CheckCircle color={Colors.secondary} size={64} strokeWidth={2.5} />
+            <CheckCircle color={colors.secondary} size={64} strokeWidth={2.5} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
@@ -370,7 +395,7 @@ Earn it. Unlock it. Enjoy it 🚀
             accessibilityLabel={`${experience.title} experience image`}
           />
           <View style={styles.experienceOverlay}>
-            <Gift color={Colors.white} size={24} />
+            <Gift color={colors.white} size={24} />
           </View>
 
           <View style={styles.experienceContent}>
@@ -400,7 +425,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 It will show up when they redeem the gift.              </Text>
               <TextInput
                 placeholder="Your message here..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 multiline
                 value={personalizedMessage}
                 onChangeText={handleMessageChange}
@@ -421,7 +446,7 @@ Earn it. Unlock it. Enjoy it 🚀
               )}
               {messageSent && (
                 <View style={styles.messageSentBadge}>
-                  <CheckCircle color={Colors.secondary} size={16} />
+                  <CheckCircle color={colors.secondary} size={16} />
                   <Text style={styles.messageSentText}>Message sent!</Text>
                 </View>
               )}
@@ -451,7 +476,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 accessibilityRole="button"
                 accessibilityLabel="Copy gift code"
               >
-                <Copy color={isCopied ? Colors.secondary : Colors.textSecondary} size={20} />
+                <Copy color={isCopied ? colors.secondary : colors.textSecondary} size={20} />
                 <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
                   {isCopied ? 'Copied!' : 'Copy Code'}
                 </Text>
@@ -465,7 +490,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 accessibilityLabel="Share gift code"
               >
                 <Text style={styles.shareCodeText}>Share</Text>
-                <ArrowRight color={Colors.white} size={20} />
+                <ArrowRight color={colors.white} size={20} />
               </TouchableOpacity>
             </View>
           </View>
@@ -541,13 +566,13 @@ Earn it. Unlock it. Enjoy it 🚀
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   heroSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
@@ -559,23 +584,23 @@ const styles = StyleSheet.create({
   heroTitle: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   heroSubtitle: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   experienceCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -584,7 +609,7 @@ const styles = StyleSheet.create({
   experienceImage: {
     width: '100%',
     height: vh(200),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   experienceOverlay: {
     position: 'absolute',
@@ -593,7 +618,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.xxl,
-    backgroundColor: Colors.primaryOverlay,
+    backgroundColor: colors.primaryOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -602,17 +627,17 @@ const styles = StyleSheet.create({
   },
   experienceTitle: {
     ...Typography.heading2,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   experienceSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.lg,
   },
   priceTag: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
@@ -620,7 +645,7 @@ const styles = StyleSheet.create({
   },
   priceAmount: {
     ...Typography.heading1,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   messageSection: {
     marginTop: Spacing.lg,
@@ -634,29 +659,29 @@ const styles = StyleSheet.create({
   messageLabel: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.secondary,
+    color: colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   charCounter: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   messageSubtitle: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   messageInput: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     minHeight: 100,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: Spacing.md,
   },
   messageSentBadge: {
@@ -668,7 +693,7 @@ const styles = StyleSheet.create({
   },
   messageSentText: {
     ...Typography.small,
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
   codeSection: {
@@ -680,37 +705,37 @@ const styles = StyleSheet.create({
   },
   codeSectionTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   codeSectionSubtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   codeCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   codeDisplay: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.lg,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   codeText: {
     ...Typography.display,
     fontWeight: '800',
-    color: Colors.secondary,
+    color: colors.secondary,
     textAlign: 'center',
     letterSpacing: 6,
   },
@@ -724,18 +749,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
   },
   copyCodeText: {
     ...Typography.subheading,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   copiedText: {
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   shareCodeButton: {
     flex: 1,
@@ -743,21 +768,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
   },
   shareCodeText: {
     ...Typography.subheading,
-    color: Colors.white,
+    color: colors.white,
   },
   howItWorksSection: {
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxxl,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -765,7 +790,7 @@ const styles = StyleSheet.create({
   },
   howItWorksTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xl,
   },
   stepsContainer: {
@@ -782,19 +807,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepNumber: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   stepLine: {
     width: 2,
     flex: 1,
-    backgroundColor: Colors.primaryTint,
+    backgroundColor: colors.primaryTint,
     marginVertical: Spacing.xs,
   },
   stepContent: {
@@ -804,12 +829,12 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   stepDesc: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   bottomBar: {
@@ -817,13 +842,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    shadowColor: Colors.black,
+    borderTopColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,

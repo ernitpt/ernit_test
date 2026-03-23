@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Gift, Check } from 'lucide-react-native';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -33,6 +33,8 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
     sessionsCompleted,
     totalSessions,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const isGiftReceived = status === 'gift_received';
     const showProgress = sessionsCompleted !== undefined && totalSessions !== undefined && totalSessions > 0;
     const progressPct = showProgress ? Math.min((sessionsCompleted! / totalSessions!) * 100, 100) : 0;
@@ -52,7 +54,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
                     <Image source={{ uri: experience.coverImageUrl }} style={styles.thumb} />
                 ) : (
                     <View style={[styles.thumb, styles.thumbFallback]}>
-                        <Gift size={14} color={Colors.primary} />
+                        <Gift size={14} color={colors.primary} />
                     </View>
                 )}
 
@@ -68,7 +70,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
                 {/* Status indicator */}
                 {isGiftReceived && (
                     <View style={styles.checkBadge}>
-                        <Check size={12} color={Colors.white} strokeWidth={3} />
+                        <Check size={12} color={colors.white} strokeWidth={3} />
                     </View>
                 )}
             </View>
@@ -76,22 +78,22 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         borderRadius: BorderRadius.sm,
         marginTop: Spacing.md,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: Colors.primaryBorder,
+        borderColor: colors.primaryBorder,
     },
     progressTrack: {
         height: 3,
-        backgroundColor: Colors.primaryTint,
+        backgroundColor: colors.primaryTint,
     },
     progressFill: {
         height: '100%',
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
     row: {
         flexDirection: 'row',
@@ -104,12 +106,12 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: BorderRadius.xs,
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
     },
     thumbFallback: {
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: Colors.primaryTint,
+        backgroundColor: colors.primaryTint,
     },
     info: {
         flex: 1,
@@ -117,19 +119,19 @@ const styles = StyleSheet.create({
     title: {
         ...Typography.caption,
         fontWeight: '600',
-        color: Colors.textPrimary,
+        color: colors.textPrimary,
     },
     subtitle: {
         ...Typography.tiny,
         fontWeight: '500',
-        color: Colors.textMuted,
+        color: colors.textMuted,
         marginTop: 1,
     },
     checkBadge: {
         width: 20,
         height: 20,
         borderRadius: BorderRadius.sm,
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },

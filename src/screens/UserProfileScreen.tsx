@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ import { toJSDate } from '../utils/GoalHelpers';
 import { serializeNav } from '../utils/serializeNav';
 import { vh } from '../utils/responsive';
 import { sanitizeText } from '../utils/sanitization';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
@@ -55,19 +55,24 @@ import { MotiView } from 'moti';
 // =========================
 // Goal Card (Active goals)
 // =========================
-const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => (
-  <View
-    style={{
-      flex: 1,
-      height: 8,
-      borderRadius: BorderRadius.pill,
-      backgroundColor: filled ? Colors.primary : Colors.border,
-      marginHorizontal: Spacing.xxs,
-    }}
-  />
-);
+const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => {
+  const colors = useColors();
+  return (
+    <View
+      style={{
+        flex: 1,
+        height: 8,
+        borderRadius: BorderRadius.pill,
+        backgroundColor: filled ? colors.primary : colors.border,
+        marginHorizontal: Spacing.xxs,
+      }}
+    />
+  );
+};
 
 const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
 
@@ -182,6 +187,8 @@ const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string 
 );
 
 const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>('Partner');
@@ -303,7 +310,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
             </View>
           </View>
         ) : (
-          <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+          <View style={[styles.achColorBanner, { backgroundColor: colors.primarySurface }]}>
             <Text style={{ ...Typography.display }}>🎁</Text>
             <View style={styles.achCompletedBadge}>
               <Text style={styles.achCompletedBadgeText}>Completed</Text>
@@ -355,7 +362,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           </View>
         </View>
       ) : (
-        <View style={[styles.achColorBanner, { backgroundColor: Colors.primarySurface }]}>
+        <View style={[styles.achColorBanner, { backgroundColor: colors.primarySurface }]}>
           <Text style={{ ...Typography.display }}>🎁</Text>
           <View style={styles.achCompletedBadge}>
             <Text style={styles.achCompletedBadgeText}>Completed</Text>
@@ -392,6 +399,8 @@ type ExperienceCardProps = {
 };
 
 const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFromWishlist }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
 
   const handlePress = () => {
@@ -423,7 +432,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
           accessibilityRole="button"
           accessibilityLabel={`Remove ${experience.title} from wishlist`}
         >
-          <Heart fill={Colors.error} color={Colors.error} size={22} />
+          <Heart fill={colors.error} color={colors.error} size={22} />
         </TouchableOpacity>
       </View>
       <View style={styles.experienceContent}>
@@ -442,6 +451,8 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
 };
 
 const UserProfileScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { state, dispatch } = useApp();
   const navigation = useRootNavigation();
   const { showSuccess, showError, showInfo } = useToast();
@@ -723,7 +734,11 @@ const UserProfileScreen: React.FC = () => {
 
     if (tab === 'goals') {
       if (!activeGoals.length) {
-        return <EmptyState icon="🎯" title="No Goals Yet" message="Start a goal to track your progress!" />;
+        return (
+          <View style={styles.emptyGoalsCenter}>
+            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ExploreScreen' as never)} />
+          </View>
+        );
       }
       return activeGoals.map((goal, index) => (
         <MotiView
@@ -739,7 +754,7 @@ const UserProfileScreen: React.FC = () => {
 
     if (tab === 'achievements') {
       if (!completedGoals.length) {
-        return <EmptyState icon="🏆" title="No Achievements Yet" message="Complete goals to earn achievements!" />;
+        return <EmptyState title="No Achievements Yet" message="Complete goals to earn achievements!" />;
       }
       return completedGoals.map((goal, index) => (
         <MotiView
@@ -755,7 +770,7 @@ const UserProfileScreen: React.FC = () => {
 
     // wishlist
     if (!wishlist.length) {
-      return <EmptyState icon="⭐" title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
+      return <EmptyState title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
     }
 
     return wishlist.map((exp, index) => (
@@ -797,8 +812,8 @@ const UserProfileScreen: React.FC = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[Colors.primary]}
-              tintColor={Colors.primary}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         >
@@ -816,7 +831,7 @@ const UserProfileScreen: React.FC = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Edit profile"
               >
-                <Edit2 color={Colors.secondary} size={18} />
+                <Edit2 color={colors.secondary} size={18} />
               </TouchableOpacity>
             </View>
 
@@ -850,7 +865,7 @@ const UserProfileScreen: React.FC = () => {
               accessibilityRole="button"
               accessibilityLabel="View friends list"
             >
-              <Users color={Colors.secondary} size={20} />
+              <Users color={colors.secondary} size={20} />
               <Text style={styles.friendsButtonText}>View Friends</Text>
               {unreadFriendRequests > 0 && (
                 <View style={styles.notificationBadge}>
@@ -1017,10 +1032,11 @@ const UserProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
+  emptyGoalsCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: vh(40) },
   heroSection: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     // TODO: replace with `paddingTop: insets.top + Spacing.lg` using useSafeAreaInsets() for proper safe-area handling
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingBottom: Spacing.xxxl,
@@ -1038,11 +1054,11 @@ const styles = StyleSheet.create({
   },
   progressHeaderLabel: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   progressHeaderValue: {
     ...Typography.small,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
 
@@ -1052,17 +1068,17 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: BorderRadius.pill,
     borderWidth: 3,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   placeholderImage: {
     width: 110,
     height: 110,
     borderRadius: BorderRadius.pill,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: Typography.displayLarge.fontSize, fontWeight: '700', color: Colors.white },
+  placeholderText: { fontSize: Typography.displayLarge.fontSize, fontWeight: '700', color: colors.white },
   editIconButton: {
     position: 'absolute',
     bottom: 0,
@@ -1070,18 +1086,18 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.backgroundLight,
+    borderColor: colors.backgroundLight,
     ...Shadows.sm,
     shadowOpacity: 0.1,
   },
-  userName: { ...Typography.heading1, color: Colors.textPrimary, marginBottom: Spacing.xs },
+  userName: { ...Typography.heading1, color: colors.textPrimary, marginBottom: Spacing.xs },
   userDescription: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.xxl,
     paddingHorizontal: Spacing.lg,
@@ -1089,42 +1105,42 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xxl, paddingHorizontal: Spacing.sm },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',
     gap: Spacing.xs,
     ...Shadows.sm,
   },
-  statNumber: { ...Typography.heading2, color: Colors.primary },
-  statLabel: { ...Typography.caption, color: Colors.textSecondary },
+  statNumber: { ...Typography.heading2, color: colors.primary },
+  statLabel: { ...Typography.caption, color: colors.textSecondary },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
     position: 'relative',
   },
-  friendsButtonText: { ...Typography.subheading, color: Colors.secondary },
+  friendsButtonText: { ...Typography.subheading, color: colors.secondary },
   notificationBadge: {
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
     borderRadius: BorderRadius.sm,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
-  badgeText: { color: Colors.white, ...Typography.tiny },
+  badgeText: { color: colors.white, ...Typography.tiny },
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.xl,
@@ -1132,39 +1148,39 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
     gap: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   tabButton: {
     flex: 1,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   tabButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  tabText: { ...Typography.smallBold, color: Colors.textSecondary },
-  tabTextActive: { color: Colors.white },
+  tabText: { ...Typography.smallBold, color: colors.textSecondary },
+  tabTextActive: { color: colors.white },
 
   // Active goal card
   goalCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     ...Shadows.sm,
   },
-  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: Spacing.xs },
+  goalTitle: { ...Typography.heading3, color: colors.textPrimary, marginBottom: Spacing.xs },
+  goalMeta: { ...Typography.small, color: colors.textSecondary, marginTop: Spacing.xs },
 
   // Wishlist card
   experienceCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
@@ -1174,12 +1190,12 @@ const styles = StyleSheet.create({
   experienceImageContainer: {
     position: 'relative',
   },
-  experienceImage: { width: '100%', height: vh(140), backgroundColor: Colors.border },
+  experienceImage: { width: '100%', height: vh(140), backgroundColor: colors.border },
   wishlistHeartButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     padding: Spacing.xs,
     borderRadius: BorderRadius.xl,
     width: 36,
@@ -1188,13 +1204,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   experienceContent: { padding: Spacing.lg },
-  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
-  experienceDescription: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  experiencePrice: { ...Typography.heading3, color: Colors.secondary },
+  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs },
+  experienceDescription: { ...Typography.small, color: colors.textSecondary, marginBottom: Spacing.sm },
+  experiencePrice: { ...Typography.heading3, color: colors.secondary },
 
   // ACHIEVEMENT CARD
   achievementCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
@@ -1205,7 +1221,7 @@ const styles = StyleSheet.create({
   achievementImage: {
     width: '100%',
     height: vh(150),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   achievementContent: {
     padding: Spacing.md,
@@ -1213,7 +1229,7 @@ const styles = StyleSheet.create({
   achievementTitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xxs,
   },
 
@@ -1224,7 +1240,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.backgroundLight,
+    borderTopColor: colors.backgroundLight,
   },
   achStatItem: {
     alignItems: 'center',
@@ -1233,18 +1249,18 @@ const styles = StyleSheet.create({
   achStatValue: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   achStatLabel: {
     ...Typography.tiny,
     fontWeight: '500',
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.xxs,
   },
   achStatDivider: {
     width: 1,
     height: 24,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
 
   // Self-achievement banner
@@ -1252,22 +1268,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryBorder,
+    borderBottomColor: colors.primaryBorder,
   },
   achSelfLabel: {
     ...Typography.tiny,
-    color: Colors.primary,
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   achSelfTitle: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginTop: Spacing.xxs,
   },
 
@@ -1276,14 +1292,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: Colors.primaryOverlay,
+    backgroundColor: colors.primaryOverlay,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.xl,
   },
   achCompletedBadgeText: {
     ...Typography.tiny,
-    color: Colors.white,
+    color: colors.white,
   },
 
   // Color banner fallback (no image)
@@ -1298,14 +1314,14 @@ const styles = StyleSheet.create({
   achGoalLabel: {
     ...Typography.small,
     fontWeight: '500',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: Spacing.xxs,
   },
 
   // Partner label
   achPartnerLabel: {
     ...Typography.captionBold,
-    color: Colors.primary,
+    color: colors.primary,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xxs,
   },
@@ -1316,7 +1332,7 @@ const styles = StyleSheet.create({
   },
   achSkeletonLine: {
     height: 14,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.xs,
   },
 
@@ -1330,13 +1346,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
   },
   browseButtonText: {
     ...Typography.smallBold,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
 
   // Claim Experience button (AchievementCard)
@@ -1348,34 +1364,34 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: colors.primaryTint,
   },
   claimExperienceButtonText: {
     ...Typography.smallBold,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
 
-  emptyStateText: { textAlign: 'center', marginTop: 40, color: Colors.textMuted, ...Typography.subheading },
-  modalContainer: { flex: 1, backgroundColor: Colors.surface },
+  emptyStateText: { textAlign: 'center', marginTop: Spacing.huge, color: colors.textMuted, ...Typography.subheading },
+  modalContainer: { flex: 1, backgroundColor: colors.surface },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   modalCancelButton: { paddingVertical: Spacing.sm },
-  modalCancelText: { ...Typography.subheading, color: Colors.secondary },
-  modalTitle: { ...Typography.heading3, color: Colors.textPrimary },
+  modalCancelText: { ...Typography.subheading, color: colors.secondary },
+  modalTitle: { ...Typography.heading3, color: colors.textPrimary },
   modalSaveButton: { paddingVertical: Spacing.sm },
-  modalSaveText: { ...Typography.subheading, color: Colors.secondary },
+  modalSaveText: { ...Typography.subheading, color: colors.secondary },
   disabledButton: { opacity: 0.5 },
-  disabledText: { color: Colors.textMuted },
+  disabledText: { color: colors.textMuted },
   modalContent: { flex: 1, padding: Spacing.xl },
   imageSection: { alignItems: 'center', marginBottom: Spacing.xxxl },
   imagePickerButton: { position: 'relative', marginBottom: Spacing.md },
@@ -1384,17 +1400,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     width: 36,
     height: 36,
     borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
   imageOverlayText: { ...Typography.subheading },
-  imagePickerLabel: { ...Typography.small, color: Colors.textSecondary },
+  imagePickerLabel: { ...Typography.small, color: colors.textSecondary },
 });
 
 export default UserProfileScreen;

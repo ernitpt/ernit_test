@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   View,
@@ -20,11 +20,10 @@ import { userService } from '../services/userService';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import PersonAddIcon from '../assets/icons/PersonAdd';
-import { commonStyles } from '../themes/commonStyles';
 import SharedHeader from '../components/SharedHeader';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
 import { logger } from '../utils/logger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -41,6 +40,8 @@ interface EnrichedFriend extends Friend {
 }
 
 const FriendsListScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendsListNavigationProp>();
   const { state } = useApp();
   const { showError } = useToast();
@@ -194,8 +195,8 @@ const FriendsListScreen: React.FC = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                colors={[Colors.secondary]}
-                tintColor={Colors.secondary}
+                colors={[colors.secondary]}
+                tintColor={colors.secondary}
               />
             }
           />
@@ -217,32 +218,32 @@ const FriendsListScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   countContainer: {
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
-  countText: { ...Typography.captionBold, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
+  countText: { ...Typography.captionBold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
   addFriendIconButton: { padding: Spacing.xs, justifyContent: 'center', alignItems: 'center' },
 
   skeletonContainer: { padding: Spacing.sm },
 
   friendsList: { padding: Spacing.sm },
   friendItem: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderLeftWidth: 3,
-    borderLeftColor: Colors.primaryBorder,
+    borderLeftColor: colors.primaryBorder,
     ...Shadows.sm,
   },
   friendTouchable: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -250,8 +251,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   friendInfo: { flex: 1 },
-  friendName: { ...Typography.heading3, fontWeight: '600', color: Colors.textPrimary, marginBottom: Spacing.xs },
-  friendDate: { ...Typography.caption, color: Colors.textMuted },
+  friendName: { ...Typography.heading3, fontWeight: '600', color: colors.textPrimary, marginBottom: Spacing.xs },
+  friendDate: { ...Typography.caption, color: colors.textMuted },
 });
 
 export default FriendsListScreen;

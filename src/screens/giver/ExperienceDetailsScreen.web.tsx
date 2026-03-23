@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -38,7 +38,7 @@ import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
 import { vh } from '../../utils/responsive';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -49,6 +49,8 @@ const { width, height } = Dimensions.get("window");
 
 
 function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
   const route = useRoute();
 
@@ -124,7 +126,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -260,7 +262,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
           <LinearGradient
-            colors={[Colors.overlay, "transparent"]}
+            colors={[colors.overlay, "transparent"]}
             style={styles.heroGradient}
           >
             <TouchableOpacity
@@ -269,7 +271,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <ChevronLeft color={Colors.white} size={24} />
+              <ChevronLeft color={colors.white} size={24} />
             </TouchableOpacity>
             <View style={styles.headerButtons}>
               <TouchableOpacity
@@ -278,7 +280,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityRole="button"
                 accessibilityLabel={`View cart, ${cartItemCount} items`}
               >
-                <ShoppingCart color={Colors.white} size={24} />
+                <ShoppingCart color={colors.white} size={24} />
                 {cartItemCount > 0 && (
                   <View style={styles.cartBadge}>
                     <Text style={styles.cartBadgeText}>
@@ -294,9 +296,9 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
                 {isWishlisted ? (
-                  <Heart fill={Colors.error} color={Colors.error} size={24} />
+                  <Heart fill={colors.error} color={colors.error} size={24} />
                 ) : (
-                  <Heart color={Colors.white} size={24} />
+                  <Heart color={colors.white} size={24} />
                 )}
               </TouchableOpacity>
             </View>
@@ -368,13 +370,13 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
             <View style={styles.quickInfoContainer}>
               {experience.duration && (
                 <View style={styles.quickInfoItem}>
-                  <Clock color={Colors.secondary} size={18} />
+                  <Clock color={colors.secondary} size={18} />
                   <Text style={styles.quickInfoText}>{experience.duration}</Text>
                 </View>
               )}
               {experience.location && (
                 <View style={styles.quickInfoItem}>
-                  <MapPin color={Colors.secondary} size={18} />
+                  <MapPin color={colors.secondary} size={18} />
                   <Text style={styles.quickInfoText}>{experience.location}</Text>
                 </View>
               )}
@@ -392,7 +394,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityLabel="How it works"
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Info color={Colors.secondary} size={18} />
+                <Info color={colors.secondary} size={18} />
               </TouchableOpacity>
             </View>
             <View style={styles.descriptionCard}>
@@ -406,7 +408,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               <Text style={styles.sectionTitle}>Location</Text>
               {partner.address && (
                 <View style={styles.addressContainer}>
-                  <MapPin color={Colors.textSecondary} size={16} />
+                  <MapPin color={colors.textSecondary} size={16} />
                   <Text style={styles.addressText}>{partner.address}</Text>
                 </View>
               )}
@@ -523,10 +525,10 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 export default ExperienceDetailsScreenInner;
 
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
   },
   heroContainer: {
     position: "relative",
@@ -549,14 +551,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
   },
   heroImage: {
     width: Platform.OS === "web" ? Math.min(width, 800) : width,
     height: vh(400),
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   dotsContainer: {
     position: "absolute",
@@ -573,14 +575,14 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.xs,
   },
   dotActive: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     width: 24,
   },
   dotInactive: {
-    backgroundColor: Colors.whiteAlpha40,
+    backgroundColor: colors.whiteAlpha40,
   },
   contentContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: BorderRadius.xxl,
     borderTopRightRadius: BorderRadius.xxl,
     marginTop: -20,
@@ -603,25 +605,25 @@ const styles = StyleSheet.create({
   title: {
     ...Typography.display,
     fontWeight: "bold",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
     ...Typography.subheading,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   howItWorksButton: {
     width: 35,
     height: 35,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   priceTag: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
@@ -630,11 +632,11 @@ const styles = StyleSheet.create({
   priceAmount: {
     ...Typography.heading1,
     fontWeight: "bold",
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   priceLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   quickInfoContainer: {
@@ -655,7 +657,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
@@ -664,7 +666,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -672,7 +674,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
     borderRadius: BorderRadius.sm,
     minWidth: 20,
     height: 20,
@@ -680,17 +682,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: Spacing.xs,
     borderWidth: 2,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
   cartBadgeText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.tiny,
     fontWeight: "700",
   },
   quickInfoItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
@@ -698,7 +700,7 @@ const styles = StyleSheet.create({
   },
   quickInfoText: {
     ...Typography.small,
-    color: Colors.gray700,
+    color: colors.gray700,
     fontWeight: "500",
   },
   section: {
@@ -712,19 +714,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   descriptionCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   descriptionText: {
     ...Typography.subheading,
     lineHeight: 26,
-    color: Colors.gray700,
+    color: colors.gray700,
     letterSpacing: 0.2,
   },
   addressContainer: {
@@ -735,14 +737,14 @@ const styles = StyleSheet.create({
   },
   addressText: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     flex: 1,
   },
   mapContainer: {
     height: vh(220),
     borderRadius: BorderRadius.md,
     overflow: "hidden",
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     marginBottom: Spacing.md,
   },
   webview: {
@@ -754,13 +756,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     paddingBottom: Platform.OS === "ios" ? Spacing.xxxl : Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    shadowColor: Colors.black,
+    borderTopColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -775,7 +777,7 @@ const styles = StyleSheet.create({
   quantityLabel: {
     ...Typography.subheading,
     fontWeight: "600",
-    color: Colors.gray700,
+    color: colors.gray700,
   },
   quantityControls: {
     flexDirection: "row",
@@ -786,26 +788,26 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   quantityButtonDisabled: {
     opacity: 0.5,
   },
   quantityButtonText: {
     ...Typography.large,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   quantityButtonTextDisabled: {
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   quantityValue: {
     ...Typography.heading3,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 30,
     textAlign: "center",
   },
@@ -815,27 +817,27 @@ const styles = StyleSheet.create({
   },
   addToCartButton: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: Colors.secondary,
+    borderColor: colors.secondary,
   },
   addToCartButtonText: {
-    color: Colors.secondary,
+    color: colors.secondary,
     ...Typography.heading3,
     fontWeight: "700",
   },
   buyNowButton: {
     flex: 1,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: "center",
   },
   buyNowButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.heading3,
     fontWeight: "700",
   },

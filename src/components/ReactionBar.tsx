@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import type { ReactionType } from '../types';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -22,6 +22,8 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
     userReaction,
     onReact,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const reactions = [
         { type: 'muscle' as ReactionType, emoji: '💪', count: reactionCounts.muscle },
         { type: 'heart' as ReactionType, emoji: '❤️', count: reactionCounts.heart },
@@ -62,7 +64,7 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flexDirection: 'row',
         gap: Spacing.sm,
@@ -74,15 +76,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: colors.backgroundLight,
         gap: Spacing.xs,
         minHeight: 44,
         justifyContent: 'center',
     },
     reactionButtonActive: {
-        backgroundColor: Colors.primarySurface,
+        backgroundColor: colors.primarySurface,
         borderWidth: 1,
-        borderColor: Colors.secondary,
+        borderColor: colors.secondary,
     },
     emoji: {
         fontSize: Typography.heading3.fontSize,
@@ -90,10 +92,10 @@ const styles = StyleSheet.create({
     count: {
         ...Typography.small,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     countActive: {
-        color: Colors.secondary,
+        color: colors.secondary,
     },
 });
 

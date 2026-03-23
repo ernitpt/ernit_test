@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,7 +9,7 @@ import {
     Image,
     ImageSourcePropType,
 } from 'react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import type { ReactionType } from '../types';
@@ -31,6 +31,9 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
     onSelect,
     userReaction,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
     const buttonScaleAnims = useRef(
@@ -133,39 +136,40 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        bottom: 40,
-        left: 0,
-        flexDirection: 'row',
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.pill,
-        paddingHorizontal: Spacing.sm,
-        paddingVertical: Spacing.xs,
-        shadowColor: Colors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-        gap: Spacing.xs,
-    },
-    reactionButton: {
-        width: 48,
-        height: 48,
-        borderRadius: BorderRadius.circle,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: Colors.backgroundLight,
-    },
-    selectedReaction: {
-        backgroundColor: Colors.primaryTint,
-        transform: [{ scale: 1.1 }],
-    },
-    reactionImage: {
-        width: 32,
-        height: 32,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        container: {
+            position: 'absolute',
+            bottom: 40,
+            left: 0,
+            flexDirection: 'row',
+            backgroundColor: colors.white,
+            borderRadius: BorderRadius.pill,
+            paddingHorizontal: Spacing.sm,
+            paddingVertical: Spacing.xs,
+            shadowColor: colors.black,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+            gap: Spacing.xs,
+        },
+        reactionButton: {
+            width: 48,
+            height: 48,
+            borderRadius: BorderRadius.circle,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.backgroundLight,
+        },
+        selectedReaction: {
+            backgroundColor: colors.primaryTint,
+            transform: [{ scale: 1.1 }],
+        },
+        reactionImage: {
+            width: 32,
+            height: 32,
+        },
+    });
 
 export default ReactionPicker;

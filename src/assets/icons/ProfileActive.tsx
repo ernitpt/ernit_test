@@ -1,8 +1,9 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import Colors from '../../config/colors';
+import { useColors } from '../../config';
 
 export default function ProfileActive({ width = 36, height = 40 }) {
+  const colors = useColors();
   const gradId = React.useId(); // unique per render
 
   return (
@@ -23,8 +24,8 @@ export default function ProfileActive({ width = 36, height = 40 }) {
           y2="2"
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor={Colors.primaryDeep} />
-          <Stop offset="1" stopColor={Colors.accent} />
+          <Stop stopColor={colors.primaryDeep} />
+          <Stop offset="1" stopColor={colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

@@ -1,8 +1,9 @@
 import * as React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop, G } from 'react-native-svg';
-import Colors from '../../config/colors';
+import { useColors } from '../../config';
 
 export default function PersonAdd({ width = 24, height = 24 }) {
+  const colors = useColors();
   const gradId = React.useId();
 
   return (
@@ -22,8 +23,8 @@ export default function PersonAdd({ width = 24, height = 24 }) {
           y2="4.69238"
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor={Colors.primaryDeep} />
-          <Stop offset="1" stopColor={Colors.accent} />
+          <Stop stopColor={colors.primaryDeep} />
+          <Stop offset="1" stopColor={colors.accent} />
         </LinearGradient>
       </Defs>
     </Svg>

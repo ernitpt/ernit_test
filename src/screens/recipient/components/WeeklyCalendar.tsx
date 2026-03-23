@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
 import { day2, dayMonth, isoDay } from '../goalCardUtils';
@@ -9,6 +9,8 @@ import { day2, dayMonth, isoDay } from '../goalCardUtils';
 // ─── AnimatedFilledDay ──────────────────────────────────────────────
 
 const AnimatedFilledDay: React.FC<{ label: string }> = React.memo(({ label }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const fillAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -53,7 +55,7 @@ const AnimatedFilledDay: React.FC<{ label: string }> = React.memo(({ label }) =>
     <Animated.View style={[styles.filledCircle, { transform: [{ scale: scaleAnim }] }]}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: fillAnim }]}>
         <LinearGradient
-          colors={[Colors.primary, Colors.accent]}
+          colors={[colors.primary, colors.accent]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.filledCircle}
@@ -79,6 +81,9 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = React.memo(({
   loggedSet,
   todayIso,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.calendarRow}>
       {weekDates.map((d) => {
@@ -101,7 +106,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = React.memo(({
                   <AnimatedFilledDay label={label} />
                 ) : (
                   <LinearGradient
-                    colors={[Colors.primary, Colors.accent]}
+                    colors={[colors.primary, colors.accent]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.filledCircle}
@@ -132,7 +137,7 @@ WeeklyCalendar.displayName = 'WeeklyCalendar';
 
 const CIRCLE = 38;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
   dayCell: { alignItems: 'center', width: CIRCLE },
   emptyCircle: {
@@ -140,7 +145,7 @@ const styles = StyleSheet.create({
     height: CIRCLE,
     borderRadius: CIRCLE / 2,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -152,24 +157,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  dayTextEmpty: { color: Colors.textSecondary, fontWeight: '600' },
-  dayTextFilled: { color: Colors.white, fontWeight: '700' },
+  dayTextEmpty: { color: colors.textSecondary, fontWeight: '600' },
+  dayTextFilled: { color: colors.white, fontWeight: '700' },
   dateLabel: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.xs,
     textAlign: 'center',
   },
   todayDateLabel: {
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '700',
   },
   todayCircleBorder: {
-    borderColor: Colors.secondary,
+    borderColor: colors.secondary,
     borderWidth: 3,
   },
   todayText: {
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '700',
   },
 });

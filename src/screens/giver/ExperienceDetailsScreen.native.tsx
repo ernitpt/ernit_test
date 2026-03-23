@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, TextInput,
   StyleSheet,
@@ -24,13 +24,15 @@ import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { vh } from '../../utils/responsive';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 
 export default function ExperienceDetailsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
   const route = useRoute();
 
@@ -73,7 +75,7 @@ export default function ExperienceDetailsScreen() {
       <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors.white, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.white, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>
@@ -130,7 +132,7 @@ export default function ExperienceDetailsScreen() {
     <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.gradient}>
+      <LinearGradient colors={colors.gradientPrimary} style={styles.gradient}>
         <ScrollView contentContainerStyle={{ padding: Spacing.xxl }}>          <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => {
@@ -141,7 +143,7 @@ export default function ExperienceDetailsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <ChevronLeft color={Colors.white} size={22} />
+            <ChevronLeft color={colors.white} size={22} />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
@@ -160,7 +162,7 @@ export default function ExperienceDetailsScreen() {
             accessibilityRole="button"
             accessibilityLabel="How it works"
           >
-            <HelpCircle color={Colors.primary} size={18} />
+            <HelpCircle color={colors.primary} size={18} />
             <Text style={styles.howItWorksText}>How it works</Text>
           </TouchableOpacity>
 
@@ -169,7 +171,7 @@ export default function ExperienceDetailsScreen() {
           <TextInput
             style={styles.textInput}
             placeholder="Write a personal message..."
-            placeholderTextColor={Colors.gray300}
+            placeholderTextColor={colors.gray300}
             value={personalizedMessage}
             onChangeText={setPersonalizedMessage}
             multiline
@@ -200,7 +202,7 @@ export default function ExperienceDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   gradient: { flex: 1 },
   backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
   headerRow: {
@@ -209,14 +211,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  backText: { color: Colors.white, ...Typography.heading3, fontWeight: '600', marginLeft: Spacing.xs },
+  backText: { color: colors.white, ...Typography.heading3, fontWeight: '600', marginLeft: Spacing.xs },
   image: { width: '100%', height: vh(240), borderRadius: BorderRadius.lg, marginBottom: Spacing.lg },
-  title: { color: Colors.white, ...Typography.heading2, fontWeight: '700', marginBottom: Spacing.sm },
-  desc: { color: Colors.border, ...Typography.subheading, marginBottom: Spacing.sm },
+  title: { color: colors.white, ...Typography.heading2, fontWeight: '700', marginBottom: Spacing.sm },
+  desc: { color: colors.border, ...Typography.subheading, marginBottom: Spacing.sm },
   howItWorksButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.sm,
@@ -224,19 +226,19 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   howItWorksText: {
-    color: Colors.primary,
+    color: colors.primary,
     ...Typography.body,
     fontWeight: '600',
     marginLeft: Spacing.xs,
   },
-  price: { color: Colors.white, ...Typography.large, fontWeight: '700', marginBottom: Spacing.lg },
+  price: { color: colors.white, ...Typography.large, fontWeight: '700', marginBottom: Spacing.lg },
   textInput: {
-    backgroundColor: Colors.whiteAlpha25,
-    color: Colors.white,
+    backgroundColor: colors.whiteAlpha25,
+    color: colors.white,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.lg,
   },
-  purchaseButton: { backgroundColor: Colors.white, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
-  purchaseText: { textAlign: 'center', color: Colors.primary, ...Typography.heading3, fontWeight: '700' },
+  purchaseButton: { backgroundColor: colors.white, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  purchaseText: { textAlign: 'center', color: colors.primary, ...Typography.heading3, fontWeight: '700' },
 });

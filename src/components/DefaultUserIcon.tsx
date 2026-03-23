@@ -1,14 +1,15 @@
 import React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import Colors from '../config/colors';
+import { useColors } from '../config';
 
 export const DefaultUserIcon = ({ size = 96 }) => {
+  const colors = useColors();
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <Defs>
         <LinearGradient id="defaultUserGradient" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0%" stopColor={Colors.primaryDeep} />
-          <Stop offset="100%" stopColor={Colors.accent} />
+          <Stop offset="0%" stopColor={colors.primaryDeep} />
+          <Stop offset="100%" stopColor={colors.accent} />
         </LinearGradient>
       </Defs>
 

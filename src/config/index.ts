@@ -10,3 +10,5 @@ export { Spacing } from './spacing';
 export { BorderRadius } from './borderRadius';
 export { Shadows } from './shadows';
 export { Animations } from './animations';
+export { DarkColors } from './colors';
+export { useColors } from '../themes/useColors';

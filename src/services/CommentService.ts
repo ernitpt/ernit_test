@@ -116,14 +116,10 @@ class CommentService {
     /**
      * Get comments for a post
      */
-    async getComments(postId: string, limitCount?: number): Promise<Comment[]> {
+    async getComments(postId: string, limitCount: number = 50): Promise<Comment[]> {
         try {
             const commentsCollection = collection(db, 'feedPosts', postId, 'comments');
-            let q = query(commentsCollection, orderBy('createdAt', 'asc'));
-
-            if (limitCount) {
-                q = query(commentsCollection, orderBy('createdAt', 'asc'), firestoreLimit(limitCount));
-            }
+            const q = query(commentsCollection, orderBy('createdAt', 'asc'), firestoreLimit(limitCount));
 
             const snapshot = await getDocs(q);
 

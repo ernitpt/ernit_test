@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,22 +20,25 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import MainScreen from './MainScreen';
-import { commonStyles } from '../themes/commonStyles';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import Colors from '../config/colors';
+import { sanitizeText } from '../utils/sanitization';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import Button from '../components/Button';
 import * as Haptics from 'expo-haptics';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
 const AddFriendScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<AddFriendNavigationProp>();
   const { state } = useApp();
   const { showSuccess, showError } = useToast();
@@ -67,7 +70,7 @@ const AddFriendScreen: React.FC = () => {
     try {
       setIsSearching(true);
       setSearchError(false);
-      const results = await friendService.searchUsers(searchTerm.trim(), currentUserId);
+      const results = await friendService.searchUsers(sanitizeText(searchTerm, 100), currentUserId);
       setSearchResults(results);
     } catch (error) {
       logger.error('Error searching users:', error);
@@ -137,22 +140,28 @@ const AddFriendScreen: React.FC = () => {
 
       <View style={styles.actionButton}>
         {item.isFriend ? (
-          <TouchableOpacity style={styles.friendButton} disabled>
-            <Text style={styles.friendButtonText}>Friends</Text>
-          </TouchableOpacity>
+          <Button
+            variant="secondary"
+            size="sm"
+            title="Friends"
+            onPress={() => {}}
+            disabled
+          />
         ) : item.hasPendingRequest ? (
-          <TouchableOpacity style={styles.pendingButton} disabled>
-            <Text style={styles.pendingButtonText}>Pending</Text>
-          </TouchableOpacity>
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Pending"
+            onPress={() => {}}
+            disabled
+          />
         ) : (
-          <TouchableOpacity
-            style={styles.addButton}
+          <Button
+            variant="primary"
+            size="sm"
+            title="Add Friend"
             onPress={() => handleSendFriendRequest(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`Send friend request to ${item.name}`}
-          >
-            <Text style={styles.addButtonText}>Add Friend</Text>
-          </TouchableOpacity>
+          />
         )}
       </View>
     </View>
@@ -177,7 +186,7 @@ const AddFriendScreen: React.FC = () => {
           returnKeyType="search"
           onSubmitEditing={handleSearch}
           accessibilityLabel="Search for friends by name or email"
-          leftIcon={<Search size={18} color={Colors.textMuted} />}
+          leftIcon={<Search size={18} color={colors.textMuted} />}
           containerStyle={{ marginBottom: 0 }}
           maxLength={100}
         />
@@ -233,15 +242,15 @@ const AddFriendScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   searchSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     padding: Spacing.xxl,
     marginBottom: Spacing.lg,
   },
   searchLabel: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.md,
   },
   resultsSection: {
@@ -250,26 +259,26 @@ const styles = StyleSheet.create({
   },
   hintText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing.xxxl,
   },
   resultsTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.lg,
   },
   resultsList: {
     paddingBottom: Spacing.xxl,
   },
   userItem: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.sm,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
@@ -287,51 +296,51 @@ const styles = StyleSheet.create({
   },
   userName: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xxs,
   },
   userEmail: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.xxs,
   },
   userCountry: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   actionButton: {
     marginLeft: Spacing.md,
   },
   addButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.xs,
   },
   addButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '600',
   },
   friendButton: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.xs,
   },
   friendButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '600',
   },
   pendingButton: {
-    backgroundColor: Colors.warning,
+    backgroundColor: colors.warning,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.xs,
   },
   pendingButtonText: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.small,
     fontWeight: '600',
   },
@@ -339,7 +348,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,

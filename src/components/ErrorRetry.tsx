@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AlertCircle, RefreshCw } from 'lucide-react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import Button from './Button';
@@ -15,16 +15,18 @@ const ErrorRetry: React.FC<ErrorRetryProps> = ({
   message = 'Something went wrong',
   onRetry,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.container}>
-      <AlertCircle size={32} color={Colors.textMuted} />
+      <AlertCircle size={32} color={colors.textMuted} />
       <Text style={styles.message}>{message}</Text>
       <Button
         title="Try Again"
         onPress={onRetry}
         variant="primary"
         size="sm"
-        icon={<RefreshCw size={16} color={Colors.white} />}
+        icon={<RefreshCw size={16} color={colors.white} />}
         style={{ marginTop: Spacing.xs }}
       />
     </View>
@@ -33,7 +35,7 @@ const ErrorRetry: React.FC<ErrorRetryProps> = ({
 
 export default ErrorRetry;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -43,7 +45,7 @@ const styles = StyleSheet.create({
   },
   message: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

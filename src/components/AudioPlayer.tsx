@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import { logger } from '../utils/logger';
 import { Play, Pause } from 'lucide-react-native';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -22,6 +22,8 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { showError } = useToast();
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -84,11 +86,11 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
         <View style={[styles.audioPlayer, isPopup && styles.audioPlayerPopup]}>
             <TouchableOpacity onPress={togglePlayback} disabled={isLoading} style={[styles.playButton, isPopup && styles.playButtonPopup]} accessibilityLabel={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"} accessibilityRole="button">
                 {isLoading ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
+                    <ActivityIndicator size="small" color={colors.white} />
                 ) : isPlaying ? (
-                    <Pause size={isPopup ? 24 : 16} color={Colors.white} />
+                    <Pause size={isPopup ? 24 : 16} color={colors.white} />
                 ) : (
-                    <Play size={isPopup ? 24 : 16} color={Colors.white} />
+                    <Play size={isPopup ? 24 : 16} color={colors.white} />
                 )}
             </TouchableOpacity>
             <View style={styles.audioInfo}>
@@ -108,11 +110,11 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
     audioPlayer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.gray700,
+        backgroundColor: colors.gray700,
         borderRadius: BorderRadius.xl,
         padding: Spacing.sm,
         paddingRight: Spacing.lg,
@@ -120,12 +122,12 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     audioPlayerPopup: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         borderRadius: BorderRadius.xxl,
         padding: Spacing.md,
         paddingRight: Spacing.xl,
         alignSelf: 'stretch',
-        shadowColor: Colors.primary,
+        shadowColor: colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 4 },
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.textSecondary,
+        backgroundColor: colors.textSecondary,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: Spacing.md,
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.whiteAlpha25,
+        backgroundColor: colors.whiteAlpha25,
         marginRight: Spacing.lg,
     },
     audioInfo: {
@@ -154,27 +156,27 @@ const styles = StyleSheet.create({
     audioProgress: {
         width: '100%',
         height: 4,
-        backgroundColor: Colors.gray600,
+        backgroundColor: colors.gray600,
         borderRadius: 2,
         marginBottom: Spacing.xs,
         overflow: 'hidden',
     },
     audioProgressPopup: {
         height: 6,
-        backgroundColor: Colors.whiteAlpha25,
+        backgroundColor: colors.whiteAlpha25,
         borderRadius: 3,
     },
     progressBar: {
         height: '100%',
-        backgroundColor: Colors.white,
+        backgroundColor: colors.white,
     },
     audioDuration: {
-        color: Colors.gray300,
+        color: colors.gray300,
         ...Typography.caption,
         fontVariant: ['tabular-nums'],
     },
     audioDurationPopup: {
-        color: Colors.white,
+        color: colors.white,
         ...Typography.caption,
         fontWeight: '600',
     },

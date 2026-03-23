@@ -1,5 +1,5 @@
 // screens/CartScreen.tsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -28,17 +28,21 @@ import ErrorRetry from '../../components/ErrorRetry';
 import Button from '../../components/Button';
 import { logger } from '../../utils/logger';
 import { logErrorToFirestore } from '../../utils/errorLogger';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { MotiView } from 'moti';
 import { Card } from '../../components/Card';
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
 export default function CartScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { state, dispatch } = useApp();
   const navigation = useNavigation<NavProp>();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
@@ -135,6 +139,8 @@ export default function CartScreen() {
       return;
     }
 
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     // Mark this item as updating
     setUpdatingItems(prev => new Set(prev).add(experienceId));
 
@@ -178,6 +184,7 @@ export default function CartScreen() {
   const confirmRemoveItem = async () => {
     const experienceId = removeConfirmId;
     if (!experienceId) return;
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setIsRemoving(true);
 
     try {
@@ -230,11 +237,11 @@ export default function CartScreen() {
 
     // Require authentication to proceed to checkout
     // Pass route name and params for post-auth navigation
-    if (!requireAuth("Please log in to proceed to checkout.", "ExperienceCheckout", { cartItems: currentCart })) {
+    if (!requireAuth("Please log in to proceed to checkout.", "MysteryChoice", { cartItems: currentCart })) {
       return;
     }
 
-    navigation.navigate("ExperienceCheckout", {
+    navigation.navigate("MysteryChoice", {
       cartItems: currentCart,
     });
   };
@@ -338,7 +345,7 @@ export default function CartScreen() {
                       <Image
                         source={{ uri: imageUrl }}
                         style={styles.cartItemImage}
-                        resizeMode="cover"
+                        contentFit="cover" cachePolicy="memory-disk"
                         accessibilityLabel={`${exp.title} image`}
                       />
                     </TouchableOpacity>
@@ -363,7 +370,7 @@ export default function CartScreen() {
                           accessibilityLabel="Remove item from cart"
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                          <X size={18} color={Colors.error} />
+                          <X size={18} color={colors.error} />
                         </TouchableOpacity>
                       </View>
 
@@ -381,7 +388,7 @@ export default function CartScreen() {
                             accessibilityLabel="Decrease quantity"
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Minus size={16} color={item.quantity === 1 ? Colors.disabled : Colors.secondary} />
+                            <Minus size={16} color={item.quantity === 1 ? colors.disabled : colors.secondary} />
                           </TouchableOpacity>
 
                           <Text style={styles.quantityValue}>{item.quantity}</Text>
@@ -398,7 +405,7 @@ export default function CartScreen() {
                             accessibilityLabel="Increase quantity"
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Plus size={16} color={item.quantity === 10 ? Colors.disabled : Colors.secondary} />
+                            <Plus size={16} color={item.quantity === 10 ? colors.disabled : colors.secondary} />
                           </TouchableOpacity>
                         </View>
 
@@ -426,7 +433,7 @@ export default function CartScreen() {
                 size="lg"
                 fullWidth
                 gradient
-                icon={<ArrowRight size={20} color={Colors.white} />}
+                icon={<ArrowRight size={20} color={colors.white} />}
                 iconPosition="right"
                 style={{ marginBottom: Spacing.md }}
               />
@@ -457,10 +464,10 @@ export default function CartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   loadingContainer: {
     flex: 1,
@@ -468,22 +475,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     ...Typography.display,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   headerSubtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: "500",
   },
   scrollView: {
@@ -507,7 +514,7 @@ const styles = StyleSheet.create({
   cartItemImage: {
     width: 120,
     height: 120,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   cartItemContent: {
     flex: 1,
@@ -527,12 +534,12 @@ const styles = StyleSheet.create({
   cartItemTitle: {
     ...Typography.heading3,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   cartItemSubtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   removeButton: {
     padding: Spacing.xs,
@@ -550,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
@@ -558,7 +565,7 @@ const styles = StyleSheet.create({
   quantityButton: {
     padding: Spacing.xs,
     borderRadius: BorderRadius.xs,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     width: 28,
     height: 28,
     justifyContent: "center",
@@ -570,18 +577,18 @@ const styles = StyleSheet.create({
   quantityValue: {
     ...Typography.subheading,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 24,
     textAlign: "center",
   },
   cartItemPrice: {
     ...Typography.large,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
   bottomContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: colors.border,
     padding: Spacing.xl,
     paddingBottom: Spacing.xxxl,
   },
@@ -594,10 +601,10 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...Typography.heading3,
     fontWeight: "600",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   totalAmount: {
     ...Typography.heading1,
-    color: Colors.secondary,
+    color: colors.secondary,
   },
 });

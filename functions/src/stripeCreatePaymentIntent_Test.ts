@@ -94,6 +94,7 @@ export const stripeCreatePaymentIntent_Test = onRequest(
         cart,
         primaryPartnerId,
         personalizedMessage,
+        isMystery,
       } = req.body || {};
 
       // ✅ Verify giverId matches authenticated user
@@ -184,6 +185,7 @@ export const stripeCreatePaymentIntent_Test = onRequest(
           primaryPartnerId: primaryPartnerId || "",
           cart: cartJSON,
           personalizedMessage: personalizedMessage || "",
+          isMystery: isMystery ? "true" : "false",
           source: "ernit_experience_gift",
         },
       });

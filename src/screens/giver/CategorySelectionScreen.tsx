@@ -36,7 +36,7 @@ import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import SharedHeader from '../../components/SharedHeader';
 import { logger } from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Colors from '../../config/colors';
+import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
@@ -58,7 +58,10 @@ const ExperienceCard = ({
   onPress: () => void;
   onToggleWishlist: () => void;
   isWishlisted: boolean;
-}) => (
+}) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [styles.experienceCard, pressed && { opacity: 0.9 }]}
@@ -85,9 +88,9 @@ const ExperienceCard = ({
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         {isWishlisted ? (
-          <Heart fill={Colors.error} color={Colors.error} size={22} />
+          <Heart fill={colors.error} color={colors.error} size={22} />
         ) : (
-          <Heart color={Colors.white} size={22} />
+          <Heart color={colors.white} size={22} />
         )}
 
       </TouchableOpacity>
@@ -106,7 +109,8 @@ const ExperienceCard = ({
       <Text style={styles.cardPrice}>{experience.price.toFixed(0)} €</Text>
     </View>
   </Pressable>
-);
+  );
+};
 
 const CategoryCarousel = ({
   category,
@@ -118,7 +122,10 @@ const CategoryCarousel = ({
   onExperiencePress: (experienceId: string) => void;
   onToggleWishlist: (experienceId: string) => void;
   wishlist: string[];
-}) => (
+}) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
   <View style={styles.categorySection}>
     <View style={styles.categoryHeaderInline}>
       <Text style={styles.categoryTitleInline}>{category.title}</Text>
@@ -148,11 +155,14 @@ const CategoryCarousel = ({
       contentContainerStyle={styles.carouselContentContinuous}
     />
   </View>
-);
+  );
+};
 
 
 
 const CategorySelectionScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
   const rootNavigation = useRootNavigation();
   const route = useRoute();
@@ -404,13 +414,13 @@ const CategorySelectionScreen = () => {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ padding: Spacing.xs }}
             >
-              <Search color={Colors.textSecondary} size={22} strokeWidth={1.8} />
+              <Search color={colors.textSecondary} size={22} strokeWidth={1.8} />
             </TouchableOpacity>
           }
         />
         {empowerContext && (
           <View style={styles.empowerBanner}>
-            <Gift color={Colors.primary} size={18} />
+            <Gift color={colors.primary} size={18} />
             <Text style={styles.empowerBannerText} numberOfLines={1}>
               Gifting for <Text style={styles.empowerBannerName}>{empowerContext.userName || 'a friend'}</Text>'s challenge
             </Text>
@@ -422,7 +432,7 @@ const CategorySelectionScreen = () => {
               accessibilityLabel="Dismiss empower banner"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X color={Colors.primary} size={16} />
+              <X color={colors.primary} size={16} />
             </TouchableOpacity>
           </View>
         )}
@@ -448,7 +458,7 @@ const CategorySelectionScreen = () => {
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search experiences..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoFocus
@@ -462,7 +472,7 @@ const CategorySelectionScreen = () => {
                   accessibilityRole="button"
                   accessibilityLabel="Clear search"
                 >
-                  <X size={18} color={Colors.textSecondary} />
+                  <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -480,7 +490,7 @@ const CategorySelectionScreen = () => {
                 <View style={{
                   width: 120,
                   height: 24,
-                  backgroundColor: Colors.border,
+                  backgroundColor: colors.border,
                   borderRadius: BorderRadius.xs
                 }} />
               </View>
@@ -525,11 +535,11 @@ const CategorySelectionScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   empowerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     marginHorizontal: Spacing.xxl,
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.md,
@@ -540,7 +550,7 @@ const styles = StyleSheet.create({
   empowerBannerText: {
     flex: 1,
     ...Typography.small,
-    color: Colors.primary,
+    color: colors.primary,
   },
   empowerBannerName: {
     fontWeight: '700',
@@ -553,18 +563,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   searchBar: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     paddingVertical: Spacing.sm,
   },
   categoriesListMoved: {
@@ -580,7 +590,7 @@ const styles = StyleSheet.create({
   },
   categoryTitleInline: {
     ...Typography.heading2,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   carouselContentContinuous: {
     paddingHorizontal: Spacing.xxl,
@@ -589,11 +599,11 @@ const styles = StyleSheet.create({
   experienceCard: {
     marginRight: Spacing.md,
     width: (SCREEN_W - Spacing.lg * 3) / 2,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.backgroundLight,
-    shadowColor: Colors.black,
+    borderColor: colors.backgroundLight,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -607,13 +617,13 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: 100,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   heartButton: {
     position: 'absolute',
     top: Spacing.sm,
     right: Spacing.sm,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     padding: Spacing.xs,
     borderRadius: BorderRadius.xl,
   },
@@ -629,21 +639,21 @@ const styles = StyleSheet.create({
   },
 
   cardTitle: {
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     ...Typography.body,
     fontWeight: "bold",
     lineHeight: 18,
   },
 
   cardSubtitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     ...Typography.caption,
     lineHeight: 17,
     marginTop: 2,
   },
 
   cardPrice: {
-    color: Colors.primary,
+    color: colors.primary,
     ...Typography.small,
     fontWeight: "bold",
     textAlign: "right",

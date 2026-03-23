@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { CARD_COLORS } from '../goalCardUtils';
-import Colors from '../../../config/colors';
+import { createCardColors } from '../goalCardUtils';
+import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Spacing } from '../../../config/spacing';
 
@@ -158,6 +158,10 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
   completedWeeks,
   overallTotal,
 }) => {
+  const colors = useColors();
+  const cardColors = useMemo(() => createCardColors(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, cardColors), [colors, cardColors]);
+
   return (
     <View
       accessibilityLabel={`Goal progress: ${completedWeeks} of ${overallTotal} weeks completed`}
@@ -174,8 +178,8 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
             <Capsule
               key={i}
               isFilled={i < weeklyFilled}
-              fillColor={Colors.info}
-              emptyColor={CARD_COLORS.grayLight}
+              fillColor={colors.info}
+              emptyColor={cardColors.grayLight}
             />
           ))}
         </View>
@@ -192,8 +196,8 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
             <Capsule
               key={i}
               isFilled={i < completedWeeks}
-              fillColor={Colors.info}
-              emptyColor={CARD_COLORS.grayLight}
+              fillColor={colors.info}
+              emptyColor={cardColors.grayLight}
             />
           ))}
         </View>
@@ -206,17 +210,17 @@ ProgressBars.displayName = 'ProgressBars';
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors, cardColors: ReturnType<typeof createCardColors>) => StyleSheet.create({
   progressBlock: { marginBottom: Spacing.xxl },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  progressLabel: { color: Colors.gray600 },
-  progressText: { color: Colors.textPrimary, fontWeight: '600' },
+  progressLabel: { color: colors.gray600 },
+  progressText: { color: colors.textPrimary, fontWeight: '600' },
   capsuleRow: { flexDirection: 'row', gap: Spacing.xxs },
   capsule: {
     flex: 1,
     height: 12,
     borderRadius: BorderRadius.pill,
-    backgroundColor: CARD_COLORS.grayLight,
+    backgroundColor: cardColors.grayLight,
     overflow: 'hidden',
   },
 });

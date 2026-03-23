@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import {
@@ -6,13 +6,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -35,7 +35,7 @@ import { goalService } from '../services/GoalService';
 import { logger } from '../utils/logger';
 import { toJSDate } from '../utils/GoalHelpers';
 import { vh } from '../utils/responsive';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
@@ -54,25 +54,32 @@ type FriendProfileRouteProp = RouteProp<RootStackParamList, 'FriendProfile'>;
 // Helper Components (moved outside parent for performance)
 // ------------------------------------------------------------------
 
-const CapsuleMini = ({ filled }: { filled: boolean }) => (
-  <View
-    style={{
-      flex: 1,
-      height: 8,
-      borderRadius: BorderRadius.pill,
-      backgroundColor: filled ? Colors.primary : Colors.border,
-      marginHorizontal: Spacing.xxs,
-    }}
-  />
-);
+const CapsuleMini = ({ filled }: { filled: boolean }) => {
+  const colors = useColors();
+  return (
+    <View
+      style={{
+        flex: 1,
+        height: 8,
+        borderRadius: BorderRadius.pill,
+        backgroundColor: filled ? colors.primary : colors.border,
+        marginHorizontal: Spacing.xxs,
+      }}
+    />
+  );
+};
 
 const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId: string | undefined; userName: string | null }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const historyModalStyles = useMemo(() => createHistoryModalStyles(colors), [colors]);
   const [giverName, setGiverName] = useState<string | null>(null);
   const [showHintHistory, setShowHintHistory] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [showEmpowerModal, setShowEmpowerModal] = useState(false);
   const [showMotivateModal, setShowMotivateModal] = useState(false);
   const isGiver = currentUserId === goal.empoweredBy;
+  const isSelfGoal = currentUserId === goal.userId;
   const hasExperience = !!goal.experienceGiftId || !!goal.giftAttachedAt;
   const nextSession = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0) + 1;
 
@@ -134,31 +141,33 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
         </View>
       </View>
 
-      {/* Action Buttons: Empower + Motivate */}
-      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
-        {!hasExperience && (
+      {/* Action Buttons: Empower + Motivate (only for active goals that aren't yours) */}
+      {!goal.isCompleted && !isSelfGoal && (
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
+          {!hasExperience && (
+            <TouchableOpacity
+              onPress={() => setShowEmpowerModal(true)}
+              style={styles.empowerActionButton}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Empower this goal"
+            >
+              <Gift color={colors.white} size={16} />
+              <Text style={styles.empowerActionButtonText}>Empower</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            onPress={() => setShowEmpowerModal(true)}
-            style={styles.empowerActionButton}
+            onPress={() => setShowMotivateModal(true)}
+            style={styles.motivateActionButton}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Empower this goal"
+            accessibilityLabel="Send motivation"
           >
-            <Gift color={Colors.white} size={16} />
-            <Text style={styles.empowerActionButtonText}>Empower</Text>
+            <Heart color={colors.primary} size={16} />
+            <Text style={styles.motivateActionButtonText}>Motivate</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={() => setShowMotivateModal(true)}
-          style={styles.motivateActionButton}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Send motivation"
-        >
-          <Heart color={Colors.primary} size={16} />
-          <Text style={styles.motivateActionButtonText}>Motivate</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
 
       {/* View Hints Button (only for giver) */}
       {isGiver && (
@@ -169,15 +178,15 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
             paddingVertical: Spacing.sm,
             paddingHorizontal: Spacing.lg,
             borderRadius: BorderRadius.sm,
-            backgroundColor: Colors.backgroundLight,
+            backgroundColor: colors.backgroundLight,
             borderWidth: 1,
-            borderColor: Colors.border,
+            borderColor: colors.border,
           }}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="View hint history"
         >
-          <Text style={{ ...Typography.smallBold, color: Colors.textSecondary, textAlign: 'center' }}>
+          <Text style={{ ...Typography.smallBold, color: colors.textSecondary, textAlign: 'center' }}>
             View Hint History
           </Text>
         </TouchableOpacity>
@@ -289,6 +298,8 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
 };
 
 const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ goal, userName }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>("Partner");
   const [loadingCard, setLoadingCard] = useState<boolean>(true);
@@ -364,7 +375,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
               accessibilityRole="button"
               accessibilityLabel="Empower this achievement"
             >
-              <Gift color={Colors.white} size={16} />
+              <Gift color={colors.white} size={16} />
               <Text style={styles.empowerButtonText}>Empower</Text>
             </TouchableOpacity>
           )}
@@ -409,7 +420,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
               accessibilityRole="button"
               accessibilityLabel="Empower this achievement"
             >
-              <Gift color={Colors.white} size={16} />
+              <Gift color={colors.white} size={16} />
               <Text style={styles.empowerButtonText}>Empower</Text>
             </TouchableOpacity>
           )}
@@ -492,7 +503,8 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
       <Image
         source={{ uri: experienceImage }}
         style={styles.experienceImage}
-        resizeMode="cover"
+        contentFit="cover"
+        cachePolicy="memory-disk"
         accessibilityLabel={`${experience.title} experience`}
       />
       <View style={styles.experienceContent}>
@@ -511,6 +523,8 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
 };
 
 const FriendProfileScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
   const route = useRoute<FriendProfileRouteProp>();
   const { state } = useApp();
@@ -662,14 +676,13 @@ const FriendProfileScreen: React.FC = () => {
           : wishlist;
 
     if (data.length === 0) {
-      const icon = tab === 'goals' ? '🎯' : tab === 'achievements' ? '🏆' : '⭐';
       const title = `No ${tab.charAt(0).toUpperCase() + tab.slice(1)} Yet`;
       const message = tab === 'goals'
         ? 'No active goals at the moment'
         : tab === 'achievements'
           ? 'No achievements earned yet'
           : 'No wishlist items yet';
-      return <EmptyState icon={icon} title={title} message={message} />;
+      return <EmptyState title={title} message={message} />;
     }
 
     return data.map((item, index) => (
@@ -710,8 +723,8 @@ const FriendProfileScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[Colors.primary]}
-            tintColor={Colors.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -726,7 +739,7 @@ const FriendProfileScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <ChevronLeft color={Colors.textPrimary} size={24} />
+            <ChevronLeft color={colors.textPrimary} size={24} />
           </TouchableOpacity>
           <View style={{ width: 40 }} />
         </View>
@@ -764,25 +777,25 @@ const FriendProfileScreen: React.FC = () => {
           <View style={styles.friendButtonContainer}>
             {isFriend ? (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: Colors.errorLight }]}
+                style={[styles.friendButton, { backgroundColor: colors.errorLight }]}
                 onPress={openRemovePopup}
                 disabled={isActionLoading}
                 accessibilityRole="button"
                 accessibilityLabel="Remove friend"
               >
-                <UserMinus color={Colors.errorDark} size={16} />
-                <Text style={[styles.friendButtonText, { color: Colors.errorDark }]}>
+                <UserMinus color={colors.errorDark} size={16} />
+                <Text style={[styles.friendButtonText, { color: colors.errorDark }]}>
                   {isActionLoading ? "Removing..." : "Remove"}
                 </Text>
               </TouchableOpacity>
             ) : hasPendingRequest ? (
-              <View style={[styles.friendButton, { backgroundColor: Colors.warning }]}>
-                <Clock color={Colors.white} size={16} />
+              <View style={[styles.friendButton, { backgroundColor: colors.warning }]}>
+                <Clock color={colors.white} size={16} />
                 <Text style={styles.friendButtonText}>Sent</Text>
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: Colors.secondary }]}
+                style={[styles.friendButton, { backgroundColor: colors.secondary }]}
                 onPress={async () => {
                   setIsActionLoading(true);
                   try {
@@ -806,7 +819,7 @@ const FriendProfileScreen: React.FC = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Add friend"
               >
-                <UserPlus color={Colors.white} size={16} />
+                <UserPlus color={colors.white} size={16} />
                 <Text style={styles.friendButtonText}>
                   {isActionLoading ? "Sending..." : "Add"}
                 </Text>
@@ -932,8 +945,8 @@ const FriendProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
 
   // HEADER
   header: {
@@ -950,14 +963,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   // HERO
   heroSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
@@ -970,26 +983,26 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: BorderRadius.pill,
     borderWidth: 4,
-    borderColor: Colors.backgroundLight,
+    borderColor: colors.backgroundLight,
   },
   placeholderImage: {
     width: 100,
     height: 100,
     borderRadius: BorderRadius.pill,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { ...Typography.display, fontSize: Typography.displayLarge.fontSize, color: Colors.white },
+  placeholderText: { ...Typography.display, fontSize: Typography.displayLarge.fontSize, color: colors.white },
   userName: {
     ...Typography.heading1,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
     marginTop: Spacing.md,
   },
   userDescription: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.xxl,
     paddingHorizontal: Spacing.lg,
@@ -998,8 +1011,8 @@ const styles = StyleSheet.create({
   // STATS
   statsRow: { flexDirection: 'row', gap: 32, marginBottom: Spacing.xl },
   statItem: { alignItems: 'center' },
-  statNumber: { ...Typography.heading1, color: Colors.secondary, marginBottom: Spacing.xs },
-  statLabel: { ...Typography.caption, fontWeight: '500', color: Colors.textSecondary },
+  statNumber: { ...Typography.heading1, color: colors.secondary, marginBottom: Spacing.xs },
+  statLabel: { ...Typography.caption, fontWeight: '500', color: colors.textSecondary },
 
   // Friend buttons
   friendButtonContainer: { flexDirection: 'row', justifyContent: 'center' },
@@ -1011,7 +1024,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
   },
-  friendButtonText: { ...Typography.smallBold, color: Colors.white },
+  friendButtonText: { ...Typography.smallBold, color: colors.white },
 
   // TABS
   tabsContainer: {
@@ -1024,74 +1037,74 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
   },
-  tabButtonActive: { backgroundColor: Colors.secondary },
-  tabText: { ...Typography.smallBold, color: Colors.textSecondary },
-  tabTextActive: { color: Colors.white },
+  tabButtonActive: { backgroundColor: colors.secondary },
+  tabText: { ...Typography.smallBold, color: colors.textSecondary },
+  tabTextActive: { color: colors.white },
 
   // NEW GOAL CARD STYLES (copied from user profile)
   goalCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     ...Shadows.sm,
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
   },
-  goalTitle: { ...Typography.heading3, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  goalMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: Spacing.xs },
+  goalTitle: { ...Typography.heading3, color: colors.textPrimary, marginBottom: Spacing.xs },
+  goalMeta: { ...Typography.small, color: colors.textSecondary, marginTop: Spacing.xs },
 
   progressHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: Spacing.xs,
   },
-  progressHeaderLabel: { ...Typography.caption, color: Colors.textSecondary },
-  progressHeaderValue: { ...Typography.caption, fontWeight: "600", color: Colors.textPrimary },
+  progressHeaderLabel: { ...Typography.caption, color: colors.textSecondary },
+  progressHeaderValue: { ...Typography.caption, fontWeight: "600", color: colors.textPrimary },
 
   // Wishlist card
   experienceCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     overflow: 'hidden',
     ...Shadows.sm,
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
   },
-  experienceImage: { width: '100%', height: vh(140), backgroundColor: Colors.border },
+  experienceImage: { width: '100%', height: vh(140), backgroundColor: colors.border },
   experienceContent: { padding: Spacing.lg },
-  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xs },
+  experienceTitle: { ...Typography.subheading, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs },
   experienceDescription: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
-  experiencePrice: { ...Typography.heading3, color: Colors.secondary },
+  experiencePrice: { ...Typography.heading3, color: colors.secondary },
 
   emptyStateText: {
     ...Typography.subheading,
     textAlign: 'center',
     marginTop: Spacing.huge,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   // ACHIEVEMENT CARD (copied from UserProfileScreen)
   achievementCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     overflow: "hidden",
     ...Shadows.sm,
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
   },
   achievementImage: {
     width: "100%",
     height: vh(140),
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   achievementImagePlaceholder: {
     justifyContent: "center",
@@ -1106,27 +1119,27 @@ const styles = StyleSheet.create({
   },
   achievementLoadingText: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   achievementTitle: {
     ...Typography.subheading,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   achievementPartner: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   achievementGoal: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   achievementMeta: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Action buttons (Empower/Motivate on GoalCard)
@@ -1136,13 +1149,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
   },
   empowerActionButtonText: {
     ...Typography.smallBold,
-    color: Colors.white,
+    color: colors.white,
   },
   motivateActionButton: {
     flex: 1,
@@ -1150,15 +1163,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderColor: colors.primaryBorder,
   },
   motivateActionButtonText: {
     ...Typography.smallBold,
-    color: Colors.primary,
+    color: colors.primary,
   },
 
   // Self-achievement banner (AchievementCard)
@@ -1166,21 +1179,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.primarySurface,
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryBorder,
+    borderBottomColor: colors.primaryBorder,
   },
   achSelfLabel: {
     ...Typography.tiny,
-    color: Colors.primary,
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   achSelfTitle: {
     ...Typography.subheading,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginTop: Spacing.xxs,
   },
 
@@ -1193,16 +1206,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
   },
   empowerButtonText: {
     ...Typography.smallBold,
-    color: Colors.white,
+    color: colors.white,
   },
 
   // Loading fallback
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { ...Typography.subheading, marginTop: Spacing.md, color: Colors.textSecondary },
+  loadingText: { ...Typography.subheading, marginTop: Spacing.md, color: colors.textSecondary },
 
   // Popup overlay
   modalOverlay: {
@@ -1211,17 +1224,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xxl,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     zIndex: 999,
   },
   modalBox: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     width: '85%',
     maxWidth: 360,
     paddingVertical: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
-    shadowColor: Colors.textPrimary,
+    shadowColor: colors.textPrimary,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 38,
@@ -1229,12 +1242,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...Typography.large,
-    color: Colors.primaryDeeper,
+    color: colors.primaryDeeper,
     marginBottom: Spacing.sm,
   },
   modalSubtitle: {
     ...Typography.body,
-    color: Colors.gray700,
+    color: colors.gray700,
     textAlign: 'center',
     marginBottom: Spacing.xl,
   },
@@ -1251,30 +1264,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButtonPopup: {
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   confirmButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   cancelText: {
     ...Typography.bodyBold,
-    color: Colors.gray700,
+    color: colors.gray700,
   },
   confirmText: {
     ...Typography.bodyBold,
-    color: Colors.white,
+    color: colors.white,
   },
 });
 
-const historyModalStyles = StyleSheet.create({
+const createHistoryModalStyles = (colors: typeof Colors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     maxWidth: 500,
     width: '90%',
@@ -1289,15 +1302,15 @@ const historyModalStyles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     ...Typography.large,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   closeButton: {
     ...Typography.display,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '300',
   },
   scrollView: {
@@ -1307,10 +1320,10 @@ const historyModalStyles = StyleSheet.create({
   hintItem: {
     marginBottom: Spacing.xl,
     padding: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   hintHeader: {
     flexDirection: 'row',
@@ -1319,38 +1332,38 @@ const historyModalStyles = StyleSheet.create({
   },
   sessionLabel: {
     ...Typography.smallBold,
-    color: Colors.primary,
+    color: colors.primary,
   },
   dateLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   hintImage: {
     width: '100%',
     height: vh(150),
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.sm,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   hintText: {
     ...Typography.body,
-    color: Colors.gray700,
+    color: colors.gray700,
     marginBottom: Spacing.sm,
   },
   audioContainer: {
     marginTop: Spacing.sm,
     padding: Spacing.md,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
     borderRadius: BorderRadius.sm,
   },
   audioText: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   emptyText: {
     ...Typography.body,
     textAlign: 'center',
-    color: Colors.textMuted,
+    color: colors.textMuted,
     paddingVertical: Spacing.huge,
   },
 });

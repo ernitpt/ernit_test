@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import Colors from '../config/colors';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -30,12 +30,15 @@ interface SharedHeaderProps {
     unreadNotificationCount?: number;
 }
 
+type HeaderStyles = ReturnType<typeof createStyles>;
+
 const ActionButton: React.FC<{
     onPress: () => void;
     icon: React.ReactNode;
     badge?: number;
     accessibilityLabel?: string;
-}> = ({ onPress, icon, badge, accessibilityLabel }) => {
+    styles: HeaderStyles;
+}> = ({ onPress, icon, badge, accessibilityLabel, styles }) => {
     const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
     const handlePress = () => {
@@ -87,6 +90,9 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     onBackPress,
     unreadNotificationCount,
 }) => {
+    const colors = useColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const navigation = useRootNavigation();
     const route = useRoute();
     const { state, dispatch } = useApp();
@@ -175,7 +181,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             accessibilityLabel="Go back"
                             accessibilityRole="button"
                         >
-                            <ChevronLeft color={Colors.textPrimary} size={24} strokeWidth={2} />
+                            <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2} />
                         </TouchableOpacity>
                     )}
                     <View style={styles.headerTextContainer}>
@@ -196,7 +202,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                                 ]}
                             >
                                 <Bug
-                                    color={state.debugMode ? Colors.white : Colors.textMuted}
+                                    color={state.debugMode ? colors.white : colors.textMuted}
                                     size={18}
                                     strokeWidth={2}
                                 />
@@ -212,17 +218,19 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                     {shouldShowCart && (
                         <ActionButton
                             onPress={handleCartPress}
-                            icon={<ShoppingCart color={Colors.textSecondary} size={22} strokeWidth={1.8} />}
+                            icon={<ShoppingCart color={colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={cartItemCount}
                             accessibilityLabel="Shopping cart"
+                            styles={styles}
                         />
                     )}
                     {shouldShowNotifications && (
                         <ActionButton
                             onPress={handleNotificationsPress}
-                            icon={<Bell color={Colors.textSecondary} size={22} strokeWidth={1.8} />}
+                            icon={<Bell color={colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={unreadCount}
                             accessibilityLabel="Notifications"
+                            styles={styles}
                         />
                     )}
                 </View>
@@ -232,104 +240,105 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    headerWrapper: {
-        zIndex: 100,
-        backgroundColor: Colors.white,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.xl,
-        paddingTop: Spacing.lg,
-        paddingBottom: Spacing.md,
-    },
-    separator: {
-        height: 1,
-        backgroundColor: Colors.border,
-        marginHorizontal: Spacing.xl,
-    },
-    headerLeft: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: Spacing.md,
-    },
-    backButton: {
-        width: 44,
-        height: 44,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: Spacing.sm,
-    },
-    headerTextContainer: {
-        flex: 1,
-    },
-    headerTitle: {
-        ...Typography.heading2,
-        color: Colors.textPrimary,
-        letterSpacing: -0.3,
-    },
-    headerSubtitle: {
-        ...Typography.caption,
-        color: Colors.textMuted,
-        marginTop: Spacing.xxs,
-    },
-    headerButtons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.lg,
-    },
-    actionButton: {
-        position: 'relative',
-        padding: Spacing.xs,
-    },
-    badge: {
-        position: 'absolute',
-        top: -2,
-        right: -4,
-        backgroundColor: Colors.error,
-        borderRadius: 9,
-        minWidth: 18,
-        height: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 3,
-        borderWidth: 2,
-        borderColor: Colors.white,
-    },
-    badgeText: {
-        color: Colors.white,
-        ...Typography.micro,
-    },
-    debugToggleWrapper: {
-        alignItems: 'center',
-    },
-    debugButton: {
-        width: 32,
-        height: 32,
-        borderRadius: BorderRadius.md,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    debugActiveBackground: {
-        backgroundColor: Colors.error,
-    },
-    timeOffsetBadge: {
-        position: 'absolute',
-        top: 36,
-        backgroundColor: Colors.error,
-        paddingHorizontal: Spacing.xs,
-        paddingVertical: Spacing.xxs,
-        borderRadius: BorderRadius.xs,
-        minWidth: 80,
-        alignItems: 'center',
-    },
-    timeOffsetText: {
-        color: Colors.white,
-        ...Typography.micro,
-    },
-});
+const createStyles = (colors: typeof Colors) =>
+    StyleSheet.create({
+        headerWrapper: {
+            zIndex: 100,
+            backgroundColor: colors.white,
+        },
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: Spacing.xl,
+            paddingTop: Spacing.lg,
+            paddingBottom: Spacing.md,
+        },
+        separator: {
+            height: 1,
+            backgroundColor: colors.border,
+            marginHorizontal: Spacing.xl,
+        },
+        headerLeft: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginRight: Spacing.md,
+        },
+        backButton: {
+            width: 44,
+            height: 44,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: Spacing.sm,
+        },
+        headerTextContainer: {
+            flex: 1,
+        },
+        headerTitle: {
+            ...Typography.heading2,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
+        },
+        headerSubtitle: {
+            ...Typography.caption,
+            color: colors.textMuted,
+            marginTop: Spacing.xxs,
+        },
+        headerButtons: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: Spacing.lg,
+        },
+        actionButton: {
+            position: 'relative',
+            padding: Spacing.xs,
+        },
+        badge: {
+            position: 'absolute',
+            top: -2,
+            right: -4,
+            backgroundColor: colors.error,
+            borderRadius: 9,
+            minWidth: 18,
+            height: 18,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 3,
+            borderWidth: 2,
+            borderColor: colors.white,
+        },
+        badgeText: {
+            color: colors.white,
+            ...Typography.micro,
+        },
+        debugToggleWrapper: {
+            alignItems: 'center',
+        },
+        debugButton: {
+            width: 32,
+            height: 32,
+            borderRadius: BorderRadius.md,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        debugActiveBackground: {
+            backgroundColor: colors.error,
+        },
+        timeOffsetBadge: {
+            position: 'absolute',
+            top: 36,
+            backgroundColor: colors.error,
+            paddingHorizontal: Spacing.xs,
+            paddingVertical: Spacing.xxs,
+            borderRadius: BorderRadius.xs,
+            minWidth: 80,
+            alignItems: 'center',
+        },
+        timeOffsetText: {
+            color: colors.white,
+            ...Typography.micro,
+        },
+    });
 
 export default SharedHeader;

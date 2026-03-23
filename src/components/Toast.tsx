@@ -1,51 +1,53 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react-native';
 import { useToast, ToastMessage } from '../context/ToastContext';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Shadows } from '../config/shadows';
 import { Spacing } from '../config/spacing';
 
-const TOAST_CONFIG = {
+const getToastConfig = (colors: typeof Colors) => ({
   success: {
-    bg: Colors.successLighter,
-    border: Colors.primaryBorder,
-    text: Colors.primaryDeep,
+    bg: colors.successLighter,
+    border: colors.primaryBorder,
+    text: colors.primaryDeep,
     Icon: CheckCircle,
-    iconColor: Colors.primary,
+    iconColor: colors.primary,
   },
   error: {
-    bg: Colors.errorLight,
-    border: Colors.errorBorder,
-    text: Colors.errorDark,
+    bg: colors.errorLight,
+    border: colors.errorBorder,
+    text: colors.errorDark,
     Icon: AlertCircle,
-    iconColor: Colors.error,
+    iconColor: colors.error,
   },
   info: {
-    bg: Colors.infoLight,
-    border: Colors.info,
-    text: Colors.infoDark,
+    bg: colors.infoLight,
+    border: colors.info,
+    text: colors.infoDark,
     Icon: Info,
-    iconColor: Colors.info,
+    iconColor: colors.info,
   },
   warning: {
-    bg: Colors.warningLighter,
-    border: Colors.warningBorder,
-    text: Colors.warningDark,
+    bg: colors.warningLighter,
+    border: colors.warningBorder,
+    text: colors.warningDark,
     Icon: AlertTriangle,
-    iconColor: Colors.warning,
+    iconColor: colors.warning,
   },
-} as const;
+} as const);
 
 const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({
   toast,
   onDismiss,
 }) => {
-  const config = TOAST_CONFIG[toast.type];
+  const colors = useColors();
+  const toastConfig = useMemo(() => getToastConfig(colors), [colors]);
+  const config = toastConfig[toast.type];
   const IconComponent = config.Icon;
 
   useEffect(() => {

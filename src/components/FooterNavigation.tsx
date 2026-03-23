@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../types';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Spacing } from '../config/spacing';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -49,6 +49,9 @@ const NavButton = React.memo<{
   onPress: () => void;
   badgeCount?: number;
 }>(({ icon: Icon, activeIcon: IconActive, label, isActive, onPress, badgeCount }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
   // Always start glow at 0 so the entrance animation plays on every mount
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -92,7 +95,7 @@ const NavButton = React.memo<{
 
   const labelColor = labelColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [Colors.textMuted, Colors.primary],
+    outputRange: [colors.textMuted, colors.primary],
   });
 
   const glowOpacity = glowAnim.interpolate({
@@ -130,7 +133,7 @@ const NavButton = React.memo<{
               {
                 opacity: glowOpacity,
                 transform: [{ scale: glowScale }],
-                backgroundColor: Colors.secondary,
+                backgroundColor: colors.secondary,
               },
             ]}
           />
@@ -165,6 +168,9 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   onMenuPress,
   notificationBadgeCount,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const navigation = useRootNavigation();
   const insets = useSafeAreaInsets();
   const { requireAuth } = useAuthGuard();
@@ -242,7 +248,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
       </View>
 
       {safeAreaSpacer > 0 && (
-        <View style={{ height: safeAreaSpacer, backgroundColor: Colors.white }} />
+        <View style={{ height: safeAreaSpacer, backgroundColor: colors.white }} />
       )}
     </View>
   );
@@ -250,93 +256,94 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  outerWrapper: {
-    backgroundColor: Colors.white,
-  },
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    outerWrapper: {
+      backgroundColor: colors.white,
+    },
 
-  container: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    ...Platform.select({
-      ios: {
-        shadowColor: Colors.black,
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
+    container: {
+      backgroundColor: colors.white,
+      borderTopLeftRadius: BorderRadius.xl,
+      borderTopRightRadius: BorderRadius.xl,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.black,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
 
-  navContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    flex: 1,
-  },
+    navContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      flex: 1,
+    },
 
-  navButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    navButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  navButtonContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xs,
-  },
+    navButtonContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: Spacing.xs,
+    },
 
-  iconWrapper: {
-    overflow: 'visible',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-  },
+    iconWrapper: {
+      overflow: 'visible',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 36,
+      height: 36,
+    },
 
-  iconGlow: {
-    position: 'absolute',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    ...(Platform.OS === 'web'
-      ? { filter: 'blur(6px)' }
-      : {}),
-  },
+    iconGlow: {
+      position: 'absolute',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      ...(Platform.OS === 'web'
+        ? { filter: 'blur(6px)' }
+        : {}),
+    },
 
-  navLabel: {
-    ...Typography.tiny,
-    marginTop: Spacing.xxs,
-    letterSpacing: 0.1,
-  },
+    navLabel: {
+      ...Typography.tiny,
+      marginTop: Spacing.xxs,
+      letterSpacing: 0.1,
+    },
 
-  badge: {
-    position: 'absolute',
-    top: 2,
-    right: 6,
-    minWidth: 18,
-    height: 18,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.error,
-    paddingHorizontal: Spacing.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.white,
-  },
+    badge: {
+      position: 'absolute',
+      top: 2,
+      right: 6,
+      minWidth: 18,
+      height: 18,
+      borderRadius: BorderRadius.circle,
+      backgroundColor: colors.error,
+      paddingHorizontal: Spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.white,
+    },
 
-  badgeText: {
-    color: Colors.white,
-    ...Typography.micro,
-  },
-});
+    badgeText: {
+      color: colors.white,
+      ...Typography.micro,
+    },
+  });
 
 export default FooterNavigation;

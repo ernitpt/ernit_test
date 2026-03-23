@@ -22,6 +22,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - items 1-4 complete — error states on 7 screens, input validation with sanitizeText on all Firestore writes, Firestore offline persistence enabled, network-aware error messages, navigation to PurchasedGifts on payment poll failure, skeleton timeout on GoalsScreen
 - add rate limiting to createFreeGift, createDeferredGift, and stripeCreatePaymentIntent cloud functions
 - accessibility — accessibilityLiveRegion on GoalsScreen/FeedScreen/NotificationsScreen loading transitions, labels on ProgressBars/StreakBanner/WeeklyCalendar, PWA offline fallback page + service worker cache
+- added deleteGoal and deleteGoal_Test Cloud Functions with archival, subcollection cleanup, gift cancellation, and shared goal handling
+- add 3-dot menu to goal cards with Remove Goal option (Cloud Function + soft-delete + archive)
+- show attached experience badge on goal cards (hidden name for mystery gifts)
+- add revealed/secret choice step to experience purchase flow from cart
+- add haptic feedback to CompletionScreen, ExperienceCheckoutScreen, CartScreen, GiftFlowScreen, NotificationsScreen
+- add accessibility props to FeedScreen FlatList, CompactReactionBar reaction buttons
+- migrate CTA buttons to Button component in AuthScreen, GiftFlowScreen, ChallengeSetupScreen, NotificationsScreen, AddFriendScreen, JourneyScreen
+- add B2B Firestore service layer (KPI, Company, Employee, Experience, Goal services)
+- add KPI list, KPI create wizard, employee list, invite employee, and experience browser pages for admin panel
+- add EmployeeNav, employee layout, my-goals, goal-detail, rewards, feed, profile pages + admin kpi detail, feed, billing, analytics, settings pages for ErnitB2B
+- split Together flow step 2 into sliders (step 2) and clock-dial session time (step 3), shifting all subsequent Together steps by +1
+- split Together gift flow session duration into dedicated clock dial step matching self challenge flow
+- added pay later / free payment choice on step 6 of ChallengeSetupScreen
+- add commit & pay later option to self challenge flow
+- add pay-on-completion routing to ExperienceCheckout on goal completion
+- Phase 1 flow redesign - fitness-first goal types, equal fork reward step, pay-on-completion routing, 75% CTA trigger
+- Phase 2 giver flow redesign - solo mandatory experience, secret-default reveal, reordered steps (reveal before payment), together equal fork
+- add ExperienceDetailModal with image carousel, animated chips, and select CTA for browse picker in both self and giver flows
+- add 'Need help choosing?' section for solo giver flow and fitness-first categories for recipient goal setting
+- add Goal Type selection step to Together flow in GiftFlowScreen
+- Phase 2 - add goal type step to Together flow, 'Need help choosing?' for solo giver, fitness-first categories for recipient
+- add DiscoveryQuizModal component for post-session preference quiz
+- add DiscoveryService for experience matching in the Discovery Engine
+- added ExperienceRevealModal with multi-stage celebratory reveal animation at 75% goal completion
+- Phase 4 Discovery Engine - quiz modal, experience matching service, reveal modal, DetailedGoalCard integration
+- migrate core UI components to dark mode using useColors + createStyles pattern
+- 4C hint system supports discoveredExperience and pledgedExperience fallbacks in aiGenerateHint Cloud Function + client-side hint trigger
+- migrate ChallengeSetupScreen and recipient/components to dark-mode-aware useColors pattern
+- added LocationService with GPS venue proximity check (Haversine, expo-location, web fallback)
+- add VenueSelectionModal for gym/studio selection on first session start
+- Phase 3 - VenueSelectionModal (Google Places), LocationService (GPS verification), DetailedGoalCard integration (venue prompt on first session, proximity check)
+- migrate screens and icon components to dark mode theming via useColors
+- migrate all remaining components and screens to dark mode useColors/createStyles pattern
+- dark mode — full implementation with DarkColors palette, AsyncStorage persistence, useColors hook, and 95+ file migration
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -184,6 +218,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - final verification complete — all critical paths verified (Firestore rules, services, E2E flows, test infrastructure, new files), 13/17 deferred MEDIUMs confirmed fixed, 4 remaining are LOW severity and documented for post-launch
 - add unit tests for GoalSessionService tick logic, CartService.mergeCarts, and normalizeGoal edge cases
 - 103 new tests — GoalSessionService tick/sweep/completion logic (73), CartService.mergeCarts (19), normalizeGoal Timestamp+field edge cases (11). Total: 304 tests across 10 suites
+- migrated 7 screens from RN Image to expo-image with memory-disk caching (FriendProfile, Journey, Completion, AchievementDetail, FeedPostContent, GoalProgressNotification, CartScreen)
+- remove emojis from empty states on profile screens
+- center empty goals state on profile with new copy and CTA
+- center empty state on goals screen when no active goals
+- match MysteryChoiceScreen to GiftFlowScreen reveal step design
+- replace hardcoded rgba, fontSize, and spacing values with design tokens across ChallengeLandingScreen, DetailedGoalCard, ChallengeSetupScreen, GiftFlowScreen, GoalSettingScreen, and UserProfileScreen
+- migrate commonStyles, SharedHeader, FooterNavigation, SkeletonLoader, SideMenu, Toast to dark mode useColors+createStyles pattern
+- migrate 8 screens to useColors dark mode pattern
+- migrated dark mode useColors pattern to gift flow, giver screens, and Phase 6 components
+- migrate 6 components to dark mode (EmpowerChoiceModal, ExperienceRevealModal, GoalApprovalNotification, GoalChangeSuggestionNotification, FriendRequestNotification, ReactionViewerModal)
+- lighten dark mode surfaces — less cave-like, better contrast for category options and cards
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -430,6 +475,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - rate limits added to createFreeGift (10/hr), createDeferredGift (10/hr), stripeCreatePaymentIntent (20/hr) — all PROD+Test
 - email XSS — giverName+experienceTitle HTML-escaped, unsubscribe footer added, buildGiftEmailHtml extracted to shared utility, TimerContext prunes stale entries older than 24h
 - add accessibilityLiveRegion to loading transitions, accessibility labels to ProgressBars/StreakBanner/WeeklyCalendar, and offline PWA fallback page
+- last 4 MEDIUMs — PurchasedGifts expired status styling, AuthScreen maxLength on all inputs (254/128/128/50), ExperienceCheckoutScreen retry already present, GoalSettingScreen experience fetch retry
+- landing flow bugs — toggle mid-animation cancelled (C1), carousel resets on mode change (H4), SCA 3D Secure redirect recovers gift context via AsyncStorage (C2), DeferredSetup redirects to public route (H2), corrupted pending flow JSON shows toast + cleans up (H1), PayLater+category-only blocked at payment step (M1), step index clamped on payment change (M3), success toast on challenge creation (M4)
+- GiftFlow auth redirect field name mismatch — weeks/hours/minutes now correctly restored (was reading durationWeeks/targetHours/targetMinutes which didn't exist in storage), DeferredSetup clears SCA key on validation error, ConfirmationScreen verifies gift exists before consuming SCA key, removed dead state.user.name reference
+- goal creation navigation broken on web — goal params contained Date objects which React Navigation can't serialize on web. Added serializeNav() to all Journey navigation params in ChallengeSetupScreen and GoalSettingScreen
+- duplicate goal creation — beforeRemove listener was blocking navigation after goal created (user stayed on modal, could tap again). Added goalCreatedRef to bypass navigation guard + submittingRef for synchronous double-tap prevention + permanent lock after creation
+- feed screen not scrollable due to missing flex on wrapper view
+- debug time controls now work on deployed test environments (was checking __DEV__ instead of debugEnabled)
+- GoalSettingScreen — beforeRemove guard bypassed after goal creation (was blocking navigation to Journey), experience title hidden in review step for secret/mystery mode gifts
+- improve gift polling resilience — accept partial results, add debug logging
+- gift polling cancelled prematurely by useEffect cleanup — now navigates to confirmation screen
+- hide experience name on goal card badge when gift is in mystery mode
+- AI hints not generating after first session — missing userId param in hint generation and wrong args in hint retrieval
+- Firestore rules — allow get on unclaimed gifts for claim transaction
+- guard motivation/empower/hint buttons against completed goals, self-goals, and stale notifications
+- add screenName, userAgent, environment to analytics events Firestore rules allowlist
+- guard motivation/empower/hint buttons against completed goals, self-goals, and stale notifications
+- break circular import in Cloud Functions and fix noEmit preventing new function compilation
+- replace ActivityIndicator with SkeletonBox in ClaimExperienceModal, use vh() in CommentModal, guard AnimationPreviewScreen behind debugEnabled
+- replace deprecated fetchSignInMethodsForEmail with try/catch probe in AuthScreen
+- replace local sanitizeInput with shared sanitizeText/sanitizeEmail in AuthScreen
+- sanitize search query in AddFriendScreen before service call
+- sanitize coupon code input in CouponEntryScreen before submission
+- Phase 1 CLAUDE.md compliance — skeleton loaders, design tokens, Button migration, sanitization, haptics, accessibility, deprecated API fixes
+- rename Firestore B2B database ID from ernitxFI to ernitxfi (all lowercase) across firebase.json, all b2b Cloud Functions, ErnitB2B config, and documentation
+- giver payment flow - swap default to Lock it in (pay now), remove free option, add payNow checkout routing
+- ExperienceRevealModal progressPct prop, animation guard on null experience, stop-before-close; DetailedGoalCard stores matchExperience result in state, removes dead comment blocks, passes progressPct to reveal modal
+- Phase 4 audit fixes - import paths, animation lifecycle, stale state, dead code removal
+- Phase 3 audit fixes - animateClose callback race, Google Places types param, Place Details error feedback, stale closure on venue resume
+- LocationService dynamic import (prevents bundle crash without expo-location), stale handleStart closure in venue resume effect
+- quiz phase threshold now uses max(15%, 5 sessions) to ensure enough quiz events for short goals
+- audit round 5 - unmount guard on partner fetch, completion reveals discovered experience before navigating, payNow passes cartItems format to ExperienceCheckout
+- complete dark mode migration for ChallengeLandingScreen, SideMenu, and MysteryChoiceScreen — replace static Colors.xxx module-level references with theme-reactive colors
+- dark mode audit — migrated 6 missed components, fixed runtime crash, resolved static color refs in ChallengeLandingScreen/SideMenu/MysteryChoiceScreen, improved textMuted contrast for WCAG AA
+- GiftFlowScreen TYPE_OPTIONS/REVEAL_OPTIONS used colors at module scope causing runtime crash
+- carousel labels unreadable in dark mode — use theme-invariant textOnImage/overlayOnImage tokens
 
 ### Added
 - Automatic changelog system with `npm run log` script

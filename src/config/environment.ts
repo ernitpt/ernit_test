@@ -44,6 +44,11 @@ interface EnvironmentConfig {
         createDeferredGift: string;
     };
 
+    // Goal function names
+    goalFunctions: {
+        deleteGoal: string;
+    };
+
     // Debug settings
     debugEnabled: boolean;
 }
@@ -70,6 +75,9 @@ const configs: Record<Environment, EnvironmentConfig> = {
             createFreeGift: 'createFreeGift_Test',
             createDeferredGift: 'createDeferredGift_Test',
         },
+        goalFunctions: {
+            deleteGoal: 'deleteGoal_Test',
+        },
         debugEnabled: true,
     },
     production: {
@@ -85,6 +93,9 @@ const configs: Record<Environment, EnvironmentConfig> = {
         giftFunctions: {
             createFreeGift: 'createFreeGift',
             createDeferredGift: 'createDeferredGift',
+        },
+        goalFunctions: {
+            deleteGoal: 'deleteGoal',
         },
         debugEnabled: false,
     },

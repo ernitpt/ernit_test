@@ -1,5 +1,5 @@
 // components/HintPopup.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Animated, Pressable, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import type { GestureEvent, HandlerStateChangeEvent } from 'react-native-gesture-handler';
@@ -7,10 +7,10 @@ import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler
 import ConfettiCannon from 'react-native-confetti-cannon';
 import type { Explosion as ConfettiCannonType } from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
-import { commonStyles } from '../styles/commonStyles';
+import { createCommonStyles } from '../styles/commonStyles';
 import AudioPlayer from './AudioPlayer';
 import { BaseModal } from './BaseModal';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -29,6 +29,10 @@ interface Props {
 }
 
 const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSessions, onClose, isFirstHint = false, additionalMessage }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+
   const confettiRef = useRef<ConfettiCannonType>(null);
   const [isRevealed, setIsRevealed] = useState(false);
 
@@ -391,159 +395,160 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: BorderRadius.xxl,
-    padding: Spacing.xxl,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    shadowColor: Colors.black,
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.primarySurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-    borderWidth: 4,
-    borderColor: Colors.primaryTint,
-  },
-  h1: {
-    ...Typography.heading2,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  subHeader: {
-    ...Typography.small,
-    fontWeight: '500',
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
-  },
-  instructionText: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  hintOuterContainer: {
-    width: '100%',
-    marginBottom: Spacing.xxl,
-  },
-  hintContainer: {
-    width: '100%',
-    maxHeight: 400,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    position: 'relative',
-  },
-  hintContent: {
-    padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  hint: {
-    ...Typography.subheading,
-    lineHeight: 24,
-    color: Colors.gray700,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-  },
-  hintImage: {
-    width: '100%',
-    height: vh(200),
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    backgroundColor: Colors.backgroundLight,
-  },
-  audioContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  signatureContainer: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    width: '100%',
-    alignItems: 'flex-end',
-  },
-  signatureText: {
-    ...Typography.small,
-    fontWeight: '500',
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  blurOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // @ts-ignore - backdropFilter works on web
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)', // Safari support
-  },
-  blurLayer1: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.whiteAlpha40,
-  },
-  blurLayer2: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(240, 242, 245, 0.3)',
-  },
-  blurLayer3: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(250, 251, 252, 0.2)',
-  },
-  btn: {
-    width: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  btnText: {
-    color: Colors.white,
-    fontWeight: '700',
-    ...Typography.subheading,
-    letterSpacing: 0.5,
-  },
-  firstHintMessageContainer: {
-    width: '100%',
-    backgroundColor: Colors.primarySurface,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.primaryTint,
-  },
-  firstHintMessage: {
-    ...Typography.small,
-    fontWeight: '600',
-    color: Colors.primary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    card: {
+      width: '100%',
+      maxWidth: 340,
+      borderRadius: BorderRadius.xxl,
+      padding: Spacing.xxl,
+      backgroundColor: colors.white,
+      alignItems: 'center',
+      shadowColor: colors.black,
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 10,
+    },
+    iconContainer: {
+      width: 64,
+      height: 64,
+      borderRadius: BorderRadius.circle,
+      backgroundColor: colors.primarySurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.lg,
+      borderWidth: 4,
+      borderColor: colors.primaryTint,
+    },
+    h1: {
+      ...Typography.heading2,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: Spacing.sm,
+      textAlign: 'center',
+    },
+    subHeader: {
+      ...Typography.small,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginBottom: Spacing.xl,
+      textAlign: 'center',
+    },
+    instructionText: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.primary,
+      marginTop: Spacing.sm,
+      marginBottom: Spacing.md,
+      textAlign: 'center',
+    },
+    hintOuterContainer: {
+      width: '100%',
+      marginBottom: Spacing.xxl,
+    },
+    hintContainer: {
+      width: '100%',
+      maxHeight: 400,
+      backgroundColor: colors.surface,
+      borderRadius: BorderRadius.lg,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      position: 'relative',
+    },
+    hintContent: {
+      padding: Spacing.lg,
+      alignItems: 'center',
+    },
+    hint: {
+      ...Typography.subheading,
+      lineHeight: 24,
+      color: colors.gray700,
+      textAlign: 'center',
+      marginBottom: Spacing.xs,
+    },
+    hintImage: {
+      width: '100%',
+      height: vh(200),
+      borderRadius: BorderRadius.md,
+      marginBottom: Spacing.md,
+      backgroundColor: colors.backgroundLight,
+    },
+    audioContainer: {
+      width: '100%',
+      alignItems: 'center',
+    },
+    signatureContainer: {
+      marginTop: Spacing.lg,
+      paddingTop: Spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      width: '100%',
+      alignItems: 'flex-end',
+    },
+    signatureText: {
+      ...Typography.small,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    blurOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      alignItems: 'center',
+      // @ts-ignore - backdropFilter works on web
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)', // Safari support
+    },
+    blurLayer1: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.whiteAlpha40,
+    },
+    blurLayer2: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(240, 242, 245, 0.3)',
+    },
+    blurLayer3: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(250, 251, 252, 0.2)',
+    },
+    btn: {
+      width: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: BorderRadius.lg,
+      paddingVertical: Spacing.lg,
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
+    btnText: {
+      color: colors.white,
+      fontWeight: '700',
+      ...Typography.subheading,
+      letterSpacing: 0.5,
+    },
+    firstHintMessageContainer: {
+      width: '100%',
+      backgroundColor: colors.primarySurface,
+      borderRadius: BorderRadius.md,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      marginTop: Spacing.lg,
+      marginBottom: Spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.primaryTint,
+    },
+    firstHintMessage: {
+      ...Typography.small,
+      fontWeight: '600',
+      color: colors.primary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+  });
 
 export default HintPopup;

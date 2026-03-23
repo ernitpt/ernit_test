@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,16 @@ import {
   SafeAreaView,
 } from 'react-native';
 import StreakBanner from './recipient/components/StreakBanner';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 const AnimationPreviewScreen = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [sessions, setSessions] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -119,104 +122,105 @@ const AnimationPreviewScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.gray800,
-  },
-  scroll: {
-    padding: Spacing.lg,
-  },
-  title: {
-    ...Typography.heading1,
-    fontWeight: '800',
-    color: Colors.white,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    ...Typography.small,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xl,
-  },
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  sectionHeader: {
-    ...Typography.subheading,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  controlRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-    flexWrap: 'wrap',
-  },
-  navBtn: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.backgroundLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-  },
-  navBtnText: {
-    ...Typography.small,
-    fontWeight: '700',
-    color: Colors.gray800,
-  },
-  playbackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  playBtn: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.backgroundLight,
-  },
-  playBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  playBtnText: {
-    ...Typography.small,
-    fontWeight: '600',
-    color: Colors.gray800,
-  },
-  playBtnTextActive: {
-    color: Colors.white,
-  },
-  speedBtn: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.backgroundLight,
-  },
-  speedBtnActive: {
-    backgroundColor: Colors.primarySurface,
-  },
-  speedBtnText: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  speedBtnTextActive: {
-    color: Colors.primary,
-  },
-  emptyText: {
-    ...Typography.small,
-    color: Colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: Spacing.xl,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.gray800,
+    },
+    scroll: {
+      padding: Spacing.lg,
+    },
+    title: {
+      ...Typography.heading1,
+      fontWeight: '800',
+      color: colors.white,
+      marginBottom: Spacing.xs,
+    },
+    subtitle: {
+      ...Typography.small,
+      color: colors.textMuted,
+      marginBottom: Spacing.xl,
+    },
+    card: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      marginBottom: Spacing.lg,
+    },
+    sectionHeader: {
+      ...Typography.subheading,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: Spacing.md,
+    },
+    controlRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      marginBottom: Spacing.md,
+      flexWrap: 'wrap',
+    },
+    navBtn: {
+      minWidth: 40,
+      height: 40,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.backgroundLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: Spacing.sm,
+    },
+    navBtnText: {
+      ...Typography.small,
+      fontWeight: '700',
+      color: colors.gray800,
+    },
+    playbackRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    playBtn: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.backgroundLight,
+    },
+    playBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    playBtnText: {
+      ...Typography.small,
+      fontWeight: '600',
+      color: colors.gray800,
+    },
+    playBtnTextActive: {
+      color: colors.white,
+    },
+    speedBtn: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: colors.backgroundLight,
+    },
+    speedBtnActive: {
+      backgroundColor: colors.primarySurface,
+    },
+    speedBtnText: {
+      ...Typography.caption,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    speedBtnTextActive: {
+      color: colors.primary,
+    },
+    emptyText: {
+      ...Typography.small,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      paddingVertical: Spacing.xl,
+    },
+  });
 
 export default AnimationPreviewScreen;

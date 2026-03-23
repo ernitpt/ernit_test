@@ -1,6 +1,6 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import { View, Pressable, Animated, ViewStyle, StyleSheet, AccessibilityRole } from 'react-native';
-import { Colors } from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
@@ -25,6 +25,9 @@ export const Card = React.memo<CardProps>(({
   onPress,
   accessibilityLabel,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
@@ -41,7 +44,7 @@ export const Card = React.memo<CardProps>(({
     }).start();
   }, [scale]);
 
-  const variantStyle = getVariantStyle(variant);
+  const variantStyle = getVariantStyle(variant, styles);
   const paddingStyle = noPadding ? null : styles.padding;
 
   if (onPress) {
@@ -75,7 +78,7 @@ export const Card = React.memo<CardProps>(({
 
 Card.displayName = 'Card';
 
-function getVariantStyle(variant: CardVariant): ViewStyle {
+function getVariantStyle(variant: CardVariant, styles: ReturnType<typeof createStyles>): ViewStyle {
   switch (variant) {
     case 'elevated':
       return styles.elevated;
@@ -89,28 +92,29 @@ function getVariantStyle(variant: CardVariant): ViewStyle {
   }
 }
 
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-  },
-  padding: {
-    padding: Spacing.cardPadding,
-  },
-  default: {
-    ...Shadows.sm,
-  },
-  elevated: {
-    ...Shadows.md,
-  },
-  outlined: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  glassmorphism: {
-    backgroundColor: Colors.surfaceFrosted,
-    borderWidth: 1,
-    borderColor: Colors.whiteAlpha40,
-    ...Shadows.sm,
-  },
-});
+const createStyles = (colors: typeof Colors) =>
+  StyleSheet.create({
+    base: {
+      backgroundColor: colors.white,
+      borderRadius: BorderRadius.lg,
+    },
+    padding: {
+      padding: Spacing.cardPadding,
+    },
+    default: {
+      ...Shadows.sm,
+    },
+    elevated: {
+      ...Shadows.md,
+    },
+    outlined: {
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    glassmorphism: {
+      backgroundColor: colors.surfaceFrosted,
+      borderWidth: 1,
+      borderColor: colors.whiteAlpha40,
+      ...Shadows.sm,
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ import { serializeNav } from '../utils/serializeNav';
 import { vh } from '../utils/responsive';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
-import Colors from '../config/colors';
+import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
@@ -47,6 +47,8 @@ import * as Haptics from 'expo-haptics';
 
 
 const GoalsScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { state, dispatch } = useApp();
   const navigation = useRootNavigation();
   const { showError, showInfo } = useToast();
@@ -305,7 +307,7 @@ const GoalsScreen: React.FC = () => {
           title="Current Goals"
           subtitle="Tap goal for more details"
         />
-        <View accessibilityLiveRegion="polite">
+        <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
         {isInitialLoading ? (
           <ScrollView contentContainerStyle={styles.listContainer}>
             <GoalCardSkeleton />
@@ -323,7 +325,7 @@ const GoalsScreen: React.FC = () => {
             <Button
               variant="primary"
               title="Create Your First Goal"
-              icon={<Rocket color={Colors.white} size={18} strokeWidth={2.5} />}
+              icon={<Rocket color={colors.white} size={18} strokeWidth={2.5} />}
               onPress={() => navigation.navigate('ChallengeSetup')}
               style={styles.emptyCTA}
             />
@@ -342,20 +344,21 @@ const GoalsScreen: React.FC = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                colors={[Colors.secondary]}
-                tintColor={Colors.secondary}
+                colors={[colors.secondary]}
+                tintColor={colors.secondary}
               />
             }
             ListHeaderComponent={sessionStreak >= 3 ? (
               <StreakBanner streak={sessionStreak} />
             ) : null}
             ListEmptyComponent={
-              <EmptyState
-                icon="🎯"
-                title="No active goals right now"
-                actionLabel="Start a New Challenge"
-                onAction={() => navigation.navigate('ChallengeSetup')}
-              />
+              <View style={{ flex: 1, justifyContent: 'center', minHeight: vh(50) }}>
+                <EmptyState
+                  title="No active goals right now"
+                  actionLabel="Start a New Challenge"
+                  onAction={() => navigation.navigate('ChallengeSetup')}
+                />
+              </View>
             }
             ListFooterComponent={completedGoals.length > 0 ? (
               <View style={styles.completedSection}>
@@ -370,15 +373,15 @@ const GoalsScreen: React.FC = () => {
                   accessibilityLabel={`${showCompleted ? 'Hide' : 'Show'} ${completedGoals.length} completed goals`}
                 >
                   <View style={styles.completedHeaderLeft}>
-                    <Trophy color={Colors.primary} size={18} strokeWidth={2.5} />
+                    <Trophy color={colors.primary} size={18} strokeWidth={2.5} />
                     <Text style={styles.completedHeaderText}>
                       Completed ({completedGoals.length})
                     </Text>
                   </View>
                   {showCompleted ? (
-                    <ChevronUp color={Colors.textSecondary} size={20} />
+                    <ChevronUp color={colors.textSecondary} size={20} />
                   ) : (
-                    <ChevronDown color={Colors.textSecondary} size={20} />
+                    <ChevronDown color={colors.textSecondary} size={20} />
                   )}
                 </TouchableOpacity>
 
@@ -431,8 +434,8 @@ const GoalsScreen: React.FC = () => {
               accessibilityRole="button"
               accessibilityLabel="Create new goal"
             >
-              <View style={[styles.fabMenuIconBg, { backgroundColor: Colors.primarySurface }]}>
-                <Target color={Colors.primary} size={20} strokeWidth={2.5} />
+              <View style={[styles.fabMenuIconBg, { backgroundColor: colors.primarySurface }]}>
+                <Target color={colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <Text style={styles.fabMenuText}>Create New Goal</Text>
             </TouchableOpacity>
@@ -479,7 +482,7 @@ const GoalsScreen: React.FC = () => {
                 rotate: fabRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }),
               }],
             }}>
-              <Plus color={Colors.white} size={28} strokeWidth={3} />
+              <Plus color={colors.white} size={28} strokeWidth={3} />
             </Animated.View>
           </TouchableOpacity>
         </Animated.View>
@@ -489,10 +492,10 @@ const GoalsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   fabBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.overlayLight,
+    backgroundColor: colors.overlayLight,
     zIndex: 90,
   },
   fabContainer: {
@@ -502,7 +505,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   fab: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     width: 60,
     height: 60,
     borderRadius: BorderRadius.pill,
@@ -512,7 +515,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
   },
   fabOpen: {
-    backgroundColor: Colors.gray700,
+    backgroundColor: colors.gray700,
   },
   fabMenuColumn: {
     position: 'absolute',
@@ -525,7 +528,7 @@ const styles = StyleSheet.create({
   fabMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
@@ -547,7 +550,7 @@ const styles = StyleSheet.create({
   },
   fabMenuText: {
     ...Typography.smallBold,
-    color: Colors.gray800,
+    color: colors.gray800,
   },
   listContainer: {
     padding: Spacing.xl,
@@ -561,17 +564,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.huge,
-    paddingBottom: vh(80),
+    paddingBottom: Spacing.xxl,
   },
   emptyTitle: {
     ...Typography.heading2,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: vh(24),
   },
@@ -583,7 +586,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: colors.border,
   },
   completedHeader: {
     flexDirection: 'row',
@@ -600,7 +603,7 @@ const styles = StyleSheet.create({
   completedHeaderText: {
     ...Typography.subheading,
     fontWeight: '700',
-    color: Colors.gray700,
+    color: colors.gray700,
   },
 });
 

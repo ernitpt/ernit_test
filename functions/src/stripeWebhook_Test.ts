@@ -157,6 +157,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           payment: "paid",
           paymentIntentId,
           claimCode,
+          isMystery: metadata.isMystery === "true",
           expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
           createdAt: admin.firestore.Timestamp.now(),
           updatedAt: admin.firestore.Timestamp.now(),

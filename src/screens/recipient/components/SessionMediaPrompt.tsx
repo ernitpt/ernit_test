@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { BaseModal } from '../../../components/BaseModal';
 import { Camera, ImageIcon } from 'lucide-react-native';
-import Colors from '../../../config/colors';
+import { Colors, useColors } from '../../../config';
 import { vh } from '../../../utils/responsive';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -33,6 +33,8 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
   onSkip,
   onContinue,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const hasMedia = !!capturedMediaUri;
 
   return (
@@ -59,7 +61,7 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
             </View>
           )}
           <TouchableOpacity style={styles.changeButton} onPress={onCamera}>
-            <Camera size={16} color={Colors.white} />
+            <Camera size={16} color={colors.white} />
             <Text style={styles.changeButtonText}>Change</Text>
           </TouchableOpacity>
         </View>
@@ -67,13 +69,13 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
         <View style={styles.captureButtons}>
           <TouchableOpacity style={styles.captureButton} onPress={onCamera} activeOpacity={0.7} accessibilityLabel="Take photo" accessibilityRole="button">
             <View style={styles.captureIconCircle}>
-              <Camera size={24} color={Colors.white} />
+              <Camera size={24} color={colors.white} />
             </View>
             <Text style={styles.captureButtonText}>Camera</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.captureButton} onPress={onGallery} activeOpacity={0.7} accessibilityLabel="Choose from gallery" accessibilityRole="button">
-            <View style={[styles.captureIconCircle, { backgroundColor: Colors.secondary }]}>
-              <ImageIcon size={24} color={Colors.white} />
+            <View style={[styles.captureIconCircle, { backgroundColor: colors.secondary }]}>
+              <ImageIcon size={24} color={colors.white} />
             </View>
             <Text style={styles.captureButtonText}>Gallery</Text>
           </TouchableOpacity>
@@ -102,10 +104,10 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors) => StyleSheet.create({
   subtitle: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.xl,
   },
   captureButtons: {
@@ -122,10 +124,10 @@ const styles = StyleSheet.create({
     width: vh(60),
     height: vh(60),
     borderRadius: BorderRadius.pill,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.black,
+    shadowColor: colors.black,
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
   captureButtonText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.gray700,
+    color: colors.gray700,
   },
   previewContainer: {
     alignItems: 'center',
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: vh(200),
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: colors.backgroundLight,
   },
   previewVideoOverlay: {
     position: 'absolute',
@@ -153,12 +155,12 @@ const styles = StyleSheet.create({
     right: 0,
     height: vh(200),
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.blackAlpha20,
+    backgroundColor: colors.blackAlpha20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   previewVideoIcon: {
-    color: Colors.white,
+    color: colors.white,
     ...Typography.display,
   },
   changeButton: {
@@ -168,26 +170,26 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     borderRadius: BorderRadius.xl,
   },
   changeButtonText: {
     ...Typography.caption,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '600',
   },
   continueButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     alignItems: 'center',
   },
   continueButtonDisabled: {
-    backgroundColor: Colors.textMuted,
+    backgroundColor: colors.textMuted,
   },
   continueButtonText: {
     ...Typography.subheading,
-    color: Colors.white,
+    color: colors.white,
   },
   skipLink: {
     alignItems: 'center',
@@ -198,7 +200,7 @@ const styles = StyleSheet.create({
   },
   skipLinkText: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 });
 
