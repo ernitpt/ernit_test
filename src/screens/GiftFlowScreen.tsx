@@ -56,7 +56,7 @@ import ExperienceDetailModal from '../components/ExperienceDetailModal';
 // ─── Goal type options (Together flow) ───────────────────────────────────────
 const getGoalTypes = (colors: typeof Colors) => [
     { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-    { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info || '#8B5CF6' },
+    { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info },
     { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
     { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
 ];
@@ -2018,7 +2018,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.primarySurface,
     },
     goalTypeEmoji: {
-        fontSize: 42,
+        fontSize: Typography.heroSub.fontSize,
         lineHeight: 52,
     },
     goalTypeName: {

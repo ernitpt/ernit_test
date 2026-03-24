@@ -62,7 +62,7 @@ type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>
 
 const getGoalTypes = (colors: typeof Colors) => [
   { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-  { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: (colors as any).info || '#8B5CF6' },
+  { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info },
   { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
   { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
 ];
@@ -1529,7 +1529,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   goalIcon: {
-    fontSize: 42,
+    fontSize: Typography.heroSub.fontSize,
     lineHeight: 52,
   },
   goalName: {
