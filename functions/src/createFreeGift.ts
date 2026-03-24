@@ -77,11 +77,18 @@ export const createFreeGift = onRequest(
             duration,
             frequency,
             sessionTime,
+            goalType,
             sameExperienceForBoth,
         } = req.body;
 
-        if (!experienceId || typeof experienceId !== 'string') {
-            res.status(400).json({ error: 'experienceId is required' });
+        // Sanitize string inputs — strip HTML/script tags, limit length
+        const sanitize = (s: unknown, maxLen = 500): string => {
+            if (typeof s !== 'string') return '';
+            return s.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
+        };
+
+        if (!experienceId || typeof experienceId !== 'string' || experienceId.length > 128) {
+            res.status(400).json({ error: 'Invalid experienceId' });
             return;
         }
 
@@ -94,6 +101,10 @@ export const createFreeGift = onRequest(
             res.status(400).json({ error: 'revealMode must be "revealed" or "secret"' });
             return;
         }
+
+        const safeGiverName = sanitize(giverName, 100);
+        const safePersonalizedMessage = sanitize(personalizedMessage, 1000);
+        const safeGoalName = sanitize(goalName, 200);
 
         const db = getDbProd();
 
@@ -137,9 +148,9 @@ export const createFreeGift = onRequest(
             const newGift: Record<string, any> = {
                 id: giftId,
                 giverId: userId,
-                giverName: giverName || "",
+                giverName: safeGiverName,
                 experienceId,
-                personalizedMessage: personalizedMessage || "",
+                personalizedMessage: safePersonalizedMessage,
                 partnerId: experienceData.partnerId || "",
                 deliveryDate: admin.firestore.Timestamp.now(),
                 status: "pending",
@@ -170,10 +181,11 @@ export const createFreeGift = onRequest(
             // Together mode: include giver's goal data so recipient can see it
             if (challengeType === 'shared') {
                 newGift.togetherData = {
-                    goalName: goalName || "",
+                    goalName: safeGoalName,
                     duration: duration || "",
                     frequency: frequency || "",
                     sessionTime: sessionTime || "",
+                    goalType: goalType || "custom",
                     sameExperienceForBoth: sameExperienceForBoth !== false,
                 };
             }
@@ -182,12 +194,12 @@ export const createFreeGift = onRequest(
             if (challengeType === 'shared' && newGift.togetherData) {
                 const td = newGift.togetherData;
                 const durationMatch = td.duration?.match(/(\d+)/);
-                const weeks = durationMatch ? parseInt(durationMatch[1]) : 4;
+                const weeks = Math.min(Math.max(durationMatch ? parseInt(durationMatch[1]) : 4, 1), 52);
                 const freqMatch = td.frequency?.match(/(\d+)/);
-                const sessionsPerWeek = freqMatch ? parseInt(freqMatch[1]) : 3;
+                const sessionsPerWeek = Math.min(Math.max(freqMatch ? parseInt(freqMatch[1]) : 3, 1), 7);
                 const timeMatch = td.sessionTime?.match(/(\d+)h\s*(\d+)m/);
-                const sessionHours = timeMatch ? parseInt(timeMatch[1]) : 0;
-                const sessionMinutes = timeMatch ? parseInt(timeMatch[2]) : 30;
+                const sessionHours = Math.min(Math.max(timeMatch ? parseInt(timeMatch[1]) : 0, 0), 24);
+                const sessionMinutes = Math.min(Math.max(timeMatch ? parseInt(timeMatch[2]) : 30, 0), 59);
 
                 const now = new Date();
                 const endDate = new Date(now);
@@ -254,8 +266,8 @@ export const createFreeGift = onRequest(
                     const claimUrl = `https://ernit.app/recipient/redeem/${claimCode}`;
                     await sendEmail(
                         recipientEmail,
-                        `${giverName || 'Someone'} sent you an Ernit challenge!`,
-                        buildGiftEmailHtml(giverName || 'Someone', experienceData.title, claimUrl, revealMode)
+                        `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
+                        buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
                     console.log(`✅ Gift email sent to ${recipientEmail}`);
                 } catch (emailErr) {

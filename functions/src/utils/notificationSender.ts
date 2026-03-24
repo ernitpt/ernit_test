@@ -71,6 +71,10 @@ export async function sendPushNotification(
         clickAction = '/notifications';
     } else if (type === 'free_goal_milestone' || type === 'free_goal_completed') {
         clickAction = '/notifications';
+    } else if (type === 'shared_session' || type === 'shared_start' || type === 'shared_unlock' || type === 'shared_completion') {
+        clickAction = `/goal/${data?.goalId || ''}`;
+    } else if (type === 'payment_charged' || type === 'payment_failed') {
+        clickAction = '/notifications';
     }
 
     // Prepare notification data - FCM requires all values to be strings

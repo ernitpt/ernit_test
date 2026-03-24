@@ -79,9 +79,15 @@ export const createFreeGift_Test = onRequest(
         const preferredRewardCategory = req.body.preferredRewardCategory;
         const goalType = req.body.goalType;
 
+        // Sanitize string inputs — strip HTML/script tags, limit length
+        const sanitize = (s: unknown, maxLen = 500): string => {
+            if (typeof s !== 'string') return '';
+            return s.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
+        };
+
         // experienceId required unless category-only Together challenge
-        if (!preferredRewardCategory && (!experienceId || typeof experienceId !== 'string')) {
-            res.status(400).json({ error: 'experienceId or preferredRewardCategory is required' });
+        if (!preferredRewardCategory && (!experienceId || typeof experienceId !== 'string' || experienceId.length > 128)) {
+            res.status(400).json({ error: 'Invalid experienceId' });
             return;
         }
 
@@ -95,6 +101,10 @@ export const createFreeGift_Test = onRequest(
             res.status(400).json({ error: 'revealMode must be "revealed" or "secret"' });
             return;
         }
+
+        const safeGiverName = sanitize(giverName, 100);
+        const safePersonalizedMessage = sanitize(personalizedMessage, 1000);
+        const safeGoalName = sanitize(goalName, 200);
 
         // ✅ RATE LIMITING: Max 10 free gift creations per hour per user
         const RATE_LIMIT = 10;
@@ -139,9 +149,9 @@ export const createFreeGift_Test = onRequest(
                 newGift = {
                     id: giftId,
                     giverId: userId,
-                    giverName: giverName || "",
+                    giverName: safeGiverName,
                     experienceId,
-                    personalizedMessage: personalizedMessage || "",
+                    personalizedMessage: safePersonalizedMessage,
                     partnerId: experienceData.partnerId || "",
                     deliveryDate: admin.firestore.Timestamp.now(),
                     status: "pending",
@@ -171,8 +181,8 @@ export const createFreeGift_Test = onRequest(
                 newGift = {
                     id: giftId,
                     giverId: userId,
-                    giverName: giverName || "",
-                    personalizedMessage: personalizedMessage || "",
+                    giverName: safeGiverName,
+                    personalizedMessage: safePersonalizedMessage,
                     deliveryDate: admin.firestore.Timestamp.now(),
                     status: "pending",
                     payment: "free",
@@ -189,10 +199,11 @@ export const createFreeGift_Test = onRequest(
 
             if (challengeType === 'shared') {
                 newGift.togetherData = {
-                    goalName: goalName || "",
+                    goalName: safeGoalName,
                     duration: duration || "",
                     frequency: frequency || "",
                     sessionTime: sessionTime || "",
+                    goalType: goalType || "custom",
                     sameExperienceForBoth: sameExperienceForBoth !== false,
                 };
             }
@@ -201,12 +212,12 @@ export const createFreeGift_Test = onRequest(
             if (challengeType === 'shared' && newGift.togetherData) {
                 const td = newGift.togetherData;
                 const durationMatch = td.duration?.match(/(\d+)/);
-                const weeks = durationMatch ? parseInt(durationMatch[1]) : 4;
+                const weeks = Math.min(Math.max(durationMatch ? parseInt(durationMatch[1]) : 4, 1), 52);
                 const freqMatch = td.frequency?.match(/(\d+)/);
-                const sessionsPerWeek = freqMatch ? parseInt(freqMatch[1]) : 3;
+                const sessionsPerWeek = Math.min(Math.max(freqMatch ? parseInt(freqMatch[1]) : 3, 1), 7);
                 const timeMatch = td.sessionTime?.match(/(\d+)h\s*(\d+)m/);
-                const sessionHours = timeMatch ? parseInt(timeMatch[1]) : 0;
-                const sessionMinutes = timeMatch ? parseInt(timeMatch[2]) : 30;
+                const sessionHours = Math.min(Math.max(timeMatch ? parseInt(timeMatch[1]) : 0, 0), 24);
+                const sessionMinutes = Math.min(Math.max(timeMatch ? parseInt(timeMatch[2]) : 30, 0), 59);
 
                 const now = new Date();
                 const endDate = new Date(now);
@@ -285,8 +296,8 @@ export const createFreeGift_Test = onRequest(
                         : `a ${preferredRewardCategory || ''} challenge`;
                     await sendEmail(
                         recipientEmail,
-                        `${giverName || 'Someone'} sent you an Ernit challenge!`,
-                        buildGiftEmailHtml(giverName || 'Someone', experienceTitle, claimUrl, revealMode || 'secret')
+                        `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
+                        buildGiftEmailHtml(safeGiverName || 'Someone', experienceTitle, claimUrl, revealMode || 'secret')
                     );
                 } catch (emailErr) {
                     console.error(`⚠️ Failed to send gift email:`, emailErr);

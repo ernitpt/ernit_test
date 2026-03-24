@@ -6,6 +6,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
 import { buildGiftEmailHtml } from "./utils/giftEmailTemplate";
 import crypto from 'crypto';
+import { getOrCreateStripeCustomer } from './utils/stripeCustomer';
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY");
 
@@ -83,8 +84,14 @@ export const createDeferredGift = onRequest(
             sameExperienceForBoth,
         } = req.body;
 
-        if (!experienceId || typeof experienceId !== 'string') {
-            res.status(400).json({ error: 'experienceId is required' });
+        // Sanitize string inputs — strip HTML/script tags, limit length
+        const sanitize = (s: unknown, maxLen = 500): string => {
+            if (typeof s !== 'string') return '';
+            return s.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
+        };
+
+        if (!experienceId || typeof experienceId !== 'string' || experienceId.length > 128) {
+            res.status(400).json({ error: 'Invalid experienceId' });
             return;
         }
 
@@ -97,6 +104,11 @@ export const createDeferredGift = onRequest(
             res.status(400).json({ error: 'revealMode must be "revealed" or "secret"' });
             return;
         }
+
+        // Sanitize user-provided text fields
+        const safeGiverName = sanitize(giverName, 100);
+        const safePersonalizedMessage = sanitize(personalizedMessage, 1000);
+        const safeGoalName = sanitize(goalName, 200);
 
         const db = getDbProd();
 
@@ -137,8 +149,15 @@ export const createDeferredGift = onRequest(
 
             const giftId = db.collection("experienceGifts").doc().id;
 
+            // Get or create a Stripe Customer for the giver so the saved
+            // payment method can be charged off-session when the goal completes.
+            const stripeCustomerId = await getOrCreateStripeCustomer(
+                stripe, db, userId, { name: safeGiverName }
+            );
+
             // Create Stripe SetupIntent to save the payment method
             const setupIntent = await stripe.setupIntents.create({
+                customer: stripeCustomerId,
                 metadata: {
                     giftId,
                     giverId: userId,
@@ -146,7 +165,7 @@ export const createDeferredGift = onRequest(
                     amount: String(Math.round((experienceData.price || 0) * 100)), // cents
                     currency: 'eur',
                 },
-                usage: 'off_session', // Allow charging later without customer present
+                usage: 'off_session',
             });
 
             // Set expiration date (365 days)
@@ -156,14 +175,15 @@ export const createDeferredGift = onRequest(
             const newGift: Record<string, any> = {
                 id: giftId,
                 giverId: userId,
-                giverName: giverName || "",
+                giverName: safeGiverName,
                 experienceId,
-                personalizedMessage: personalizedMessage || "",
+                personalizedMessage: safePersonalizedMessage,
                 partnerId: experienceData.partnerId || "",
                 deliveryDate: admin.firestore.Timestamp.now(),
                 status: "pending",
                 payment: "deferred",
                 setupIntentId: setupIntent.id,
+                stripeCustomerId,
                 deferredAmount: experienceData.price || 0,
                 deferredCurrency: 'eur',
                 claimCode,
@@ -189,7 +209,7 @@ export const createDeferredGift = onRequest(
 
             if (challengeType === 'shared') {
                 newGift.togetherData = {
-                    goalName: goalName || "",
+                    goalName: safeGoalName,
                     duration: duration || "",
                     frequency: frequency || "",
                     sessionTime: sessionTime || "",
@@ -201,12 +221,12 @@ export const createDeferredGift = onRequest(
             if (challengeType === 'shared' && newGift.togetherData) {
                 const td = newGift.togetherData;
                 const durationMatch = td.duration?.match(/(\d+)/);
-                const weeks = durationMatch ? parseInt(durationMatch[1]) : 4;
+                const weeks = Math.min(Math.max(durationMatch ? parseInt(durationMatch[1]) : 4, 1), 52);
                 const freqMatch = td.frequency?.match(/(\d+)/);
-                const sessionsPerWeek = freqMatch ? parseInt(freqMatch[1]) : 3;
+                const sessionsPerWeek = Math.min(Math.max(freqMatch ? parseInt(freqMatch[1]) : 3, 1), 7);
                 const timeMatch = td.sessionTime?.match(/(\d+)h\s*(\d+)m/);
-                const sessionHours = timeMatch ? parseInt(timeMatch[1]) : 0;
-                const sessionMinutes = timeMatch ? parseInt(timeMatch[2]) : 30;
+                const sessionHours = Math.min(Math.max(timeMatch ? parseInt(timeMatch[1]) : 0, 0), 24);
+                const sessionMinutes = Math.min(Math.max(timeMatch ? parseInt(timeMatch[2]) : 30, 0), 59);
 
                 const now = new Date();
                 const endDate = new Date(now);
@@ -273,8 +293,8 @@ export const createDeferredGift = onRequest(
                     const claimUrl = `https://ernit.app/recipient/redeem/${claimCode}`;
                     await sendEmail(
                         recipientEmail,
-                        `${giverName || 'Someone'} sent you an Ernit challenge!`,
-                        buildGiftEmailHtml(giverName || 'Someone', experienceData.title, claimUrl, revealMode)
+                        `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
+                        buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
                 } catch (emailErr) {
                     console.error(`⚠️ Failed to send gift email:`, emailErr);
