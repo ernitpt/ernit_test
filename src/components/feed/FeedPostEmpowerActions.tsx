@@ -237,7 +237,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         ...Shadows.sm,
     },
     categoryHintEmoji: {
-        fontSize: 24,
+        fontSize: Typography.emojiSmall.fontSize,
         marginRight: Spacing.md,
     },
     categoryHintInfo: {

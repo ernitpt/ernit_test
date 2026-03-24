@@ -57,6 +57,8 @@ export const Typography: Record<string, TextStyle> = {
     displayLarge: { fontSize: 40, fontWeight: '700', lineHeight: 48 },
 
     // ─── Emoji display sizes ────────────────────────────────────────
+    emojiSmall: { fontSize: 24, fontWeight: '400', lineHeight: 32 },
+    emojiMedium: { fontSize: 36, fontWeight: '400', lineHeight: 44 },
     emoji: { fontSize: 48, fontWeight: '400', lineHeight: 56 },
     emojiLarge: { fontSize: 64, fontWeight: '400', lineHeight: 72 },
 

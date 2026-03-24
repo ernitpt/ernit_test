@@ -339,7 +339,7 @@ const createStyles = (colors: typeof Colors) =>
             paddingHorizontal: Spacing.xxl,
         },
         headlineEmoji: {
-            fontSize: 64,
+            fontSize: Typography.emojiLarge.fontSize,
             lineHeight: 72,
             textAlign: 'center',
             marginBottom: Spacing.md,

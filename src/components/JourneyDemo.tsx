@@ -438,7 +438,7 @@ const createStyles = (colors: typeof Colors) =>
       alignItems: 'center',
     },
     goalEmoji: {
-      fontSize: 24,
+      fontSize: Typography.emojiSmall.fontSize,
     },
     goalInfo: {
       flex: 1,

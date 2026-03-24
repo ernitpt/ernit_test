@@ -253,6 +253,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - simplify schedule buttons in CompletionScreen, add 'Schedule via:' label
 - remove green gradient from AuthScreen, use theme surface background
 - replace console statements with logger utility across services and screens
+- replace hardcoded font sizes with Typography tokens across 8 files
+- replace hardcoded font sizes with typography tokens
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -607,6 +609,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - keep featured experiences in category carousels, push to back
 - show featured carousel and allow filter switching in empower flow
 - replace broken horizontal scroll tabs with conditional rendering (UserProfile + Journey)
+- use correct info color token instead of hardcoded purple fallback
 
 ### Added
 - Automatic changelog system with `npm run log` script

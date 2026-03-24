@@ -566,7 +566,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     sessionMediaPlayIcon: {
         color: colors.white,
-        fontSize: 36,
+        fontSize: Typography.emojiMedium.fontSize,
     },
 });
 

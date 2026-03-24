@@ -472,7 +472,7 @@ const createStyles = (colors: typeof Colors) =>
             ...Shadows.sm,
         },
         optionEmoji: {
-            fontSize: 36,
+            fontSize: Typography.emojiMedium.fontSize,
             lineHeight: 44,
         },
         optionLabel: {

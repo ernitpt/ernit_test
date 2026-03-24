@@ -1793,7 +1793,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.errorLight,
     },
     goalIcon: {
-        fontSize: 42,
+        fontSize: Typography.heroSub.fontSize,
         lineHeight: 52,
     },
     goalName: {
