@@ -629,6 +629,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add mounting guards to setTimeout callbacks to prevent memory leaks
 - added missing accessibility attributes to SharedHeader debug toggle and SideMenu picker items
 - add missing accessibility labels to SharedHeader and SideMenu picker elements
+- add missing useMemo imports to ReactionBar, ErrorRetry, and HintHistoryModal
 
 ### Added
 - Automatic changelog system with `npm run log` script

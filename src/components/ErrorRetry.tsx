@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
