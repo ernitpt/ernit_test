@@ -61,9 +61,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: Spacing.lg,
-        paddingTop: Spacing.lg,
-        paddingBottom: Spacing.md,
+        paddingHorizontal: Spacing.md,
+        paddingTop: Spacing.md,
+        paddingBottom: Spacing.sm,
     },
     headerInfo: {
         marginLeft: Spacing.md,

@@ -38,6 +38,7 @@ import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
 import SharedHeader from '../../components/SharedHeader';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
@@ -1088,7 +1089,7 @@ const JourneyScreen = () => {
     }
 
     return (
-      <View>
+      <View style={{ paddingHorizontal: Spacing.md, alignSelf: 'center', width: '100%', maxWidth: 380 }}>
         {sessions.map((s, i) => (
           <SessionCard
             key={s.id}
@@ -1537,7 +1538,7 @@ const JourneyScreen = () => {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: Spacing.xl,
-          paddingBottom: currentGoal.isCompleted ? Spacing.sm : Spacing.xl,
+          paddingBottom: currentGoal.isCompleted ? Spacing.sm : FOOTER_HEIGHT + Spacing.xl,
           alignItems: 'center',
         }}
         refreshControl={
@@ -1729,11 +1730,7 @@ const JourneyScreen = () => {
               {currentGoal && !isSelfGifted(currentGoal) && (
                 <SegmentedControl
                   activeTab={activeTab}
-                  onTabChange={(tab) => {
-                    setActiveTab(tab);
-                    const index = tab === TAB_SESSIONS ? 0 : 1;
-                    tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
-                  }}
+                  onTabChange={(tab) => setActiveTab(tab)}
                 />
               )}
 
@@ -1741,27 +1738,14 @@ const JourneyScreen = () => {
                 {currentGoal && isSelfGifted(currentGoal) ? (
                   renderSessionsTab()
                 ) : (
-                  <ScrollView
-                    ref={tabScrollRef}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    scrollEventThrottle={100}
-                    onScroll={(e) => {
-                      const x = e.nativeEvent.contentOffset.x;
-                      const index = Math.round(x / screenWidth);
-                      const newTab = index === 0 ? TAB_SESSIONS : TAB_HINTS;
-                      if (newTab !== activeTab) setActiveTab(newTab);
-                    }}
-                    nestedScrollEnabled
-                  >
-                    <View style={{ width: screenWidth }}>
+                  <View>
+                    <View style={{ display: activeTab === TAB_SESSIONS ? 'flex' : 'none' }}>
                       {renderSessionsTab()}
                     </View>
-                    <View style={{ width: screenWidth }}>
+                    <View style={{ display: activeTab === TAB_HINTS ? 'flex' : 'none' }}>
                       {renderHintsTab()}
                     </View>
-                  </ScrollView>
+                  </View>
                 )}
               </View>
             </View>

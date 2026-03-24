@@ -72,7 +72,7 @@ class CommentService {
                     if (postData?.userId && postData.userId !== comment.userId) {
                         await notificationService.createNotification(
                             postData.userId,
-                            'post_reaction', // reuse existing type for now
+                            'post_comment',
                             'New Comment',
                             `${sanitizedUserName} commented on your post`,
                             { postId, commentId: newCommentRef.id, commenterId: comment.userId },

@@ -30,6 +30,8 @@ export interface BaseModalProps {
   children: React.ReactNode;
   noPadding?: boolean;
   style?: ViewStyle;
+  /** Optional overlay rendered fullscreen above the blur but below the content card. Useful for confetti etc. */
+  overlay?: React.ReactNode;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -42,6 +44,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
   children,
   noPadding = false,
   style,
+  overlay,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -67,6 +70,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
         accessibilityRole="button"
       >
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        {overlay}
         <Animated.View
           style={[
             isBottom ? styles.bottomContainer : styles.centerContainer,

@@ -45,6 +45,7 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 
 const SCREEN_W = Dimensions.get('window').width;
 const BENTO_HEIGHT = vh(200);
@@ -383,7 +384,7 @@ const CategorySelectionScreen = () => {
       const grouped = allExperiences
         .filter((exp) => exp.status !== 'draft')
         .reduce((acc, exp) => {
-          const cat = exp.category.toLowerCase();
+          const cat = (exp.category ?? '').toLowerCase();
           if (validCategories.includes(cat)) {
             if (!acc[cat]) acc[cat] = [];
             acc[cat].push(exp);
@@ -513,13 +514,16 @@ const CategorySelectionScreen = () => {
     [categoriesWithExperiences]
   );
 
-  // All category carousels (excluding popular experiences) — always all 3
+  // All category carousels — featured experiences pushed to the back
   const allCarouselCategories = useMemo(() => {
     const popularIds = new Set(popularExperiences.map((e) => e.id));
     return categoriesWithExperiences
       .map((cat) => ({
         ...cat,
-        experiences: cat.experiences.filter((e) => !popularIds.has(e.id)),
+        experiences: [
+          ...cat.experiences.filter((e) => !popularIds.has(e.id)),
+          ...cat.experiences.filter((e) => popularIds.has(e.id)),
+        ],
       }))
       .filter((cat) => cat.experiences.length > 0);
   }, [categoriesWithExperiences, popularExperiences]);
@@ -532,17 +536,13 @@ const CategorySelectionScreen = () => {
       const q = searchQuery.toLowerCase();
       cats = cats.filter((cat) =>
         cat.experiences.some(
-          (e) => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q)
+          (e) => (e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q)
         )
       );
     }
 
     if (activeCategory !== 'all') {
       cats = cats.filter((cat) => cat.id === activeCategory);
-    }
-
-    if (routeParams?.prefilterCategory) {
-      cats = cats.filter((cat) => cat.id === routeParams.prefilterCategory);
     }
 
     return new Set(cats.map((c) => c.id));
@@ -564,7 +564,7 @@ const CategorySelectionScreen = () => {
   }, []);
 
   // Whether to show hero carousel — stays visible regardless of category filter
-  const showHero = popularExperiences.length > 0 && !searchQuery.trim() && !routeParams?.prefilterCategory;
+  const showHero = popularExperiences.length > 0 && !searchQuery.trim();
 
   const onCarouselScroll = useCallback((e: any) => {
     const offsetX = e.nativeEvent.contentOffset.x;
@@ -759,6 +759,14 @@ const CategorySelectionScreen = () => {
               {allCarouselCategories.map((cat) => {
                 const isVisible = visibleCategoryIds.has(cat.id);
                 if (!isVisible) return null;
+                const q = searchQuery.toLowerCase();
+                const filteredExperiences = searchQuery.trim()
+                  ? cat.experiences.filter(
+                      (e) =>
+                        (e.title || '').toLowerCase().includes(q) ||
+                        (e.description || '').toLowerCase().includes(q)
+                    )
+                  : cat.experiences;
                 return (
                   <MotiView
                     key={cat.id}
@@ -769,7 +777,7 @@ const CategorySelectionScreen = () => {
                     exitTransition={{ type: 'timing', duration: 200 }}
                   >
                     <CategoryCarousel
-                      category={cat}
+                      category={{ ...cat, experiences: filteredExperiences }}
                       onExperiencePress={handleExperiencePress}
                       onToggleWishlist={toggleWishlist}
                       wishlist={wishlist}
@@ -987,12 +995,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   bentoListContent: {
     paddingTop: 0,
-    paddingBottom: vh(80),
+    paddingBottom: vh(80) + FOOTER_HEIGHT,
   },
 
   // Loading skeletons
   loadingContent: {
-    paddingBottom: vh(80),
+    paddingBottom: vh(80) + FOOTER_HEIGHT,
   },
   chipRowSkeleton: {
     flexDirection: 'row',

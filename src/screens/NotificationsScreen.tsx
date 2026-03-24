@@ -40,6 +40,7 @@ import ErrorRetry from '../components/ErrorRetry';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -145,7 +146,7 @@ const NotificationsScreen = () => {
 
     const subscribe = async () => {
       // T3-4: Guard against stale callbacks if userId changed
-      unsubscribeNotifs = await notificationService.listenToUserNotifications(userId, (notifications) => {
+      unsubscribeNotifs = notificationService.listenToUserNotifications(userId, (notifications) => {
         if (isCancelled) return;
         setNotifications(notifications);
         setLoading(false);
@@ -343,6 +344,11 @@ const NotificationsScreen = () => {
 
     if (n.type === 'goal_set' && n.data?.goalId) {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+    }
+
+    if (n.type === 'goal_completed' && n.data?.goalId) {
+      navigation.navigate('Journey' as any, { goalId: n.data.goalId });
+      return;
     }
 
     if ((n.type === 'valentine_partner_progress' || n.type === 'valentine_start' || n.type === 'valentine_unlock' || n.type === 'valentine_completion') && n.data?.goalId) {
@@ -1178,6 +1184,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   listContainer: {
     padding: Spacing.xl,
+    paddingBottom: Spacing.xl + FOOTER_HEIGHT,
   },
   // Unified card base — all notification types
   notificationCard: {

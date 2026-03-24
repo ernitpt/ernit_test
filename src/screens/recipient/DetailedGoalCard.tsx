@@ -10,6 +10,7 @@ import {
   Pressable,
   Platform,
   UIManager,
+  Share,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,6 +27,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { useRootNavigation } from '../../types/navigation';
 import HintPopup from '../../components/HintPopup';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { Avatar } from '../../components/Avatar';
 import { aiHintService } from '../../services/AIHintService';
 import { pushNotificationService } from '../../services/PushNotificationService';
 
@@ -75,6 +77,8 @@ import { useApp } from '../../context/AppContext';
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const MAX_SESSION_SECONDS = 28800; // 8 hours
 
 // ─── Props ──────────────────────────────────────────────────────────
 
@@ -145,6 +149,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Partner goal state for shared/together challenges
   const [partnerGoalData, setPartnerGoalData] = useState<PartnerGoalData | null>(null);
+  const [partnerProfile, setPartnerProfile] = useState<{ name: string; photoURL?: string } | null>(null);
+  const [selectedView, setSelectedView] = useState<'user' | 'partner'>('user');
+  const viewFadeAnim = useRef(new Animated.Value(1)).current;
 
   const [experienceName, setExperienceName] = useState<string | null>(null);
   const isSelfGift = isSelfGifted(currentGoal);
@@ -192,7 +199,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const progress = useGoalProgress({
     goal: currentGoal,
-    selectedView: 'user',
+    selectedView,
     partnerGoalData,
     debugTimeKey,
   });
@@ -229,7 +236,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId)
         .then((gift) => {
           // Check mystery flag on the gift doc too (may not be on the goal yet)
-          if (gift.isMystery) {
+          if (gift.isMystery || !gift.experienceId) {
             setExperienceName(null);
             return null;
           }
@@ -240,10 +247,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
   }, [currentGoal.experienceGiftId, currentGoal.isMystery, currentGoal.pledgedExperience?.title]);
 
+  // Reset view when partner data disappears
+  useEffect(() => {
+    if (!partnerGoalData && selectedView === 'partner') {
+      setSelectedView('user');
+    }
+  }, [partnerGoalData, selectedView]);
+
   // Real-time partner goal listener for shared/together challenges
   useEffect(() => {
     if (!currentGoal.partnerGoalId) {
       setPartnerGoalData(null);
+      setPartnerProfile(null);
       return;
     }
 
@@ -268,6 +283,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           currentCount: raw.currentCount,
           title: raw.title,
         });
+        // Fetch partner profile (name + photo) for avatar display
+        if (raw.userId && !partnerProfile) {
+          Promise.all([
+            userService.getUserProfile(raw.userId),
+            userService.getUserName(raw.userId),
+          ]).then(([profile, name]) => {
+            setPartnerProfile({
+              name: profile?.name || name || 'Partner',
+              photoURL: profile?.profileImageUrl,
+            });
+          }).catch(() => { /* silently fail */ });
+        }
       },
       (error) => {
         logger.error('Error listening to partner goal:', error);
@@ -462,7 +489,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       // Mystery gifts resolve experience server-side to prevent spoiling the surprise
       if (currentGoal.experienceGiftId && !currentGoal.isMystery) {
         const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
-        experience = await experienceService.getExperienceById(gift.experienceId);
+        if (gift.experienceId) {
+          experience = await experienceService.getExperienceById(gift.experienceId);
+        }
       }
 
       // Session timing validation (use stored timestamp, not ISO date strings)
@@ -481,15 +510,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         }
       }
 
+      // TODO: Re-enable venue selection (Phase 3)
       // Venue check: prompt for venue on first session if not set
-      if (!currentGoal.venueId && !currentGoal.venueName) {
-        // First session and no venue set — show venue selection modal
-        // The modal's onSelectVenue/onSkip will resume the session start
-        setShowVenueModal(true);
-        setPendingStartAfterVenue(true);
-        setLoading(false);
-        return;
-      }
+      // if (!currentGoal.venueId && !currentGoal.venueName) {
+      //   setShowVenueModal(true);
+      //   setPendingStartAfterVenue(true);
+      //   setLoading(false);
+      //   return;
+      // }
 
       // GPS verification: if venue is set with coordinates, check proximity
       if (currentGoal.venueLocation) {
@@ -625,7 +653,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       // For non-mystery gifts, always fetch for notifications and feed
       if (updated.experienceGiftId && (!updated.isMystery || updated.isCompleted)) {
         gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
-        experience = await experienceService.getExperienceById(gift.experienceId);
+        if (gift.experienceId) {
+          experience = await experienceService.getExperienceById(gift.experienceId);
+        }
       }
 
       const recipientName = await userService.getUserName(updated.userId);
@@ -647,7 +677,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         try {
           await sessionService.createSessionRecord(goalId, {
             goalId, userId: updated.userId, timestamp: new Date(),
-            duration: timeElapsed, sessionNumber: totalSessionsDone,
+            duration: Math.min(timeElapsed, MAX_SESSION_SECONDS), sessionNumber: totalSessionsDone,
             weekNumber: updated.currentCount,
           });
         } catch (err) {
@@ -766,7 +796,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         goalId,
         userId: updated.userId,
         timestamp: new Date(),
-        duration: timeElapsed,
+        duration: Math.min(timeElapsed, MAX_SESSION_SECONDS),
         sessionNumber: totalSessionsDone,
         weekNumber: updated.currentCount,
         mediaUrl,
@@ -912,7 +942,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           createdAt: serverTimestamp(),
         });
       } catch (e) {
-        console.warn('Failed to send partner session notification:', e);
+        logger.warn('Failed to send partner session notification:', e);
       }
     }
 
@@ -988,9 +1018,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     let hintToShow: string;
 
     if (hasPersonalizedHint) {
-      const ph = updated.personalizedNextHint!;
+      let ph = updated.personalizedNextHint!;
       if (ph.text && ph.text.length > 500) {
-        ph.text = ph.text.substring(0, 500);
+        ph = { ...ph, text: ph.text.substring(0, 500) };
       }
 
       const hintObj: HintObject = {
@@ -1111,6 +1141,23 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
   }, [currentGoal.id, showSuccess, showError]);
 
+  // Toggle between user and partner view with crossfade
+  const handleViewToggle = useCallback((view: 'user' | 'partner') => {
+    if (view === selectedView) return;
+    Animated.timing(viewFadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedView(view);
+      Animated.timing(viewFadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [selectedView, viewFadeAnim]);
+
   const removeDialogMessage = useMemo(() => {
     let msg = 'This will permanently remove your goal and all session history. This cannot be undone.';
     if (currentGoal.partnerGoalId) {
@@ -1136,7 +1183,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
-    <ErrorBoundary screenName="DetailedGoalCard">
+    <ErrorBoundary screenName="DetailedGoalCard" userId={appState?.user?.id}>
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <Pressable
         onPressIn={isTimerRunning ? undefined : onPressIn}
@@ -1154,7 +1201,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           <Text style={styles.title}>
             {currentGoal.title}
           </Text>
-          {!!empoweredName && !isSelfGift && (
+          {currentGoal.challengeType === 'shared' && partnerProfile && (
+            <Text style={styles.titlePartnerSuffix}>with {partnerProfile.name.split(' ')[0]}</Text>
+          )}
+          {!!empoweredName && !isSelfGift && !currentGoal.isFreeGoal && currentGoal.challengeType !== 'shared' && (
             <Text style={styles.empoweredText}>Empowered by {empoweredName}</Text>
           )}
           {currentGoal.isMystery && (
@@ -1163,42 +1213,56 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             </View>
           )}
 
-          {/* Weekly Calendar */}
-          <WeeklyCalendar
-            weekDates={progress.weekDates}
-            loggedSet={progress.loggedSet}
-            todayIso={progress.todayIso}
-          />
-
-          {/* Progress Bars */}
-          <ProgressBars
-            weeklyFilled={progress.weeklyFilled}
-            weeklyTotal={progress.weeklyTotal}
-            completedWeeks={progress.completedWeeks}
-            overallTotal={progress.overallTotal}
-          />
-
-          {/* Partner Progress (shared/together challenges only) */}
-          {partnerGoalData && (
-            <View style={styles.partnerProgressContainer}>
-              <Text style={styles.partnerProgressTitle}>Partner progress</Text>
-              <Text style={styles.partnerProgressSubtitle}>
-                Your partner is at {partnerGoalData.currentCount ?? 0}/{partnerGoalData.targetCount ?? 0} sessions
-              </Text>
-              <View style={styles.partnerProgressBarTrack}>
-                <View
-                  style={[
-                    styles.partnerProgressBarFill,
-                    {
-                      width: `${partnerGoalData.targetCount
-                        ? Math.min(100, Math.round(((partnerGoalData.currentCount ?? 0) / partnerGoalData.targetCount) * 100))
-                        : 0}%`,
-                    },
-                  ]}
+          {/* Together mode: dual avatar toggle */}
+          {currentGoal.challengeType === 'shared' && partnerGoalData && partnerProfile && (
+            <View style={styles.avatarToggleRow}>
+              <TouchableOpacity
+                style={[styles.avatarTogglePill, selectedView === 'user' && styles.avatarTogglePillActive]}
+                onPress={() => handleViewToggle('user')}
+                activeOpacity={0.7}
+              >
+                <Avatar
+                  uri={appState.user?.profile?.profileImageUrl}
+                  name={appState.user?.displayName || 'You'}
+                  size="md"
                 />
-              </View>
+                <Text style={[styles.avatarToggleText, selectedView === 'user' && styles.avatarToggleTextActive]}>
+                  You
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.avatarTogglePill, selectedView === 'partner' && styles.avatarTogglePillActive]}
+                onPress={() => handleViewToggle('partner')}
+                activeOpacity={0.7}
+              >
+                <Avatar
+                  uri={partnerProfile.photoURL}
+                  name={partnerProfile.name}
+                  size="md"
+                />
+                <Text style={[styles.avatarToggleText, selectedView === 'partner' && styles.avatarToggleTextActive]}>
+                  {partnerProfile.name.split(' ')[0]}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
+
+          {/* Weekly Calendar + Progress (animated crossfade for toggle) */}
+          <Animated.View style={{ opacity: viewFadeAnim }}>
+            <WeeklyCalendar
+              weekDates={progress.weekDates}
+              loggedSet={progress.loggedSet}
+              todayIso={progress.todayIso}
+            />
+
+            <ProgressBars
+              weeklyFilled={progress.weeklyFilled}
+              weeklyTotal={progress.weeklyTotal}
+              completedWeeks={progress.completedWeeks}
+              overallTotal={progress.overallTotal}
+            />
+          </Animated.View>
 
           {/* M4: "Waiting for partner to finish" — goal completed but partner hasn't unlocked yet */}
           {(currentGoal.isCompleted === true || currentGoal.isReadyToComplete === true) &&
@@ -1236,6 +1300,33 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               <Text style={styles.waitingBannerText}>
                 Waiting for your partner to accept the challenge
               </Text>
+              <TouchableOpacity
+                style={styles.resendInviteButton}
+                onPress={async () => {
+                  try {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    let giftData = null;
+                    if (currentGoal.experienceGiftId) {
+                      giftData = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+                    }
+                    if (!giftData?.claimCode && !currentGoal.claimCode) {
+                      showError('Could not find invite code');
+                      return;
+                    }
+                    navigation.navigate('Confirmation' as any, {
+                      experienceGift: giftData || { id: currentGoal.id, claimCode: currentGoal.claimCode },
+                      challengeType: 'shared',
+                      isCategory: !currentGoal.experienceGiftId || !giftData?.experienceId,
+                      preferredRewardCategory: currentGoal.preferredRewardCategory,
+                    });
+                  } catch (err) {
+                    logger.warn('Navigate to share screen failed:', err);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.resendInviteText}>Resend Invite</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1578,7 +1669,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     right: Spacing.sm,
     zIndex: 10,
   },
-  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: vh(22), textAlign: 'center' },
+  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs, textAlign: 'center' },
+  titlePartnerSuffix: { ...Typography.small, fontWeight: '400', color: colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
   empoweredText: { ...Typography.small, color: colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
   mysteryBadge: {
     alignSelf: 'center', backgroundColor: colors.warningLight, paddingHorizontal: Spacing.md,
@@ -1632,49 +1724,67 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   debugButtonText: { ...Typography.caption, fontWeight: '600', color: colors.gray700 },
 
-  // Partner progress (shared/together challenges)
-  partnerProgressContainer: {
-    marginTop: Spacing.lg,
-    padding: Spacing.md,
-    backgroundColor: colors.primarySurface,
-    borderRadius: BorderRadius.md,
+  // Together mode: avatar toggle row
+  avatarToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xxl,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  avatarTogglePill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    backgroundColor: colors.surface,
     borderWidth: 1,
+    borderColor: colors.border,
+  },
+  avatarTogglePillActive: {
+    backgroundColor: colors.primaryLight,
     borderColor: colors.primaryBorder,
   },
-  partnerProgressTitle: {
-    ...Typography.smallBold,
-    color: colors.primary,
-    marginBottom: Spacing.xs,
-  },
-  partnerProgressSubtitle: {
+  avatarToggleText: {
     ...Typography.caption,
-    color: colors.textSecondary,
-    marginBottom: Spacing.sm,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
-  partnerProgressBarTrack: {
-    height: 6,
-    backgroundColor: colors.border,
-    borderRadius: BorderRadius.pill,
-    overflow: 'hidden',
-  },
-  partnerProgressBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: BorderRadius.pill,
+  avatarToggleTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   // M4: Waiting for partner banners
   waitingBanner: {
-    marginTop: Spacing.lg,
-    padding: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     backgroundColor: colors.warningLight,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: colors.warningBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   waitingBannerText: {
-    ...Typography.body,
+    ...Typography.small,
     color: colors.warningDark,
     fontWeight: '600',
+    flex: 1,
+  },
+  resendInviteButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    marginLeft: Spacing.sm,
+  },
+  resendInviteText: {
+    ...Typography.small,
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   waitingBannerProgress: {
     marginTop: Spacing.sm,

@@ -26,6 +26,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
@@ -500,7 +501,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textSecondary,
   },
   heroSection: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
@@ -766,7 +767,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: FOOTER_HEIGHT,
     left: 0,
     right: 0,
     backgroundColor: colors.white,

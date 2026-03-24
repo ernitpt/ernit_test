@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { BaseModal } from '../../../components/BaseModal';
 import { Share2 } from 'lucide-react-native';
@@ -108,7 +109,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   const confettiTimeoutRef = useRef<NodeJS.Timeout>();
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
 
-  // Cleanup confetti timeout on unmount to prevent memory leaks
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
@@ -117,7 +118,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      // Fire confetti after a brief delay
       confettiTimeoutRef.current = setTimeout(() => {
         confettiRef.current?.start();
       }, 200);
@@ -128,6 +128,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   }, [visible]);
 
 
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
   return (
     <>
       <BaseModal
@@ -136,19 +138,21 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
         title="Session Complete"
         variant="center"
         noPadding={false}
+        overlay={
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <ConfettiCannon
+              ref={confettiRef}
+              autoStart={false}
+              count={120}
+              origin={{ x: screenWidth / 2, y: -20 }}
+              explosionSpeed={350}
+              fallSpeed={3000}
+              fadeOut
+              colors={[colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink]}
+            />
+          </View>
+        }
       >
-        {/* Confetti Cannon */}
-        <ConfettiCannon
-          ref={confettiRef}
-          autoStart={false}
-          count={80}
-          origin={{ x: -10, y: 0 }}
-          explosionSpeed={350}
-          fallSpeed={2500}
-          fadeOut
-          colors={[colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink]}
-        />
-
         {/* Feed post preview card */}
         <View style={styles.feedPreviewCard}>
           {/* Media at top if present */}
@@ -259,6 +263,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           </TouchableOpacity>
         </View>
       </BaseModal>
+
 
       {/* Fullscreen media viewer */}
       {mediaUri && (

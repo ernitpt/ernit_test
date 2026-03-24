@@ -60,6 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add isFeatured toggle to experience edit page and featured star badge to experiences list
 - redesign CategorySelectionScreen with hero card, category chips, and bento grid layout
 - add glassmorphic frosted footer navigation with BlurView
+- Together invite/share flow — navigate to Confirmation screen with category badge, dynamic steps, and partner invite share message
+- Together invite flow - route to ConfirmationScreen with share UI, resend invite button on goal card
+- move New Experience form into dashboard shell with dynamic Firestore categories
+- rewrite GoalSettingScreen UI to match ChallengeSetupScreen patterns (2x2 goal grid, clock dial, BaseModal confirm)
+- dual avatar toggle on DetailedGoalCard for together-mode challenges — tap to switch between your and partner's calendar/progress with crossfade animation
+- HeroPreviewScreen — dark navy redesign of ChallengeLanding hero for preview at /hero-preview
+- sync createDeferredGift_Test with production — added stripeCustomer, input sanitization, experienceId length check, and goal parameter clamping
+- add confetti to giver ConfirmationScreen
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -235,6 +243,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - lighten dark mode surfaces — less cave-like, better contrast for category options and cards
 - sync GiftFlow UI with ChallengeSetup - 2x2 goal type cards with taglines, clock dial with tick marks + preset chips + animated sweep, Ernit logo on browse card
 - replace inflated 600% stat with research-backed copy — 42% (Matthews 2015) for self mode, doubles (Yale/stickK) for gift mode
+- GoalSettingScreen rewritten to match ChallengeSetupScreen wizard UI - 2x2 goal cards, clock dial, separated intensity/time steps
+- CouponEntryScreen — remove gradient background, use theme-aware surface colors for light/dark mode
+- merge category info into hero card as subtle pill badge on together-mode confirmation screen
+- default theme changed to dark mode
+- compact feed post cards - reduced padding, smaller react/comment buttons, tighter spacing
+- restyle HeroPreviewScreen with dark navy theme
+- simplify CompletionScreen hero — match ConfirmationScreen design, remove gradient/trophy/pulse
+- simplify schedule buttons in CompletionScreen, add 'Schedule via:' label
+- remove green gradient from AuthScreen, use theme surface background
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -521,6 +538,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SparkParticle crash (styles out of scope), BaseModal nested button warning (Pressable instead of TouchableOpacity for backdrop)
 - dark mode header button color issues in ExperienceDetailsScreen, ChallengeLandingScreen, FriendProfileScreen, and SharedHeader
 - dark mode header button colors - back buttons visible on all screens, badge border visible, redirect text readable
+- goal limit error detection, paymentChoice reset on experience clear, skip-no-reward step 5 option, Dance emoji in footer
+- category-only Together gifts no longer cause infinite redirect; deep link claim code survives auth redirect; sessionTime parser handles partial formats; accept challenge pre-fills category tile
+- fix 6 bugs in GiftFlowScreen (setState-in-render, subtitle collision, experience error state, payLater fallthrough, customGoalText, solo subtitle)
+- flow audit - 14 bug fixes across self challenge, gift/together, and recipient flows
+- audit round 2 - analytics null screenName, updateGoal whitelist, normalizeGoal timestamps, comment likes rule, payOnCompletion routing
+- wizard navigation reset, session duration cap, venue fetch abort, timer mounted guard
+- auth redirect loses goalType, double-submit guard, wizard stack after creation, hardcoded hex colors in GOAL_TYPES
+- audit round 3 - auth redirect goalType persistence, double-submit guard, navigation stack cleanup, dark mode tokens, session duration cap, abort controller, mounted guard
+- clock dial web compat, GiftFlowData types, ExperienceCategory fallback, push notification deep-links, payOnCompletion banner
+- audit round 4 - clock dial web support, payOnCompletion recovery CTA, GiftFlowData types, ExperienceCategory casing, push deep-links
+- add auth token to CreatePartner and OnboardPartner API calls, atomify invites/consume with Firestore transaction, delete dead firebase legacy files and debug test page
+- null guards, state mutation, ErrorBoundary userId, skeleton tokens, logger usage
+- add security headers, document duplicate routes, replace alert() with toast in login, fix unauthenticated Firestore read in signup
+- audit fixes — auth tokens, race conditions, null guards, state mutation, security headers, dead code cleanup
+- audit round 5 - empowerPending in Firestore rules (3) and (5), errorLogger strips undefined values before Firestore write
+- dark mode for incubator badge and footer in ChallengeLandingScreen
+- debounce email check, consume pending_claim_code after auth, prevent skeleton during pull-to-refresh
+- stale closure in handleConfirmBooking, image null guard, ExploreScreen route, description validation threshold, search filters carousel items
+- audit round 6 - pending claim code consumption, email check debounce, booking date closure, ExploreScreen route, feed refresh, description validation, search filtering, image null guard
+- verify-email route now only updates emailVerified fields, not status or userType
+- atomic coupon redemption via runTransaction, expiry check, confirm dialog, and dynamic categories from Firestore
+- goal_completed tap, await on sync listener, category-only gift skeleton, sessionsPerWeek normalization, SafeAreaView top edge
+- audit round 7 - goal_completed notification navigation, category-only gift skeleton, GoalDetail sessionsPerWeek, SafeAreaView top edge, sync listener await
+- PartnerApp audit — session auth, atomic redemption, dynamic categories, role detection, API route cleanup
+- switch invites/validate to admin SDK, fix admin collectionGroup coupon lookup, clean up signup flow alert and redundant preflight read, add expiry check and confirmation to CouponLookup
+- replace alert/console calls with toast and hide raw userId from partner coupon lookup
+- PartnerApp audit round 2 — base64url middleware, admin SDK, admin coupon search, useAuth error handling, signup flow, console cleanup
+- fix light/dark mode readability in CouponEntryScreen — frosted card, theme-aware input/error/info-box colors
+- CouponEntryScreen redesign — frosted glass cards, theme-aware colors for light/dark mode readability
+- correct admin coupon redeem path, remove dead files, clean console statements
+- PartnerApp audit round 3 — admin coupon redeem path, dead code removal, console cleanup
+- CouponEntryScreen v2 — translucent glass cards instead of opaque surfaces, theme-invariant on gradient
+- footer nav overlaps content so rounded corners show page behind instead of solid background
+- add FOOTER_HEIGHT bottom padding to FeedScreen, UserProfileScreen, NotificationsScreen, PurchasedGiftsScreen, FriendsListScreen, CategorySelectionScreen to prevent content clipping behind absolute footer nav
+- FAB positioned above footer, scrollable screens padded for footer overlap, rounded corners show page content
+- bottom CTAs no longer hidden behind footer navigation on 8 screens
+- bottom CTA bars on 8 screens now positioned above footer (ConfirmationScreen, ConfirmationMultipleScreen, DeferredSetupScreen, ExperienceCheckoutScreen, ExperienceDetailsScreen, GoalSettingScreen, CartScreen, MysteryChoiceScreen)
+- guard getExperienceById calls against undefined experienceId (category-based gifts without assigned experience)
+- map no longer covered by sticky bottom CTA on experience details screen
+- journey screen card no longer covered by footer navigation
+- session history cards now centered in journey screen
+- pass billing_details to stripe.confirmSetup when fields are hidden
+- pass all required billing_details fields (phone, address) to stripe.confirmSetup
+- dark mode card backgrounds and remove decorative excess in CompletionScreen
+- dark mode completion screen — use surface tokens, remove decorative animations
+- StatsRow in UserProfileScreen — add own useColors/useMemo hooks (was referencing undefined styles)
+- add Stripe Customer to deferred gift flow for off-session charging
+- audit — tighten deferred flow error handling, dark mode, notify on all charge failures
+- prevent coupon generation before payment confirmed (revenue leak)
+- wire skip button on DeferredSetupScreen
+- sanitize inputs and clamp goal parameters in createDeferredGift
+- retry Firestore update after successful Stripe charge to prevent zombie state
+- error handling on partner goal read in chargeDeferredGift
+- apply input sanitization and parameter clamping to createFreeGift_Test
+- sanitize inputs and clamp goal parameters in createFreeGift (prod + test)
+- use undefined instead of empty strings for Stripe billing_details fields
+- let Stripe collect billing details natively instead of passing manually
+- mirror all production fixes from chargeDeferredGift to chargeDeferredGift_Test
+- mirror all chargeDeferredGift fixes to test version (was missing Stripe Customer, retry, notifications)
+- remove coupon collision check that caused Firestore permission error
+- relax feedPosts get rule — allow any authenticated user (fixes reaction permission error on production)
+- add missing query limits (reactions) and reactorId to notification data for Firestore rules compliance
+- add post_comment notification type and allow friends to send motivation_received notifications in Firestore rules
+- allow 2 reactionCounts keys to change in one write (reaction type switching)
+- split motivation read into get (any auth) + list (owner/author) — fixes transaction duplicate check on non-existent docs
+- keep featured experiences in category carousels, push to back
+- show featured carousel and allow filter switching in empower flow
+- replace broken horizontal scroll tabs with conditional rendering (UserProfile + Journey)
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -22,6 +22,7 @@ export interface User {
   sessionStreak?: number;
   longestSessionStreak?: number;
   lastSessionDate?: string; // ISO date "YYYY-MM-DD"
+  stripeCustomerId?: string;
 }
 
 // User Profile types
@@ -140,6 +141,7 @@ export interface ExperienceGift {
   revealMode?: GiftRevealMode;
   isMystery?: boolean;
   setupIntentId?: string;
+  stripeCustomerId?: string;
   deferredAmount?: number;
   deferredCurrency?: string;
   pledgedExperience?: {
@@ -608,6 +610,8 @@ export interface GiftFlowData {
   sameExperienceForBoth?: boolean;
   personalizedMessage?: string;
   preferredRewardCategory?: ExperienceCategory;
+  selectedGoalType?: string;
+  customGoalType?: string;
 }
 
 export interface GiftFlowPrefill extends Partial<GiftFlowData> {
@@ -649,6 +653,7 @@ export type RootStackParamList = {
   GiftFlow: { prefill?: GiftFlowPrefill } | undefined;
   DeferredSetup: { setupIntentClientSecret: string; experienceGift: ExperienceGift };
   AnimationPreview: undefined;
+  HeroPreview: { mode?: 'self' | 'gift' } | undefined;
 };
 
 export type GiverStackParamList = {

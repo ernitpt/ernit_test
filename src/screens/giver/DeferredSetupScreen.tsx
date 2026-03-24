@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -82,17 +83,20 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       });
 
       if (error) {
-        // User cancelled or entered invalid details — inform them but let them proceed
-        if (error.type === 'validation_error') {
+        // Validation or integration errors — stay on screen so user can retry
+        if (error.type === 'validation_error' || error.type === 'invalid_request_error') {
           showError(error.message || 'Please check your card details.');
-          // Clear SCA recovery key since user is still on screen and can retry
           await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
-          return; // Stay on screen so they can correct it
+          return;
         }
-        // Any other error: warn and proceed to confirmation (gift already created)
+        // Card declined or other transient error — log and let user retry
         logger.warn('SetupIntent confirmation failed:', error.message);
-        showInfo('Your gift was created. You can add payment details later from Purchased Gifts.');
-        navigation.replace('Confirmation', { experienceGift });
+        await logErrorToFirestore(error, {
+          screenName: 'DeferredSetupScreen',
+          feature: 'ConfirmSetupIntent',
+          userId: state.user?.id,
+        });
+        showError(error.message || 'Could not save your card. Please try again.');
         return;
       }
 
@@ -101,9 +105,14 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
         await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
         navigation.replace('Confirmation', { experienceGift });
       } else {
-        // Unexpected state — still navigate forward
+        // SetupIntent not confirmed (requires_action, requires_payment_method, etc.)
         logger.warn('Unexpected SetupIntent status:', setupIntent?.status);
-        navigation.replace('Confirmation', { experienceGift });
+        await logErrorToFirestore(new Error(`SetupIntent status: ${setupIntent?.status}`), {
+          screenName: 'DeferredSetupScreen',
+          feature: 'ConfirmSetupIntent',
+          userId: state.user?.id,
+        });
+        showError('Card verification incomplete. Please try again.');
       }
     } catch (err: unknown) {
       logger.error('Error confirming SetupIntent:', err);
@@ -112,9 +121,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
         feature: 'ConfirmSetupIntent',
         userId: state.user?.id,
       });
-      // Non-blocking — gift already exists; navigate forward
-      showInfo('Your gift was created. You can add payment details later from Purchased Gifts.');
-      navigation.replace('Confirmation', { experienceGift });
+      showError('Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -135,10 +142,10 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={handleSkip}
+              onPress={() => navigation.goBack()}
               style={styles.backButton}
               accessibilityRole="button"
-              accessibilityLabel="Skip card setup"
+              accessibilityLabel="Go back"
               disabled={isProcessing}
             >
               <ChevronLeft color={colors.textPrimary} size={24} />
@@ -180,7 +187,6 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
                 <PaymentElement
                   options={{
                     layout: 'tabs',
-                    fields: { billingDetails: 'never' },
                   }}
                 />
               </View>
@@ -194,17 +200,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               </Text>
             </View>
 
-            {/* Skip option */}
-            <TouchableOpacity
-              onPress={handleSkip}
-              style={styles.skipButton}
-              disabled={isProcessing}
-              accessibilityRole="button"
-            >
-              <Text style={styles.skipText}>I'll add payment details later</Text>
-            </TouchableOpacity>
-
-            <View style={{ height: vh(120) }} />
+            <View style={{ height: vh(200) }} />
           </ScrollView>
 
           {/* Bottom CTA */}
@@ -217,6 +213,15 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               loading={isProcessing}
               fullWidth
             />
+            <TouchableOpacity
+              onPress={handleSkip}
+              disabled={isProcessing}
+              style={styles.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip card setup for now"
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -262,7 +267,7 @@ const DeferredSetupScreen: React.FC = () => {
             theme: 'stripe',
             variables: {
               colorPrimary: colors.secondary,
-              colorBackground: colors.white,
+              colorBackground: colors.surface,
               colorText: colors.textPrimary,
               colorDanger: colors.error,
               fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -292,7 +297,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Platform.OS === 'ios' ? vh(50) : vh(40),
     paddingBottom: Spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -323,7 +328,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   infoCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginTop: Spacing.xl,
@@ -357,7 +362,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textPrimary,
   },
   paymentBox: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
@@ -396,19 +401,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: FOOTER_HEIGHT,
     left: 0,
     right: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceFrosted,
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.lg,
-    borderTopWidth: 1,
+    paddingTop: Spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xl : Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 8,
   },
   processingOverlay: {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -10,6 +11,7 @@ import {
   Modal,
   Platform,
   Dimensions,
+  Animated,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -65,6 +67,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const heartScale = useRef(new Animated.Value(1)).current;
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -164,6 +167,11 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         await updateDoc(userRef, { wishlist: arrayRemove(experience.id) });
       }
       setIsWishlisted(newValue);
+      // Animate heart: pop out then settle
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true, friction: 3, tension: 200 }),
+        Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, friction: 4, tension: 100 }),
+      ]).start();
     } catch (error) {
       logger.error("Error updating wishlist:", error);
       showError("Failed to update wishlist. Please try again.");
@@ -295,11 +303,13 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityRole="button"
                 accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
-                {isWishlisted ? (
-                  <Heart fill={colors.error} color={colors.error} size={24} />
-                ) : (
-                  <Heart color={colors.textOnImage} size={24} />
-                )}
+                <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                  {isWishlisted ? (
+                    <Heart fill={colors.error} color={colors.error} size={24} />
+                  ) : (
+                    <Heart color={colors.textOnImage} size={24} />
+                  )}
+                </Animated.View>
               </TouchableOpacity>
             </View>
 
@@ -588,7 +598,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginTop: -20,
     paddingTop: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
-    paddingBottom: vh(100),
+    paddingBottom: vh(220),
   },
   headerSection: {
     flexDirection: "row",
@@ -753,7 +763,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   bottomCTA: {
     position: "absolute",
-    bottom: 0,
+    bottom: FOOTER_HEIGHT,
     left: 0,
     right: 0,
     backgroundColor: colors.white,

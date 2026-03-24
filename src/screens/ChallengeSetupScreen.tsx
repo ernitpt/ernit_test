@@ -140,6 +140,10 @@ export default function ChallengeSetupScreen() {
     const [displayMinutes, setDisplayMinutes] = useState(30);
     const animFrameRef = useRef<number | null>(null);
 
+    // Clock dial web-compat refs
+    const clockRef = useRef<View>(null);
+    const clockLayout = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
     // Category filter state (single-select, 'All' by default)
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
@@ -268,11 +272,7 @@ export default function ChallengeSetupScreen() {
                 // Date always has default — always valid
                 return true;
             case 5: {
-                // Step 5 (reward): must pick either a category or a specific experience
-                if (!selectedExperience && !preferredRewardCategory) {
-                    setValidationErrors(prev => ({ ...prev, experience: true }));
-                    return false;
-                }
+                // Step 5 (reward): category, specific experience, or skip (null/null) are all valid
                 setValidationErrors(prev => ({ ...prev, experience: false }));
                 return true;
             }
@@ -298,6 +298,7 @@ export default function ChallengeSetupScreen() {
         if (showExperiencePicker) {
             setShowExperiencePicker(false);
             setSelectedExperience(null);
+            setPaymentChoice('payNow');
             setValidationErrors(prev => ({ ...prev, experience: false }));
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         } else if (currentStep > 1) {
@@ -394,7 +395,7 @@ export default function ChallengeSetupScreen() {
                         title: selectedExperience.title || '',
                         subtitle: selectedExperience.subtitle || '',
                         description: selectedExperience.description || '',
-                        category: selectedExperience.category || 'Adventure' as any,
+                        category: selectedExperience.category || 'adventure',
                         price: selectedExperience.price ?? 0,
                         coverImageUrl: selectedExperience.coverImageUrl || '',
                         imageUrl: Array.isArray(selectedExperience.imageUrl) ? selectedExperience.imageUrl : [selectedExperience.imageUrl || ''],
@@ -426,7 +427,7 @@ export default function ChallengeSetupScreen() {
                 // "Lock it in" — pay now via ExperienceCheckout
                 showSuccess('Challenge created! Complete payment to secure your reward.');
                 setTimeout(() => {
-                    navigation.navigate('ExperienceCheckout' as any, {
+                    navigation.replace('ExperienceCheckout' as any, {
                         cartItems: [{
                             experienceId: selectedExperience.id,
                             quantity: 1,
@@ -440,7 +441,7 @@ export default function ChallengeSetupScreen() {
                 // No card collection at setup (supports MB WAY and all payment methods at completion).
                 showSuccess('Challenge created! You\'ll pay when you complete your goal.');
                 setTimeout(() => {
-                    navigation.navigate('Goals' as any);
+                    navigation.reset({ index: 0, routes: [{ name: 'Goals' as any }] });
                 }, 300);
             } else {
                 // Free goal (category preference or skip) — go straight to Goals
@@ -464,7 +465,10 @@ export default function ChallengeSetupScreen() {
                 feature: 'CreateFreeGoal',
                 userId: state.user?.id,
             });
-            const isLimitError = error instanceof Error && error.message?.includes('3 active goals');
+            const isLimitError = error instanceof Error && (
+                error.message?.includes('3 active') ||
+                (error as any).code === 'GOAL_LIMIT_REACHED'
+            );
             showError(isLimitError
                 ? 'You already have 3 active free goals. Complete or delete one first to start a new challenge.'
                 : 'Failed to create goal. Please try again.');
@@ -645,9 +649,11 @@ export default function ChallengeSetupScreen() {
             : '';
 
         const handleTouch = (event: any) => {
-            const { locationX, locationY } = event.nativeEvent;
-            const dx = locationX - DIAL_RADIUS;
-            const dy = locationY - DIAL_RADIUS;
+            const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+            const x = locationX ?? (pageX - clockLayout.current.x);
+            const y = locationY ?? (pageY - clockLayout.current.y);
+            const dx = x - DIAL_RADIUS;
+            const dy = y - DIAL_RADIUS;
             let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
             if (a < 0) a += 360;
             const mins = Math.round((a / 360) * 60 / 5) * 5;
@@ -660,7 +666,13 @@ export default function ChallengeSetupScreen() {
             <View style={styles.stepContent}>
                 <View style={{ alignItems: 'center', marginTop: vh(4) }}>
                     <View
+                        ref={clockRef}
                         style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
+                        onLayout={() => {
+                            clockRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                                clockLayout.current = { x: pageX, y: pageY, width, height };
+                            });
+                        }}
                         onStartShouldSetResponder={() => true}
                         onMoveShouldSetResponder={() => true}
                         onResponderGrant={handleTouch}
@@ -1078,6 +1090,7 @@ export default function ChallengeSetupScreen() {
                         onPress={() => {
                             setShowExperiencePicker(false);
                             setSelectedExperience(null);
+                            setPaymentChoice('payNow');
                             setValidationErrors(prev => ({ ...prev, experience: false }));
                         }}
                         activeOpacity={0.7}
@@ -1327,6 +1340,20 @@ export default function ChallengeSetupScreen() {
                     );
                 })}
 
+                <TouchableOpacity
+                    onPress={() => {
+                        setSelectedExperience(null);
+                        setPreferredRewardCategory(null);
+                        setPaymentChoice('payNow');
+                        setCurrentStep(prev => prev + 1);
+                    }}
+                    style={{ alignSelf: 'center', marginTop: Spacing.xl }}
+                >
+                    <Text style={{ ...Typography.small, color: colors.textMuted, textDecorationLine: 'underline' }}>
+                        Skip - no reward
+                    </Text>
+                </TouchableOpacity>
+
             </View>
         );
     };
@@ -1505,7 +1532,7 @@ export default function ChallengeSetupScreen() {
                                     <View style={styles.heroContextRow}>
                                         <View style={styles.contextBadge}>
                                             <Text style={styles.contextEmoji}>
-                                                {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
+                                                {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Dance' ? '💃' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
                                             </Text>
                                             <Text style={styles.contextText}>{selectedGoal === 'Add your own' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
                                         </View>

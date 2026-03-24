@@ -26,6 +26,7 @@ import DetailedGoalCard from './recipient/DetailedGoalCard';
 import StreakBanner from './recipient/components/StreakBanner';
 import CompletedGoalCard from './recipient/CompletedGoalCard';
 import MainScreen from './MainScreen';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import SharedHeader from '../components/SharedHeader';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -500,7 +501,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 30 + FOOTER_HEIGHT,
     right: Spacing.xxl,
     zIndex: 100,
   },
@@ -519,7 +520,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   fabMenuColumn: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 100 + FOOTER_HEIGHT,
     right: Spacing.xxl,
     zIndex: 95,
     gap: Spacing.sm,
@@ -554,6 +555,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   listContainer: {
     padding: Spacing.xl,
+    paddingBottom: Spacing.xl + FOOTER_HEIGHT,
   },
   cardWrapper: {
     marginBottom: Spacing.lg,

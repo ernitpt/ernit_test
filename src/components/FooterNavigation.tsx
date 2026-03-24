@@ -34,6 +34,8 @@ import type { SvgProps } from 'react-native-svg';
 
 import { useAuthGuard } from '../hooks/useAuthGuard';
 
+export const FOOTER_HEIGHT = 72;
+
 type FooterNavigationProps = {
   activeRoute: 'Home' | 'Goals' | 'Profile' | 'Feed' | 'Settings';
   onMenuPress: () => void;
@@ -193,12 +195,13 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
     }
   };
 
-  const footerHeight = 72;
+  const footerHeight = FOOTER_HEIGHT;
   const safeAreaSpacer = Platform.OS === 'ios' ? insets.bottom : 0;
 
   return (
     <View style={styles.outerWrapper}>
-      <BlurView intensity={12} tint="default" style={[styles.container, { height: footerHeight }]}>
+      <View style={[styles.container, { height: footerHeight }]}>
+        <BlurView intensity={8} tint="default" style={StyleSheet.absoluteFill} />
         <View style={styles.navContainer}>
           <NavButton
             icon={HomeIcon}
@@ -241,10 +244,10 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
             onPress={onMenuPress}
           />
         </View>
-      </BlurView>
+      </View>
 
       {safeAreaSpacer > 0 && (
-        <View style={{ height: safeAreaSpacer, backgroundColor: 'transparent' }} />
+        <View style={{ height: safeAreaSpacer, backgroundColor: colors.surface }} />
       )}
     </View>
   );
@@ -259,7 +262,7 @@ const createStyles = (colors: typeof Colors) =>
     },
 
     container: {
-      backgroundColor: colors.surfaceFrosted92,
+      backgroundColor: colors.surfaceFrosted,
       overflow: 'hidden',
       borderTopLeftRadius: BorderRadius.xl,
       borderTopRightRadius: BorderRadius.xl,

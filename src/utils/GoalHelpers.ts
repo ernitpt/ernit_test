@@ -105,5 +105,8 @@ export function normalizeGoal(g: Record<string, unknown> & { id: string }): Goal
     pledgedAt: toJSDate(g.pledgedAt) ?? null,
     giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
     giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
+    // Discovery engine fields
+    discoveredAt: toJSDate((g as any).discoveredAt) ?? null,
+    experienceRevealedAt: toJSDate((g as any).experienceRevealedAt) ?? null,
   } as Goal;
 }

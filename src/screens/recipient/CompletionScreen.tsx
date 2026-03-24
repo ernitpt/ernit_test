@@ -16,7 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRoute } from '@react-navigation/native';
-import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Star, Zap, Flame, Share as ShareIcon } from 'lucide-react-native';
+import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Flame, Share as ShareIcon } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -62,15 +62,11 @@ const CompletionScreen = () => {
   const [isEmailCopied, setIsEmailCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [celebrationMessage, setCelebrationMessage] = useState('Amazing!');
+  const [paymentPending, setPaymentPending] = useState(false);
 
   // Enhanced animation refs
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const trophyPulse = useRef(new Animated.Value(1)).current;
-  const sparkleAnim = useRef(new Animated.Value(0)).current;
-  const floatAnim1 = useRef(new Animated.Value(0)).current;
-  const floatAnim2 = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<any>(null);
   const couponRequestedRef = useRef(false);
   const animTimeoutRef = useRef<NodeJS.Timeout>();
@@ -206,18 +202,6 @@ const CompletionScreen = () => {
 
   useEffect(() => {
     // Pick random celebration message
-    const messages = [
-      'Incredible!',
-      'You crushed it!',
-      'Legend!',
-      'Unstoppable!',
-      'Champion!',
-      'Phenomenal!',
-      'Absolutely Amazing!'
-    ];
-    setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
-
-    // ???? EPIC CELEBRATION SEQUENCE
     // Haptic feedback for goal completion
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Fire confetti after brief delay
@@ -226,7 +210,6 @@ const CompletionScreen = () => {
     }, 300);
 
     Animated.parallel([
-      // Trophy entrance with bounce
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 40,
@@ -240,65 +223,8 @@ const CompletionScreen = () => {
       }),
     ]).start();
 
-    // ?? Trophy pulsing with glow
-    const trophyLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(trophyPulse, {
-          toValue: 1.12,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(trophyPulse, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    trophyLoop.start();
-
-    // ? Sparkles twinkle
-    const sparkleLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sparkleAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sparkleAnim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    sparkleLoop.start();
-
-    // ?? Floating particles
-    const floatLoop1 = Animated.loop(
-      Animated.timing(floatAnim1, {
-        toValue: 1,
-        duration: 3000,
-        useNativeDriver: true,
-      })
-    );
-    floatLoop1.start();
-
-    const floatLoop2 = Animated.loop(
-      Animated.timing(floatAnim2, {
-        toValue: 1,
-        duration: 4000,
-        useNativeDriver: true,
-      })
-    );
-    floatLoop2.start();
-
     return () => {
       clearTimeout(animTimeoutRef.current);
-      trophyLoop.stop();
-      sparkleLoop.stop();
-      floatLoop1.stop();
-      floatLoop2.stop();
     };
   }, []);
 
@@ -327,8 +253,25 @@ const CompletionScreen = () => {
 
     try {
       setIsLoading(true);
+
+      // Check payment status before generating coupon — prevents revenue leak
+      // for deferred gifts where the charge hasn't confirmed yet
+      if (experienceGift.id) {
+        const giftSnap = await getDoc(doc(db, 'experienceGifts', experienceGift.id));
+        const giftPayment = giftSnap.data()?.payment;
+        if (giftPayment === 'deferred' || giftPayment === 'processing') {
+          setPaymentPending(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       await generateCouponWithTransaction();
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'PAYMENT_PENDING') {
+        setPaymentPending(true);
+        return;
+      }
       couponRequestedRef.current = false;
       logger.error('Error fetching/generating coupon:', error);
       showError('Could not load or generate your coupon. Please try again.');
@@ -372,11 +315,12 @@ const CompletionScreen = () => {
     }
   };
 
-  const handleWhatsAppSchedule = () => {
+  const handleWhatsAppSchedule = (dateOverride?: Date) => {
     if (!partner?.phone || !experience) return;
 
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', {
+    const effectiveDate = dateOverride || preferredDate;
+    const dateString = effectiveDate
+      ? effectiveDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -402,7 +346,7 @@ const CompletionScreen = () => {
     });
   };
 
-  const handleEmailSchedule = () => {
+  const handleEmailSchedule = (dateOverride?: Date) => {
     if (!partner || !experience) return;
     const contactEmail = partner.contactEmail || partner.email;
     if (!contactEmail) {
@@ -410,8 +354,9 @@ const CompletionScreen = () => {
       return;
     }
 
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', {
+    const effectiveDate = dateOverride || preferredDate;
+    const dateString = effectiveDate
+      ? effectiveDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -466,9 +411,9 @@ const CompletionScreen = () => {
 
     // Proceed with the selected booking method
     if (bookingMethod === 'whatsapp') {
-      handleWhatsAppSchedule();
+      handleWhatsAppSchedule(date);
     } else if (bookingMethod === 'email') {
-      handleEmailSchedule();
+      handleEmailSchedule(date);
     }
   };
 
@@ -547,7 +492,7 @@ const CompletionScreen = () => {
     return (
       <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
@@ -684,131 +629,27 @@ const CompletionScreen = () => {
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section - EPIC CELEBRATION */}
-        <LinearGradient
-          colors={[colors.secondary, colors.cyan, colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroSection}
-        >
-          {/* Floating particles */}
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
           <Animated.View
             style={[
-              styles.floatingParticle,
+              styles.successIcon,
               {
-                opacity: floatAnim1.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 0.8],
-                }),
-                transform: [
-                  {
-                    translateY: floatAnim1.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -100],
-                    }),
-                  },
-                ],
-                left: '20%',
-                top: 100,
-              },
-            ]}
-          >
-            <Star color={colors.celebrationGold} size={20} fill={colors.celebrationGold} />
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              styles.floatingParticle,
-              {
-                opacity: floatAnim2.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.4, 0.9],
-                }),
-                transform: [
-                  {
-                    translateY: floatAnim2.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -120],
-                    }),
-                  },
-                ],
-                right: '15%',
-                top: 80,
-              },
-            ]}
-          >
-            <Zap color={colors.warning} size={24} fill={colors.warning} />
-          </Animated.View>
-
-          {/* ? Enhanced sparkle effects */}
-          <Animated.View
-            style={[
-              styles.sparkle,
-              {
-                opacity: sparkleAnim,
-                top: 40,
-                left: 30,
-              },
-            ]}
-          >
-            <Sparkles color={colors.celebrationGoldLight} size={32} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.sparkle,
-              {
-                opacity: sparkleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0],
-                }),
-                top: 60,
-                right: 40,
-              },
-            ]}
-          >
-            <Sparkles color={colors.celebrationGoldBorder} size={28} />
-          </Animated.View>
-
-          {/* Larger trophy with glow */}
-          <Animated.View
-            style={[
-              styles.trophyContainer,
-              {
-                transform: [
-                  { scale: Animated.multiply(scaleAnim, trophyPulse) }
-                ],
+                transform: [{ scale: scaleAnim }],
                 opacity: fadeAnim,
               },
             ]}
           >
-            <Trophy color={colors.celebrationGoldLight} size={100} strokeWidth={2.5} fill={colors.celebrationGold} />
+            <CheckCircle color={colors.secondary} size={64} strokeWidth={2.5} />
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Goal Completed!</Text>
-            <Animated.Text
-              style={styles.celebrationMessage}
-            >
-              {celebrationMessage}
-            </Animated.Text>
             <Text style={styles.heroSubtitle}>
               {hasReward ? 'You did it! Your reward is now unlocked 🎉' : 'You did it! 🎉'}
             </Text>
-
-            {/* Enhanced completion stats */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{totalSessions}</Text>
-                <Text style={styles.statLabel}>Sessions</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{goal.targetCount}</Text>
-                <Text style={styles.statLabel}>Weeks</Text>
-              </View>
-            </View>
           </Animated.View>
-        </LinearGradient>
+        </View>
 
         {/* Stats Card - Enhanced */}
         <View style={styles.statsCard}>
@@ -854,12 +695,14 @@ const CompletionScreen = () => {
               <Text style={styles.experienceHeaderText}>Your Reward</Text>
             </View>
 
-            <Image
-              source={{ uri: experienceImage }}
-              style={styles.experienceImage}
-              contentFit="cover" cachePolicy="memory-disk"
-              accessibilityLabel={`${experience?.title || 'Experience'} image`}
-            />
+            {experienceImage && (
+              <Image
+                source={{ uri: experienceImage }}
+                style={styles.experienceImage}
+                contentFit="cover" cachePolicy="memory-disk"
+                accessibilityLabel={`${experience?.title || 'Experience'} image`}
+              />
+            )}
             <View style={styles.experienceContent}>
               {experience ? (
                 <>
@@ -894,6 +737,15 @@ const CompletionScreen = () => {
             <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
               <SkeletonBox width="100%" height={80} borderRadius={12} />
               <SkeletonBox width="100%" height={48} borderRadius={12} />
+            </View>
+          ) : paymentPending ? (
+            <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
+              <Text style={[styles.couponInstructions, { fontWeight: '600', color: colors.warning }]}>
+                Payment is being processed
+              </Text>
+              <Text style={[styles.couponInstructions, { marginTop: Spacing.sm }]}>
+                Your coupon will appear here once the gift payment is confirmed. Check back shortly.
+              </Text>
             </View>
           ) : couponCode ? (
             <View>
@@ -978,50 +830,31 @@ const CompletionScreen = () => {
                     )}
                   </View>
 
+                  <Text style={styles.scheduleViaLabel}>Schedule via:</Text>
                   <View style={styles.scheduleButtonsContainer}>
                     {partner.phone && (
                       <TouchableOpacity
-                        style={[
-                          styles.scheduleButtonWrapper,
-                          (partner.contactEmail || partner.email) && styles.scheduleButtonHalf
-                        ]}
+                        style={[styles.scheduleButton, styles.scheduleButtonWhatsApp, (partner.contactEmail || partner.email) && styles.scheduleButtonHalf]}
                         onPress={handleBookNowWhatsApp}
-                        activeOpacity={0.8}
+                        activeOpacity={0.7}
                         accessibilityRole="button"
                         accessibilityLabel="Schedule via WhatsApp"
                       >
-                        <LinearGradient
-                          colors={[colors.whatsappGreen, colors.whatsappGreenDark]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.scheduleButton}
-                        >
-                          <MessageCircle color={colors.white} size={24} />
-                          <Text style={styles.scheduleButtonText}>Schedule via WhatsApp</Text>
-                        </LinearGradient>
+                        <MessageCircle color={colors.white} size={20} />
+                        <Text style={styles.scheduleButtonText}>WhatsApp</Text>
                       </TouchableOpacity>
                     )}
 
                     {(partner.contactEmail || partner.email) && (
                       <TouchableOpacity
-                        style={[
-                          styles.scheduleButtonWrapper,
-                          partner.phone && styles.scheduleButtonHalf,
-                        ]}
+                        style={[styles.scheduleButton, styles.scheduleButtonEmail, partner.phone && styles.scheduleButtonHalf]}
                         onPress={handleBookNowEmail}
-                        activeOpacity={0.8}
+                        activeOpacity={0.7}
                         accessibilityRole="button"
                         accessibilityLabel="Schedule via Email"
                       >
-                        <LinearGradient
-                          colors={[colors.secondary, colors.primary]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.scheduleButton}
-                        >
-                          <Mail color={colors.white} size={24} />
-                          <Text style={styles.scheduleButtonText}>Schedule via Email</Text>
-                        </LinearGradient>
+                        <Mail color={colors.white} size={20} />
+                        <Text style={styles.scheduleButtonText}>Email</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1159,63 +992,30 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     backgroundColor: colors.backgroundLight,
   },
   heroSection: {
+    backgroundColor: colors.surface,
     paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
-    paddingBottom: vh(56),
+    paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 12,
   },
-  floatingParticle: {
-    position: 'absolute',
-  },
-  trophyContainer: {
-    marginVertical: Spacing.xxl,
-    padding: Spacing.xxl,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: colors.blackAlpha20,
-    shadowColor: colors.warning,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 30,
-    elevation: 15,
+  successIcon: {
+    marginBottom: Spacing.xxl,
   },
   heroTitle: {
-    fontSize: Typography.heroSub.fontSize,
-    fontWeight: '900',
-    color: colors.white,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-    textShadowColor: colors.overlayLight,
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-    letterSpacing: 0.5,
-  },
-  celebrationMessage: {
     ...Typography.display,
     fontWeight: '800',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    color: colors.textPrimary,
     textAlign: 'center',
-    color: colors.warningLight,
-    letterSpacing: 1.5,
-    textShadowColor: colors.overlayLight,
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    marginBottom: Spacing.sm,
   },
   heroSubtitle: {
     ...Typography.subheading,
-    color: colors.primaryTint,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   statsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
@@ -1249,7 +1049,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   statsBadge: {
-    backgroundColor: colors.warningLight,
+    backgroundColor: colors.warning + '15',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     flexDirection: 'row',
@@ -1268,7 +1068,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.warningDark,
   },
   experienceCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
@@ -1315,7 +1115,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     lineHeight: 22,
   },
   couponSection: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
@@ -1354,7 +1154,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textSecondary,
   },
   couponCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     shadowColor: colors.black,
@@ -1375,11 +1175,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderStyle: 'dashed',
   },
   couponCode: {
-    ...Typography.display,
-    fontWeight: '800',
+    ...Typography.body,
+    fontWeight: '700',
     color: colors.secondary,
     textAlign: 'center',
-    letterSpacing: 6,
+    letterSpacing: 3,
   },
   couponActions: {
     flexDirection: 'row',
@@ -1419,33 +1219,39 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.primaryDeep,
     fontWeight: '600',
   },
-  // Enhanced Schedule Buttons
+  // Schedule Buttons
+  scheduleViaLabel: {
+    ...Typography.small,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
   scheduleButtonsContainer: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  scheduleButtonWrapper: {
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
   },
   scheduleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xxl,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.md,
+  },
+  scheduleButtonWhatsApp: {
+    backgroundColor: colors.whatsappGreen,
+  },
+  scheduleButtonEmail: {
+    backgroundColor: colors.secondary,
   },
   scheduleButtonText: {
     color: colors.white,
-    ...Typography.subheading,
-    fontWeight: '700',
+    ...Typography.body,
+    fontWeight: '600',
   },
   scheduleButtonHalf: {
     flex: 1,
@@ -1488,53 +1294,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   smallCopyButton: {
     padding: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  // Enhanced sparkle and decoration styles
-  sparkle: {
-    position: 'absolute',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xxl,
-    backgroundColor: colors.whiteAlpha15,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.blackAlpha20,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    ...Typography.display,
-    fontWeight: '900',
-    color: colors.white,
-    textShadowColor: colors.blackAlpha20,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  statLabel: {
-    ...Typography.caption,
-    color: colors.whiteAlpha90,
-    marginTop: Spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    fontWeight: '600',
-  },
-  statDivider: {
-    width: 2,
-    height: 50,
-    backgroundColor: colors.whiteAlpha25,
-    borderRadius: BorderRadius.xs,
-  },
   // No-reward CTA
   noRewardCta: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
@@ -1575,7 +1341,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   // Share section
   shareSection: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,
@@ -1608,7 +1374,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   shareFormatActive: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -1641,7 +1407,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   // Streak CTA section
   streakCtaSection: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     borderRadius: BorderRadius.xl,

@@ -1,6 +1,7 @@
 // screens/Recipient/GoalSettingScreen.tsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -14,6 +15,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -47,33 +49,36 @@ import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
+import { Shadows } from '../../config/shadows';
 import { useToast } from '../../context/ToastContext';
 import ModernSlider from '../../components/ModernSlider';
 import WizardProgressBar from '../../components/WizardProgressBar';
+import { BaseModal } from '../../components/BaseModal';
+import Button from '../../components/Button';
 
 const TOTAL_STEPS = 4;
 
 type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
 
-const CATEGORIES = [
-  { icon: '🏋️', name: 'Gym', color: '#10B981' },
-  { icon: '🧘', name: 'Yoga', color: '#8B5CF6' },
-  { icon: '🕺', name: 'Dance', color: '#F59E0B' },
-  { icon: '✏️', name: 'Other', color: '#6B7280' },
+const getGoalTypes = (colors: typeof Colors) => [
+  { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
+  { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: (colors as any).info || '#8B5CF6' },
+  { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
+  { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
 ];
 
 const STEP_TITLES = [
-  'Choose Your Goal',
-  'Set Your Intensity',
-  'Pick Your Start Date',
-  'Review & Confirm',
+  'What is your goal?',
+  'Set your intensity',
+  'How long per session?',
+  'When do you start?',
 ];
 
 const STEP_SUBTITLES = [
-  'Pick the category that matches your experience gift',
-  'How hard do you want to push yourself? Start small \u2014 you can always do more later!',
-  'We\u2019ll send you reminders so you never miss a session',
-  'Make sure everything looks right before we set it in motion',
+  'Pick a category that matches your gift',
+  'How hard do you want to push yourself?',
+  'Set the duration for each time you show up',
+  "Pick a date and let's make it happen",
 ];
 
 // ─── Main Screen Component ──────────────────────────────────────────
@@ -82,6 +87,7 @@ const GoalSettingScreen = () => {
   const route = useRoute();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
   const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
   const experienceGift = routeParams?.experienceGift;
   const { state, dispatch } = useApp();
@@ -95,6 +101,9 @@ const GoalSettingScreen = () => {
   const [customCategory, setCustomCategory] = useState('');
   const [weeks, setWeeks] = useState(3);
   const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
+  // Clock dial state
+  const [sessionMinutes, setSessionMinutes] = useState(30);
+  const [showCustomTime, setShowCustomTime] = useState(false);
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [plannedStartDate, setPlannedStartDate] = useState(new Date());
@@ -106,6 +115,15 @@ const GoalSettingScreen = () => {
   const [showHintPopup, setShowHintPopup] = useState(false);
   const [firstHint, setFirstHint] = useState<string | null>(null);
   const [createdGoal, setCreatedGoal] = useState<Goal | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Animated dial
+  const [displayMinutes, setDisplayMinutes] = useState(30);
+  const animFrameRef = useRef<number | null>(null);
+
+  // Clock dial web-compat refs
+  const clockRef = useRef<View>(null);
+  const clockLayout = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   // Calendar state
   const [calendarMonth, setCalendarMonth] = useState(
@@ -133,7 +151,10 @@ const GoalSettingScreen = () => {
   }, [navigation, currentStep]);
 
   // Validate required data
-  const hasValidData = Boolean(experienceGift?.id && experienceGift?.experienceId);
+  const hasValidData = Boolean(
+    experienceGift?.id &&
+    (experienceGift?.experienceId || (experienceGift as any)?.isCategoryOnly || (experienceGift as any)?.preferredRewardCategory)
+  );
 
   useEffect(() => {
     if (!hasValidData) {
@@ -162,6 +183,9 @@ const GoalSettingScreen = () => {
   // Fetch experience details
   useEffect(() => {
     const fetchExperience = async () => {
+      if (!experienceGift?.experienceId) {
+        return;
+      }
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
         setExperience(exp);
@@ -195,7 +219,7 @@ const GoalSettingScreen = () => {
     }
   }, [isSubmitting]);
 
-  // Pre-generate first AI hint when reaching the review step
+  // Pre-generate first AI hint when reaching the calendar step
   useEffect(() => {
     if (currentStep === 4 && !hintPromise && experience) {
       const totalSessions = weeks * sessionsPerWeek;
@@ -244,7 +268,7 @@ const GoalSettingScreen = () => {
   const validateCurrentStep = (): boolean => {
     switch (currentStep) {
       case 1: {
-        const finalCat = selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
+        const finalCat = selectedCategory === 'Add your own' ? customCategory.trim() : selectedCategory;
         if (!finalCat) {
           setValidationErrors(prev => ({ ...prev, category: true }));
           return false;
@@ -252,22 +276,30 @@ const GoalSettingScreen = () => {
         setValidationErrors(prev => ({ ...prev, category: false }));
         return true;
       }
-      case 2: {
-        const h = parseInt(hours || '0', 10);
-        const m = parseInt(minutes || '0', 10);
-        if ((!hours && !minutes) || (h === 0 && m === 0)) {
-          setValidationErrors(prev => ({ ...prev, time: true }));
-          return false;
-        }
-        if (h > 3 || (h === 3 && m > 0)) {
-          showError('Each session cannot exceed 3 hours.');
-          return false;
+      case 2:
+        // Sliders have defaults — always valid
+        return true;
+      case 3: {
+        if (showCustomTime) {
+          const hoursNum = parseInt(hours || '0', 10);
+          const minutesNum = parseInt(minutes || '0', 10);
+          if ((!hours && !minutes) || (hoursNum === 0 && minutesNum === 0)) {
+            setValidationErrors(prev => ({ ...prev, time: true }));
+            return false;
+          }
+          if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
+            showError('Each session cannot exceed 3 hours.');
+            return false;
+          }
+        } else {
+          if (sessionMinutes < 5) {
+            setValidationErrors(prev => ({ ...prev, time: true }));
+            return false;
+          }
         }
         setValidationErrors(prev => ({ ...prev, time: false }));
         return true;
       }
-      case 3:
-        return true;
       case 4:
         return true;
       default:
@@ -305,9 +337,9 @@ const GoalSettingScreen = () => {
         return;
       }
 
-      const finalCategory = selectedCategory === 'Other' ? sanitizeText(customCategory.trim(), 50) : selectedCategory;
-      const hoursNum = parseInt(hours || '0');
-      const minutesNum = parseInt(minutes || '0');
+      const finalCategory = selectedCategory === 'Add your own' ? sanitizeText(customCategory.trim(), 50) : selectedCategory;
+      const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
+      const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
       const now = new Date();
       const durationInDays = weeks * 7;
       const endDate = new Date(now);
@@ -341,8 +373,8 @@ const GoalSettingScreen = () => {
       const goalData: Omit<Goal, 'id'> & { sessionsPerWeek: number } = {
         userId: currentUserId,
         experienceGiftId: experienceGift.id,
-        title: `Attend ${finalCategory} Sessions`,
-        description: `Work on ${finalCategory} for ${weeks} weeks, ${sessionsPerWeek} times per week.`,
+        title: `Attend ${finalCategory || 'Fitness'} Sessions`,
+        description: `Work on ${finalCategory || 'fitness'} for ${weeks} weeks, ${sessionsPerWeek} times per week.`,
         targetCount: weeks,
         currentCount: 0,
         weeklyCount: 0,
@@ -356,7 +388,7 @@ const GoalSettingScreen = () => {
         isActive: true,
         isCompleted: false,
         isRevealed: false,
-        location: experience?.location || 'Unknown location',
+        location: experience?.location || (experienceGift as any)?.preferredRewardCategory || 'Unknown location',
         targetHours: hoursNum,
         targetMinutes: minutesNum,
         createdAt: now,
@@ -395,8 +427,6 @@ const GoalSettingScreen = () => {
           });
         } catch (revertError) {
           logger.error('Failed to revert gift claim:', revertError);
-          // Revert itself failed — the gift may be in an inconsistent state.
-          // Surface a clear message here rather than swallowing the error silently.
           showError('Something went wrong. Please contact support with your claim code — we will fix this.');
         }
         throw goalError; // Re-throw to hit the outer error handler
@@ -404,7 +434,6 @@ const GoalSettingScreen = () => {
 
       // Bidirectional link: if giver's goal already exists, update it to point back to this recipient goal
       if (experienceGift?.challengeType === 'shared' && experienceGift?.togetherData?.giverGoalId) {
-        // Retry bidirectional link up to 3 times
         let linkSuccess = false;
         for (let attempt = 0; attempt < 3 && !linkSuccess; attempt++) {
           try {
@@ -417,7 +446,6 @@ const GoalSettingScreen = () => {
           } catch (linkErr) {
             if (attempt === 2) {
               console.error('Failed to link partner goal after 3 attempts:', linkErr);
-              // Store recipientGoalId on the gift as fallback
               try {
                 await updateDoc(doc(db, 'experienceGifts', experienceGift.id), {
                   recipientGoalId: goal.id,
@@ -455,13 +483,12 @@ const GoalSettingScreen = () => {
       const recipientName = await userService.getUserName(goalData.userId);
 
       // Send approval notification (skip for self-gifts and shared challenges)
-      // Shared challenges are auto-approved; the shared_start notification (H1) handles giver notification
       const isSelfGift = experienceGift.giverId === currentUserId;
       if (!isSelfGift && experienceGift?.challengeType !== 'shared') {
         await notificationService.createNotification(
           goalData.empoweredBy! || '',
           'goal_approval_request',
-          `\u{1F3AF} ${recipientName} set a goal for ${experience?.title ?? 'your challenge'}`,
+          `🎯 ${recipientName} set a goal for ${experience?.title ?? 'your challenge'}`,
           `Goal: ${goalData.description}`,
           {
             giftId: goalData.experienceGiftId,
@@ -479,6 +506,7 @@ const GoalSettingScreen = () => {
       dispatch({ type: 'SET_GOAL', payload: goal });
       setCreatedGoal(goal);
       goalCreatedRef.current = true; // Bypass beforeRemove guard
+      setShowConfirm(false);
 
       // Wait for pre-generated hint
       if (hintPromise) {
@@ -518,7 +546,7 @@ const GoalSettingScreen = () => {
         userId: state.user?.id,
         additionalData: {
           giftId: experienceGift.id,
-          category: selectedCategory === 'Other' ? customCategory : selectedCategory,
+          category: selectedCategory === 'Add your own' ? customCategory : selectedCategory,
         },
       });
       showError('Goal creation failed. Your gift code is still valid — please try again.');
@@ -563,7 +591,7 @@ const GoalSettingScreen = () => {
   const goalEndDate = new Date(plannedStartDate);
   goalEndDate.setDate(goalEndDate.getDate() + weeks * 7);
 
-  const finalCategory = selectedCategory === 'Other' ? customCategory.trim() : selectedCategory;
+  const finalCategory = selectedCategory === 'Add your own' ? customCategory.trim() : selectedCategory;
 
   // ─── Together Mode: pre-fill from giver's goal ───────────────────
   const togetherData = experienceGift?.togetherData;
@@ -573,18 +601,62 @@ const GoalSettingScreen = () => {
     if (!togetherData) return;
     setAcceptedGiverGoal(true);
     // Pre-fill from giver's goal data
-    // Parse duration (e.g. "3 weeks" → weeks=3)
     const durationMatch = togetherData.duration?.match(/(\d+)/);
     if (durationMatch) setWeeks(parseInt(durationMatch[1], 10));
-    // Parse frequency (e.g. "3x per week" → sessionsPerWeek=3)
     const freqMatch = togetherData.frequency?.match(/(\d+)/);
     if (freqMatch) setSessionsPerWeek(parseInt(freqMatch[1], 10));
-    // Parse session time (e.g. "1h 30m")
-    const timeMatch = togetherData.sessionTime?.match(/(\d+)h\s*(\d+)m/);
-    if (timeMatch) {
-      setHours(timeMatch[1]);
-      setMinutes(timeMatch[2]);
+    // Parse session time (e.g. "1h 30m", "45m")
+    const sessionTime = togetherData.sessionTime || '';
+    const hourMatch = sessionTime.match(/(\d+)\s*h/);
+    const minMatch = sessionTime.match(/(\d+)\s*m/);
+    const parsedHours = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+    const parsedMinutes = minMatch ? parseInt(minMatch[1], 10) : 30;
+    const totalMinutes = parsedHours * 60 + parsedMinutes;
+    setSessionMinutes(Math.max(5, Math.min(60, totalMinutes)));
+    setDisplayMinutes(Math.max(5, Math.min(60, totalMinutes)));
+    // Pre-fill category from giver's goal type
+    const goalType = togetherData.goalType || togetherData.goalName?.split('-')[0]?.trim();
+    if (goalType) {
+      const categoryMap: Record<string, string> = {
+        'gym': 'Gym',
+        'yoga': 'Yoga',
+        'dance': 'Dance',
+      };
+      const mapped = categoryMap[goalType.toLowerCase()];
+      if (mapped) {
+        setSelectedCategory(mapped);
+      } else {
+        setSelectedCategory('Add your own');
+        setCustomCategory(goalType);
+      }
     }
+    // Auto-advance through all steps
+    setTimeout(() => {
+      setCurrentStep(4);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 300);
+  };
+
+  // ─── Clock Dial ───────────────────────────────────────────────────
+  const DIAL_SIZE = vh(250);
+  const DIAL_RADIUS = DIAL_SIZE / 2;
+  const DIAL_STROKE = 8;
+  const HANDLE_RADIUS = 14;
+
+  const snapToPreset = (target: number) => {
+    setSessionMinutes(target);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    const start = displayMinutes;
+    const diff = target - start;
+    const duration = 350;
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayMinutes(Math.round(start + diff * eased));
+      if (t < 1) animFrameRef.current = requestAnimationFrame(step);
+    };
+    animFrameRef.current = requestAnimationFrame(step);
   };
 
   // ─── Step Renderers ───────────────────────────────────────────────
@@ -706,14 +778,22 @@ const GoalSettingScreen = () => {
         </MotiView>
       )}
 
+      {/* 2x2 goal type grid */}
       <View style={styles.goalGrid}>
-        {CATEGORIES.map((cat) => (
+        {GOAL_TYPES.map((goal, i) => (
           <MotiView
-            key={cat.name}
-            style={{ width: '31%', minWidth: 95 }}
-            animate={{ scale: selectedCategory === cat.name ? 1.04 : 1 }}
+            key={goal.name}
+            style={{ width: '47%' }}
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{
+              opacity: 1,
+              translateY: 0,
+              scale: selectedCategory === goal.name ? 1.04 : 1,
+            }}
             transition={{
-              scale: selectedCategory === cat.name
+              opacity: { type: 'timing', duration: 300, delay: i * 80 },
+              translateY: { type: 'timing', duration: 300, delay: i * 80 },
+              scale: selectedCategory === goal.name
                 ? { type: 'spring', damping: 34, stiffness: 100 }
                 : { type: 'timing', duration: 100 },
             }}
@@ -721,23 +801,32 @@ const GoalSettingScreen = () => {
             <TouchableOpacity
               style={[
                 styles.goalChip,
-                { width: '100%' },
-                selectedCategory === cat.name && { backgroundColor: cat.color, borderColor: cat.color },
+                selectedCategory === goal.name && { backgroundColor: goal.color, borderColor: goal.color },
                 validationErrors.category && !selectedCategory && styles.goalChipError,
               ]}
               onPress={() => {
-                setSelectedCategory(cat.name);
+                setSelectedCategory(goal.name);
                 setValidationErrors(prev => ({ ...prev, category: false }));
-                if (cat.name !== 'Other') setCustomCategory('');
+                if (goal.name !== 'Add your own') {
+                  setCustomCategory('');
+                  setTimeout(() => {
+                    setCurrentStep(prev => prev + 1);
+                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                  }, 250);
+                }
               }}
               accessibilityRole="button"
-              accessibilityLabel={`${cat.name} category`}
+              accessibilityLabel={`Select ${goal.name} goal`}
             >
-              <Text style={styles.goalIcon}>{cat.icon}</Text>
+              <Text style={styles.goalIcon}>{goal.icon}</Text>
               <Text style={[
                 styles.goalName,
-                selectedCategory === cat.name && styles.goalNameActive,
-              ]}>{cat.name}</Text>
+                selectedCategory === goal.name && styles.goalNameActive,
+              ]}>{goal.name}</Text>
+              <Text style={[
+                styles.goalTagline,
+                selectedCategory === goal.name && { color: colors.white + 'CC' },
+              ]}>{goal.tagline}</Text>
             </TouchableOpacity>
           </MotiView>
         ))}
@@ -745,11 +834,11 @@ const GoalSettingScreen = () => {
 
       {validationErrors.category && (
         <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
-          Please select a goal category
+          Please select a goal type
         </Text>
       )}
 
-      {selectedCategory === 'Other' && (
+      {selectedCategory === 'Add your own' && (
         <View style={styles.customGoalContainer}>
           <TextInput
             label="Enter your custom goal:"
@@ -762,11 +851,15 @@ const GoalSettingScreen = () => {
               }
             }}
             maxLength={50}
-            error={validationErrors.category && customCategory.trim() === '' ? 'Please enter a custom category' : undefined}
-            leftIcon={<Text style={styles.customGoalIcon}>{'\u2728'}</Text>}
             autoFocus
             accessibilityLabel="Custom goal category"
+            containerStyle={{ marginBottom: 0 }}
           />
+          {validationErrors.category && customCategory.trim() === '' && (
+            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
+              Please enter a custom goal
+            </Text>
+          )}
         </View>
       )}
     </View>
@@ -799,75 +892,287 @@ const GoalSettingScreen = () => {
           rightLabel="Beast"
         />
       </View>
-
-      <View style={styles.section}>
-        <View style={styles.sliderContainer}>
-          <Text style={styles.sliderTitle}>Time per session</Text>
-
-          <View style={styles.timeRow}>
-            <View style={styles.timeInputGroup}>
-              <RNTextInput
-                style={styles.timeInput}
-                value={hours}
-                onChangeText={(t) => {
-                  setHours(sanitizeNumericInput(t));
-                  if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                }}
-                keyboardType="numeric"
-                maxLength={1}
-                placeholder="0"
-                placeholderTextColor={colors.textMuted}
-                returnKeyType="next"
-                onSubmitEditing={() => minutesRef.current?.focus()}
-                accessibilityLabel="Hours per session"
-              />
-              <Text style={styles.timeLabel}>hr</Text>
-            </View>
-            <View style={styles.timeInputGroup}>
-              <RNTextInput
-                ref={minutesRef}
-                style={styles.timeInput}
-                value={minutes}
-                onChangeText={(t) => {
-                  const clean = sanitizeNumericInput(t);
-                  const m = parseInt(clean || '0', 10);
-                  setMinutes(m > 59 ? '59' : clean);
-                  if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                }}
-                keyboardType="numeric"
-                maxLength={2}
-                placeholder="00"
-                placeholderTextColor={colors.textMuted}
-                returnKeyType="done"
-                accessibilityLabel="Minutes per session"
-              />
-              <Text style={styles.timeLabel}>min</Text>
-            </View>
-          </View>
-
-          {validationErrors.time && (
-            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500' }}>
-              Please set a time per session (at least 1 minute)
-            </Text>
-          )}
-        </View>
-      </View>
     </View>
   );
 
-  const renderStep3 = () => {
+  const renderTimeStep = () => {
+    const visMinutes = displayMinutes;
+    const angle = (visMinutes / 60) * 360;
+    const angleRad = ((angle - 90) * Math.PI) / 180;
+    const arcRadius = DIAL_RADIUS - 20;
+    const handleX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
+    const handleY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
+
+    const startAngleRad = (-90 * Math.PI) / 180;
+    const largeArc = angle > 180 ? 1 : 0;
+    const startX = DIAL_RADIUS + arcRadius * Math.cos(startAngleRad);
+    const startY = DIAL_RADIUS + arcRadius * Math.sin(startAngleRad);
+    const endX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
+    const endY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
+    const isFullCircle = visMinutes >= 60;
+    const arcPath = (!isFullCircle && visMinutes > 0)
+      ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
+      : '';
+
+    const handleTouch = (event: any) => {
+      const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+      const x = locationX ?? (pageX - clockLayout.current.x);
+      const y = locationY ?? (pageY - clockLayout.current.y);
+      const dx = x - DIAL_RADIUS;
+      const dy = y - DIAL_RADIUS;
+      let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+      if (a < 0) a += 360;
+      const mins = Math.round((a / 360) * 60 / 5) * 5;
+      const clamped = Math.max(5, Math.min(60, mins));
+      setSessionMinutes(clamped);
+      setDisplayMinutes(clamped);
+    };
+
+    return (
+      <View style={styles.stepContent}>
+        <View style={{ alignItems: 'center', marginTop: vh(4) }}>
+          <View
+            ref={clockRef}
+            style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
+            onLayout={() => {
+              clockRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                clockLayout.current = { x: pageX, y: pageY, width, height };
+              });
+            }}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={handleTouch}
+            onResponderMove={handleTouch}
+          >
+            <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
+              {/* Tick marks (every 5 min = 12 ticks) */}
+              {Array.from({ length: 12 }).map((_, i) => {
+                const tickAngle = ((i * 30 - 90) * Math.PI) / 180;
+                const isMajor = i % 3 === 0;
+                const outerR = arcRadius + 4;
+                const innerR = arcRadius - (isMajor ? 10 : 6);
+                return (
+                  <Path
+                    key={`tick-${i}`}
+                    d={`M ${DIAL_RADIUS + innerR * Math.cos(tickAngle)} ${DIAL_RADIUS + innerR * Math.sin(tickAngle)} L ${DIAL_RADIUS + outerR * Math.cos(tickAngle)} ${DIAL_RADIUS + outerR * Math.sin(tickAngle)}`}
+                    stroke={colors.border}
+                    strokeWidth={isMajor ? 2 : 1}
+                  />
+                );
+              })}
+              {/* Background circle */}
+              <Circle
+                cx={DIAL_RADIUS}
+                cy={DIAL_RADIUS}
+                r={arcRadius}
+                stroke={colors.backgroundLight}
+                strokeWidth={DIAL_STROKE}
+                fill="none"
+              />
+              {/* Active arc / full circle */}
+              {isFullCircle ? (
+                <Circle
+                  cx={DIAL_RADIUS}
+                  cy={DIAL_RADIUS}
+                  r={arcRadius}
+                  stroke={colors.secondary}
+                  strokeWidth={DIAL_STROKE}
+                  fill="none"
+                />
+              ) : visMinutes > 0 ? (
+                <Path
+                  d={arcPath}
+                  stroke={colors.secondary}
+                  strokeWidth={DIAL_STROKE}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              ) : null}
+              {/* Handle with shadow effect */}
+              <Circle
+                cx={handleX}
+                cy={handleY}
+                r={HANDLE_RADIUS + 3}
+                fill={colors.secondary + '20'}
+              />
+              <Circle
+                cx={handleX}
+                cy={handleY}
+                r={HANDLE_RADIUS}
+                fill={colors.secondary}
+              />
+            </Svg>
+
+            {/* Center text */}
+            <View style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{
+                fontSize: vh(48),
+                fontWeight: '800',
+                color: colors.secondary,
+                letterSpacing: -2,
+              }}>
+                {visMinutes}
+              </Text>
+              <Text style={{
+                ...Typography.caption,
+                fontWeight: '700',
+                color: colors.textMuted,
+                textTransform: 'uppercase',
+                letterSpacing: 2,
+              }}>
+                MINUTES
+              </Text>
+            </View>
+
+            {/* Minute markers inside the circle */}
+            {[0, 15, 30, 45].map((m) => {
+              const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
+              const markerR = DIAL_RADIUS - 45;
+              const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
+              const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
+              return (
+                <Text key={m} style={{
+                  position: 'absolute',
+                  left: mx - 10,
+                  top: my - 8,
+                  ...Typography.caption,
+                  fontWeight: '700',
+                  color: colors.textMuted,
+                  width: 20,
+                  textAlign: 'center',
+                }}>
+                  {m}
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Preset time chips */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginTop: vh(20) }}>
+          {[15, 30, 45, 60].map((m) => (
+            <MotiView
+              key={m}
+              animate={{ scale: sessionMinutes === m ? 1.06 : 1 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 150 }}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.presetChip,
+                  sessionMinutes === m && styles.presetChipActive,
+                ]}
+                onPress={() => snapToPreset(m)}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.presetChipText,
+                  sessionMinutes === m && styles.presetChipTextActive,
+                ]}>{m} min</Text>
+              </TouchableOpacity>
+            </MotiView>
+          ))}
+        </View>
+
+        {/* Custom time toggle */}
+        <TouchableOpacity
+          style={{ alignSelf: 'center', marginTop: vh(16) }}
+          onPress={() => setShowCustomTime(!showCustomTime)}
+          activeOpacity={0.7}
+        >
+          <Text style={{
+            ...Typography.body,
+            color: colors.primary,
+            fontWeight: '600',
+          }}>
+            {showCustomTime ? 'Use the dial' : 'Or enter a custom time ›'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Custom time inputs (toggle) */}
+        {showCustomTime && (
+          <MotiView
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 200 }}
+          >
+            <View style={[styles.timeRow, { justifyContent: 'center', marginTop: vh(16) }]}>
+              <View style={styles.timeInputGroup}>
+                <RNTextInput
+                  style={styles.timeInput}
+                  value={hours}
+                  onChangeText={(t) => {
+                    setHours(sanitizeNumericInput(t));
+                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                  }}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="next"
+                  onSubmitEditing={() => minutesRef.current?.focus()}
+                  accessibilityLabel="Hours per session"
+                />
+                <Text style={styles.timeLabel}>hr</Text>
+              </View>
+              <View style={styles.timeInputGroup}>
+                <RNTextInput
+                  ref={minutesRef}
+                  style={styles.timeInput}
+                  value={minutes}
+                  onChangeText={(t) => {
+                    const clean = sanitizeNumericInput(t);
+                    const m = parseInt(clean || '0', 10);
+                    setMinutes(m > 59 ? '59' : clean);
+                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                  }}
+                  keyboardType="numeric"
+                  maxLength={2}
+                  placeholder="00"
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
+                  accessibilityLabel="Minutes per session"
+                />
+                <Text style={styles.timeLabel}>min</Text>
+              </View>
+            </View>
+          </MotiView>
+        )}
+
+        {validationErrors.time && (
+          <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
+            Please set a time per session (at least 5 minutes)
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderStep4 = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const calendarDays = getCalendarDays(calendarMonth);
+    const now = new Date();
+    const isCurrentMonth = calendarMonth.getMonth() === now.getMonth() && calendarMonth.getFullYear() === now.getFullYear();
 
     return (
       <View style={styles.stepContent}>
         <View style={styles.sliderContainer}>
+          {/* Inline Calendar */}
           <View style={styles.inlineCalendar}>
             <View style={styles.calHeader}>
               <TouchableOpacity
-                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
-                style={styles.calNavBtn}
+                onPress={() => {
+                  if (!isCurrentMonth) {
+                    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+                  }
+                }}
+                style={[styles.calNavBtn, isCurrentMonth && { opacity: 0.3 }]}
+                disabled={isCurrentMonth}
                 accessibilityRole="button"
                 accessibilityLabel="Previous month"
               >
@@ -912,6 +1217,8 @@ const GoalSettingScreen = () => {
                     }}
                     disabled={disabled}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={date ? `Select ${date.toLocaleDateString()}` : undefined}
                   >
                     {date && (
                       <Text style={[
@@ -945,71 +1252,11 @@ const GoalSettingScreen = () => {
     );
   };
 
-  const renderStep4 = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.reviewCard}>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Goal</Text>
-          <Text style={styles.reviewValue}>{finalCategory || '\u2014'}</Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Duration</Text>
-          <Text style={styles.reviewValue}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Sessions / week</Text>
-          <Text style={styles.reviewValue}>{sessionsPerWeek}x</Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Per session</Text>
-          <Text style={styles.reviewValue}>{hours || '0'}h {minutes || '0'}m</Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Start date</Text>
-          <Text style={styles.reviewValue}>
-            {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Finish date</Text>
-          <Text style={[styles.reviewValue, { color: colors.primary }]}>
-            {goalEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </Text>
-        </View>
-        <View style={styles.reviewDivider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Total sessions</Text>
-          <Text style={[styles.reviewValue, { color: colors.primary, fontWeight: '800' }]}>
-            {weeks * sessionsPerWeek}
-          </Text>
-        </View>
-      </View>
-
-      {experience && experienceGift?.revealMode === 'revealed' && (
-        <View style={styles.experiencePreview}>
-          <Text style={styles.experiencePreviewLabel}>Experience Gift</Text>
-          <Text style={styles.experiencePreviewTitle}>{experience.title}</Text>
-        </View>
-      )}
-      {experienceGift?.revealMode === 'secret' && (
-        <View style={styles.experiencePreview}>
-          <Text style={styles.experiencePreviewLabel}>Experience Gift</Text>
-          <Text style={styles.experiencePreviewTitle}>Mystery reward - complete your challenge to unlock!</Text>
-        </View>
-      )}
-    </View>
-  );
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1: return renderStep1();
       case 2: return renderStep2();
-      case 3: return renderStep3();
+      case 3: return renderTimeStep();
       case 4: return renderStep4();
       default: return null;
     }
@@ -1020,96 +1267,161 @@ const GoalSettingScreen = () => {
     <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
-              <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Set Your Goal</Text>
-            <View style={styles.stepIndicator}>
-              <Text style={styles.stepIndicatorText}>{currentStep}/{TOTAL_STEPS}</Text>
+          <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
+                <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Set Your Goal</Text>
+              <View style={styles.stepIndicator}>
+                <Text style={styles.stepIndicatorText}>{currentStep}/{TOTAL_STEPS}</Text>
+              </View>
             </View>
-          </View>
 
-          <WizardProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+            <WizardProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
-          {/* Step Content */}
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            <MotiView
-              key={`title-${currentStep}`}
-              from={{ opacity: 0, translateY: 10 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 300 }}
+            {/* Step Content */}
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
-              <Text style={styles.stepTitle} accessibilityRole="header">{STEP_TITLES[currentStep - 1]}</Text>
-              <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
-            </MotiView>
-
-            <AnimatePresence exitBeforeEnter>
               <MotiView
-                key={`step-${currentStep}`}
-                from={{ opacity: 0, translateX: 30 }}
-                animate={{ opacity: 1, translateX: 0 }}
-                exit={{ opacity: 0, translateX: -30 }}
-                transition={{ type: 'timing', duration: 250 }}
+                key={`title-${currentStep}`}
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 300 }}
               >
-                {renderCurrentStep()}
+                <Text style={styles.stepTitle} accessibilityRole="header">{STEP_TITLES[currentStep - 1]}</Text>
+                <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
               </MotiView>
-            </AnimatePresence>
 
-            <View style={{ height: vh(160) }} />
-          </ScrollView>
+              <AnimatePresence exitBeforeEnter>
+                <MotiView
+                  key={`step-${currentStep}`}
+                  from={{ opacity: 0, translateX: 30 }}
+                  animate={{ opacity: 1, translateX: 0 }}
+                  exit={{ opacity: 0, translateX: -30 }}
+                  transition={{ type: 'timing', duration: 250 }}
+                >
+                  {renderCurrentStep()}
+                </MotiView>
+              </AnimatePresence>
 
-          {/* Footer CTA */}
-          <View style={styles.footer}>
-            {currentStep === TOTAL_STEPS ? (
-              <TouchableOpacity
-                style={styles.ctaButton}
-                onPress={confirmCreateGoal}
-                activeOpacity={0.9}
-                disabled={isSubmitting}
-              >
-                <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
+              <View style={{ height: vh(160) }} />
+            </ScrollView>
+
+            {/* Footer CTA */}
+            <View style={styles.footer}>
+              {currentStep === TOTAL_STEPS ? (
+                <TouchableOpacity
+                  style={styles.ctaButton}
+                  onPress={() => {
+                    if (validateCurrentStep()) setShowConfirm(true);
+                  }}
+                  activeOpacity={0.9}
+                >
                   <LinearGradient
                     colors={colors.gradientDark}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={[styles.ctaGradient, isSubmitting && { opacity: 0.9 }]}
+                    style={styles.ctaGradient}
                   >
-                    <Text style={styles.ctaText}>
-                      {isSubmitting ? 'Creating Goal...' : 'Create Goal'}
-                    </Text>
-                    {!isSubmitting && <ChevronRight color={colors.white} size={20} strokeWidth={3} />}
+                    <Text style={styles.ctaText}>Create Goal</Text>
+                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                   </LinearGradient>
-                </Animated.View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.ctaButton} onPress={handleNext} activeOpacity={0.9}>
-                <LinearGradient
-                  colors={colors.gradientDark}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.ctaGradient}
-                >
-                  <Text style={styles.ctaText}>Next</Text>
-                  <ChevronRight color={colors.white} size={20} strokeWidth={3} />
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.ctaButton} onPress={handleNext} activeOpacity={0.9}>
+                  <LinearGradient
+                    colors={colors.gradientDark}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.ctaGradient}
+                  >
+                    <Text style={styles.ctaText}>Next</Text>
+                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
         </KeyboardAvoidingView>
+
+        {/* Confirmation Modal */}
+        <BaseModal
+          visible={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          title="Confirm Your Goal"
+          variant="center"
+        >
+          <View style={{ width: '100%', alignItems: 'center' }}>
+            <Text style={styles.modalSubtitle}>
+              Ready to commit? Let's do this!
+            </Text>
+
+            <View style={styles.modalDetails}>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Goal: </Text>
+                {finalCategory || '—'}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Duration: </Text>
+                {weeks} {weeks === 1 ? 'week' : 'weeks'}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Sessions/week: </Text>
+                {sessionsPerWeek}
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Per session: </Text>
+                {showCustomTime
+                  ? `${hours || '0'}h ${minutes || '0'}m`
+                  : `${sessionMinutes} min`
+                }
+              </Text>
+              <Text style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Start date: </Text>
+                {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </View>
+
+            <Text style={styles.pledgeNote}>
+              {experience
+                ? 'Your reward is waiting — complete the challenge to unlock it!'
+                : 'Complete your challenge to earn your reward!'
+              }
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <Button
+                variant="ghost"
+                onPress={() => setShowConfirm(false)}
+                disabled={isSubmitting}
+                title="Cancel"
+                style={styles.modalButton}
+              />
+
+              <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                <Button
+                  variant="primary"
+                  onPress={confirmCreateGoal}
+                  loading={isSubmitting}
+                  title="Let's Go!"
+                  fullWidth
+                  style={styles.modalButton}
+                />
+              </Animated.View>
+            </View>
+          </View>
+        </BaseModal>
 
         {/* First Hint Popup */}
         {showHintPopup && firstHint && (
@@ -1120,7 +1432,7 @@ const GoalSettingScreen = () => {
             totalSessions={createdGoal ? createdGoal.targetCount * createdGoal.sessionsPerWeek : 1}
             onClose={handleHintPopupClose}
             isFirstHint={true}
-            additionalMessage={'\u{1F3AF} You\u2019ll receive your second hint after completing your first session!'}
+            additionalMessage={"🎯 You'll receive your second hint after completing your first session!"}
           />
         )}
       </MainScreen>
@@ -1169,78 +1481,45 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-  // Progress bar
-  progressBar: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    backgroundColor: colors.white,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: BorderRadius.xs,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: BorderRadius.xs,
-    backgroundColor: colors.secondary,
-  },
   // Scroll
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
+    paddingTop: vh(20),
+    paddingBottom: vh(16),
   },
   stepTitle: {
     ...Typography.heading1,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: Spacing.sm,
+    marginBottom: vh(8),
   },
   stepSubtitle: {
     ...Typography.body,
     color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: Spacing.xxxl,
+    marginBottom: vh(24),
   },
   stepContent: {},
   section: {
     marginBottom: Spacing.xl,
   },
-  // Error banner
-  errorBanner: {
-    backgroundColor: colors.errorLight,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: colors.errorBorder,
-  },
-  errorText: {
-    color: colors.error,
-    ...Typography.small,
-    fontWeight: '600',
-  },
-  // Goal chips (Step 1)
+  // Goal chips — 2x2 large vertical cards
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginTop: Spacing.xs,
+    justifyContent: 'space-between',
+    rowGap: Spacing.md,
+    marginTop: Spacing.sm,
   },
   goalChip: {
-    width: '30%',
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: vh(28),
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.xl,
     backgroundColor: colors.white,
     borderWidth: 2,
     borderColor: colors.border,
@@ -1250,122 +1529,64 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   goalIcon: {
-    ...Typography.heading2,
+    fontSize: 42,
+    lineHeight: 52,
   },
   goalName: {
-    ...Typography.body,
-    fontWeight: '700',
-    color: colors.textSecondary,
+    ...Typography.bodyBold,
+    color: colors.textPrimary,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
   goalNameActive: {
     color: colors.white,
   },
+  goalTagline: {
+    ...Typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: Spacing.xxs,
+  },
   customGoalContainer: {
     marginTop: Spacing.xl,
   },
-  customGoalLabel: {
-    ...Typography.small,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: Spacing.sm,
-  },
-  customGoalInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 2,
-    borderColor: colors.border,
+  // Clock dial presets
+  presetChip: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xs,
-  },
-  customGoalIcon: {
-    ...Typography.large,
-    marginRight: Spacing.sm,
-  },
-  customGoalInput: {
-    flex: 1,
-    ...Typography.body,
-    color: colors.textPrimary,
     paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
-  // Sliders (Step 2)
+  presetChipActive: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
+  },
+  presetChipText: {
+    ...Typography.smallBold,
+    color: colors.textSecondary,
+  },
+  presetChipTextActive: {
+    color: colors.white,
+  },
+  // Sliders
   sliderContainer: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xxl,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: vh(20),
     borderWidth: 1,
     borderColor: colors.backgroundLight,
   },
   sliderTitle: {
-    ...Typography.small,
-    fontWeight: '700',
+    ...Typography.smallBold,
     color: colors.textSecondary,
-    marginBottom: Spacing.sm,
+    marginBottom: vh(6),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  sliderValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  sliderValue: {
-    ...Typography.display,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  sliderUnit: {
-    ...Typography.heading3,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  sliderLabelText: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  sliderTrack: {
-    height: 8,
-    backgroundColor: colors.border,
-    borderRadius: BorderRadius.xs,
-    position: 'relative',
-    width: '100%',
-  },
-  sliderProgress: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: BorderRadius.xs,
-  },
-  sliderThumb: {
-    position: 'absolute',
-    top: -8,
-    marginLeft: -Spacing.md,
-    width: 24,
-    height: 24,
-    borderRadius: BorderRadius.md,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  sliderThumbInner: {
-    width: 12,
-    height: 12,
-    borderRadius: BorderRadius.xs,
-    backgroundColor: colors.primary,
-  },
-  // Time inputs (Step 2)
+  // Time inputs
   timeRow: {
     flexDirection: 'row',
     gap: Spacing.lg,
@@ -1389,15 +1610,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textPrimary,
   },
   timeLabel: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...Typography.bodyBold,
     color: colors.textSecondary,
   },
-  // Calendar (Step 3)
+  // Inline Calendar
   inlineCalendar: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: vh(10),
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1405,7 +1626,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: vh(10),
   },
   calNavBtn: {
     padding: Spacing.sm,
@@ -1424,8 +1645,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   calWeekDay: {
     flex: 1,
     textAlign: 'center',
-    ...Typography.caption,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: colors.textMuted,
   },
   calDaysGrid: {
@@ -1438,7 +1658,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: BorderRadius.sm,
-    marginVertical: 1,
+    marginVertical: vh(2),
   },
   calSelectedDay: {
     backgroundColor: colors.secondary,
@@ -1463,15 +1683,16 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.secondary,
     fontWeight: '700',
   },
-  // End date info (Step 3)
+  // End date info
   endDateContainer: {
-    backgroundColor: colors.primarySurface,
+    backgroundColor: colors.successLighter,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: vh(12),
+    marginTop: vh(8),
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.successBorder,
   },
   endDateLabel: {
     ...Typography.caption,
@@ -1480,7 +1701,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   endDateValue: {
-    ...Typography.heading3,
+    ...Typography.subheading,
     fontWeight: '700',
     color: colors.primary,
     textAlign: 'center',
@@ -1490,72 +1711,21 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textMuted,
     marginTop: Spacing.xs,
   },
-  // Review card (Step 4)
-  reviewCard: {
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.backgroundLight,
-  },
-  reviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  reviewLabel: {
-    ...Typography.body,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  reviewValue: {
-    ...Typography.body,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  reviewDivider: {
-    height: 1,
-    backgroundColor: colors.backgroundLight,
-  },
-  experiencePreview: {
-    backgroundColor: colors.primarySurface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  experiencePreviewLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-  },
-  experiencePreviewTitle: {
-    ...Typography.subheading,
-    fontWeight: '700',
-    color: colors.primaryDeep,
-  },
   // Footer
   footer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: FOOTER_HEIGHT,
     left: 0,
     right: 0,
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.xl,
-    paddingTop: Spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
+    paddingTop: vh(14),
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.backgroundLight,
+    ...Shadows.md,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
   },
   ctaButton: {
     borderRadius: BorderRadius.lg,
@@ -1575,8 +1745,53 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   ctaText: {
     color: colors.white,
-    ...Typography.heading3,
+    ...Typography.subheading,
     fontWeight: '700',
+  },
+  // Modal
+  modalSubtitle: {
+    ...Typography.small,
+    color: colors.textSecondary,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  modalDetails: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalRow: {
+    ...Typography.body,
+    color: colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  modalLabel: {
+    fontWeight: '600',
+    color: colors.primaryDeep,
+  },
+  pledgeNote: {
+    ...Typography.caption,
+    color: colors.successMedium,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    fontStyle: 'italic',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
   },
 });
 

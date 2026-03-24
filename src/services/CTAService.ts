@@ -110,12 +110,27 @@ class CTAService {
 
     /**
      * Whether to show persistent banner on Journey screen.
+     * Returns a structured result so callers can handle different banner variants.
      */
     shouldShowPersistentBanner(ctx: {
         isFreeGoal: boolean;
         giftAttachedAt?: Date | null;
-    }): boolean {
-        return ctx.isFreeGoal && !ctx.giftAttachedAt;
+        paymentCommitment?: 'payOnCompletion' | 'paidUpfront' | null;
+        isCompleted?: boolean;
+        pledgedExperience?: { experienceId: string } | null;
+    }): { show: boolean; reason: string; title?: string; subtitle?: string; action?: string; experienceId?: string } {
+        // payOnCompletion completed goals that haven't been paid yet
+        if (ctx.paymentCommitment === 'payOnCompletion' && ctx.isCompleted && !ctx.giftAttachedAt && ctx.pledgedExperience) {
+            return {
+                show: true,
+                reason: 'payOnCompletion_completed',
+                title: 'Claim your reward!',
+                subtitle: 'You earned it. Complete your purchase now.',
+                action: 'checkout',
+                experienceId: ctx.pledgedExperience.experienceId,
+            };
+        }
+        return { show: ctx.isFreeGoal && !ctx.giftAttachedAt, reason: 'persistent' };
     }
 
     /**

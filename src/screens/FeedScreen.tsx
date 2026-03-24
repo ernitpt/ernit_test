@@ -31,6 +31,7 @@ import { analyticsService } from '../services/AnalyticsService';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -127,7 +128,7 @@ const FeedScreen: React.FC = () => {
         if (loadMore && !hasMore) return;
 
         try {
-            if (!loadMore) {
+            if (!loadMore && !isRefreshing) {
                 setIsLoading(true);
                 setError(false);
             }
@@ -296,6 +297,7 @@ const FeedScreen: React.FC = () => {
 const createStyles = (_colors: typeof Colors) => StyleSheet.create({
     list: {
         padding: Spacing.lg,
+        paddingBottom: Spacing.lg + FOOTER_HEIGHT,
     },
     loadingMore: {
         paddingVertical: Spacing.xl,

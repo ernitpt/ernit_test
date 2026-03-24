@@ -82,13 +82,17 @@ class AnalyticsService {
     this.buffer = [];
 
     try {
+      // Strip null/undefined values before writing — Firestore rules reject null for typed fields
+      const cleanEvent = (e: AnalyticsEvent) =>
+        Object.fromEntries(Object.entries(e).filter(([_, v]) => v !== null && v !== undefined));
+
       if (eventsToFlush.length === 1) {
-        await addDoc(collection(db, 'events'), eventsToFlush[0]);
+        await addDoc(collection(db, 'events'), cleanEvent(eventsToFlush[0]));
       } else {
         const batch = writeBatch(db);
         for (const event of eventsToFlush) {
           const ref = doc(collection(db, 'events'));
-          batch.set(ref, event);
+          batch.set(ref, cleanEvent(event));
         }
         await batch.commit();
       }

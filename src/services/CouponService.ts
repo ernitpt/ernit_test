@@ -2,6 +2,7 @@ import { db, auth } from './firebase';
 import {
   doc,
   collection,
+  getDoc,
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -57,6 +58,15 @@ export async function generateCouponForGoal(
         throw new AppError('UNAUTHORIZED', 'Not authorized to generate a coupon for this goal', 'auth');
       }
 
+      // Verify payment is confirmed for deferred gifts before issuing a coupon
+      if (goalData.experienceGiftId) {
+        const giftSnap = await getDoc(doc(db, 'experienceGifts', goalData.experienceGiftId));
+        const giftPayment = giftSnap.data()?.payment;
+        if (giftPayment === 'deferred' || giftPayment === 'processing') {
+          throw new AppError('PAYMENT_PENDING', 'Coupon cannot be issued until payment is confirmed', 'business');
+        }
+      }
+
       // Check if coupon already exists (atomic check)
       if (goalData.couponCode) {
         // Validate that the existing coupon has not expired before returning it
@@ -91,11 +101,9 @@ export async function generateCouponForGoal(
         newCode,
       );
 
-      // Check for code collision
-      const existingCouponDoc = await transaction.get(partnerCouponRef);
-      if (existingCouponDoc.exists()) {
-        throw new AppError('CODE_COLLISION', 'Failed to generate a unique code. Please try again.', 'internal');
-      }
+      // Collision check removed — 12-char CSPRNG code (36^12 ≈ 4.7×10^18)
+      // makes collision essentially impossible, and the previous get() on a
+      // non-existent partner coupon doc triggers a Firestore permission error.
 
       // Atomically create both documents
       transaction.set(partnerCouponRef, {

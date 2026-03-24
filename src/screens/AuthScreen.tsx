@@ -79,6 +79,7 @@ const AuthScreen = () => {
 
   // Timer management for memory leak prevention
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -88,17 +89,11 @@ const AuthScreen = () => {
     }
   };
 
-  // Animated gradient for background
-  const gradientAnim = useRef(new Animated.Value(0)).current;
-
   // Button glow animation - pulsing effect
   const buttonGlowAnim = useRef(new Animated.Value(0)).current;
 
   // Button press animation
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
-
-  // Card glow animation
-  const cardGlowAnim = useRef(new Animated.Value(0)).current;
 
   // Button gradient animation - shifts colors
   const buttonGradientAnim = useRef(new Animated.Value(0)).current;
@@ -122,23 +117,6 @@ const AuthScreen = () => {
   // Helper: Transfer onboarding status from AsyncStorage to Firestore
 
   useEffect(() => {
-    // Animate background gradient
-    const gradientLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientAnim, {
-          toValue: 1,
-          duration: 15000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(gradientAnim, {
-          toValue: 0,
-          duration: 15000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    gradientLoop.start();
-
     // Animate button glow - slower, more dramatic pulse
     const buttonGlowLoop = Animated.loop(
       Animated.sequence([
@@ -155,23 +133,6 @@ const AuthScreen = () => {
       ])
     );
     buttonGlowLoop.start();
-
-    // Animate card glow
-    const cardGlowLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(cardGlowAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardGlowAnim, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    cardGlowLoop.start();
 
     // Animate button gradient colors
     const buttonGradientLoop = Animated.loop(
@@ -192,9 +153,7 @@ const AuthScreen = () => {
 
     // Clean up on unmount
     return () => {
-      gradientLoop.stop();
       buttonGlowLoop.stop();
-      cardGlowLoop.stop();
       buttonGradientLoop.stop();
     };
   }, []);
@@ -204,6 +163,11 @@ const AuthScreen = () => {
     return () => {
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
     };
+  }, []);
+
+  // Cleanup email debounce timer on unmount
+  useEffect(() => {
+    return () => { clearTimeout(emailCheckTimer.current); };
   }, []);
 
   // Button press animation handler
@@ -547,7 +511,10 @@ const AuthScreen = () => {
     }
 
     if (sanitized && !isLogin) {
-      await checkEmailExists(sanitized);
+      clearTimeout(emailCheckTimer.current);
+      emailCheckTimer.current = setTimeout(() => {
+        checkEmailExists(sanitized);
+      }, 600);
     }
   };
 
@@ -708,6 +675,18 @@ const AuthScreen = () => {
           await removeStorageItem('pending_free_challenge').catch(() => {});
           showInfo('Your previous progress could not be restored. Please start again.');
         }
+        // Check for pending coupon claim code
+        try {
+          const pendingCode = await getStorageItem('pending_claim_code');
+          if (pendingCode) {
+            await removeStorageItem('pending_claim_code');
+            navigation.navigate('RecipientFlow' as any, { screen: 'CouponEntry', params: { code: pendingCode } });
+            return;
+          }
+        } catch (error) {
+          logger.error('Error handling pending claim code after auth:', error);
+          await removeStorageItem('pending_claim_code').catch(() => {});
+        }
         // Default: use auth guard to navigate
         handleAuthSuccess();
       }, 1500); // Show success for 1.5 seconds
@@ -835,44 +814,11 @@ const AuthScreen = () => {
     outputRange: [0.4, 0.9],
   });
 
-  const cardGlowOpacity = cardGlowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.15, 0.35],
-  });
-
   return (
     <ErrorBoundary screenName="AuthScreen" userId={state.user?.id}>
-    <View style={{ flex: 1 }}>
-      {/* Base gradient */}
-      <LinearGradient
-        colors={colors.gradientPrimary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-
-      {/* Animated overlay gradient */}
-      <Animated.View
-        style={{
-          flex: 1,
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: gradientAnim,
-        }}
-      >
-        <LinearGradient
-          colors={colors.gradientAuth}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ flex: 1 }}
-        />
-      </Animated.View>
-
-      <SafeAreaView style={{ flex: 1, zIndex: 1, backgroundColor: 'transparent' }}>
-        <StatusBar style="light" />
+    <View style={{ flex: 1, backgroundColor: colors.surface }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar style="dark" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
@@ -891,7 +837,7 @@ const AuthScreen = () => {
                   width: 40,
                   height: 40,
                   borderRadius: BorderRadius.xl,
-                  backgroundColor: colors.blackAlpha20,
+                  backgroundColor: colors.backgroundLight,
                   justifyContent: 'center',
                   alignItems: 'center',
                   shadowColor: colors.black,
@@ -905,7 +851,7 @@ const AuthScreen = () => {
                 accessibilityLabel="Go back"
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <ChevronLeft color={colors.white} size={24} />
+                <ChevronLeft color={colors.textPrimary} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -923,36 +869,16 @@ const AuthScreen = () => {
                   resizeMode="contain"
                   accessibilityLabel="Ernit app logo"
                 />
-                <Text style={{ fontSize: Typography.emoji.fontSize, fontWeight: '700', color: colors.white, textAlign: 'center', marginBottom: Spacing.lg }}>
+                <Text style={{ fontSize: Typography.emoji.fontSize, fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
-                <Text style={{ ...Typography.heading3, color: colors.primaryTint, textAlign: 'center', maxWidth: 280 }}>
+                <Text style={{ ...Typography.heading3, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 }}>
                   {isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
                 </Text>
               </View>
 
-              {/* Form - Wrapped in card with animated glow */}
-              <View style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
-                {/* Animated glow background for card */}
-                <Animated.View
-                  style={{
-                    position: 'absolute',
-                    top: -10,
-                    left: -10,
-                    right: -10,
-                    bottom: -10,
-                    borderRadius: BorderRadius.pill,
-                    opacity: cardGlowOpacity,
-                  }}
-                >
-                  <LinearGradient
-                    colors={colors.gradientTriple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{ flex: 1, borderRadius: BorderRadius.pill }}
-                  />
-                </Animated.View>
-
+              {/* Form Card */}
+              <View style={{ width: '100%', maxWidth: 400 }}>
                 <View style={{
                   backgroundColor: colors.surfaceFrosted,
                   borderRadius: BorderRadius.xxl,

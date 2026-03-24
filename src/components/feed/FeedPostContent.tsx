@@ -148,8 +148,8 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
     content: {
-        paddingHorizontal: Spacing.lg,
-        marginBottom: Spacing.md,
+        paddingHorizontal: Spacing.md,
+        marginBottom: Spacing.sm,
     },
     activityText: {
         ...Typography.body,
@@ -157,7 +157,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         color: colors.gray700,
     },
     progressBlock: {
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
     },
     progressHeader: {
         flexDirection: 'row',

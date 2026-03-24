@@ -1,6 +1,7 @@
 // screens/CartScreen.tsx
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -591,6 +592,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopColor: colors.border,
     padding: Spacing.xl,
     paddingBottom: Spacing.xxxl,
+    marginBottom: FOOTER_HEIGHT,
   },
   totalContainer: {
     flexDirection: "row",

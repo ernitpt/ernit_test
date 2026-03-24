@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -933,7 +934,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
   bottomBar: {
     position: "absolute",
-    bottom: 0,
+    bottom: FOOTER_HEIGHT,
     left: 0,
     right: 0,
     backgroundColor: colors.white,

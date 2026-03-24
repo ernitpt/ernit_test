@@ -1,4 +1,5 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -14,7 +15,6 @@ import {
 } from 'react-native';
 import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RecipientStackParamList, ExperienceGift } from '../../types';
@@ -34,6 +34,7 @@ import { vh } from '../../utils/responsive';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
+import { Shadows } from '../../config/shadows';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -57,6 +58,8 @@ const CouponEntryScreen = () => {
 
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  // Animated height for error message area
+  const errorHeightAnim = useRef(new Animated.Value(0)).current;
   const continueTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Cleanup timeout on unmount to prevent memory leaks
@@ -64,6 +67,34 @@ const CouponEntryScreen = () => {
     return () => {
       if (continueTimeoutRef.current) clearTimeout(continueTimeoutRef.current);
     };
+  }, []);
+
+  // Animate error message area open/closed
+  useEffect(() => {
+    Animated.timing(errorHeightAnim, {
+      toValue: errorMessage ? 36 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [errorMessage]);
+
+  // Persist claim code from deep link so it survives an auth redirect
+  useEffect(() => {
+    if (initialCode) {
+      AsyncStorage.setItem('pending_claim_code', initialCode);
+    }
+  }, []);
+
+  // On mount, recover any pending claim code saved before an auth redirect
+  useEffect(() => {
+    const checkPendingCode = async () => {
+      const pending = await AsyncStorage.getItem('pending_claim_code');
+      if (pending && !initialCode) {
+        setClaimCode(pending);
+        await AsyncStorage.removeItem('pending_claim_code');
+      }
+    };
+    checkPendingCode();
   }, []);
 
   const triggerShake = () => {
@@ -209,104 +240,55 @@ const CouponEntryScreen = () => {
   return (
     <ErrorBoundary screenName="CouponEntryScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
-      <LinearGradient colors={colors.gradientPrimary} style={{ flex: 1 }}>
+      <View style={styles.screenBackground}>
         <SafeAreaView style={{ flex: 1 }}>
-          <StatusBar style="light" />
+          <StatusBar style="auto" />
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}
           >
             <ScrollView
-              contentContainerStyle={{
-                paddingTop: vh(45),
-                flexGrow: 1,
-                justifyContent: 'center',
-              }}
+              contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
             >
-              <View
-                style={{
-                  flex: 1,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingHorizontal: Spacing.xxxl,
-                }}
-              >
+              <View style={styles.innerContainer}>
+
                 {/* Favicon Logo */}
-                <View style={{ marginBottom: Spacing.xxl, alignItems: 'center' }}>
+                <View style={styles.logoWrapper}>
                   <Image
                     source={require('../../assets/favicon.png')}
-                    style={{ width: vh(80), height: vh(80) }}
+                    style={styles.logoImage}
                     resizeMode="contain"
                     accessibilityLabel="Ernit logo"
                   />
                 </View>
 
                 {/* Header */}
-                <View style={{ marginBottom: Spacing.huge, alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontSize: Typography.displayLarge.fontSize,
-                      fontWeight: '700',
-                      color: 'white',
-                      textAlign: 'center',
-                      marginBottom: Spacing.xl,
-                    }}
-                  >
-                    Claim your
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: Typography.displayLarge.fontSize,
-                      fontWeight: '700',
-                      color: 'white',
-                      textAlign: 'center',
-                      marginTop: -28,
-                      marginBottom: Spacing.md,
-                    }}
-                  >
-                    Ernit
-                  </Text>
-                  <Text
-                    style={{
-                      ...Typography.heading3,
-                      color: colors.primaryTint,
-                      textAlign: 'center',
-                      maxWidth: 300,
-                    }}
-                  >
+                <View style={styles.headerWrapper}>
+                  <Text style={styles.headingLine1}>Claim your</Text>
+                  <Text style={styles.headingLine2}>Ernit</Text>
+                  <Text style={styles.subtitle}>
                     Enter the code you got below and start earning your reward
                   </Text>
                 </View>
 
-                {/* Code Input & Button */}
-                <View style={{ width: '100%', maxWidth: 400, alignItems: 'center' }}>
+                {/* Frosted card: Code Input, Error & Button */}
+                <View style={styles.frostedCard}>
                   <Animated.View
-                    style={{
-                      width: '100%',
-                      transform: [{ translateX: shakeAnim }],
-                    }}
+                    style={[
+                      styles.animatedInputWrapper,
+                      { transform: [{ translateX: shakeAnim }] },
+                    ]}
                   >
                     <TextInput
-                      style={{
-                        backgroundColor: 'white',
-                        borderRadius: BorderRadius.lg,
-                        paddingHorizontal: Spacing.xl,
-                        paddingVertical: Spacing.lg,
-                        ...Typography.heading3,
-                        textAlign: 'center',
-                        letterSpacing: 4,
-                        shadowColor: colors.black,
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 8,
-                        elevation: 3,
-                        borderWidth: errorMessage ? 2 : 0,
-                        borderColor: errorMessage ? colors.error : 'transparent',
-                        width: '100%',
-                      }}
+                      style={[
+                        styles.codeInput,
+                        errorMessage
+                          ? styles.codeInputError
+                          : styles.codeInputNormal,
+                      ]}
                       placeholder="ABC123DEF456"
                       placeholderTextColor={colors.textMuted}
                       value={claimCode}
@@ -331,98 +313,41 @@ const CouponEntryScreen = () => {
                     />
                   </Animated.View>
 
-                  {/* Error message (fixed height to avoid layout jump and overlap) */}
-                  <View style={{ height: 40, marginTop: Spacing.md, marginBottom: Spacing.sm, justifyContent: 'center' }}>
+                  {/* Error message (animated height — collapses to 0 when empty) */}
+                  <Animated.View style={[styles.errorContainer, { height: errorHeightAnim }]}>
                     {errorMessage ? (
-                      <Text
-                        style={{
-                          color: 'white',
-                          ...Typography.small,
-                          textAlign: 'center',
-                          fontWeight: '500',
-                        }}
-                      >
-                        {errorMessage}
-                      </Text>
+                      <Text style={styles.errorText}>{errorMessage}</Text>
                     ) : null}
-                  </View>
+                  </Animated.View>
 
                   <Button
-                    variant="ghost"
+                    variant="primary"
+                    gradient
                     size="lg"
                     title="Claim Reward"
                     onPress={() => handleClaimCode()}
                     disabled={isLoading || claimCode.length < 12}
                     loading={isLoading}
                     fullWidth
-                    style={{
-                      backgroundColor:
-                        isLoading || claimCode.length < 12 ? colors.disabled : colors.white,
-                      borderRadius: BorderRadius.lg,
-                      shadowColor: colors.black,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 6,
-                      elevation: 5,
-                    }}
-                    textStyle={{
-                      color: colors.primary,
-                      ...Typography.heading3,
-                      fontWeight: '700',
-                    }}
                   />
                 </View>
 
                 {/* Info Box */}
-                <View
-                  style={{
-                    backgroundColor: colors.whiteAlpha25,
-                    borderRadius: BorderRadius.xl,
-                    padding: Spacing.xxl,
-                    width: '100%',
-                    maxWidth: 400,
-                    marginTop: Spacing.huge,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: 'white',
-                      ...Typography.heading3,
-                      fontWeight: '700',
-                      marginBottom: Spacing.lg,
-                      textAlign: 'center',
-                    }}
-                  >
-                    How it works:
-                  </Text>
-                  <View style={{ gap: Spacing.sm }}>
-                    <Text
-                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
-                    >
-                      1. Enter your claim code
-                    </Text>
-                    <Text
-                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
-                    >
-                      2. Set personal goals to earn the reward
-                    </Text>
-                    <Text
-                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
-                    >
-                      3. Receive hints as you progress
-                    </Text>
-                    <Text
-                      style={{ color: colors.primaryTint, ...Typography.subheading, textAlign: 'center' }}
-                    >
-                      4. Achieve your goals and claim your reward!
-                    </Text>
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoTitle}>How it works:</Text>
+                  <View style={styles.infoStepList}>
+                    <Text style={styles.infoStep}>1. Enter your claim code</Text>
+                    <Text style={styles.infoStep}>2. Set personal goals to earn the reward</Text>
+                    <Text style={styles.infoStep}>3. Receive hints as you progress</Text>
+                    <Text style={styles.infoStep}>4. Achieve your goals and claim your reward!</Text>
                   </View>
                 </View>
+
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
 
       {/* Personalized Message Modal */}
       <BaseModal
@@ -453,6 +378,142 @@ const CouponEntryScreen = () => {
 };
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
+  // ── Screen background ─────────────────────────────────────
+  screenBackground: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+
+  // ── ScrollView ──────────────────────────────────────────────
+  scrollContent: {
+    paddingTop: vh(45),
+    paddingBottom: 100,
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  innerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xxxl,
+  },
+
+  // ── Logo ────────────────────────────────────────────────────
+  logoWrapper: {
+    marginBottom: Spacing.xxl,
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: vh(80),
+    height: vh(80),
+  },
+
+  // ── Header ──────────────────────────────────────────────────
+  headerWrapper: {
+    marginBottom: Spacing.huge,
+    alignItems: 'center',
+  },
+  headingLine1: {
+    fontSize: Typography.displayLarge.fontSize,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  headingLine2: {
+    fontSize: Typography.displayLarge.fontSize,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: -28,
+    marginBottom: Spacing.md,
+  },
+  subtitle: {
+    ...Typography.heading3,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+
+  // ── Input card ────────────────────────────────────────────
+  frostedCard: {
+    backgroundColor: colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: Spacing.md,
+    ...Shadows.sm,
+  },
+
+  // ── Code input ──────────────────────────────────────────────
+  animatedInputWrapper: {
+    width: '100%',
+  },
+  codeInput: {
+    backgroundColor: colors.white,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    ...Typography.heading3,
+    textAlign: 'center',
+    letterSpacing: 4,
+    color: colors.textPrimary,
+    width: '100%',
+  },
+  codeInputNormal: {
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  codeInputError: {
+    borderWidth: 2,
+    borderColor: colors.error,
+  },
+
+  // ── Error message ───────────────────────────────────────────
+  errorContainer: {
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    marginTop: -Spacing.xs,
+    marginBottom: -Spacing.xs,
+  },
+  errorText: {
+    color: colors.error,
+    ...Typography.small,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+
+  // ── Info box ────────────────────────────────────────────────
+  infoBox: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    width: '100%',
+    maxWidth: 400,
+    marginTop: Spacing.huge,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  infoTitle: {
+    color: colors.textPrimary,
+    ...Typography.heading3,
+    fontWeight: '700',
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  infoStepList: {
+    gap: Spacing.sm,
+  },
+  infoStep: {
+    color: colors.textSecondary,
+    ...Typography.subheading,
+    textAlign: 'center',
+  },
+
+  // ── Personalized message modal ───────────────────────────────
   messageBox: {
     backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,

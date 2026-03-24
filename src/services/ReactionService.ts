@@ -153,7 +153,7 @@ class ReactionService {
     async getReactions(postId: string): Promise<Reaction[]> {
         try {
             const reactionsCollection = collection(db, 'feedPosts', postId, 'reactions');
-            const q = query(reactionsCollection, orderBy('createdAt', 'desc'));
+            const q = query(reactionsCollection, orderBy('createdAt', 'desc'), firestoreLimit(50));
             const snapshot = await getDocs(q);
 
             return snapshot.docs.map((doc) => {

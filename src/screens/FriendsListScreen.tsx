@@ -31,6 +31,7 @@ import { Shadows } from '../config/shadows';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -234,7 +235,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
   skeletonContainer: { padding: Spacing.sm },
 
-  friendsList: { padding: Spacing.sm },
+  friendsList: { padding: Spacing.sm, paddingBottom: Spacing.sm + FOOTER_HEIGHT },
   friendItem: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.md,

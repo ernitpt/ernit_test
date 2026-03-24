@@ -434,7 +434,14 @@ export class GoalService {
       'currentCount', 'weekStartAt', 'hints', 'personalizedNextHint',
       'receiverMessage', 'suggestedTargetCount', 'suggestedSessionsPerWeek',
       'approvalStatus', 'giverMessage', 'giverActionTaken', 'description',
-      'targetCount', 'sessionsPerWeek', 'duration', 'endDate'
+      'targetCount', 'sessionsPerWeek', 'duration', 'endDate',
+      // Discovery engine fields
+      'discoveredExperience', 'discoveryPreferences', 'discoveryQuestionsCompleted',
+      'experienceRevealed', 'experienceRevealedAt',
+      // Fitness-first fields
+      'goalType', 'paymentCommitment', 'preferredRewardCategory',
+      // Venue fields
+      'venueId', 'venueName', 'venueLocation',
     ];
 
     const sanitizedUpdates = Object.keys(updates)

@@ -16,6 +16,7 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import Button from '../../components/Button';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import { analyticsService } from '../../services/AnalyticsService';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
@@ -316,6 +317,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         paddingTop: Spacing.lg,
         backgroundColor: colors.white,
         borderTopWidth: 1,
+        marginBottom: FOOTER_HEIGHT,
         borderTopColor: colors.backgroundLight,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: -2 },

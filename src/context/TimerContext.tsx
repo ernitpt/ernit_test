@@ -41,6 +41,8 @@ interface TimerProviderProps {
 export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     const [timers, setTimers] = useState<TimersState>({});
     const hasLoaded = useRef(false);
+    const mountedRef = useRef(true);
+    useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
     // Load timers from AsyncStorage on mount
     useEffect(() => {
@@ -136,7 +138,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
                         delete restored[goalId];
                     }
                 });
-                setTimers(restored);
+                if (mountedRef.current) {
+                    setTimers(restored);
+                }
             }
             // Mark as loaded so saves can happen
             hasLoaded.current = true;

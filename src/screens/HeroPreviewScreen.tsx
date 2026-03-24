@@ -91,7 +91,7 @@ interface ModeConfig {
 
 const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.secondary,
-    gradient: [colors.primarySurface, colors.successLighter, colors.white] as const,
+    gradient: ['#0F172A', '#0F2A2E', '#0F172A'] as const,
     rotatingWords: [
         { word: 'workout', color: colors.secondary },
         { word: 'read', color: colors.accent },
@@ -146,7 +146,7 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
 
 const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.warning,
-    gradient: [colors.warningLighter, colors.white, colors.white] as const,
+    gradient: ['#0F172A', '#2A1A0F', '#0F172A'] as const,
     rotatingWords: [
         { word: 'workout', color: colors.warning },
         { word: 'read', color: colors.categoryAmber },
@@ -162,7 +162,7 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     statHighlight: 'doubles',
     statColor: colors.warning,
     ctaText: 'Gift an Experience',
-    ctaGradient: [colors.warning, colors.warningMedium] as const,
+    ctaGradient: ['#F59E0B', '#EA580C'] as const,
     ctaShadowColor: colors.warning,
     badgeText: 'Pay only on success',
     badgeBg: colors.warningLight,
@@ -227,7 +227,7 @@ function wrapOffset(i: number, current: number, total: number): number {
 // ─── Component ────────────────────────────────────────────────────
 type LandingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChallengeLanding'>;
 
-export default function ChallengeLandingScreen() {
+export default function HeroPreviewScreen() {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const SELF_CONFIG = useMemo(() => getSelfConfig(colors), [colors]);
@@ -339,7 +339,7 @@ export default function ChallengeLandingScreen() {
     });
     const animLoginColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.primary, colors.warning],
+        outputRange: ['rgba(255,255,255,0.9)', '#F59E0B'],
     });
     const animStatColor = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -359,20 +359,20 @@ export default function ChallengeLandingScreen() {
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.primarySurface, colors.warningLight],
+        outputRange: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.08)'],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.primaryLight, colors.warningBorder],
+        outputRange: ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.2)'],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.secondary, colors.warningDark],
+        outputRange: ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.8)'],
     });
     // Founders section colors
     const animFoundersBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.primarySurface, colors.warningLighter],
+        outputRange: ['#0F172A', '#0F172A'],
     });
     const animFounderRole = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -386,7 +386,7 @@ export default function ChallengeLandingScreen() {
     return (
         <ErrorBoundary screenName="ChallengeLandingScreen" userId={state.user?.id}>
             <View style={styles.container}>
-                <StatusBar style="dark" />
+                <StatusBar style="light" />
                 <ScrollView
                     bounces={false}
                     showsVerticalScrollIndicator={false}
@@ -418,7 +418,7 @@ export default function ChallengeLandingScreen() {
                                 accessibilityRole="button"
                                 accessibilityLabel="Go back"
                             >
-                                <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
+                                <ChevronLeft color={'rgba(255,255,255,0.9)'} size={24} strokeWidth={2.5} />
                             </TouchableOpacity>
                         )}
 
@@ -934,16 +934,16 @@ export default function ChallengeLandingScreen() {
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.surface,
+        backgroundColor: '#0F172A',
     },
     scrollContent: {
         flexGrow: 1,
-        backgroundColor: colors.white,
+        backgroundColor: '#0F172A',
     },
     hero: {
         paddingTop: vh(Platform.OS === 'ios' ? 60 : 44),
         paddingHorizontal: Spacing.xxl,
-        backgroundColor: colors.white,
+        backgroundColor: '#0F172A',
         position: 'relative',
         overflow: 'hidden',
         alignItems: 'center',
@@ -963,9 +963,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: colors.backgroundLight,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
@@ -991,7 +991,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         fontSize: vh(44),
         fontWeight: '900',
         fontStyle: 'italic',
-        color: colors.textPrimary,
+        color: '#FFFFFF',
         letterSpacing: -1.5,
     },
 
@@ -1003,12 +1003,14 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     toggleBar: {
         flexDirection: 'row',
-        backgroundColor: colors.backgroundLight,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: BorderRadius.pill,
         padding: vh(4),
         position: 'relative',
         width: '100%',
         maxWidth: vh(320),
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
         ...Shadows.sm,
     },
     toggleSlider: {
@@ -1029,10 +1031,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     toggleBtnText: {
         ...Typography.small,
         fontWeight: '700',
-        color: colors.textMuted,
+        color: 'rgba(255,255,255,0.6)',
     },
     toggleBtnTextActive: {
-        color: colors.white,
+        color: '#FFFFFF',
     },
 
     // ── Dial-style rotating word ──────────────────
@@ -1043,7 +1045,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     heroTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: colors.gray800,
+        color: '#FFFFFF',
         lineHeight: vh(46),
         letterSpacing: -1,
         textAlign: 'center',
@@ -1078,7 +1080,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
     heroSubtitle: {
         ...Typography.subheading,
-        color: colors.textSecondary,
+        color: 'rgba(255,255,255,0.7)',
         lineHeight: vh(30),
         marginBottom: vh(14),
         textAlign: 'center',
@@ -1115,7 +1117,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
-        backgroundColor: colors.gray300,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(245,158,11,0.25)',
+        shadowColor: '#F59E0B',
     },
     cardImg: {
         width: '100%',
@@ -1132,8 +1137,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     cardLabel: {
         ...Typography.caption,
         fontWeight: '600',
-        color: colors.textOnImage,
-        backgroundColor: colors.overlayOnImage,
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(0,0,0,0.6)',
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,
         borderRadius: BorderRadius.sm,
@@ -1148,7 +1153,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     statText: {
         ...Typography.subheading,
-        color: colors.textSecondary,
+        color: 'rgba(255,255,255,0.8)',
         textAlign: 'center',
     },
 
@@ -1199,7 +1204,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     howSection: {
         paddingVertical: Spacing.sectionVertical,
         paddingHorizontal: Spacing.xxl,
-        backgroundColor: colors.white,
+        backgroundColor: '#111827',
         alignItems: 'center',
     },
     howWrapper: {
@@ -1217,7 +1222,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     sectionTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: colors.gray800,
+        color: '#FFFFFF',
         marginBottom: Spacing.huge,
         textAlign: 'center',
     },
@@ -1254,7 +1259,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: colors.white,
+        borderColor: '#111827',
     },
     stepNumberText: {
         color: colors.white,
@@ -1267,18 +1272,18 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     stepTitle: {
         ...Typography.large,
-        color: colors.gray800,
+        color: '#FFFFFF',
         marginBottom: Spacing.sm,
     },
     stepDesc: {
         ...Typography.body,
-        color: colors.textSecondary,
+        color: 'rgba(255,255,255,0.7)',
     },
 
     // ── Final CTA ───────────────────────────────────
     finalCtaSection: {
         paddingVertical: Spacing.sectionVertical,
-        backgroundColor: colors.surface,
+        backgroundColor: '#0F172A',
         width: '100%',
         maxWidth: 1200,
         alignSelf: 'center',
@@ -1288,13 +1293,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     finalCtaTitle: {
         ...Typography.display,
         fontWeight: '800',
-        color: colors.gray800,
+        color: '#FFFFFF',
         marginBottom: Spacing.md,
         textAlign: 'center',
     },
     finalCtaSubtitle: {
         ...Typography.subheading,
-        color: colors.textSecondary,
+        color: 'rgba(255,255,255,0.7)',
         marginBottom: Spacing.xxxl,
         textAlign: 'center',
     },
@@ -1336,7 +1341,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     founderName: {
         ...Typography.heading3,
         fontWeight: '800',
-        color: colors.gray800,
+        color: '#FFFFFF',
         marginBottom: Spacing.xs,
         textAlign: 'center',
     },
@@ -1352,7 +1357,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         gap: Spacing.sm,
         paddingHorizontal: Spacing.xl,
         paddingVertical: Spacing.md,
-        backgroundColor: colors.gray300,
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: BorderRadius.xxl,
         borderWidth: 1,
         ...Shadows.sm,
@@ -1361,7 +1366,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     incubatorText: {
         ...Typography.small,
         fontWeight: '500',
-        color: colors.textSecondary,
+        color: 'rgba(255,255,255,0.7)',
     },
     incubatorLogo: {
         width: 120,

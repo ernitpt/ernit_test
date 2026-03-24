@@ -31,6 +31,7 @@ import { Spacing } from '../config/spacing';
 import { MotiView } from 'moti';
 import { EmptyState } from '../components/EmptyState';
 import { Card } from '../components/Card';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -86,6 +87,10 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   }, [item.status, item.id]);
 
   useEffect(() => {
+    if (!item.experienceId) {
+      // Category-only gift - no experience to fetch
+      return;
+    }
     const fetchExperience = async () => {
       try {
         const exp = await experienceService.getExperienceById(item.experienceId);
@@ -106,11 +111,17 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       variant="outlined"
       onPress={handlePress}
       style={styles.card}
-      accessibilityLabel={`View gift details for ${experience ? experience.title : 'experience'}. Status: ${item.status}`}
+      accessibilityLabel={`View gift details for ${experience ? experience.title : item.preferredRewardCategory || 'experience'}. Status: ${item.status}`}
     >
       <View style={styles.cardRow}>
         <Text style={styles.title}>
-          {experience ? experience.title : <SkeletonBox width={120} height={16} borderRadius={4} />}
+          {experience
+            ? experience.title
+            : !item.experienceId
+              ? item.preferredRewardCategory
+                ? item.preferredRewardCategory.charAt(0).toUpperCase() + item.preferredRewardCategory.slice(1)
+                : 'Surprise Experience'
+              : <SkeletonBox width={120} height={16} borderRadius={4} />}
         </Text>
         <Text
           style={[
@@ -304,6 +315,7 @@ const PurchasedGiftsScreen = () => {
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
   listContainer: {
     padding: Spacing.xl,
+    paddingBottom: Spacing.xl + FOOTER_HEIGHT,
   },
   card: {
     marginBottom: Spacing.md,

@@ -49,6 +49,7 @@ import { SkeletonBox } from '../components/SkeletonLoader';
 import ClaimExperienceModal from '../components/ClaimExperienceModal';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
+import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
 
@@ -154,7 +155,7 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
           style={styles.browseButton}
           activeOpacity={0.7}
         >
-          <Text style={styles.browseButtonText}>Browse Experiences</Text>
+          <Text style={styles.browseButtonText}>Add a Reward</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -164,27 +165,31 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
 // ==================================
 // Achievement Card (Completed goals)
 // ==================================
-const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = ({ sessions, weeks, completedAt }) => (
-  <View style={styles.achStatsRow}>
-    <View style={styles.achStatItem}>
-      <Text style={styles.achStatValue}>{sessions}</Text>
-      <Text style={styles.achStatLabel}>sessions</Text>
+const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = ({ sessions, weeks, completedAt }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <View style={styles.achStatsRow}>
+      <View style={styles.achStatItem}>
+        <Text style={styles.achStatValue}>{sessions}</Text>
+        <Text style={styles.achStatLabel}>sessions</Text>
+      </View>
+      <View style={styles.achStatDivider} />
+      <View style={styles.achStatItem}>
+        <Text style={styles.achStatValue}>{weeks}</Text>
+        <Text style={styles.achStatLabel}>weeks</Text>
+      </View>
+      {completedAt && (
+        <>
+          <View style={styles.achStatDivider} />
+          <View style={styles.achStatItem}>
+            <Text style={styles.achStatLabel}>{completedAt}</Text>
+          </View>
+        </>
+      )}
     </View>
-    <View style={styles.achStatDivider} />
-    <View style={styles.achStatItem}>
-      <Text style={styles.achStatValue}>{weeks}</Text>
-      <Text style={styles.achStatLabel}>weeks</Text>
-    </View>
-    {completedAt && (
-      <>
-        <View style={styles.achStatDivider} />
-        <View style={styles.achStatItem}>
-          <Text style={styles.achStatLabel}>{completedAt}</Text>
-        </View>
-      </>
-    )}
-  </View>
-);
+  );
+};
 
 const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const colors = useColors();
@@ -609,8 +614,8 @@ const UserProfileScreen: React.FC = () => {
       }
     }
     if (field === 'description') {
-      if (value.length > 280) {
-        setFormErrors(prev => ({ ...prev, description: `${300 - value.length} characters remaining` }));
+      if (value.length > 300) {
+        setFormErrors(prev => ({ ...prev, description: 'Maximum 300 characters' }));
       } else {
         setFormErrors(prev => ({ ...prev, description: undefined }));
       }
@@ -736,19 +741,12 @@ const UserProfileScreen: React.FC = () => {
       if (!activeGoals.length) {
         return (
           <View style={styles.emptyGoalsCenter}>
-            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ExploreScreen' as never)} />
+            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ChallengeLanding' as never)} />
           </View>
         );
       }
-      return activeGoals.map((goal, index) => (
-        <MotiView
-          key={goal.id}
-          from={{ opacity: 0, translateY: 12 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-        >
-          <GoalCard goal={goal} />
-        </MotiView>
+      return activeGoals.map((goal) => (
+        <GoalCard key={goal.id} goal={goal} />
       ));
     }
 
@@ -756,15 +754,8 @@ const UserProfileScreen: React.FC = () => {
       if (!completedGoals.length) {
         return <EmptyState title="No Achievements Yet" message="Complete goals to earn achievements!" />;
       }
-      return completedGoals.map((goal, index) => (
-        <MotiView
-          key={goal.id}
-          from={{ opacity: 0, translateY: 12 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-        >
-          <AchievementCard goal={goal} />
-        </MotiView>
+      return completedGoals.map((goal) => (
+        <AchievementCard key={goal.id} goal={goal} />
       ));
     }
 
@@ -773,15 +764,8 @@ const UserProfileScreen: React.FC = () => {
       return <EmptyState title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
     }
 
-    return wishlist.map((exp, index) => (
-      <MotiView
-        key={exp.id}
-        from={{ opacity: 0, translateY: 12 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-      >
-        <ExperienceCard experience={exp} onRemoveFromWishlist={handleRemoveFromWishlist} />
-      </MotiView>
+    return wishlist.map((exp) => (
+      <ExperienceCard key={exp.id} experience={exp} onRemoveFromWishlist={handleRemoveFromWishlist} />
     ));
   };
 
@@ -884,11 +868,7 @@ const UserProfileScreen: React.FC = () => {
             ] as const).map((tab) => (
               <TouchableOpacity
                 key={tab.key}
-                onPress={() => {
-                  const index = TAB_KEYS.indexOf(tab.key);
-                  setActiveTab(tab.key);
-                  tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
-                }}
+                onPress={() => setActiveTab(tab.key)}
                 style={[
                   styles.tabButton,
                   activeTab === tab.key && styles.tabButtonActive,
@@ -908,30 +888,13 @@ const UserProfileScreen: React.FC = () => {
             ))}
           </View>
 
-          <ScrollView
-            ref={tabScrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={100}
-            onScroll={(e) => {
-              const x = e.nativeEvent.contentOffset.x;
-              const index = Math.round(x / screenWidth);
-              if (index >= 0 && index < TAB_KEYS.length && TAB_KEYS[index] !== activeTab) {
-                setActiveTab(TAB_KEYS[index]);
-              }
-            }}
-            style={{ flex: 1 }}
-          >
-            <View style={{ width: screenWidth, paddingBottom: 80 }}>
-              {renderTabContent('goals')}
-            </View>
-            <View style={{ width: screenWidth, paddingBottom: 80 }}>
-              {renderTabContent('achievements')}
-            </View>
-            <View style={{ width: screenWidth, paddingBottom: 80 }}>
-              {renderTabContent('wishlist')}
-            </View>
+          <View style={{ paddingBottom: 80 + FOOTER_HEIGHT }}>
+            {(['goals', 'achievements', 'wishlist'] as const).map((tab) => (
+              <View key={tab} style={{ display: activeTab === tab ? 'flex' : 'none' }}>
+                {renderTabContent(tab)}
+              </View>
+            ))}
+          </View>
           </ScrollView>
         </ScrollView>
 

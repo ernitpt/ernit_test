@@ -23,9 +23,9 @@ export const Colors = {
     //  • primaryTint: light tint — used as selected-state bg, badges
     //  • primaryBorder: medium tint — used as visible borders/dividers
     primarySurface: '#F8FAFC', // slate-50 — neutral surface (was #ECFDF5 emerald-50)
-    primaryTint: '#A7F3D0',    // emerald-200 — clearly tinted, good for selected bg (was #E9D5FF / #DDD6FE)
-    primaryBorder: '#6EE7B7',  // emerald-300 — visible border on white bg (prevents invisible borders)
-    primaryLight: '#D1FAE5',   // emerald-100 — very light tint for borders/badges
+    primaryTint: '#99F6E4',    // teal-200 — warmer teal-green for selected bg
+    primaryBorder: '#5EEAD4',  // teal-300 — visible border, less minty
+    primaryLight: '#CCFBF1',   // teal-100 — light tint for borders/badges
     primaryOverlay: 'rgba(5, 150, 105, 0.9)', // primary at 90% opacity
 
     // ─── Gradients (convenience arrays for LinearGradient) ──────────────
@@ -95,9 +95,9 @@ export const Colors = {
     overlayLight: 'rgba(0, 0, 0, 0.3)',
     overlayDark: 'rgba(0, 0, 0, 0.92)',
     overlayHeavy: 'rgba(0, 0, 0, 0.7)',
-    surfaceFrosted: 'rgba(255, 255, 255, 0.95)',
-    surfaceFrosted92: 'rgba(249, 250, 251, 0.92)',
-    primaryTintAlpha40: 'rgba(167, 243, 208, 0.4)',
+    surfaceFrosted: 'rgba(255, 255, 255, 1)',
+    surfaceFrosted92: 'rgba(249, 250, 251, 1)',
+    primaryTintAlpha40: 'rgba(153, 246, 228, 0.4)',
 
     // ─── Semi-transparent whites ──────────────────────────────────────
     whiteAlpha90: 'rgba(255, 255, 255, 0.9)',

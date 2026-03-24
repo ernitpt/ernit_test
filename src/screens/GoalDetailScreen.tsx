@@ -11,6 +11,7 @@ import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
+import { normalizeGoal } from '../utils/GoalHelpers';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
@@ -29,7 +30,7 @@ const GoalDetailScreen: React.FC = () => {
   const { goalId } = route.params as { goalId: string };
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [goal, setGoal] = useState<(Goal & { sessionsPerWeek: number }) | null>(null);
+  const [goal, setGoal] = useState<Goal | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -51,7 +52,7 @@ const GoalDetailScreen: React.FC = () => {
         try {
           const g = await goalService.getGoalById(goalId);
           if (g) {
-            setGoal(g as Goal & { sessionsPerWeek: number });
+            setGoal(normalizeGoal(g));
           } else {
             setLoadError(true);
           }

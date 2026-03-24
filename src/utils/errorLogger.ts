@@ -45,15 +45,20 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
     // Get current user ID if available
     const currentUserId = context.userId || auth.currentUser?.uid || 'anonymous';
 
+    // Strip undefined values — Firestore SDK rejects undefined field values
     const errorData: ErrorLogData = {
         message: errorMessage,
-        stack: errorStack?.substring(0, 2000), // Limit stack size
+        ...(errorStack ? { stack: errorStack.substring(0, 2000) } : {}),
         context: context.feature || context.screenName || 'unknown',
-        screenName: context.screenName,
+        ...(context.screenName ? { screenName: context.screenName } : {}),
         userId: currentUserId,
         timestamp: new Date(),
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-        additionalData: context.additionalData,
+        ...(context.additionalData ? {
+            additionalData: Object.fromEntries(
+                Object.entries(context.additionalData).filter(([_, v]) => v !== undefined)
+            ),
+        } : {}),
     };
 
     // Log to console for development

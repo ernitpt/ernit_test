@@ -258,7 +258,7 @@ service cloud.firestore {
 
         ||
 
-        // (3) Giver can ONLY update approval-related fields and personalized hints
+        // (3) Giver can ONLY update approval-related fields, personalized hints, and empower state
         (request.auth.uid == resource.data.empoweredBy
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
@@ -270,6 +270,7 @@ service cloud.firestore {
               'approvalRequestedAt',
               'approvalDeadline',
               'personalizedNextHint',
+              'empowerPending',
               'updatedAt'
             ]))
 
@@ -301,7 +302,7 @@ service cloud.firestore {
          && 'isFreeGoal' in resource.data
          && resource.data.isFreeGoal == true
          && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'updatedAt'])
+             .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'empowerPending', 'updatedAt'])
          && request.resource.data.experienceGiftId is string
          && request.resource.data.experienceGiftId != ''
          && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId))
@@ -344,8 +345,10 @@ service cloud.firestore {
          NESTED MOTIVATIONS (Free Goals)
          =============================== */
       match /motivations/{motivationId} {
-        // Goal owner can read all motivations; authors can read their own (needed for duplicate check)
-        allow read: if request.auth != null && (
+        // Get by ID: any authenticated user (needed for transaction duplicate check on non-existent docs)
+        allow get: if request.auth != null;
+        // List: goal owner or motivation author only
+        allow list: if request.auth != null && (
           request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId
           || request.auth.uid == resource.data.authorId
         );
@@ -727,7 +730,7 @@ service cloud.firestore {
          (get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.userId == request.auth.uid ||
           get(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)).data.empoweredBy == request.auth.uid ||
           // Allow friends to send free goal notifications
-          (request.resource.data.type in ['free_goal_completed', 'free_goal_milestone'] &&
+          (request.resource.data.type in ['free_goal_completed', 'free_goal_milestone', 'motivation_received'] &&
            areFriends(request.auth.uid, request.resource.data.userId))))
         ||
         // Experience empower notifications: friend bought a gift for someone's goal
@@ -745,6 +748,12 @@ service cloud.firestore {
          'postId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)) &&
          request.resource.data.data.reactorId == request.auth.uid)
+        ||
+        // Post comments: allow if post exists and the commenter is the authenticated user
+        (request.resource.data.type == 'post_comment' &&
+         'postId' in request.resource.data.data &&
+         exists(/databases/$(database)/documents/feedPosts/$(request.resource.data.data.postId)) &&
+         request.resource.data.data.commenterId == request.auth.uid)
       );
 
     }
@@ -819,10 +828,8 @@ service cloud.firestore {
       //
       // SECURITY MITIGATION (2026-03-17): get() requires ownership or friendship;
       // list() is capped at 100 docs per query to limit bulk scraping.
-      allow get: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        areFriends(request.auth.uid, resource.data.userId)
-      );
+      // Posts are readable by any authenticated user (privacy enforced client-side)
+      allow get: if request.auth != null;
       allow list: if request.auth != null && request.query.limit <= 100;
 
       // Create: users can create their own posts OR givers can create goal_approved posts for recipients
@@ -851,7 +858,7 @@ service cloud.firestore {
               request.resource.data.commentCount >= 0 &&
               request.resource.data.commentCount <= resource.data.commentCount + 1))
          && (!('reactionCounts' in request.resource.data.diff(resource.data).affectedKeys()) ||
-             request.resource.data.reactionCounts.diff(resource.data.reactionCounts).affectedKeys().size() <= 1))
+             request.resource.data.reactionCounts.diff(resource.data.reactionCounts).affectedKeys().size() <= 2))
       );
 
       // Delete: only owner
@@ -883,9 +890,10 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
 
-        // Update: own comments only
+        // Update: own comments OR liking (only likedBy/likeCount fields)
         allow update: if request.auth != null
-          && resource.data.userId == request.auth.uid;
+          && (resource.data.userId == request.auth.uid
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likeCount']));
 
         // Delete: own comments only
         allow delete: if request.auth != null

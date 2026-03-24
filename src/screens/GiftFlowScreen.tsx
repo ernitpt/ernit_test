@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -53,11 +54,11 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
 
 // ─── Goal type options (Together flow) ───────────────────────────────────────
-const GOAL_TYPES = [
-    { icon: '\u{1F3CB}\uFE0F', name: 'Gym', color: '#10B981', tagline: 'Weights, cardio, machines' },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: '#8B5CF6', tagline: 'Flexibility, mindfulness' },
-    { icon: '\u{1F57A}', name: 'Dance', color: '#F59E0B', tagline: 'Rhythm, movement, fun' },
-    { icon: '\u270F\uFE0F', name: 'Add your own', color: '#6B7280', tagline: 'Create a custom challenge' },
+const getGoalTypes = (colors: typeof Colors) => [
+    { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
+    { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info || '#8B5CF6' },
+    { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
+    { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
 ];
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
@@ -145,6 +146,7 @@ export default function GiftFlowScreen() {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors), [colors]);
     const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
+    const goalTypes = useMemo(() => getGoalTypes(colors), [colors]);
     const navigation = useRootNavigation();
     const route = useRoute();
     const routeParams = route.params as { prefill?: GiftFlowPrefill } | undefined;
@@ -172,6 +174,7 @@ export default function GiftFlowScreen() {
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
     const [loadingExperiences, setLoadingExperiences] = useState(true);
+    const [experienceLoadError, setExperienceLoadError] = useState(false);
     const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
     const [showExperiencePicker, setShowExperiencePicker] = useState(false);
     const [detailExperience, setDetailExperience] = useState<Experience | null>(null);
@@ -220,9 +223,19 @@ export default function GiftFlowScreen() {
     // Refs for focus chaining
     const minutesRef = useRef<RNTextInput>(null);
 
+    // Double-submit guard
+    const submittingRef = useRef(false);
+
+    // Prevent discard alert after successful gift creation
+    const giftCreatedRef = useRef(false);
+
     // Animated dial state
     const [displayMinutes, setDisplayMinutes] = useState(30);
     const animFrameRef = useRef<number | null>(null);
+
+    // Clock dial web-compat refs
+    const clockRef = useRef<View>(null);
+    const clockLayout = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
     // Step titles/subtitles (dynamic — use lookup functions to handle free-payment step skipping)
     const getStepTitle = (): string => {
@@ -242,7 +255,9 @@ export default function GiftFlowScreen() {
         if (challengeType === 'shared' && currentStep === 3) return TOGETHER_STEP_SUBTITLES[2];
         if (challengeType === 'shared' && currentStep === 4) return TOGETHER_STEP_SUBTITLES[3];
         const expStep = getExperienceStep();
-        if (currentStep === expStep) return "Pick a category. We'll recommend the perfect reward!";
+        if (currentStep === expStep) return challengeType === 'solo'
+            ? "Browse and pick the experience they'll earn"
+            : "Pick a category or browse for the perfect reward!";
         const payStep = getPaymentStep();
         if (currentStep === payStep) return "Choose how you'd like to back this challenge.";
         const revealStep = getRevealStep();
@@ -257,6 +272,7 @@ export default function GiftFlowScreen() {
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
         const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+            if (giftCreatedRef.current) return; // Don't block navigation after successful creation
             if (currentStep === 1) return; // Allow back from step 1
             e.preventDefault();
             Alert.alert(
@@ -293,6 +309,8 @@ export default function GiftFlowScreen() {
             if (p.revealMode) setRevealMode(p.revealMode);
             if (p.paymentChoice) setPaymentChoice(p.paymentChoice);
             if (p.personalizedMessage) setPersonalizedMessage(p.personalizedMessage);
+            if (p.selectedGoalType) setSelectedGoalType(p.selectedGoalType);
+            if (p.customGoalType) setCustomGoalType(p.customGoalType);
         }
     }, []);
 
@@ -309,6 +327,7 @@ export default function GiftFlowScreen() {
                 setExperiences(fetched);
             } catch (error) {
                 logger.error('Error fetching experiences:', error);
+                setExperienceLoadError(true);
             } finally {
                 setLoadingExperiences(false);
             }
@@ -349,6 +368,7 @@ export default function GiftFlowScreen() {
         return needsRevealStep ? 6 : -1; // -1 = skipped
     };
     const getPaymentStep = () => {
+        if (!needsPaymentStep) return -1;
         if (challengeType === 'solo') return 4;
         const base = 5; // after experience step
         return base + (needsRevealStep ? 1 : 0) + 1; // +1 for payment itself offset
@@ -462,6 +482,9 @@ export default function GiftFlowScreen() {
             setShowExperiencePicker(false);
             setSelectedExperience(null);
             setValidationErrors(prev => ({ ...prev, experience: false }));
+            if (challengeType === 'solo' && currentStep > 1) {
+                setCurrentStep(prev => prev - 1);
+            }
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         } else if (currentStep > 1) {
             setCurrentStep(prev => prev - 1);
@@ -487,6 +510,8 @@ export default function GiftFlowScreen() {
                 minutes,
                 sessionMinutes,
                 showCustomTime,
+                selectedGoalType,
+                customGoalType,
                 experience: selectedExperience || null,
                 preferredRewardCategory: preferredRewardCategory || null,
                 revealMode: needsRevealStep ? revealMode : null,
@@ -505,16 +530,24 @@ export default function GiftFlowScreen() {
     };
 
     const confirmCreateGoal = async () => {
-        if (isSubmitting || !state.user?.id) return;
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+
+        if (isSubmitting || !state.user?.id) {
+            submittingRef.current = false;
+            return;
+        }
 
         // Solo giver requires a specific experience (no free option)
         // Together giver can use category-only ("Surprise me") path
         if (!selectedExperience && challengeType === 'solo') {
             showError('Please select a specific experience');
+            submittingRef.current = false;
             return;
         }
         if (!selectedExperience && !preferredRewardCategory) {
             showError('Please select a reward option');
+            submittingRef.current = false;
             return;
         }
 
@@ -545,6 +578,7 @@ export default function GiftFlowScreen() {
                             personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
                             goalName: `${weeks}-week challenge`,
                             goalType: selectedGoalType === 'Gym' ? 'gym' : selectedGoalType === 'Yoga' ? 'yoga' : selectedGoalType === 'Dance' ? 'dance' : 'custom',
+                            customGoalText: selectedGoalType === 'Add your own' ? customGoalType : undefined,
                             duration: `${weeks} weeks`,
                             frequency: `${sessionsPerWeek}x per week`,
                             sessionTime: `${hoursNum}h ${minutesNum}m`,
@@ -559,10 +593,21 @@ export default function GiftFlowScreen() {
 
                 const result = await response.json();
                 setShowConfirm(false);
-                showSuccess('Challenge created! Share the code with your partner to get started.');
-                setTimeout(() => {
-                    navigation.navigate('Goals' as any);
-                }, 300);
+                giftCreatedRef.current = true;
+                navigation.reset({
+                    index: 0,
+                    routes: [
+                        {
+                            name: 'Confirmation' as any,
+                            params: {
+                                experienceGift: result.gift,
+                                challengeType: 'shared',
+                                isCategory: true,
+                                preferredRewardCategory,
+                            },
+                        },
+                    ],
+                });
                 return;
             }
 
@@ -585,6 +630,7 @@ export default function GiftFlowScreen() {
                         ...(challengeType === 'shared' ? {
                             goalName: `${weeks}-week challenge`,
                             goalType: selectedGoalType === 'Gym' ? 'gym' : selectedGoalType === 'Yoga' ? 'yoga' : selectedGoalType === 'Dance' ? 'dance' : 'custom',
+                            customGoalText: selectedGoalType === 'Add your own' ? customGoalType : undefined,
                             duration: `${weeks} weeks`,
                             frequency: `${sessionsPerWeek}x per week`,
                             sessionTime: `${hoursNum}h ${minutesNum}m`,
@@ -601,6 +647,7 @@ export default function GiftFlowScreen() {
 
             const result = await response.json();
             setShowConfirm(false);
+            giftCreatedRef.current = true;
 
             if (paymentChoice === 'payNow') {
                 navigation.navigate('ExperienceCheckout' as any, {
@@ -612,6 +659,10 @@ export default function GiftFlowScreen() {
                     setupIntentClientSecret: result.setupIntentClientSecret,
                     experienceGift: result.gift,
                 });
+            } else if (paymentChoice === 'payLater') {
+                // setupIntentClientSecret missing - payment setup failed
+                showError('Payment setup failed. Please try again.');
+                return;
             } else {
                 navigation.navigate('Confirmation', { experienceGift: result.gift });
             }
@@ -623,8 +674,10 @@ export default function GiftFlowScreen() {
                 userId: state.user?.id,
             });
             showError('Failed to create gift. Please try again.');
+            submittingRef.current = false;
         } finally {
             setIsSubmitting(false);
+            submittingRef.current = false;
         }
     };
 
@@ -681,7 +734,7 @@ export default function GiftFlowScreen() {
     const renderGoalTypeStepTogether = () => (
         <View style={styles.stepContent}>
             <View style={styles.goalTypeGrid}>
-                {GOAL_TYPES.map((type, i) => {
+                {goalTypes.map((type, i) => {
                     const isSelected = selectedGoalType === type.name;
                     const isCustom = type.name === 'Add your own';
                     return (
@@ -816,9 +869,11 @@ export default function GiftFlowScreen() {
             : '';
 
         const handleTouch = (event: any) => {
-            const { locationX, locationY } = event.nativeEvent;
-            const dx = locationX - DIAL_RADIUS;
-            const dy = locationY - DIAL_RADIUS;
+            const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+            const x = locationX ?? (pageX - clockLayout.current.x);
+            const y = locationY ?? (pageY - clockLayout.current.y);
+            const dx = x - DIAL_RADIUS;
+            const dy = y - DIAL_RADIUS;
             let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
             if (a < 0) a += 360;
             const mins = Math.round((a / 360) * 60 / 5) * 5;
@@ -831,7 +886,13 @@ export default function GiftFlowScreen() {
             <View style={styles.stepContent}>
                 <View style={{ alignItems: 'center', marginTop: vh(4) }}>
                     <View
+                        ref={clockRef}
                         style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
+                        onLayout={() => {
+                            clockRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                                clockLayout.current = { x: pageX, y: pageY, width, height };
+                            });
+                        }}
                         onStartShouldSetResponder={() => true}
                         onMoveShouldSetResponder={() => true}
                         onResponderGrant={handleTouch}
@@ -1028,7 +1089,7 @@ export default function GiftFlowScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`View details for ${exp.title}`}
                 >
-                    <Info size={14} color={colors.white} />
+                    <Info size={14} color={colors.textOnImage} />
                 </TouchableOpacity>
                 <View style={styles.expTextContainer}>
                     <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
@@ -1053,7 +1114,8 @@ export default function GiftFlowScreen() {
 
             return (
                 <View style={styles.stepContent}>
-                    {/* Back to category cards */}
+                    {/* Back to category cards (Together only — solo has no category fork) */}
+                    {challengeType !== 'solo' && (
                     <TouchableOpacity
                         style={styles.browseBackButton}
                         onPress={() => {
@@ -1066,6 +1128,7 @@ export default function GiftFlowScreen() {
                         <ChevronLeft color={colors.primary} size={18} strokeWidth={2.5} />
                         <Text style={styles.browseBackText}>Back to categories</Text>
                     </TouchableOpacity>
+                    )}
 
                     {/* Need help choosing? — solo flow only */}
                     {challengeType === 'solo' && !selectedExperience && (
@@ -1075,7 +1138,11 @@ export default function GiftFlowScreen() {
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
                                 {experiences
                                     .filter(e => e.status !== 'draft')
-                                    .sort((a, b) => (a.order || 999) - (b.order || 999))
+                                    .sort((a, b) => {
+                                        if (a.isFeatured && !b.isFeatured) return -1;
+                                        if (!a.isFeatured && b.isFeatured) return 1;
+                                        return (a.recommendedOrder ?? a.order ?? 999) - (b.recommendedOrder ?? b.order ?? 999);
+                                    })
                                     .slice(0, 3)
                                     .map((exp) => renderExperienceCard(exp))}
                             </ScrollView>
@@ -1133,6 +1200,8 @@ export default function GiftFlowScreen() {
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                         </View>
+                    ) : experienceLoadError ? (
+                        <EmptyState title="Could not load experiences" message="Check your connection and try again" />
                     ) : (
                         <View style={styles.stackedCategories}>
                             {visibleCategories.map((cat) => {
@@ -1189,7 +1258,7 @@ export default function GiftFlowScreen() {
                                                             accessibilityRole="button"
                                                             accessibilityLabel={`View details for ${exp.title}`}
                                                         >
-                                                            <Info size={14} color={colors.white} />
+                                                            <Info size={14} color={colors.textOnImage} />
                                                         </TouchableOpacity>
                                                         <View style={styles.expTextContainer}>
                                                             <Text style={[styles.expTitle, isSelected && styles.expTitleActive]} numberOfLines={2}>{exp.title}</Text>
@@ -1215,11 +1284,8 @@ export default function GiftFlowScreen() {
         }
 
         // Solo giver: mandatory specific experience — go straight to browse
+        // (picker is opened via useEffect to avoid setState-in-render)
         if (challengeType === 'solo') {
-            // Auto-open the experience picker for solo
-            if (!showExperiencePicker) {
-                setShowExperiencePicker(true);
-            }
             return null; // browse mode handles rendering (above)
         }
 
@@ -1336,6 +1402,13 @@ export default function GiftFlowScreen() {
         );
     };
 
+    // Auto-open experience picker for solo flow
+    useEffect(() => {
+        if (challengeType === 'solo' && currentStep === getExperienceStep() && !showExperiencePicker) {
+            setShowExperiencePicker(true);
+        }
+    }, [challengeType, currentStep]);
+
     // Default to secret reveal mode — only when reveal step is part of the flow
     useEffect(() => {
         if (needsRevealStep && !revealMode) {
@@ -1441,29 +1514,35 @@ export default function GiftFlowScreen() {
                 </View>
             </TouchableOpacity>
 
-            {/* Small escape hatch: pay on success */}
+            {/* Option B: Pay on success (save card) */}
             <TouchableOpacity
-                style={{ paddingVertical: Spacing.md, alignItems: 'center' }}
+                style={[styles.rewardChoice, { marginTop: Spacing.md }, paymentChoice === 'payLater' && styles.rewardChoiceActive]}
                 onPress={() => {
                     setPaymentChoice('payLater');
                     setValidationErrors(prev => ({ ...prev, paymentChoice: false }));
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pay on success, save card now"
             >
-                <Text style={{
-                    ...Typography.small,
-                    color: colors.textMuted,
-                    textDecorationLine: 'underline',
-                }}>
-                    Or save card & pay on success
-                </Text>
+                <View style={styles.rewardChoiceHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>Pay on success</Text>
+                        <Text style={styles.rewardChoiceDesc}>
+                            Save your card now. Only charged when they complete the challenge.
+                        </Text>
+                    </View>
+                    {paymentChoice === 'payLater' && (
+                        <View style={styles.rewardChoiceCheck}><Check color={colors.white} size={14} strokeWidth={3} /></View>
+                    )}
+                </View>
             </TouchableOpacity>
 
             {/* Motivational stat */}
             <View style={styles.statCard}>
                 <Text style={styles.statNumber}>Invest in their success.</Text>
                 <Text style={styles.statText}>
-                    When you commit upfront, you show them you believe in them. They'll know someone is rooting for them.
+                    Your loved one is more likely to achieve their goals when they have a reward from you at the end.
                 </Text>
             </View>
         </View>
@@ -1580,268 +1659,268 @@ export default function GiftFlowScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-            <View style={styles.container}>
-                <StatusBar style="dark" />
+                <View style={styles.container}>
+                    <StatusBar style="dark" />
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={handleBack}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Go back"
-                    >
-                        <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Gift a Challenge</Text>
-                    <View style={styles.stepIndicator}>
-                        <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
-                    </View>
-                </View>
-
-                {/* Progress Bar */}
-                <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
-
-                {/* Step Content */}
-                <ScrollView
-                    ref={scrollViewRef}
-                    style={styles.scroll}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
-                    {/* Step Title & Subtitle */}
-                    <MotiView
-                        key={`title-${currentStep}`}
-                        from={{ opacity: 0, translateY: 10 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 300 }}
-                    >
-                        <Text style={styles.stepTitle}>{getStepTitle()}</Text>
-                        <Text style={styles.stepSubtitle}>{getStepSubtitle()}</Text>
-                    </MotiView>
-
-                    {/* Animated Step Content */}
-                    <AnimatePresence exitBeforeEnter>
-                        <MotiView
-                            key={`step-${currentStep}`}
-                            from={{ opacity: 0, translateX: 30 }}
-                            animate={{ opacity: 1, translateX: 0 }}
-                            exit={{ opacity: 0, translateX: -30 }}
-                            transition={{ type: 'timing', duration: 250 }}
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={handleBack}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Go back"
                         >
-                            {renderCurrentStep()}
-                        </MotiView>
-                    </AnimatePresence>
+                            <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Gift a Challenge</Text>
+                        <View style={styles.stepIndicator}>
+                            <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
+                        </View>
+                    </View>
 
-                    <View style={{ height: vh(120) }} />
-                </ScrollView>
+                    {/* Progress Bar */}
+                    <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                    {/* Preview card when experience is selected */}
-                    {currentStep >= getExperienceStep() && selectedExperience && (
+                    {/* Step Content */}
+                    <ScrollView
+                        ref={scrollViewRef}
+                        style={styles.scroll}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {/* Step Title & Subtitle */}
                         <MotiView
+                            key={`title-${currentStep}`}
                             from={{ opacity: 0, translateY: 10 }}
                             animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                            transition={{ type: 'timing', duration: 300 }}
                         >
-                            <View style={styles.footerHeroCard}>
-                                <View style={styles.footerHeroRow}>
-                                    <View style={styles.heroIconBox}>
-                                        <Image
-                                            source={{ uri: selectedExperience.coverImageUrl }}
-                                            style={styles.heroImage}
-                                            resizeMode="cover"
-                                            accessibilityLabel={selectedExperience.title}
-                                        />
-                                    </View>
-                                    <View style={styles.heroInfo}>
-                                        <Text style={styles.footerHeroTitle} numberOfLines={1}>
-                                            {selectedExperience.title}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        onPress={() => setDetailExperience(selectedExperience)}
-                                        style={styles.heroDetailsButton}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="View experience details"
-                                    >
-                                        <Text style={styles.heroDetailsText}>View details</Text>
-                                    </TouchableOpacity>
-                                </View>
+                            <Text style={styles.stepTitle}>{getStepTitle()}</Text>
+                            <Text style={styles.stepSubtitle}>{getStepSubtitle()}</Text>
+                        </MotiView>
 
-                                {challengeType && (
-                                    <View style={styles.heroContextRow}>
-                                        <View style={styles.contextBadge}>
-                                            <Text style={styles.contextEmoji}>
-                                                {challengeType === 'solo' ? '👤' : '👥'}
-                                            </Text>
-                                            <Text style={styles.contextText}>{typeLabel}</Text>
+                        {/* Animated Step Content */}
+                        <AnimatePresence exitBeforeEnter>
+                            <MotiView
+                                key={`step-${currentStep}`}
+                                from={{ opacity: 0, translateX: 30 }}
+                                animate={{ opacity: 1, translateX: 0 }}
+                                exit={{ opacity: 0, translateX: -30 }}
+                                transition={{ type: 'timing', duration: 250 }}
+                            >
+                                {renderCurrentStep()}
+                            </MotiView>
+                        </AnimatePresence>
+
+                        <View style={{ height: selectedExperience ? vh(260) : vh(120) }} />
+                    </ScrollView>
+
+                    {/* Footer */}
+                    <View style={styles.footer}>
+                        {/* Preview card when experience is selected */}
+                        {currentStep >= getExperienceStep() && selectedExperience && (
+                            <MotiView
+                                from={{ opacity: 0, translateY: 10 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                            >
+                                <View style={styles.footerHeroCard}>
+                                    <View style={styles.footerHeroRow}>
+                                        <View style={styles.heroIconBox}>
+                                            <Image
+                                                source={{ uri: selectedExperience.coverImageUrl }}
+                                                style={styles.heroImage}
+                                                resizeMode="cover"
+                                                accessibilityLabel={selectedExperience.title}
+                                            />
                                         </View>
-                                        {challengeType === 'shared' && (
-                                            <>
-                                                <View style={styles.contextDivider} />
-                                                <View style={styles.contextBadge}>
-                                                    <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
-                                                </View>
-                                                <View style={styles.contextDivider} />
-                                                <View style={styles.contextBadge}>
-                                                    <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
-                                                </View>
-                                            </>
-                                        )}
-                                        {needsRevealStep && revealMode && (
-                                            <>
-                                                <View style={styles.contextDivider} />
-                                                <View style={styles.contextBadge}>
-                                                    <Text style={styles.contextLabel}>{revealMode === 'revealed' ? '👁️' : '🔒'} {revealMode === 'revealed' ? 'Revealed' : 'Secret'}</Text>
-                                                </View>
-                                            </>
-                                        )}
+                                        <View style={styles.heroInfo}>
+                                            <Text style={styles.footerHeroTitle} numberOfLines={1}>
+                                                {selectedExperience.title}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity
+                                            onPress={() => setDetailExperience(selectedExperience)}
+                                            style={styles.heroDetailsButton}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="View experience details"
+                                        >
+                                            <Text style={styles.heroDetailsText}>View details</Text>
+                                        </TouchableOpacity>
                                     </View>
+
+                                    {challengeType && (
+                                        <View style={styles.heroContextRow}>
+                                            <View style={styles.contextBadge}>
+                                                <Text style={styles.contextEmoji}>
+                                                    {challengeType === 'solo' ? '👤' : '👥'}
+                                                </Text>
+                                                <Text style={styles.contextText}>{typeLabel}</Text>
+                                            </View>
+                                            {challengeType === 'shared' && (
+                                                <>
+                                                    <View style={styles.contextDivider} />
+                                                    <View style={styles.contextBadge}>
+                                                        <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
+                                                    </View>
+                                                    <View style={styles.contextDivider} />
+                                                    <View style={styles.contextBadge}>
+                                                        <Text style={styles.contextLabel}>{sessionsPerWeek}x/wk</Text>
+                                                    </View>
+                                                </>
+                                            )}
+                                            {needsRevealStep && revealMode && (
+                                                <>
+                                                    <View style={styles.contextDivider} />
+                                                    <View style={styles.contextBadge}>
+                                                        <Text style={styles.contextLabel}>{revealMode === 'revealed' ? '👁️' : '🔒'} {revealMode === 'revealed' ? 'Revealed' : 'Secret'}</Text>
+                                                    </View>
+                                                </>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                            </MotiView>
+                        )}
+
+                        {/* CTA Button */}
+                        {currentStep === totalSteps ? (
+                            <TouchableOpacity
+                                style={styles.createButton}
+                                onPress={handleCreate}
+                                activeOpacity={0.9}
+                                accessibilityRole="button"
+                                accessibilityLabel={state.user?.id ? 'Send gift' : 'Sign up and send gift'}
+                            >
+                                <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                                    <Text style={styles.createButtonText}>
+                                        {state.user?.id
+                                            ? (!needsPaymentStep ? 'Send Challenge' : paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
+                                            : 'Sign Up & Send Gift'}
+                                    </Text>
+                                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                style={styles.createButton}
+                                onPress={handleNext}
+                                activeOpacity={0.9}
+                                accessibilityRole="button"
+                                accessibilityLabel="Continue to next step"
+                            >
+                                <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
+                                    <Text style={styles.createButtonText}>Next</Text>
+                                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* Confirmation Modal */}
+                    <BaseModal
+                        visible={showConfirm}
+                        onClose={() => setShowConfirm(false)}
+                        title="Confirm Your Gift"
+                        variant="center"
+                    >
+                        <View style={{ width: '100%', alignItems: 'center' }}>
+                            <Text style={styles.modalSubtitle}>
+                                Ready to send? Let's make it happen!
+                            </Text>
+
+                            <View style={styles.modalDetails}>
+                                <Text style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Type: </Text>
+                                    {typeLabel}
+                                </Text>
+                                {challengeType === 'shared' && (
+                                    <>
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Duration: </Text>
+                                            {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                                        </Text>
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Sessions/week: </Text>
+                                            {sessionsPerWeek}
+                                        </Text>
+                                        <Text style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Per session: </Text>
+                                            {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
+                                        </Text>
+                                    </>
+                                )}
+                                {selectedExperience ? (
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Reward: </Text>
+                                        {selectedExperience.title}
+                                    </Text>
+                                ) : preferredRewardCategory ? (
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Reward preference: </Text>
+                                        {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
+                                    </Text>
+                                ) : null}
+                                {needsRevealStep && revealMode && (
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Mode: </Text>
+                                        {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
+                                    </Text>
+                                )}
+                                {needsPaymentStep && paymentChoice && (
+                                    <Text style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Payment: </Text>
+                                        {getPaymentLabel()}
+                                    </Text>
                                 )}
                             </View>
-                        </MotiView>
-                    )}
 
-                    {/* CTA Button */}
-                    {currentStep === totalSteps ? (
-                        <TouchableOpacity
-                            style={styles.createButton}
-                            onPress={handleCreate}
-                            activeOpacity={0.9}
-                            accessibilityRole="button"
-                            accessibilityLabel={state.user?.id ? 'Send gift' : 'Sign up and send gift'}
-                        >
-                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                                <Text style={styles.createButtonText}>
-                                    {state.user?.id
-                                        ? (!needsPaymentStep ? 'Send Challenge' : paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
-                                        : 'Sign Up & Send Gift'}
-                                </Text>
-                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity
-                            style={styles.createButton}
-                            onPress={handleNext}
-                            activeOpacity={0.9}
-                            accessibilityRole="button"
-                            accessibilityLabel="Continue to next step"
-                        >
-                            <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                                <Text style={styles.createButtonText}>Next</Text>
-                                <ChevronRight color={colors.white} size={20} strokeWidth={3} />
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* Confirmation Modal */}
-                <BaseModal
-                    visible={showConfirm}
-                    onClose={() => setShowConfirm(false)}
-                    title="Confirm Your Gift"
-                    variant="center"
-                >
-                    <View style={{ width: '100%', alignItems: 'center' }}>
-                        <Text style={styles.modalSubtitle}>
-                            Ready to send? Let's make it happen!
-                        </Text>
-
-                        <View style={styles.modalDetails}>
-                            <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Type: </Text>
-                                {typeLabel}
+                            <Text style={styles.pledgeNote}>
+                                {!needsPaymentStep
+                                    ? 'We\'ll find the perfect experience as they progress!'
+                                    : paymentChoice === 'payNow'
+                                        ? 'Experience will be secured immediately after payment.'
+                                        : 'Your card will only be charged when they succeed.'}
                             </Text>
-                            {challengeType === 'shared' && (
-                                <>
-                                    <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Duration: </Text>
-                                        {weeks} {weeks === 1 ? 'week' : 'weeks'}
-                                    </Text>
-                                    <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Sessions/week: </Text>
-                                        {sessionsPerWeek}
-                                    </Text>
-                                    <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Per session: </Text>
-                                        {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
-                                    </Text>
-                                </>
-                            )}
-                            {selectedExperience ? (
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Reward: </Text>
-                                    {selectedExperience.title}
-                                </Text>
-                            ) : preferredRewardCategory ? (
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Reward preference: </Text>
-                                    {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
-                                </Text>
-                            ) : null}
-                            {needsRevealStep && revealMode && (
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Mode: </Text>
-                                    {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
-                                </Text>
-                            )}
-                            {needsPaymentStep && paymentChoice && (
-                                <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Payment: </Text>
-                                    {getPaymentLabel()}
-                                </Text>
-                            )}
-                        </View>
 
-                        <Text style={styles.pledgeNote}>
-                            {!needsPaymentStep
-                                ? 'We\'ll find the perfect experience as they progress!'
-                                : paymentChoice === 'payNow'
-                                    ? 'Experience will be secured immediately after payment.'
-                                    : 'Your card will only be charged when they succeed.'}
-                        </Text>
-
-                        <View style={styles.modalButtons}>
-                            <Button
-                                variant="ghost"
-                                onPress={() => setShowConfirm(false)}
-                                disabled={isSubmitting}
-                                title="Cancel"
-                                style={styles.modalButton}
-                            />
-
-                            <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                            <View style={styles.modalButtons}>
                                 <Button
-                                    variant="primary"
-                                    onPress={confirmCreateGoal}
-                                    loading={isSubmitting}
-                                    title={getCtaLabel()}
-                                    fullWidth
+                                    variant="ghost"
+                                    onPress={() => setShowConfirm(false)}
+                                    disabled={isSubmitting}
+                                    title="Cancel"
                                     style={styles.modalButton}
                                 />
-                            </Animated.View>
-                        </View>
-                    </View>
-                </BaseModal>
 
-                {/* Experience Detail Modal */}
-                <ExperienceDetailModal
-                    visible={!!detailExperience}
-                    experience={detailExperience}
-                    onClose={() => setDetailExperience(null)}
-                    onSelect={(exp) => {
-                        setSelectedExperience(exp);
-                        setPreferredRewardCategory(null);
-                        setValidationErrors(prev => ({ ...prev, experience: false }));
-                    }}
-                    isSelected={selectedExperience?.id === detailExperience?.id}
-                />
-            </View>
+                                <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                                    <Button
+                                        variant="primary"
+                                        onPress={confirmCreateGoal}
+                                        loading={isSubmitting}
+                                        title={getCtaLabel()}
+                                        fullWidth
+                                        style={styles.modalButton}
+                                    />
+                                </Animated.View>
+                            </View>
+                        </View>
+                    </BaseModal>
+
+                    {/* Experience Detail Modal */}
+                    <ExperienceDetailModal
+                        visible={!!detailExperience}
+                        experience={detailExperience}
+                        onClose={() => setDetailExperience(null)}
+                        onSelect={(exp) => {
+                            setSelectedExperience(exp);
+                            setPreferredRewardCategory(null);
+                            setValidationErrors(prev => ({ ...prev, experience: false }));
+                        }}
+                        isSelected={selectedExperience?.id === detailExperience?.id}
+                    />
+                </View>
             </KeyboardAvoidingView>
         </ErrorBoundary>
     );

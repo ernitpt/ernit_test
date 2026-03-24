@@ -219,7 +219,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  startButton: { backgroundColor: colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  startButton: { backgroundColor: colors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   startButtonText: { ...Typography.subheading, color: colors.white, textAlign: 'center' },
   sessionDurationText: {
     marginTop: Spacing.sm,

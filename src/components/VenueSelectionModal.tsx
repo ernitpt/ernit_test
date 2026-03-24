@@ -114,6 +114,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
     const sheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<RNTextInput>(null);
+    const abortRef = useRef<AbortController | null>(null);
 
     // ─── Animation: open ──────────────────────────────────────────────────
     useEffect(() => {
@@ -178,12 +179,15 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
 
         setLoading(true);
         try {
+            abortRef.current?.abort();
+            abortRef.current = new AbortController();
+
             const url = new URL(AUTOCOMPLETE_ENDPOINT);
             url.searchParams.set('input', query);
             url.searchParams.set('types', 'establishment');
             url.searchParams.set('key', GOOGLE_PLACES_API_KEY);
 
-            const response = await fetch(url.toString());
+            const response = await fetch(url.toString(), { signal: abortRef.current.signal });
             const data = await response.json() as {
                 status: string;
                 predictions: Array<{
@@ -208,7 +212,8 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
             } else {
                 setPredictions([]);
             }
-        } catch {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') return;
             setPredictions([]);
         } finally {
             setLoading(false);
@@ -235,12 +240,13 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
         }, DEBOUNCE_MS);
     }, [fetchPredictions]);
 
-    // Cleanup debounce timer on unmount
+    // Cleanup debounce timer and any in-flight fetch on unmount
     useEffect(() => {
         return () => {
             if (debounceTimer.current) {
                 clearTimeout(debounceTimer.current);
             }
+            abortRef.current?.abort();
         };
     }, []);
 

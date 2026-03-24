@@ -118,11 +118,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 const createStyles = (colors: typeof Colors) =>
     StyleSheet.create({
         container: {
-            marginTop: Spacing.sm,
+            marginTop: Spacing.xs,
+            paddingHorizontal: Spacing.md,
         },
         viewAllButton: {
             marginTop: Spacing.xs,
-            marginLeft: Spacing.xl,
             minHeight: 44,
             justifyContent: 'center',
         },
@@ -135,7 +135,6 @@ const createStyles = (colors: typeof Colors) =>
             borderRadius: BorderRadius.md,
             padding: Spacing.md,
             marginBottom: Spacing.sm,
-            marginRight: Spacing.xxl,
         },
         commentTop: {
             flexDirection: 'row',
@@ -153,7 +152,6 @@ const createStyles = (colors: typeof Colors) =>
             ...Typography.small,
             color: colors.gray700,
             lineHeight: 18,
-            marginLeft: 40,
         },
         likeButton: {
             flexDirection: 'row',

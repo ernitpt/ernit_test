@@ -213,7 +213,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                     >
                         <SmilePlus
                             color={(showPicker || userReaction) ? colors.secondary : colors.textSecondary}
-                            size={20}
+                            size={18}
                         />
                     </TouchableOpacity>
                 </Animated.View>
@@ -286,7 +286,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
     container: {
-        paddingVertical: Spacing.sm,
+        paddingVertical: Spacing.xs,
         position: 'relative',
     },
     pickerBackdrop: {
@@ -299,8 +299,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         gap: Spacing.sm,
     },
     reactButton: {
-        width: 44,
-        height: 44,
+        width: 36,
+        height: 36,
         borderRadius: BorderRadius.circle,
         backgroundColor: colors.surface,
         justifyContent: 'center',
@@ -329,8 +329,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         borderColor: colors.secondary,
     },
     reactionImage: {
-        width: 28,
-        height: 28,
+        width: 22,
+        height: 22,
     },
     countText: {
         ...Typography.caption,

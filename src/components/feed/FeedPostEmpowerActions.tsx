@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { Gift, Heart } from 'lucide-react-native';
 import type { FeedPost as FeedPostType } from '../../types';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
 
@@ -85,81 +85,73 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                 </TouchableOpacity>
             )}
 
-            {/* Free Goal: Empower Button */}
-            {post.isFreeGoal && post.userId !== currentUserId && !goalHasGift && (post.pledgedExperienceId || post.preferredRewardCategory) && !(
-                (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.experienceTitle && !post.isMystery
-            ) && !(
-                (post.type === 'session_progress' || post.type === 'goal_completed') &&
-                post.preferredRewardCategory && !post.pledgedExperienceId
-            ) && (
-                <View style={styles.freeGoalActions}>
-                    <Animated.View style={[{ flex: 1, transform: [{ scale: empowerScale }] }]}>
-                        <TouchableOpacity
-                            style={styles.empowerButton}
-                            onPress={onEmpower}
-                            onPressIn={handleEmpowerPressIn}
-                            onPressOut={handleEmpowerPressOut}
-                            activeOpacity={0.8}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Empower ${post.userName} with this experience`}
-                        >
-                            <Image
-                                source={require('../../assets/favicon.png')}
-                                style={styles.empowerButtonLogo}
-                            />
-                            <Text style={styles.empowerButtonText}>Empower</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
-                </View>
-            )}
+            {/* Action Buttons: Empower + Motivate in a single row */}
+            {(() => {
+                const showEmpower = post.isFreeGoal && post.userId !== currentUserId && !goalHasGift
+                    && (post.pledgedExperienceId || post.preferredRewardCategory)
+                    && !((post.type === 'session_progress' || post.type === 'goal_completed') && post.experienceTitle && !post.isMystery)
+                    && !((post.type === 'session_progress' || post.type === 'goal_completed') && post.preferredRewardCategory && !post.pledgedExperienceId);
 
-            {/* Motivate Button — all goals (only latest session, not completed) */}
-            {canMotivate && (
-                <View style={styles.motivateActions}>
-                    <Animated.View style={[{ flex: 1, transform: [{ scale: motivateScale }] }]}>
-                        <TouchableOpacity
-                            style={styles.motivateButton}
-                            onPress={onMotivate}
-                            onPressIn={handleMotivatePressIn}
-                            onPressOut={handleMotivatePressOut}
-                            activeOpacity={0.8}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Send motivation message to ${post.userName}`}
-                        >
-                            <Send color={colors.primary} size={16} />
-                            <Text style={styles.motivateButtonText}>Motivate</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
-                </View>
-            )}
+                if (!showEmpower && !canMotivate) return null;
+
+                return (
+                    <View style={styles.actionRow}>
+                        {showEmpower && (
+                            <Animated.View style={[{ flex: 1, transform: [{ scale: empowerScale }] }]}>
+                                <TouchableOpacity
+                                    style={styles.empowerButton}
+                                    onPress={onEmpower}
+                                    onPressIn={handleEmpowerPressIn}
+                                    onPressOut={handleEmpowerPressOut}
+                                    activeOpacity={0.8}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Empower ${post.userName} with this experience`}
+                                >
+                                    <Gift color={colors.white} size={16} />
+                                    <Text style={styles.empowerButtonText}>Empower</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+                        {canMotivate && (
+                            <Animated.View style={[{ flex: 1, transform: [{ scale: motivateScale }] }]}>
+                                <TouchableOpacity
+                                    style={styles.motivateButton}
+                                    onPress={onMotivate}
+                                    onPressIn={handleMotivatePressIn}
+                                    onPressOut={handleMotivatePressOut}
+                                    activeOpacity={0.8}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Send motivation message to ${post.userName}`}
+                                >
+                                    <Heart color={colors.primary} size={16} />
+                                    <Text style={styles.motivateButtonText}>Motivate</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+                    </View>
+                );
+            })()}
         </>
     );
 };
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
-    freeGoalActions: {
+    actionRow: {
         flexDirection: 'row',
         gap: Spacing.sm,
-        paddingHorizontal: Spacing.lg,
+        paddingHorizontal: Spacing.md,
         marginTop: Spacing.xs,
-        marginBottom: Spacing.md,
-    },
-    motivateActions: {
-        paddingHorizontal: Spacing.lg,
-        marginTop: Spacing.xs,
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
     },
     empowerButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: Spacing.sm,
+        gap: Spacing.xs,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.sm,
         backgroundColor: colors.primary,
-        ...Shadows.colored(colors.primary),
     },
     empowerButtonLogo: {
         width: 18,
@@ -167,8 +159,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         borderRadius: BorderRadius.xs,
     },
     empowerButtonText: {
-        ...Typography.small,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: colors.white,
     },
     motivateButton: {
@@ -176,16 +167,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: Spacing.sm,
+        gap: Spacing.xs,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.sm,
         backgroundColor: colors.primarySurface,
         borderWidth: 1,
-        borderColor: colors.primaryTint,
+        borderColor: colors.primaryBorder,
     },
     motivateButtonText: {
-        ...Typography.small,
-        fontWeight: '600',
+        ...Typography.smallBold,
         color: colors.primary,
     },
     experiencePreviewCard: {

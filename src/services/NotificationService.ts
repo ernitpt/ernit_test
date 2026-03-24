@@ -128,7 +128,8 @@ export class NotificationService {
         notificationsRef,
         where('userId', '==', postOwnerId),
         where('type', '==', 'post_reaction'),
-        where('data.postId', '==', postId)
+        where('data.postId', '==', postId),
+        limit(1)
       );
       const snapshot = await getDocs(q);
 
@@ -170,6 +171,7 @@ export class NotificationService {
           `${reactorName} reacted to your post`,
           {
             postId,
+            reactorId,
             reactorNames: [reactorName],
             totalReactionCount: 1,
             mostRecentReaction: reactionType,

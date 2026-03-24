@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FooterNavigation from '../components/FooterNavigation';
+import FooterNavigation, { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
 import LoginPrompt from '../components/LoginPrompt';
 import { useAuthGuard } from '../hooks/useAuthGuard';
@@ -53,7 +53,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
 
   return (
     <ErrorBoundary screenName="MainScreen" userId={state.user?.id}>
-      <SafeAreaView edges={['bottom']} style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         {/* Offline Banner */}
         {!isConnected && (
           <View style={{ backgroundColor: colors.error, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, alignItems: 'center' }}>
@@ -71,12 +71,14 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
           message={loginMessage}
         />
 
-        {/* Footer Navigation with guarded navigation */}
-        <FooterNavigation
-          activeRoute={activeRoute}
-          onMenuPress={handleMenuPress}
-          notificationBadgeCount={unreadCount}
-        />
+        {/* Footer Navigation — absolutely positioned to overlap content */}
+        <View style={styles.footerWrapper}>
+          <FooterNavigation
+            activeRoute={activeRoute}
+            onMenuPress={handleMenuPress}
+            notificationBadgeCount={unreadCount}
+          />
+        </View>
 
         {/* Side Menu */}
         <SideMenu visible={sideMenuVisible} onClose={handleCloseSideMenu} />
@@ -92,6 +94,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  footerWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
 });
 

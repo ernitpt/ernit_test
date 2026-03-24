@@ -44,6 +44,7 @@ import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
 import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
+import HeroPreviewScreen from '../screens/HeroPreviewScreen';
 // GiftLanding now uses ChallengeLandingScreen with mode='gift' param
 import GiftFlowScreen from '../screens/GiftFlowScreen';
 import DeferredSetupScreen from '../screens/giver/DeferredSetupScreen';
@@ -253,6 +254,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         MysteryChoice: 'mystery-choice',
         AchievementDetail: 'achievement',
         AnimationPreview: 'animation-preview',
+        HeroPreview: 'hero-preview',
       },
     },
   };
@@ -463,6 +465,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
             )}
           </RootStack.Screen>
         )}
+
+        <RootStack.Screen name="HeroPreview" component={HeroPreviewScreen} />
 
         {/* 🔥 LOGIN PROMPT MODAL SHOULD BE LAST */}
         <RootStack.Screen

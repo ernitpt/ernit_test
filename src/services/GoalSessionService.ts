@@ -372,7 +372,9 @@ export class GoalSessionService {
                 logger.warn(`Experience gift ${g.experienceGiftId} not found for goal ${g.id}`);
                 return;
               }
-              const experience = await experienceService.getExperienceById(experienceGift.experienceId);
+              const experience = experienceGift.experienceId
+                ? await experienceService.getExperienceById(experienceGift.experienceId)
+                : null;
 
               experienceTitle = experience?.title;
               experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
