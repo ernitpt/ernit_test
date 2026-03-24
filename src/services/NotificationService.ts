@@ -19,6 +19,7 @@ import { Notification } from '../types';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
+import { sanitizeText } from '../utils/sanitization';
 
 export class NotificationService {
   /** Add a new notification */
@@ -35,8 +36,8 @@ export class NotificationService {
       const docData: Record<string, any> = {
         userId,
         type,
-        title,
-        message,
+        title: sanitizeText(title, 200),
+        message: sanitizeText(message, 500),
         read: false,
         clearable,
         createdAt: serverTimestamp(),

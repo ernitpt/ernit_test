@@ -22,6 +22,7 @@ import { logger } from '../utils/logger';
 import { analyticsService } from './AnalyticsService';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { AppError } from '../utils/AppError';
+import { sanitizeText } from '../utils/sanitization';
 
 export class FriendService {
   private static instance: FriendService;
@@ -98,8 +99,8 @@ export class FriendService {
       }
 
       // Graceful defaults for missing names
-      senderName = senderName || 'Unknown';
-      recipientName = recipientName || 'Unknown';
+      senderName = sanitizeText(senderName || 'Unknown', 100);
+      recipientName = sanitizeText(recipientName || 'Unknown', 100);
 
       if (!senderId || !recipientId) {
         throw new AppError('INVALID_REQUEST', 'Missing required user IDs for friend request', 'validation');

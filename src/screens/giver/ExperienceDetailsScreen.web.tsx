@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   StyleSheet,
-  Modal,
   Platform,
   Dimensions,
   Animated,

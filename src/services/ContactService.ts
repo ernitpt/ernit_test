@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { Platform } from 'react-native';
 import { AppError } from '../utils/AppError';
 import Constants from 'expo-constants';
+import { sanitizeText } from '../utils/sanitization';
 
 interface ContactSubmission {
     type: 'feedback' | 'support';
@@ -62,8 +63,8 @@ class ContactService {
 
             const submission: ContactSubmission = {
                 type,
-                subject,
-                message,
+                subject: sanitizeText(subject, 200),
+                message: sanitizeText(message, 5000),
                 userMetadata,
             };
 

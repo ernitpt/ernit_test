@@ -17,7 +17,7 @@ import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, UserPlus, UserMinus, Clock, MessageSquare, Heart, Gift } from 'lucide-react-native';
+import { ChevronLeft, UserPlus, UserMinus, Clock, Heart, Gift } from 'lucide-react-native';
 import { RootStackParamList, UserProfile, Goal, Experience } from '../types';
 import EmpowerChoiceModal from '../components/EmpowerChoiceModal';
 import MotivationModal from '../components/MotivationModal';

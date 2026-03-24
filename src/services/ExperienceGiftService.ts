@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from './AnalyticsService';
 import { AppError } from '../utils/AppError';
+import { sanitizeText } from '../utils/sanitization';
 
 export class ExperienceGiftService {
 
@@ -81,9 +82,11 @@ export class ExperienceGiftService {
       const docRef = doc(db, 'experienceGifts', giftId);
       const snapshot = await getDoc(docRef);
 
+      const sanitizedMessage = sanitizeText(personalizedMessage, 500);
+
       if (snapshot.exists()) {
         await updateDoc(docRef, {
-          personalizedMessage,
+          personalizedMessage: sanitizedMessage,
           updatedAt: serverTimestamp(),
         });
         analyticsService.trackEvent('gift_message_updated', 'engagement', { giftId });
@@ -100,7 +103,7 @@ export class ExperienceGiftService {
 
       const foundDoc = querySnapshot.docs[0];
       await updateDoc(doc(db, 'experienceGifts', foundDoc.id), {
-        personalizedMessage,
+        personalizedMessage: sanitizedMessage,
         updatedAt: serverTimestamp(),
       });
       analyticsService.trackEvent('gift_message_updated', 'engagement', { giftId });

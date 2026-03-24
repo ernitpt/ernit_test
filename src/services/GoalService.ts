@@ -86,6 +86,8 @@ export class GoalService {
       const normalized = normalizeGoal(goal);
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
+        title: sanitizeText(normalized.title || '', 100),
+        description: sanitizeText(normalized.description || '', 500),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -150,6 +152,8 @@ export class GoalService {
       const normalized = normalizeGoal(goal);
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
+        title: sanitizeText(normalized.title || '', 100),
+        description: sanitizeText(normalized.description || '', 500),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -164,7 +168,7 @@ export class GoalService {
           userName: userData?.displayName || userData?.profile?.name || 'User',
           userProfileImageUrl: userData?.profile?.profileImageUrl,
           goalId: docRef.id,
-          goalDescription: normalized.description,
+          goalDescription: sanitizeText(normalized.description || '', 500),
           type: 'goal_started',
           totalSessions: normalized.targetCount * normalized.sessionsPerWeek,
           experienceTitle: normalized.pledgedExperience?.title,
