@@ -588,7 +588,7 @@ const UserProfileScreen: React.FC = () => {
       }
     }
     } catch (error) {
-      console.error('Image picker error:', error);
+      logger.error('Image picker error:', error);
       showError('Could not open image picker. Please try again.');
     }
   };
@@ -895,7 +895,6 @@ const UserProfileScreen: React.FC = () => {
               </View>
             ))}
           </View>
-          </ScrollView>
         </ScrollView>
 
         {/* Edit Modal */}

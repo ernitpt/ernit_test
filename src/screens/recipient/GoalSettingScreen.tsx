@@ -445,13 +445,13 @@ const GoalSettingScreen = () => {
             logger.log(`Linked giver goal ${experienceGift.togetherData.giverGoalId} -> recipient goal ${goal.id}`);
           } catch (linkErr) {
             if (attempt === 2) {
-              console.error('Failed to link partner goal after 3 attempts:', linkErr);
+              logger.error('Failed to link partner goal after 3 attempts:', linkErr);
               try {
                 await updateDoc(doc(db, 'experienceGifts', experienceGift.id), {
                   recipientGoalId: goal.id,
                   updatedAt: serverTimestamp(),
                 });
-              } catch (e) { console.error('Fallback link also failed:', e); }
+              } catch (e) { logger.error('Fallback link also failed:', e); }
             }
           }
         }
@@ -476,7 +476,7 @@ const GoalSettingScreen = () => {
             createdAt: serverTimestamp(),
           });
         } catch (e) {
-          console.warn('Failed to send shared_start notification:', e);
+          logger.warn('Failed to send shared_start notification:', e);
         }
       }
 

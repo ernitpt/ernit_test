@@ -48,7 +48,7 @@ export class NotificationService {
       const docRef = await addDoc(collection(db, 'notifications'), docData);
       return docRef.id;
     } catch (error) {
-      console.warn('Failed to create notification:', error);
+      logger.warn('Failed to create notification:', error);
       // Don't rethrow — notification is non-critical
       return '';
     }
@@ -82,7 +82,7 @@ export class NotificationService {
         senderId // Pass senderId as top-level field
       );
     } catch (error) {
-      console.warn('Failed to create friend request notification:', error);
+      logger.warn('Failed to create friend request notification:', error);
       // Don't rethrow — notification is non-critical
     }
   }
@@ -233,7 +233,7 @@ export class NotificationService {
       const ref = doc(db, 'notifications', notificationId);
       await updateDoc(ref, { read: true });
     } catch (error) {
-      console.warn('Failed to mark notification as read:', error);
+      logger.warn('Failed to mark notification as read:', error);
     }
   }
 
@@ -254,7 +254,7 @@ export class NotificationService {
       await deleteDoc(ref);
     } catch (error) {
       if (error instanceof AppError) throw error; // Re-throw business logic errors
-      console.warn('Failed to delete notification:', error);
+      logger.warn('Failed to delete notification:', error);
     }
   }
 

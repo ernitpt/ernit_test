@@ -16,7 +16,7 @@ export class ExperienceGiftService {
    * Firestore rules block client-side creates (allow create: if false).
    */
   async createExperienceGift(experienceGift: ExperienceGift): Promise<ExperienceGift> {
-    console.warn('createExperienceGift is deprecated — gifts are created server-side via Cloud Functions');
+    logger.warn('createExperienceGift is deprecated — gifts are created server-side via Cloud Functions');
     throw new Error('Gift creation must go through Cloud Functions');
   }
 
@@ -43,7 +43,7 @@ export class ExperienceGiftService {
       const foundDoc = querySnapshot.docs[0];
       return { id: foundDoc.id, ...foundDoc.data() } as ExperienceGift;
     } catch (error) {
-      console.error('Failed to get experience gift:', error);
+      logger.error('Failed to get experience gift:', error);
       return null;
     }
   }

@@ -288,7 +288,7 @@ const ConfirmationScreen = () => {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      console.warn('Clipboard access denied:', error);
+      logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
   };

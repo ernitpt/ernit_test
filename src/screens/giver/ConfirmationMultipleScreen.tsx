@@ -176,7 +176,7 @@ const ConfirmationMultipleScreen = () => {
       await Clipboard.setStringAsync(code);
       showSuccess('Claim code copied to clipboard.');
     } catch (error) {
-      console.warn('Clipboard access denied:', error);
+      logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
   };

@@ -557,7 +557,7 @@ const AchievementDetailScreen = () => {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             if (gift) expId = gift.experienceId;
           } catch (error) {
-            console.warn('Failed to load experience gift:', error);
+            logger.warn('Failed to load experience gift:', error);
           }
         }
 

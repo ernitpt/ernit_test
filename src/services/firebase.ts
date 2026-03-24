@@ -27,7 +27,7 @@ let auth: Auth;
 if (typeof window !== 'undefined') {
   // 🌐 Web
   auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence).catch(e => console.warn('Failed to set auth persistence:', e));
+  setPersistence(auth, browserLocalPersistence).catch(e => logger.warn('Failed to set auth persistence:', e));
 } else {
   // 📱 React Native (iOS/Android)
   // eslint-disable-next-line @typescript-eslint/no-var-requires

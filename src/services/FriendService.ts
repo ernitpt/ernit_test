@@ -344,7 +344,7 @@ export class FriendService {
         updatedAt: toDateSafe(doc.data().updatedAt),
       })) as FriendRequest[];
     } catch (error) {
-      console.error('Error getting sent friend requests:', error);
+      logger.error('Error getting sent friend requests:', error);
       return [];
     }
   }
@@ -364,7 +364,7 @@ export class FriendService {
 
       return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
-      console.error('Error getting friends:', error);
+      logger.error('Error getting friends:', error);
       return [];
     }
   }
@@ -404,7 +404,7 @@ export class FriendService {
       const snap = await getDocs(q);
       return !snap.empty;
     } catch (error) {
-      console.error('Error checking areFriends:', error);
+      logger.error('Error checking areFriends:', error);
       return false;
     }
   }
@@ -421,7 +421,7 @@ export class FriendService {
       const snap = await getDocs(q);
       return !snap.empty;
     } catch (error) {
-      console.error('Error checking hasPendingRequest:', error);
+      logger.error('Error checking hasPendingRequest:', error);
       return false;
     }
   }
@@ -447,7 +447,7 @@ export class FriendService {
         updatedAt: toDateSafe(docSnap.data().updatedAt),
       } as FriendRequest;
     } catch (error) {
-      console.error('Error getting friend request:', error);
+      logger.error('Error getting friend request:', error);
       return null;
     }
   }
@@ -477,7 +477,7 @@ export class FriendService {
       const snap = await getDocs(q);
       return snap.size;
     } catch (error) {
-      console.error('Error getting friend count:', error);
+      logger.error('Error getting friend count:', error);
       return 0;
     }
   }

@@ -811,7 +811,7 @@ const FriendProfileScreen: React.FC = () => {
                     );
                     setHasPendingRequest(true);
                   } catch (error) {
-                    console.error('Friend request failed:', error);
+                    logger.error('Friend request failed:', error);
                     showError('Could not send friend request. Please try again.');
                   } finally {
                     setIsActionLoading(false);
@@ -924,7 +924,7 @@ const FriendProfileScreen: React.FC = () => {
                     await friendService.removeFriend(currentUserId!, userId);
                     setIsFriend(false);
                   } catch (error) {
-                    console.error('Remove friend failed:', error);
+                    logger.error('Remove friend failed:', error);
                     showError('Could not remove friend. Please try again.');
                   } finally {
                     setIsActionLoading(false);

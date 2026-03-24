@@ -862,7 +862,7 @@ const JourneyScreen = () => {
             const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
             if (gift) expId = gift.experienceId;
           } catch (error) {
-            console.warn('Failed to load experience gift:', error);
+            logger.warn('Failed to load experience gift:', error);
             // Continue without gift data — non-fatal
           }
         }
