@@ -49,7 +49,7 @@ import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
 
-const stripePromise = loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!);
+const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
 
 type NavigationProp = NativeStackNavigationProp<GiverStackParamList, "ExperienceCheckout">;
 

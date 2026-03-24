@@ -271,7 +271,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <ChevronLeft color={colors.white} size={24} />
+              <ChevronLeft color={colors.textOnImage} size={24} />
             </TouchableOpacity>
             <View style={styles.headerButtons}>
               <TouchableOpacity
@@ -280,7 +280,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 accessibilityRole="button"
                 accessibilityLabel={`View cart, ${cartItemCount} items`}
               >
-                <ShoppingCart color={colors.white} size={24} />
+                <ShoppingCart color={colors.textOnImage} size={24} />
                 {cartItemCount > 0 && (
                   <View style={styles.cartBadge}>
                     <Text style={styles.cartBadgeText}>
@@ -298,7 +298,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 {isWishlisted ? (
                   <Heart fill={colors.error} color={colors.error} size={24} />
                 ) : (
-                  <Heart color={colors.white} size={24} />
+                  <Heart color={colors.textOnImage} size={24} />
                 )}
               </TouchableOpacity>
             </View>

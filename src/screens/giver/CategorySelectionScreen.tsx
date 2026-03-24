@@ -14,26 +14,28 @@ import {
   Easing,
   Platform,
   UIManager,
-  LayoutAnimation,
+  ScrollView,
   Dimensions,
+  LayoutAnimation,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { Heart, ShoppingCart, LogIn, Search, X, Gift } from 'lucide-react-native';
-// This is required for the gradient text effect
-import MaskedView from '@react-native-masked-view/masked-view';
-import { MotiView } from 'moti';
-import { ExperienceCardSkeleton } from '../../components/SkeletonLoader';
+import { Heart, Search, X, Gift, MapPin } from 'lucide-react-native';
+import { MotiView, AnimatePresence } from 'moti';
+import { FeaturedHeroSkeleton, BentoCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
 import { useApp } from '../../context/AppContext';
 import { cartService } from '../../services/CartService';
 import { Experience, ExperienceCategory } from '../../types';
 import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import SharedHeader from '../../components/SharedHeader';
+import { Chip } from '../../components/Chip';
 import { logger } from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, useColors } from '../../config';
@@ -45,10 +47,26 @@ import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
 
 const SCREEN_W = Dimensions.get('window').width;
+const BENTO_HEIGHT = vh(200);
+const BENTO_GAP = Spacing.md;
+const BENTO_CARD_W = (SCREEN_W - Spacing.xxl * 2 - BENTO_GAP) / 2;
+const HERO_CARD_W = SCREEN_W - Spacing.xxl * 2;
+const HERO_SNAP_INTERVAL = HERO_CARD_W + Spacing.md;
 
-type Category = { id: ExperienceCategory; title: string; experiences: Experience[] };
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-const ExperienceCard = ({
+type CategoryData = { id: ExperienceCategory; title: string; experiences: Experience[] };
+const FILTER_CHIPS: Array<ExperienceCategory | 'all'> = ['all', 'adventure', 'wellness', 'creative'];
+const FILTER_LABELS: Record<ExperienceCategory | 'all', string> = {
+  all: 'All',
+  adventure: 'Adventure',
+  wellness: 'Wellness',
+  creative: 'Creative',
+};
+
+// ─── Featured Hero Card ─────────────────────────────────────────────────────
+
+const FeaturedHeroCard = ({
   experience,
   onPress,
   onToggleWishlist,
@@ -61,56 +79,174 @@ const ExperienceCard = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => [styles.experienceCard, pressed && { opacity: 0.9 }]}
-    accessibilityLabel={`View ${experience.title}`}
-  >
-    <View style={styles.cardImageContainer}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.heroCard, pressed && { opacity: 0.95 }]}
+      accessibilityLabel={`Featured: ${experience.title}`}
+    >
       <Image
         source={{ uri: experience.coverImageUrl }}
-        style={styles.cardImage}
+        style={StyleSheet.absoluteFill}
         contentFit="cover"
-        transition={200}
+        transition={300}
         cachePolicy="memory-disk"
-        accessibilityLabel={`${experience.title} experience cover image`}
+        accessibilityLabel={`${experience.title} cover image`}
       />
-
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.4)']}
+        style={styles.heroGradient}
+      />
+      <BlurView intensity={25} tint="dark" style={styles.heroTextOverlay}>
+        <View style={styles.heroTextInner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {experience.title}
+            </Text>
+            {experience.location && (
+              <View style={styles.heroLocationRow}>
+                <MapPin size={13} color={colors.textOnImage} />
+                <Text style={styles.heroLocation}>{experience.location}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.heroPrice}>€{experience.price.toFixed(0)}</Text>
+        </View>
+      </BlurView>
       <TouchableOpacity
         onPress={(e) => {
           e.stopPropagation();
           onToggleWishlist();
         }}
-        style={styles.heartButton}
+        style={styles.heroHeart}
         accessibilityRole="button"
-        accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         {isWishlisted ? (
           <Heart fill={colors.error} color={colors.error} size={22} />
         ) : (
-          <Heart color={colors.white} size={22} />
+          <Heart color={colors.textOnImage} size={22} />
         )}
-
       </TouchableOpacity>
-    </View>
-
-    <View style={styles.cardContent}>
-      <View style={styles.textBlock}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {experience.title}
-        </Text>
-        <Text style={styles.cardSubtitle} numberOfLines={2}>
-          {experience.subtitle}
-        </Text>
-      </View>
-
-      <Text style={styles.cardPrice}>{experience.price.toFixed(0)} €</Text>
-    </View>
-  </Pressable>
+    </Pressable>
   );
 };
+
+// ─── Category Filter Bar ────────────────────────────────────────────────────
+
+const CategoryFilterBar = ({
+  selectedCategory,
+  onSelect,
+  availableCategories,
+}: {
+  selectedCategory: ExperienceCategory | 'all';
+  onSelect: (cat: ExperienceCategory | 'all') => void;
+  availableCategories: ExperienceCategory[];
+}) => {
+  const handlePress = useCallback((cat: ExperienceCategory | 'all') => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelect(cat);
+  }, [onSelect]);
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: Spacing.xxl,
+        gap: Spacing.sm,
+        paddingVertical: Spacing.md,
+      }}
+    >
+      {FILTER_CHIPS.filter(
+        (cat) => cat === 'all' || availableCategories.includes(cat)
+      ).map((cat) => (
+        <Chip
+          key={cat}
+          label={FILTER_LABELS[cat]}
+          selected={selectedCategory === cat}
+          onPress={() => handlePress(cat)}
+          size="md"
+        />
+      ))}
+    </ScrollView>
+  );
+};
+
+// ─── Bento Card ─────────────────────────────────────────────────────────────
+
+const BentoCard = ({
+  experience,
+  height,
+  onPress,
+  onToggleWishlist,
+  isWishlisted,
+}: {
+  experience: Experience;
+  height: number;
+  onPress: () => void;
+  onToggleWishlist: () => void;
+  isWishlisted: boolean;
+}) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.bentoCard,
+        { height, width: BENTO_CARD_W },
+        pressed && { opacity: 0.92 },
+      ]}
+      accessibilityLabel={`View ${experience.title}`}
+    >
+      <Image
+        source={{ uri: experience.coverImageUrl }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+        accessibilityLabel={`${experience.title} cover image`}
+      />
+      <BlurView intensity={20} tint="dark" style={styles.bentoOverlay}>
+        <View style={styles.bentoOverlayInner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bentoTitle} numberOfLines={2}>
+              {experience.title}
+            </Text>
+            {experience.subtitle && (
+              <Text style={styles.bentoSubtitle} numberOfLines={1}>
+                {experience.subtitle}
+              </Text>
+            )}
+          </View>
+          <Text style={styles.bentoPrice}>{experience.price.toFixed(0)} €</Text>
+        </View>
+      </BlurView>
+      <TouchableOpacity
+        onPress={(e) => {
+          e.stopPropagation();
+          onToggleWishlist();
+        }}
+        style={styles.bentoHeart}
+        accessibilityRole="button"
+        accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        {isWishlisted ? (
+          <Heart fill={colors.error} color={colors.error} size={18} />
+        ) : (
+          <Heart color={colors.textOnImage} size={18} />
+        )}
+      </TouchableOpacity>
+    </Pressable>
+  );
+};
+
+// ─── Category Carousel (for "All" view) ─────────────────────────────────────
 
 const CategoryCarousel = ({
   category,
@@ -118,47 +254,44 @@ const CategoryCarousel = ({
   onToggleWishlist,
   wishlist,
 }: {
-  category: Category;
-  onExperiencePress: (experienceId: string) => void;
-  onToggleWishlist: (experienceId: string) => void;
+  category: CategoryData;
+  onExperiencePress: (id: string) => void;
+  onToggleWishlist: (id: string) => void;
   wishlist: string[];
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
-  <View style={styles.categorySection}>
-    <View style={styles.categoryHeaderInline}>
-      <Text style={styles.categoryTitleInline}>{category.title}</Text>
+    <View style={styles.carouselSection}>
+      <Text style={styles.carouselSectionTitle}>{category.title}</Text>
+      <FlatList
+        data={category.experiences}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Spacing.xxl, gap: Spacing.md }}
+        renderItem={({ item, index }) => (
+          <MotiView
+            from={{ opacity: 0, translateX: 20 }}
+            animate={{ opacity: 1, translateX: 0 }}
+            transition={{ type: 'spring', delay: index * 60 }}
+          >
+            <BentoCard
+              experience={item}
+              height={BENTO_HEIGHT}
+              onPress={() => onExperiencePress(item.id)}
+              onToggleWishlist={() => onToggleWishlist(item.id)}
+              isWishlisted={wishlist.includes(item.id)}
+            />
+          </MotiView>
+        )}
+      />
     </View>
-    <FlatList
-      data={category.experiences}
-      renderItem={({ item, index }) => (
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{
-            type: 'spring',
-            delay: index * 100,
-          }}
-        >
-          <ExperienceCard
-            experience={item}
-            onPress={() => onExperiencePress(item.id)}
-            onToggleWishlist={() => onToggleWishlist(item.id)}
-            isWishlisted={wishlist.includes(item.id)}
-          />
-        </MotiView>
-      )}
-      keyExtractor={(item) => item.id}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.carouselContentContinuous}
-    />
-  </View>
   );
 };
 
-
+// ─── Main Screen ────────────────────────────────────────────────────────────
 
 const CategorySelectionScreen = () => {
   const colors = useColors();
@@ -172,10 +305,13 @@ const CategorySelectionScreen = () => {
   const [showSearch, setShowSearch] = useState(false);
   const searchAnim = useRef(new Animated.Value(0)).current;
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [categoriesWithExperiences, setCategories] = useState<Category[]>([]);
+  const [categoriesWithExperiences, setCategories] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const { showError, showInfo } = useToast();
+  const [activeCategory, setActiveCategory] = useState<ExperienceCategory | 'all'>(
+    (routeParams?.prefilterCategory as ExperienceCategory) ?? 'all'
+  );
 
   const empowerContext = state.empowerContext;
 
@@ -185,7 +321,6 @@ const CategorySelectionScreen = () => {
 
   const auth = getAuth();
   const user = auth.currentUser;
-  const isAuthenticated = !!state.user;
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -193,18 +328,15 @@ const CategorySelectionScreen = () => {
     }
   }, []);
 
-
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
 
   // Save guest cart to local storage whenever it changes
-  // Use a ref to track previous cart to avoid unnecessary saves
   const prevCartRef = useRef<string>('');
   useEffect(() => {
     if (!state.user && state.guestCart) {
       const cartString = JSON.stringify(state.guestCart);
-      // Only save if cart actually changed
       if (cartString !== prevCartRef.current) {
         prevCartRef.current = cartString;
         cartService.saveGuestCart(state.guestCart);
@@ -279,7 +411,7 @@ const CategorySelectionScreen = () => {
           experiences: grouped[cat],
         }));
 
-      setCategories(categoriesArray as Category[]);
+      setCategories(categoriesArray as CategoryData[]);
       setError(false);
     } catch (error) {
       logger.error('Error fetching experiences:', error);
@@ -297,7 +429,6 @@ const CategorySelectionScreen = () => {
     useCallback(() => {
       const fetchWishlist = async () => {
         if (!user) {
-          // Clear wishlist when user logs out
           setWishlist([]);
           return;
         }
@@ -362,23 +493,60 @@ const CategorySelectionScreen = () => {
     }
   };
 
-  const filteredCategories = useMemo(() => {
-    let categories = categoriesWithExperiences;
-    if (routeParams?.prefilterCategory) {
-        categories = categories.filter(cat => cat.id === routeParams.prefilterCategory);
-    }
-    if (!searchQuery.trim()) return categories;
-    return categories
-      .map((category) => ({
-        ...category,
-        experiences: category.experiences.filter(
-          (experience) =>
-            experience.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            experience.description.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
+  // Derive popular experiences for the hero carousel
+  const popularExperiences = useMemo(() => {
+    const all = categoriesWithExperiences.flatMap((c) => c.experiences);
+    // Featured first, then sorted by recommendedOrder/order
+    const sorted = [...all].sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return (a.recommendedOrder ?? a.order ?? 999) - (b.recommendedOrder ?? b.order ?? 999);
+    });
+    return sorted.slice(0, 5); // Top 5 for the carousel
+  }, [categoriesWithExperiences]);
+
+  const [activeCarouselIndex, setActiveCarouselIndex] = useState(0);
+
+  // Available categories for filter chips
+  const availableCategories = useMemo(
+    () => categoriesWithExperiences.map((c) => c.id as ExperienceCategory),
+    [categoriesWithExperiences]
+  );
+
+  // All category carousels (excluding popular experiences) — always all 3
+  const allCarouselCategories = useMemo(() => {
+    const popularIds = new Set(popularExperiences.map((e) => e.id));
+    return categoriesWithExperiences
+      .map((cat) => ({
+        ...cat,
+        experiences: cat.experiences.filter((e) => !popularIds.has(e.id)),
       }))
-      .filter((category) => category.experiences.length > 0);
-  }, [searchQuery, categoriesWithExperiences, routeParams?.prefilterCategory]);
+      .filter((cat) => cat.experiences.length > 0);
+  }, [categoriesWithExperiences, popularExperiences]);
+
+  // Which category IDs are visible based on filters
+  const visibleCategoryIds = useMemo(() => {
+    let cats = allCarouselCategories;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      cats = cats.filter((cat) =>
+        cat.experiences.some(
+          (e) => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q)
+        )
+      );
+    }
+
+    if (activeCategory !== 'all') {
+      cats = cats.filter((cat) => cat.id === activeCategory);
+    }
+
+    if (routeParams?.prefilterCategory) {
+      cats = cats.filter((cat) => cat.id === routeParams.prefilterCategory);
+    }
+
+    return new Set(cats.map((c) => c.id));
+  }, [allCarouselCategories, activeCategory, searchQuery, routeParams?.prefilterCategory]);
 
   const handleExperiencePress = (experienceId: string) => {
     const experience = categoriesWithExperiences
@@ -389,153 +557,240 @@ const CategorySelectionScreen = () => {
     navigation.navigate('ExperienceDetails', { experience });
   };
 
+  // Animate category filter changes
+  const handleCategoryChange = useCallback((cat: ExperienceCategory | 'all') => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setActiveCategory(cat);
+  }, []);
+
+  // Whether to show hero carousel — stays visible regardless of category filter
+  const showHero = popularExperiences.length > 0 && !searchQuery.trim() && !routeParams?.prefilterCategory;
+
+  const onCarouselScroll = useCallback((e: any) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / HERO_SNAP_INTERVAL);
+    setActiveCarouselIndex(Math.max(0, Math.min(index, popularExperiences.length - 1)));
+  }, [popularExperiences.length]);
+
   const renderEmptyExperiences = useCallback(() => (
     <EmptyState
-      icon={searchQuery ? "🔍" : "🎁"}
-      title={searchQuery ? `No results for "${searchQuery}"` : "No Experiences Available"}
-      message={searchQuery ? "Try a different search term" : "Check back soon for new experiences!"}
+      icon={searchQuery ? '🔍' : '🎁'}
+      title={searchQuery ? `No results for "${searchQuery}"` : 'No Experiences Available'}
+      message={searchQuery ? 'Try a different search term' : 'Check back soon for new experiences!'}
     />
   ), [searchQuery]);
 
+  const ListHeader = useMemo(() => (
+    <>
+      {/* Featured Experience Carousel */}
+      {showHero && (
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', delay: 0 }}
+        >
+          <Text style={styles.sectionTitle}>Featured</Text>
+          <FlatList
+            data={popularExperiences}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled={false}
+            snapToInterval={HERO_SNAP_INTERVAL}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            onScroll={onCarouselScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{
+              paddingHorizontal: Spacing.xxl,
+              gap: Spacing.md,
+            }}
+            renderItem={({ item, index }) => (
+              <MotiView
+                from={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', delay: index * 100 }}
+              >
+                <FeaturedHeroCard
+                  experience={item}
+                  onPress={() => handleExperiencePress(item.id)}
+                  onToggleWishlist={() => toggleWishlist(item.id)}
+                  isWishlisted={wishlist.includes(item.id)}
+                />
+              </MotiView>
+            )}
+          />
+          {/* Dot indicators */}
+          {popularExperiences.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {popularExperiences.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i === activeCarouselIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </MotiView>
+      )}
+      {/* Category Filter Chips */}
+      <CategoryFilterBar
+        selectedCategory={activeCategory}
+        onSelect={handleCategoryChange}
+        availableCategories={availableCategories}
+      />
+    </>
+  ), [showHero, popularExperiences, activeCarouselIndex, activeCategory, availableCategories, wishlist, styles, onCarouselScroll, handleCategoryChange]);
+
   return (
     <ErrorBoundary screenName="CategorySelectionScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Home">
-      <StatusBar style="light" />
-      <View style={{ zIndex: 100 }}>
-        <SharedHeader
-          title="Gift Experiences"
-          subtitle="Empower your friends"
-          rightActions={
-            <TouchableOpacity
-              onPress={toggleSearch}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Search experiences"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ padding: Spacing.xs }}
-            >
-              <Search color={colors.textSecondary} size={22} strokeWidth={1.8} />
-            </TouchableOpacity>
-          }
-        />
-        {empowerContext && (
-          <View style={styles.empowerBanner}>
-            <Gift color={colors.primary} size={18} />
-            <Text style={styles.empowerBannerText} numberOfLines={1}>
-              Gifting for <Text style={styles.empowerBannerName}>{empowerContext.userName || 'a friend'}</Text>'s challenge
-            </Text>
-            <TouchableOpacity
-              onPress={dismissEmpower}
-              style={styles.empowerBannerClose}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss empower banner"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <X color={colors.primary} size={16} />
-            </TouchableOpacity>
-          </View>
-        )}
-        {showSearch && (
-          <Animated.View style={[
-            styles.searchContainer,
-            {
-              opacity: searchAnim,
-              height: searchAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 80]
-              }),
-              transform: [{
-                translateY: searchAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-20, 0]
-                })
-              }],
-              overflow: 'hidden'
-            }
-          ]}>
-            <View style={styles.searchBar}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search experiences..."
-                placeholderTextColor={colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-                returnKeyType="search"
+      <MainScreen activeRoute="Home">
+        <StatusBar style="light" />
+        <View style={{ zIndex: 100 }}>
+          <SharedHeader
+            title="Gift Experiences"
+            subtitle="Empower your friends"
+            rightActions={
+              <TouchableOpacity
+                onPress={toggleSearch}
+                activeOpacity={0.7}
+                accessibilityRole="button"
                 accessibilityLabel="Search experiences"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear search"
-                >
-                  <X size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ padding: Spacing.xs }}
+              >
+                <Search color={colors.textSecondary} size={22} strokeWidth={1.8} />
+              </TouchableOpacity>
+            }
+          />
+          {empowerContext && (
+            <View style={styles.empowerBanner}>
+              <Gift color={colors.primary} size={18} />
+              <Text style={styles.empowerBannerText} numberOfLines={1}>
+                Gifting for <Text style={styles.empowerBannerName}>{empowerContext.userName || 'a friend'}</Text>'s challenge
+              </Text>
+              <TouchableOpacity
+                onPress={dismissEmpower}
+                style={styles.empowerBannerClose}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss empower banner"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X color={colors.primary} size={16} />
+              </TouchableOpacity>
             </View>
-          </Animated.View>
-        )}
-      </View>
-
-      {isLoading ? (
-        <View style={styles.listContainer}>
-          {/* Skeleton for multiple category carousels */}
-          {[1, 2, 3].map((categoryIndex) => (
-            <View key={categoryIndex} style={styles.categorySection}>
-              {/* Category header skeleton */}
-              <View style={styles.categoryHeaderInline}>
-                <View style={{
-                  width: 120,
-                  height: 24,
-                  backgroundColor: colors.border,
-                  borderRadius: BorderRadius.xs
-                }} />
-              </View>
-
-              {/* Horizontal scrolling skeleton cards */}
-              <View style={{ flexDirection: 'row', paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.sm, gap: Spacing.md }}>
-                <ExperienceCardSkeleton />
-                <ExperienceCardSkeleton />
-                <ExperienceCardSkeleton />
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : error ? (
-        <ErrorRetry
-          message="Could not load experiences"
-          onRetry={fetchExperiences}
-        />
-      ) : (
-        <FlatList
-          style={styles.listContainer}
-          data={filteredCategories}
-          ListHeaderComponent={<></>
-          }
-          renderItem={({ item }) => (
-            <CategoryCarousel
-              category={item}
-              onExperiencePress={handleExperiencePress}
-              onToggleWishlist={toggleWishlist}
-              wishlist={wishlist}
-            />
           )}
-          ListEmptyComponent={renderEmptyExperiences}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.categoriesListMoved}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+          {showSearch && (
+            <Animated.View style={[
+              styles.searchContainer,
+              {
+                opacity: searchAnim,
+                height: searchAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 80]
+                }),
+                transform: [{
+                  translateY: searchAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }],
+                overflow: 'hidden'
+              }
+            ]}>
+              <View style={styles.searchBar}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search experiences..."
+                  placeholderTextColor={colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                  returnKeyType="search"
+                  accessibilityLabel="Search experiences"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                  >
+                    <X size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+          )}
+        </View>
 
-    </MainScreen>
+        {isLoading ? (
+          <ScrollView contentContainerStyle={styles.loadingContent} showsVerticalScrollIndicator={false}>
+            <FeaturedHeroSkeleton />
+            <View style={styles.chipRowSkeleton}>
+              {[80, 90, 70, 80].map((w, i) => (
+                <SkeletonBox key={i} width={w} height={32} borderRadius={BorderRadius.pill} />
+              ))}
+            </View>
+            <View style={styles.bentoSkeletonGrid}>
+              <BentoCardSkeleton height={BENTO_HEIGHT} width={BENTO_CARD_W} />
+              <BentoCardSkeleton height={BENTO_HEIGHT} width={BENTO_CARD_W} />
+              <BentoCardSkeleton height={BENTO_HEIGHT} width={BENTO_CARD_W} />
+              <BentoCardSkeleton height={BENTO_HEIGHT} width={BENTO_CARD_W} />
+            </View>
+          </ScrollView>
+        ) : error ? (
+          <ErrorRetry
+            message="Could not load experiences"
+            onRetry={fetchExperiences}
+          />
+        ) : (
+          <ScrollView
+            style={styles.listContainer}
+            contentContainerStyle={styles.bentoListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {ListHeader}
+            <AnimatePresence>
+              {allCarouselCategories.map((cat) => {
+                const isVisible = visibleCategoryIds.has(cat.id);
+                if (!isVisible) return null;
+                return (
+                  <MotiView
+                    key={cat.id}
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    exit={{ opacity: 0, translateY: -10 }}
+                    transition={{ type: 'timing', duration: 250 }}
+                    exitTransition={{ type: 'timing', duration: 200 }}
+                  >
+                    <CategoryCarousel
+                      category={cat}
+                      onExperiencePress={handleExperiencePress}
+                      onToggleWishlist={toggleWishlist}
+                      wishlist={wishlist}
+                    />
+                  </MotiView>
+                );
+              })}
+            </AnimatePresence>
+            {visibleCategoryIds.size === 0 && renderEmptyExperiences()}
+          </ScrollView>
+        )}
+
+      </MainScreen>
     </ErrorBoundary>
   );
 };
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
+  // Empower banner
   empowerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -558,6 +813,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   empowerBannerClose: {
     padding: Spacing.xs,
   },
+
+  // Search
   searchContainer: {
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.lg,
@@ -577,99 +834,178 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: Spacing.sm,
   },
-  categoriesListMoved: {
-    paddingTop: 0, // REMOVED GAP
-    paddingBottom: vh(80),
-  },
-  categorySection: {
-    marginBottom: 0,
-  },
-  categoryHeaderInline: {
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.sm,
-  },
-  categoryTitleInline: {
+
+  // Hero Carousel
+  sectionTitle: {
     ...Typography.heading2,
     color: colors.textPrimary,
-  },
-  carouselContentContinuous: {
     paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
-  experienceCard: {
-    marginRight: Spacing.md,
-    width: (SCREEN_W - Spacing.lg * 3) / 2,
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.backgroundLight,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+  heroCard: {
+    width: HERO_CARD_W,
+    height: vh(240),
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    height: vh(200), // <-- 2. ADDED FIXED HEIGHT
   },
-  cardImageContainer: {
-    position: 'relative',
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xxs,
   },
-  cardImage: {
-    width: '100%',
-    height: 100,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: BorderRadius.circle,
+  },
+  dotActive: {
+    backgroundColor: colors.primary,
+    width: 20,
+  },
+  dotInactive: {
     backgroundColor: colors.border,
   },
-  heartButton: {
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+  },
+  heroTextOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    overflow: 'hidden',
+    borderBottomLeftRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
+  },
+  heroTextInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  heroTitle: {
+    ...Typography.heading3,
+    color: colors.textOnImage,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  heroLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  heroLocation: {
+    ...Typography.caption,
+    color: colors.textOnImage,
+    opacity: 0.85,
+  },
+  heroPrice: {
+    ...Typography.subheading,
+    color: colors.textOnImage,
+    fontWeight: '700',
+  },
+  heroHeart: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    backgroundColor: colors.overlayLight,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.circle,
+  },
+
+  // Bento Card
+  bentoCard: {
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  bentoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    overflow: 'hidden',
+    borderBottomLeftRadius: BorderRadius.lg,
+    borderBottomRightRadius: BorderRadius.lg,
+  },
+  bentoOverlayInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  bentoTitle: {
+    ...Typography.small,
+    color: colors.textOnImage,
+    fontWeight: '600',
+  },
+  bentoSubtitle: {
+    ...Typography.caption,
+    color: colors.textOnImage,
+    opacity: 0.8,
+    marginTop: Spacing.xxs,
+  },
+  bentoPrice: {
+    ...Typography.caption,
+    color: colors.textOnImage,
+    fontWeight: '700',
+  },
+  bentoHeart: {
     position: 'absolute',
     top: Spacing.sm,
     right: Spacing.sm,
-    backgroundColor: colors.overlay,
+    backgroundColor: colors.overlayLight,
     padding: Spacing.xs,
-    borderRadius: BorderRadius.xl,
-  },
-  cardContent: {
-    padding: Spacing.sm,
-    height: vh(90), // fixed consistent text+price zone
-    justifyContent: "space-between",
+    borderRadius: BorderRadius.circle,
   },
 
-  textBlock: {
-    height: vh(64), // consistent space for title + subtitle (2 lines each)
-    overflow: "hidden",
+  // Category Carousels (All view)
+  carouselSection: {
+    marginBottom: Spacing.lg,
   },
-
-  cardTitle: {
+  carouselSectionTitle: {
+    ...Typography.heading3,
     color: colors.textPrimary,
-    ...Typography.body,
-    fontWeight: "bold",
-    lineHeight: 18,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
 
-  cardSubtitle: {
-    color: colors.textSecondary,
-    ...Typography.caption,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-
-  cardPrice: {
-    color: colors.primary,
-    ...Typography.small,
-    fontWeight: "bold",
-    textAlign: "right",
-  },
-
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
+  // List
   listContainer: {
     flex: 1,
   },
+  bentoListContent: {
+    paddingTop: 0,
+    paddingBottom: vh(80),
+  },
 
-
+  // Loading skeletons
+  loadingContent: {
+    paddingBottom: vh(80),
+  },
+  chipRowSkeleton: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.md,
+  },
+  bentoSkeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: BENTO_GAP,
+    paddingHorizontal: Spacing.xxl,
+  },
 });
 
 export default CategorySelectionScreen;

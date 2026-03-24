@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ernit - Google Play Feature Graphic</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #1a1a2e;
+      font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .controls {
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .controls button {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .controls button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, #7c3aed, #3b82f6);
+      color: white;
+    }
+
+    .info {
+      color: #9ca3af;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    /* ============ BANNER ============ */
+    #banner {
+      width: 1024px;
+      height: 500px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0f0c29 0%, #1a1040 25%, #1e1250 50%, #0d2137 75%, #0a1628 100%);
+      border-radius: 4px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    /* Subtle grid pattern overlay */
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124, 58, 237, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 58, 237, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Decorative glow orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.6), transparent 70%);
+      top: -120px;
+      left: -80px;
+    }
+
+    .orb-2 {
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.5), transparent 70%);
+      bottom: -100px;
+      right: -60px;
+    }
+
+    .orb-3 {
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(20, 184, 166, 0.3), transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Decorative floating shapes */
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.06);
+    }
+
+    .shape-1 {
+      width: 120px; height: 120px;
+      top: 30px; right: 180px;
+    }
+    .shape-2 {
+      width: 80px; height: 80px;
+      bottom: 60px; left: 120px;
+    }
+    .shape-3 {
+      width: 60px; height: 60px;
+      top: 80px; right: 80px;
+      border-color: rgba(124, 58, 237, 0.12);
+    }
+    .shape-4 {
+      width: 160px; height: 160px;
+      bottom: -30px; right: 300px;
+      border-color: rgba(59, 130, 246, 0.08);
+    }
+
+    /* Small floating dots */
+    .dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+    }
+    .dot-1 { top: 60px; left: 200px; }
+    .dot-2 { top: 140px; right: 250px; }
+    .dot-3 { bottom: 100px; left: 350px; }
+    .dot-4 { top: 200px; left: 80px; background: rgba(124, 58, 237, 0.3); width: 6px; height: 6px; }
+    .dot-5 { bottom: 80px; right: 150px; background: rgba(59, 130, 246, 0.3); width: 5px; height: 5px; }
+    .dot-6 { top: 100px; left: 500px; }
+    .dot-7 { bottom: 150px; right: 400px; }
+
+    /* Content layout */
+    .content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      z-index: 10;
+      padding: 0 80px;
+    }
+
+    /* Logo */
+    .logo-container {
+      flex-shrink: 0;
+      width: 200px;
+      height: 200px;
+      position: relative;
+    }
+
+    .logo-glow {
+      position: absolute;
+      inset: -20px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.2), transparent 70%);
+      filter: blur(20px);
+    }
+
+    .logo-container img {
+      width: 200px;
+      height: 200px;
+      position: relative;
+      z-index: 2;
+      filter: drop-shadow(0 8px 24px rgba(124, 58, 237, 0.3));
+    }
+
+    /* Text section */
+    .text-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .app-name {
+      font-size: 72px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0ff 50%, #c4b5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .tagline {
+      font-size: 22px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
+
+    .tagline strong {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+    }
+
+    /* Accent line */
+    .accent-line {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, #7c3aed, #3b82f6);
+      border-radius: 2px;
+    }
+
+    /* Bottom subtle strip */
+    .bottom-strip {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #7c3aed, #3b82f6, #14b8a6);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">Google Play Feature Graphic &mdash; 1024 &times; 500px</div>
+
+  <div id="banner">
+    <!-- Background effects -->
+    <div class="grid-overlay"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <!-- Decorative shapes -->
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+    <div class="shape shape-4"></div>
+
+    <!-- Floating dots -->
+    <div class="dot dot-1"></div>
+    <div class="dot dot-2"></div>
+    <div class="dot dot-3"></div>
+    <div class="dot dot-4"></div>
+    <div class="dot dot-5"></div>
+    <div class="dot dot-6"></div>
+    <div class="dot dot-7"></div>
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="logo-container">
+        <div class="logo-glow"></div>
+        <img src="../src/assets/icon.png" alt="Ernit Logo" />
+      </div>
+      <div class="text-section">
+        <div class="app-name">Ernit</div>
+        <div class="accent-line"></div>
+        <div class="tagline">
+          <strong>Achieve Goals.</strong> Earn Rewards.<br/>
+          Your journey to success, gamified.
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom accent strip -->
+    <div class="bottom-strip"></div>
+  </div>
+
+  <div class="controls" style="margin-top: 24px;">
+    <button class="btn-download" onclick="downloadBanner()">Download as PNG</button>
+  </div>
+
+  <canvas id="exportCanvas" width="1024" height="500" style="display:none;"></canvas>
+
+  <script>
+    async function downloadBanner() {
+      const banner = document.getElementById('banner');
+      const canvas = document.getElementById('exportCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Draw background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 1024, 500);
+      bgGrad.addColorStop(0, '#0f0c29');
+      bgGrad.addColorStop(0.25, '#1a1040');
+      bgGrad.addColorStop(0.5, '#1e1250');
+      bgGrad.addColorStop(0.75, '#0d2137');
+      bgGrad.addColorStop(1, '#0a1628');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1024, 500);
+
+      // Draw grid pattern
+      ctx.strokeStyle = 'rgba(124, 58, 237, 0.03)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= 1024; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 500);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= 500; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(1024, y);
+        ctx.stroke();
+      }
+
+      // Draw glow orbs
+      const drawOrb = (cx, cy, r, color) => {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, color);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      };
+
+      ctx.globalAlpha = 0.4;
+      drawOrb(120, 130, 200, 'rgba(124, 58, 237, 0.6)');
+      drawOrb(904, 400, 175, 'rgba(59, 130, 246, 0.5)');
+      drawOrb(512, 250, 100, 'rgba(20, 184, 166, 0.3)');
+      ctx.globalAlpha = 1;
+
+      // Draw decorative circles
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1.5;
+
+      const drawCircle = (cx, cy, r) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+      drawCircle(784, 90, 60);
+      drawCircle(160, 380, 40);
+
+      ctx.strokeStyle = 'rgba(124, 58, 237, 0.12)';
+      drawCircle(884, 110, 30);
+
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
+      drawCircle(664, 530, 80);
+
+      // Draw small dots
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      const dots = [[200, 60, 2], [774, 140, 2], [350, 400, 2], [500, 100, 2], [624, 350, 2]];
+      dots.forEach(([x, y, r]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = 'rgba(124, 58, 237, 0.3)';
+      ctx.beginPath(); ctx.arc(80, 200, 3, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+      ctx.beginPath(); ctx.arc(874, 420, 2.5, 0, Math.PI * 2); ctx.fill();
+
+      // Draw logo glow
+      const logoX = 312, logoY = 250;
+      const logoGlowGrad = ctx.createRadialGradient(logoX, logoY, 0, logoX, logoY, 130);
+      logoGlowGrad.addColorStop(0, 'rgba(124, 58, 237, 0.2)');
+      logoGlowGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = logoGlowGrad;
+      ctx.fillRect(logoX - 130, logoY - 130, 260, 260);
+
+      // Draw logo image
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+        logoImg.src = '../src/assets/icon.png';
+      });
+
+      // Add drop shadow for logo
+      ctx.shadowColor = 'rgba(124, 58, 237, 0.3)';
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 8;
+      ctx.drawImage(logoImg, logoX - 100, logoY - 100, 200, 200);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Draw app name "Ernit"
+      const textX = 460;
+
+      // Gradient text
+      ctx.font = '800 72px Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textBaseline = 'top';
+      const textGrad = ctx.createLinearGradient(textX, 140, textX + 250, 220);
+      textGrad.addColorStop(0, '#ffffff');
+      textGrad.addColorStop(0.5, '#e0e0ff');
+      textGrad.addColorStop(1, '#c4b5fd');
+      ctx.fillStyle = textGrad;
+      ctx.fillText('Ernit', textX, 148);
+
+      // Accent line
+      const lineGrad = ctx.createLinearGradient(textX, 0, textX + 60, 0);
+      lineGrad.addColorStop(0, '#7c3aed');
+      lineGrad.addColorStop(1, '#3b82f6');
+      ctx.fillStyle = lineGrad;
+      ctx.beginPath();
+      ctx.roundRect(textX, 235, 60, 3, 2);
+      ctx.fill();
+
+      // Tagline
+      ctx.font = '600 22px Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillText('Achieve Goals.', textX, 260);
+
+      const achieveWidth = ctx.measureText('Achieve Goals. ').width;
+      ctx.font = '400 22px Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillText('Earn Rewards.', textX + achieveWidth, 260);
+
+      ctx.font = '400 22px Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillText('Your journey to success, gamified.', textX, 295);
+
+      // Bottom accent strip
+      const stripGrad = ctx.createLinearGradient(0, 0, 1024, 0);
+      stripGrad.addColorStop(0, '#7c3aed');
+      stripGrad.addColorStop(0.5, '#3b82f6');
+      stripGrad.addColorStop(1, '#14b8a6');
+      ctx.fillStyle = stripGrad;
+      ctx.fillRect(0, 497, 1024, 3);
+
+      // Download
+      const link = document.createElement('a');
+      link.download = 'ernit-google-play-banner-1024x500.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>

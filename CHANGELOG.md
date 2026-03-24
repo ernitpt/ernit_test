@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate screens and icon components to dark mode theming via useColors
 - migrate all remaining components and screens to dark mode useColors/createStyles pattern
 - dark mode — full implementation with DarkColors palette, AsyncStorage persistence, useColors hook, and 95+ file migration
+- default theme to system — auto-follows OS dark mode preference
+- add isFeatured toggle to experience edit page and featured star badge to experiences list
+- redesign CategorySelectionScreen with hero card, category chips, and bento grid layout
+- add glassmorphic frosted footer navigation with BlurView
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -229,6 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrated dark mode useColors pattern to gift flow, giver screens, and Phase 6 components
 - migrate 6 components to dark mode (EmpowerChoiceModal, ExperienceRevealModal, GoalApprovalNotification, GoalChangeSuggestionNotification, FriendRequestNotification, ReactionViewerModal)
 - lighten dark mode surfaces — less cave-like, better contrast for category options and cards
+- sync GiftFlow UI with ChallengeSetup - 2x2 goal type cards with taglines, clock dial with tick marks + preset chips + animated sweep, Ernit logo on browse card
+- replace inflated 600% stat with research-backed copy — 42% (Matthews 2015) for self mode, doubles (Yale/stickK) for gift mode
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -510,6 +516,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - dark mode audit — migrated 6 missed components, fixed runtime crash, resolved static color refs in ChallengeLandingScreen/SideMenu/MysteryChoiceScreen, improved textMuted contrast for WCAG AA
 - GiftFlowScreen TYPE_OPTIONS/REVEAL_OPTIONS used colors at module scope causing runtime crash
 - carousel labels unreadable in dark mode — use theme-invariant textOnImage/overlayOnImage tokens
+- audit fixes - Together category-only submission, self pay-on-success flow, GiftFlow confirm modal time display
+- 8 stale state leakage bugs in GiftFlow - revealMode/paymentChoice no longer leak into category-only Together path (confirm summary, modal, CTA labels, API payload, AsyncStorage)
+- SparkParticle crash (styles out of scope), BaseModal nested button warning (Pressable instead of TouchableOpacity for backdrop)
+- dark mode header button color issues in ExperienceDetailsScreen, ChallengeLandingScreen, FriendProfileScreen, and SharedHeader
+- dark mode header button colors - back buttons visible on all screens, badge border visible, redirect text readable
 
 ### Added
 - Automatic changelog system with `npm run log` script

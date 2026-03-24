@@ -78,7 +78,7 @@ const Capsule: React.FC<{
   return (
     <Animated.View
       style={[
-        styles.capsule,
+        { flex: 1, height: 12, borderRadius: BorderRadius.pill, overflow: 'hidden' },
         { backgroundColor: emptyColor, transform: [{ scale: scaleAnim }] },
       ]}
     >
@@ -109,6 +109,7 @@ Capsule.displayName = 'Capsule';
 // ─── AnimatedCount ──────────────────────────────────────────────────
 
 const AnimatedCount: React.FC<{ value: number; total: number }> = React.memo(({ value, total }) => {
+  const colors = useColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const prevValue = useRef(value);
 
@@ -135,7 +136,7 @@ const AnimatedCount: React.FC<{ value: number; total: number }> = React.memo(({ 
   }, [value, scaleAnim]);
 
   return (
-    <Animated.Text style={[styles.progressText, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.Text style={[{ color: colors.textPrimary, fontWeight: '600' }, { transform: [{ scale: scaleAnim }] }]}>
       {value}/{total}
     </Animated.Text>
   );

@@ -112,6 +112,7 @@ export interface Experience {
   recommendedOrder?: number; // Optional: Order for recommended experiences (1, 2, 3, etc.)
   order?: number; // Position within category (set via admin panel)
   status?: 'published' | 'draft'; // Visibility toggle (draft = hidden from users)
+  isFeatured?: boolean; // Admin-selectable: shown as hero card on home screen
 }
 
 // Gift/Experience Gift

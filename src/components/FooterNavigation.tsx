@@ -11,6 +11,7 @@ import {
 import * as Haptics from 'expo-haptics';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 import type { RootStackParamList } from '../types';
 import { Colors, useColors } from '../config';
@@ -197,12 +198,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 
   return (
     <View style={styles.outerWrapper}>
-      <View
-        style={[
-          styles.container,
-          { height: footerHeight },
-        ]}
-      >
+      <BlurView intensity={12} tint="default" style={[styles.container, { height: footerHeight }]}>
         <View style={styles.navContainer}>
           <NavButton
             icon={HomeIcon}
@@ -245,10 +241,10 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
             onPress={onMenuPress}
           />
         </View>
-      </View>
+      </BlurView>
 
       {safeAreaSpacer > 0 && (
-        <View style={{ height: safeAreaSpacer, backgroundColor: colors.white }} />
+        <View style={{ height: safeAreaSpacer, backgroundColor: 'transparent' }} />
       )}
     </View>
   );
@@ -259,11 +255,12 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 const createStyles = (colors: typeof Colors) =>
   StyleSheet.create({
     outerWrapper: {
-      backgroundColor: colors.white,
+      backgroundColor: 'transparent',
     },
 
     container: {
-      backgroundColor: colors.white,
+      backgroundColor: colors.surfaceFrosted92,
+      overflow: 'hidden',
       borderTopLeftRadius: BorderRadius.xl,
       borderTopRightRadius: BorderRadius.xl,
       paddingTop: Spacing.sm,

@@ -54,10 +54,10 @@ import ExperienceDetailModal from '../components/ExperienceDetailModal';
 
 // ─── Goal type options (Together flow) ───────────────────────────────────────
 const GOAL_TYPES = [
-    { icon: '\u{1F3CB}\uFE0F', name: 'Gym', color: '#10B981' },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: '#8B5CF6' },
-    { icon: '\u{1F57A}', name: 'Dance', color: '#F59E0B' },
-    { icon: '\u270F\uFE0F', name: 'Add your own', color: '#6B7280' },
+    { icon: '\u{1F3CB}\uFE0F', name: 'Gym', color: '#10B981', tagline: 'Weights, cardio, machines' },
+    { icon: '\u{1F9D8}', name: 'Yoga', color: '#8B5CF6', tagline: 'Flexibility, mindfulness' },
+    { icon: '\u{1F57A}', name: 'Dance', color: '#F59E0B', tagline: 'Rhythm, movement, fun' },
+    { icon: '\u270F\uFE0F', name: 'Add your own', color: '#6B7280', tagline: 'Create a custom challenge' },
 ];
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
@@ -149,7 +149,7 @@ export default function GiftFlowScreen() {
     const route = useRoute();
     const routeParams = route.params as { prefill?: GiftFlowPrefill } | undefined;
     const { state } = useApp();
-    const { showError } = useToast();
+    const { showError, showSuccess } = useToast();
 
     // Wizard step
     const [currentStep, setCurrentStep] = useState(1);
@@ -205,10 +205,12 @@ export default function GiftFlowScreen() {
     // Solo: Type → Experience → Reveal → Payment → Confirm = 5 (always)
     // Together: Type → Intensity → Time → Experience → Reveal → Payment → Confirm = 7
     //   (if category chosen instead of browse: skip Payment step = 6)
-    const hasRevealStep = true; // Always show reveal step now (secret default)
+    // Reveal step: shown when a specific experience is selected (something to reveal/hide)
+    // Category-only Together path: discovery engine handles the mystery, no reveal choice needed
+    const needsRevealStep = challengeType === 'solo' || !!selectedExperience;
     const needsPaymentStep = challengeType === 'solo' || !!selectedExperience;
     const totalSteps = challengeType === 'shared'
-        ? (needsPaymentStep ? 8 : 7)
+        ? (5 + (needsRevealStep ? 1 : 0) + (needsPaymentStep ? 1 : 0) + 1) // GoalType+Intensity+Time+Experience + Reveal? + Payment? + Confirm
         : 5; // Solo is always 5 steps
 
     // Animations
@@ -217,6 +219,10 @@ export default function GiftFlowScreen() {
 
     // Refs for focus chaining
     const minutesRef = useRef<RNTextInput>(null);
+
+    // Animated dial state
+    const [displayMinutes, setDisplayMinutes] = useState(30);
+    const animFrameRef = useRef<number | null>(null);
 
     // Step titles/subtitles (dynamic — use lookup functions to handle free-payment step skipping)
     const getStepTitle = (): string => {
@@ -240,7 +246,7 @@ export default function GiftFlowScreen() {
         const payStep = getPaymentStep();
         if (currentStep === payStep) return "Choose how you'd like to back this challenge.";
         const revealStep = getRevealStep();
-        if (hasRevealStep && currentStep === revealStep) return challengeType === 'shared'
+        if (needsRevealStep && currentStep === revealStep) return challengeType === 'shared'
             ? "Should they know what you're both working towards?"
             : "Should they know what they're working towards?";
         const confirmStep = getConfirmStep();
@@ -335,14 +341,25 @@ export default function GiftFlowScreen() {
 
     // ─── Map logical step number to absolute step index ───────────────────────
     // Solo:    1=Type, 2=Experience, 3=Reveal, 4=Payment, 5=Confirm
-    // Together (browse): 1=Type, 2=Intensity, 3=Time, 4=Experience, 5=Reveal, 6=Payment, 7=Confirm
-    // Together (category): 1=Type, 2=Intensity, 3=Time, 4=Experience, 5=Reveal, 6=Confirm
+    // Together (browse): 1=Type, 2=GoalType, 3=Intensity, 4=Time, 5=Experience, 6=Reveal, 7=Payment, 8=Confirm
+    // Together (category): 1=Type, 2=GoalType, 3=Intensity, 4=Time, 5=Experience, 6=Confirm
     const getExperienceStep = () => challengeType === 'shared' ? 5 : 2;
-    const getRevealStep = () => challengeType === 'shared' ? 6 : 3;
-    const getPaymentStep = () => challengeType === 'shared' ? 7 : 4;
-    const getConfirmStep = () => needsPaymentStep
-        ? (challengeType === 'shared' ? 8 : 5)
-        : (challengeType === 'shared' ? 7 : 5); // Solo always 5
+    const getRevealStep = () => {
+        if (challengeType === 'solo') return 3;
+        return needsRevealStep ? 6 : -1; // -1 = skipped
+    };
+    const getPaymentStep = () => {
+        if (challengeType === 'solo') return 4;
+        const base = 5; // after experience step
+        return base + (needsRevealStep ? 1 : 0) + 1; // +1 for payment itself offset
+    };
+    const getConfirmStep = () => {
+        if (challengeType === 'solo') return 5;
+        let step = 6; // after experience (5) + 1
+        if (needsRevealStep) step++;
+        if (needsPaymentStep) step++;
+        return step;
+    };
 
     // ─── Per-step validation ──────────────────────────────────────────────────
     const validateCurrentStep = (): boolean => {
@@ -472,8 +489,8 @@ export default function GiftFlowScreen() {
                 showCustomTime,
                 experience: selectedExperience || null,
                 preferredRewardCategory: preferredRewardCategory || null,
-                revealMode,
-                paymentChoice,
+                revealMode: needsRevealStep ? revealMode : null,
+                paymentChoice: needsPaymentStep ? paymentChoice : null,
                 sameExperienceForBoth,
                 personalizedMessage,
             };
@@ -490,26 +507,67 @@ export default function GiftFlowScreen() {
     const confirmCreateGoal = async () => {
         if (isSubmitting || !state.user?.id) return;
 
-        // Giver flows require a specific experience (no free option)
-        if (!selectedExperience) {
+        // Solo giver requires a specific experience (no free option)
+        // Together giver can use category-only ("Surprise me") path
+        if (!selectedExperience && challengeType === 'solo') {
             showError('Please select a specific experience');
+            return;
+        }
+        if (!selectedExperience && !preferredRewardCategory) {
+            showError('Please select a reward option');
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Both payNow and payLater create the gift doc via createDeferredGift.
-            // payNow then routes to ExperienceCheckout for immediate payment.
-            // payLater routes to DeferredSetup to save card for future charging.
-            const functionName = config.giftFunctions.createDeferredGift;
-
             const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
             const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
 
             const token = await auth.currentUser?.getIdToken();
             if (!token) throw new Error('Not authenticated');
 
+            // Together category-only path: create a free shared challenge (no payment)
+            if (challengeType === 'shared' && !selectedExperience && preferredRewardCategory) {
+                const functionName = config.giftFunctions.createFreeGift;
+                const response = await fetch(
+                    `${config.functionsUrl}/${functionName}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            challengeType: 'shared',
+                            preferredRewardCategory,
+                            giverName: state.user.displayName || '',
+                            personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
+                            goalName: `${weeks}-week challenge`,
+                            goalType: selectedGoalType === 'Gym' ? 'gym' : selectedGoalType === 'Yoga' ? 'yoga' : selectedGoalType === 'Dance' ? 'dance' : 'custom',
+                            duration: `${weeks} weeks`,
+                            frequency: `${sessionsPerWeek}x per week`,
+                            sessionTime: `${hoursNum}h ${minutesNum}m`,
+                        }),
+                    }
+                );
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error((errorData as any)?.message || 'Failed to create challenge');
+                }
+
+                const result = await response.json();
+                setShowConfirm(false);
+                showSuccess('Challenge created! Share the code with your partner to get started.');
+                setTimeout(() => {
+                    navigation.navigate('Goals' as any);
+                }, 300);
+                return;
+            }
+
+            // Standard path: specific experience selected (solo or together with experience)
+            const functionName = config.giftFunctions.createDeferredGift;
             const response = await fetch(
                 `${config.functionsUrl}/${functionName}`,
                 {
@@ -519,7 +577,7 @@ export default function GiftFlowScreen() {
                         'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({
-                        experienceId: selectedExperience.id,
+                        experienceId: selectedExperience!.id,
                         challengeType,
                         revealMode,
                         giverName: state.user.displayName || '',
@@ -545,13 +603,11 @@ export default function GiftFlowScreen() {
             setShowConfirm(false);
 
             if (paymentChoice === 'payNow') {
-                // Lock it in: route to ExperienceCheckout for immediate payment
                 navigation.navigate('ExperienceCheckout' as any, {
                     cartItems: [{ experienceId: selectedExperience!.id, quantity: 1 }],
                     giftId: result.gift?.id,
                 });
             } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
-                // Pay on success: save card now, charge when recipient completes
                 navigation.navigate('DeferredSetup', {
                     setupIntentClientSecret: result.setupIntentClientSecret,
                     experienceGift: result.gift,
@@ -625,38 +681,62 @@ export default function GiftFlowScreen() {
     const renderGoalTypeStepTogether = () => (
         <View style={styles.stepContent}>
             <View style={styles.goalTypeGrid}>
-                {GOAL_TYPES.map((type) => {
+                {GOAL_TYPES.map((type, i) => {
                     const isSelected = selectedGoalType === type.name;
                     const isCustom = type.name === 'Add your own';
                     return (
-                        <TouchableOpacity
+                        <MotiView
                             key={type.name}
-                            style={[styles.goalTypeCard, isSelected && styles.goalTypeCardActive]}
-                            onPress={() => {
-                                setSelectedGoalType(type.name);
-                                if (!isCustom) {
-                                    // Auto-advance for preset types
-                                    setTimeout(() => setCurrentStep(prev => prev + 1), 200);
-                                }
+                            style={{ width: '47%' }}
+                            from={{ opacity: 0, translateY: 20 }}
+                            animate={{
+                                opacity: 1,
+                                translateY: 0,
+                                scale: isSelected ? 1.04 : 1,
                             }}
-                            activeOpacity={0.8}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Select ${type.name} goal type`}
+                            transition={{
+                                opacity: { type: 'timing', duration: 300, delay: i * 80 },
+                                translateY: { type: 'timing', duration: 300, delay: i * 80 },
+                                scale: isSelected
+                                    ? { type: 'spring', damping: 34, stiffness: 100 }
+                                    : { type: 'timing', duration: 100 },
+                            }}
                         >
-                            <Text style={styles.goalTypeEmoji}>{type.icon}</Text>
-                            <Text style={[styles.goalTypeName, isSelected && styles.goalTypeNameActive]}>{type.name}</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.goalTypeCard,
+                                    isSelected && { backgroundColor: type.color, borderColor: type.color },
+                                ]}
+                                onPress={() => {
+                                    setSelectedGoalType(type.name);
+                                    if (!isCustom) {
+                                        setTimeout(() => setCurrentStep(prev => prev + 1), 250);
+                                    }
+                                }}
+                                activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Select ${type.name} goal type`}
+                            >
+                                <Text style={styles.goalTypeEmoji}>{type.icon}</Text>
+                                <Text style={[styles.goalTypeName, isSelected && styles.goalTypeNameActive]}>{type.name}</Text>
+                                <Text style={[
+                                    styles.goalTypeTagline,
+                                    isSelected && { color: '#ffffffCC' },
+                                ]}>{type.tagline}</Text>
+                            </TouchableOpacity>
+                        </MotiView>
                     );
                 })}
             </View>
             {selectedGoalType === 'Add your own' && (
-                <View style={{ marginTop: 16 }}>
+                <View style={{ marginTop: Spacing.xl }}>
                     <TextInput
                         label="What's your challenge?"
                         placeholder="e.g., Swimming, Pilates, Boxing..."
                         value={customGoalType}
                         onChangeText={setCustomGoalType}
                         maxLength={50}
+                        autoFocus
                     />
                 </View>
             )}
@@ -694,13 +774,31 @@ export default function GiftFlowScreen() {
         </View>
     );
 
-    // Step 3 (Together only): Time per session — clock dial matching ChallengeSetupScreen
+    // Step 4 (Together only): Time per session — clock dial with presets + animation
     const DIAL_SIZE = vh(250);
     const DIAL_RADIUS = DIAL_SIZE / 2;
     const DIAL_STROKE = 8;
+    const HANDLE_RADIUS = 14;
+
+    const snapToPresetGift = (target: number) => {
+        setSessionMinutes(target);
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        const start = displayMinutes;
+        const diff = target - start;
+        const duration = 350;
+        const startTime = performance.now();
+        const step = (now: number) => {
+            const t = Math.min((now - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            setDisplayMinutes(Math.round(start + diff * eased));
+            if (t < 1) animFrameRef.current = requestAnimationFrame(step);
+        };
+        animFrameRef.current = requestAnimationFrame(step);
+    };
 
     const renderStep3Together = () => {
-        const angle = (sessionMinutes / 60) * 360;
+        const visMinutes = displayMinutes;
+        const angle = (visMinutes / 60) * 360;
         const angleRad = ((angle - 90) * Math.PI) / 180;
         const arcRadius = DIAL_RADIUS - 20;
         const handleX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
@@ -712,8 +810,8 @@ export default function GiftFlowScreen() {
         const startY = DIAL_RADIUS + arcRadius * Math.sin(startAngleRad);
         const endX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
         const endY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
-        const isFullCircle = sessionMinutes >= 60;
-        const arcPath = (!isFullCircle && sessionMinutes > 0)
+        const isFullCircle = visMinutes >= 60;
+        const arcPath = (!isFullCircle && visMinutes > 0)
             ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
             : '';
 
@@ -724,12 +822,14 @@ export default function GiftFlowScreen() {
             let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
             if (a < 0) a += 360;
             const mins = Math.round((a / 360) * 60 / 5) * 5;
-            setSessionMinutes(Math.max(5, Math.min(60, mins)));
+            const clamped = Math.max(5, Math.min(60, mins));
+            setSessionMinutes(clamped);
+            setDisplayMinutes(clamped);
         };
 
         return (
             <View style={styles.stepContent}>
-                <View style={{ alignItems: 'center', marginTop: vh(10) }}>
+                <View style={{ alignItems: 'center', marginTop: vh(4) }}>
                     <View
                         style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
                         onStartShouldSetResponder={() => true}
@@ -738,6 +838,22 @@ export default function GiftFlowScreen() {
                         onResponderMove={handleTouch}
                     >
                         <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
+                            {/* Tick marks */}
+                            {Array.from({ length: 12 }).map((_, i) => {
+                                const tickAngle = ((i * 30 - 90) * Math.PI) / 180;
+                                const isMajor = i % 3 === 0;
+                                const outerR = arcRadius + 4;
+                                const innerR = arcRadius - (isMajor ? 10 : 6);
+                                return (
+                                    <Path
+                                        key={`tick-${i}`}
+                                        d={`M ${DIAL_RADIUS + innerR * Math.cos(tickAngle)} ${DIAL_RADIUS + innerR * Math.sin(tickAngle)} L ${DIAL_RADIUS + outerR * Math.cos(tickAngle)} ${DIAL_RADIUS + outerR * Math.sin(tickAngle)}`}
+                                        stroke={colors.border}
+                                        strokeWidth={isMajor ? 2 : 1}
+                                    />
+                                );
+                            })}
+                            {/* Background circle */}
                             <Circle
                                 cx={DIAL_RADIUS}
                                 cy={DIAL_RADIUS}
@@ -746,138 +862,120 @@ export default function GiftFlowScreen() {
                                 strokeWidth={DIAL_STROKE}
                                 fill="none"
                             />
+                            {/* Active arc */}
                             {isFullCircle ? (
-                                <Circle
-                                    cx={DIAL_RADIUS}
-                                    cy={DIAL_RADIUS}
-                                    r={arcRadius}
-                                    stroke={colors.secondary}
-                                    strokeWidth={DIAL_STROKE}
-                                    fill="none"
-                                />
-                            ) : sessionMinutes > 0 ? (
-                                <Path
-                                    d={arcPath}
-                                    stroke={colors.secondary}
-                                    strokeWidth={DIAL_STROKE}
-                                    strokeLinecap="round"
-                                    fill="none"
-                                />
+                                <Circle cx={DIAL_RADIUS} cy={DIAL_RADIUS} r={arcRadius}
+                                    stroke={colors.secondary} strokeWidth={DIAL_STROKE} fill="none" />
+                            ) : visMinutes > 0 ? (
+                                <Path d={arcPath} stroke={colors.secondary}
+                                    strokeWidth={DIAL_STROKE} strokeLinecap="round" fill="none" />
                             ) : null}
-                            <Circle
-                                cx={handleX}
-                                cy={handleY}
-                                r={14}
-                                fill={colors.secondary}
-                            />
+                            {/* Handle with shadow */}
+                            <Circle cx={handleX} cy={handleY} r={HANDLE_RADIUS + 3} fill={colors.secondary + '20'} />
+                            <Circle cx={handleX} cy={handleY} r={HANDLE_RADIUS} fill={colors.secondary} />
                         </Svg>
 
+                        {/* Center text */}
                         <View style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            justifyContent: 'center',
-                            alignItems: 'center',
+                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                            justifyContent: 'center', alignItems: 'center',
                         }}>
-                            <Text style={{
-                                fontSize: vh(48),
-                                fontWeight: '800',
-                                color: colors.secondary,
-                                letterSpacing: -2,
-                            }}>
-                                {sessionMinutes}
+                            <Text style={{ fontSize: vh(48), fontWeight: '800', color: colors.secondary, letterSpacing: -2 }}>
+                                {visMinutes}
                             </Text>
-                            <Text style={{
-                                ...Typography.caption,
-                                fontWeight: '700',
-                                color: colors.textMuted,
-                                textTransform: 'uppercase',
-                                letterSpacing: 2,
-                            }}>
+                            <Text style={{ ...Typography.caption, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 2 }}>
                                 MINUTES
                             </Text>
                         </View>
 
+                        {/* Minute markers inside circle */}
                         {[0, 15, 30, 45].map((m) => {
                             const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
-                            const markerR = DIAL_RADIUS + 16;
+                            const markerR = DIAL_RADIUS - 45;
                             const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
                             const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
                             return (
                                 <Text key={m} style={{
-                                    position: 'absolute',
-                                    left: mx - 10,
-                                    top: my - 8,
-                                    ...Typography.caption,
-                                    fontWeight: '600',
-                                    color: colors.textMuted,
-                                    width: 20,
-                                    textAlign: 'center',
-                                }}>
-                                    {m}
-                                </Text>
+                                    position: 'absolute', left: mx - 10, top: my - 8,
+                                    ...Typography.caption, fontWeight: '700', color: colors.textMuted,
+                                    width: 20, textAlign: 'center',
+                                }}>{m}</Text>
                             );
                         })}
                     </View>
                 </View>
 
+                {/* Preset chips */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginTop: vh(20) }}>
+                    {[15, 30, 45, 60].map((m) => (
+                        <MotiView
+                            key={m}
+                            animate={{ scale: sessionMinutes === m ? 1.06 : 1 }}
+                            transition={{ type: 'spring', damping: 15, stiffness: 150 }}
+                        >
+                            <TouchableOpacity
+                                style={[styles.presetChip, sessionMinutes === m && styles.presetChipActive]}
+                                onPress={() => snapToPresetGift(m)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.presetChipText, sessionMinutes === m && styles.presetChipTextActive]}>
+                                    {m} min
+                                </Text>
+                            </TouchableOpacity>
+                        </MotiView>
+                    ))}
+                </View>
+
+                {/* Custom time toggle */}
                 <TouchableOpacity
-                    style={{ alignSelf: 'center', marginTop: vh(36) }}
+                    style={{ alignSelf: 'center', marginTop: vh(16) }}
                     onPress={() => setShowCustomTime(!showCustomTime)}
                     activeOpacity={0.7}
                 >
-                    <Text style={{
-                        ...Typography.body,
-                        color: colors.primary,
-                        fontWeight: '600',
-                    }}>
+                    <Text style={{ ...Typography.body, color: colors.primary, fontWeight: '600' }}>
                         {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
                     </Text>
                 </TouchableOpacity>
 
                 {showCustomTime && (
                     <MotiView
-                        from={{ opacity: 0, translateY: -10 }}
+                        from={{ opacity: 0, translateY: 10 }}
                         animate={{ opacity: 1, translateY: 0 }}
                         transition={{ type: 'timing', duration: 200 }}
-                        style={{ marginTop: Spacing.lg, flexDirection: 'row', justifyContent: 'center', gap: Spacing.md }}
                     >
-                        <View style={styles.timeInputGroup}>
-                            <RNTextInput
-                                style={styles.timeInput}
-                                value={hours}
-                                onChangeText={(t) => {
-                                    setHours(sanitizeNumericInput(t));
-                                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                                }}
-                                keyboardType="numeric"
-                                maxLength={1}
-                                placeholder="0"
-                                placeholderTextColor={colors.textMuted}
-                                returnKeyType="next"
-                                onSubmitEditing={() => minutesRef.current?.focus()}
-                                accessibilityLabel="Hours per session"
-                            />
-                            <Text style={styles.timeLabel}>hr</Text>
-                        </View>
-                        <View style={styles.timeInputGroup}>
-                            <RNTextInput
-                                ref={minutesRef}
-                                style={styles.timeInput}
-                                value={minutes}
-                                onChangeText={(t) => {
-                                    const clean = sanitizeNumericInput(t);
-                                    const m = parseInt(clean || '0', 10);
-                                    setMinutes(m > 59 ? '59' : clean);
-                                    if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
-                                }}
-                                keyboardType="numeric"
-                                maxLength={2}
-                                placeholder="00"
-                                placeholderTextColor={colors.textMuted}
-                                returnKeyType="done"
-                                accessibilityLabel="Minutes per session"
-                            />
-                            <Text style={styles.timeLabel}>min</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: Spacing.md, marginTop: vh(16) }}>
+                            <View style={styles.timeInputGroup}>
+                                <RNTextInput
+                                    style={styles.timeInput}
+                                    value={hours}
+                                    onChangeText={(t) => {
+                                        setHours(sanitizeNumericInput(t));
+                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                                    }}
+                                    keyboardType="numeric" maxLength={1} placeholder="0"
+                                    placeholderTextColor={colors.textMuted} returnKeyType="next"
+                                    onSubmitEditing={() => minutesRef.current?.focus()}
+                                    accessibilityLabel="Hours per session"
+                                />
+                                <Text style={styles.timeLabel}>hr</Text>
+                            </View>
+                            <View style={styles.timeInputGroup}>
+                                <RNTextInput
+                                    ref={minutesRef}
+                                    style={styles.timeInput}
+                                    value={minutes}
+                                    onChangeText={(t) => {
+                                        const clean = sanitizeNumericInput(t);
+                                        const m = parseInt(clean || '0', 10);
+                                        setMinutes(m > 59 ? '59' : clean);
+                                        if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
+                                    }}
+                                    keyboardType="numeric" maxLength={2} placeholder="00"
+                                    placeholderTextColor={colors.textMuted} returnKeyType="done"
+                                    accessibilityLabel="Minutes per session"
+                                />
+                                <Text style={styles.timeLabel}>min</Text>
+                            </View>
                         </View>
                     </MotiView>
                 )}
@@ -1164,7 +1262,7 @@ export default function GiftFlowScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Choose a shared experience"
                     >
-                        <Text style={styles.rewardCategoryEmoji}>{'\u{1F3AF}'}</Text>
+                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
@@ -1210,6 +1308,7 @@ export default function GiftFlowScreen() {
                                     setPreferredRewardCategory(cat.key);
                                     setSelectedExperience(null);
                                     setPaymentChoice(null);
+                                    setRevealMode(null);
                                     setValidationErrors(prev => ({ ...prev, experience: false }));
                                 }}
                                 activeOpacity={0.8}
@@ -1237,12 +1336,12 @@ export default function GiftFlowScreen() {
         );
     };
 
-    // Default to secret reveal mode
+    // Default to secret reveal mode — only when reveal step is part of the flow
     useEffect(() => {
-        if (!revealMode) {
+        if (needsRevealStep && !revealMode) {
             setRevealMode('secret');
         }
-    }, [revealMode]);
+    }, [revealMode, needsRevealStep]);
 
     // Reveal step — secret is default, "Reveal instead" is a small escape hatch
     const renderRevealStep = () => (
@@ -1300,13 +1399,12 @@ export default function GiftFlowScreen() {
         </View>
     );
 
-    // Payment step
-    // Default payment to payNow (Lock it in) for giver flows
+    // Payment step — only default when payment step is part of the flow
     useEffect(() => {
-        if (challengeType && !paymentChoice) {
+        if (needsPaymentStep && !paymentChoice) {
             setPaymentChoice('payNow');
         }
-    }, [challengeType]);
+    }, [needsPaymentStep, paymentChoice]);
 
     const renderPaymentStep = () => (
         <View style={styles.stepContent}>
@@ -1406,13 +1504,13 @@ export default function GiftFlowScreen() {
                         {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                     </Text>
                 ) : null}
-                {revealMode && (
+                {needsRevealStep && revealMode && (
                     <Text style={styles.confirmSummaryRow}>
                         <Text style={styles.confirmSummaryLabel}>Mode: </Text>
                         {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
                     </Text>
                 )}
-                {paymentChoice && (
+                {needsPaymentStep && paymentChoice && (
                     <Text style={styles.confirmSummaryRow}>
                         <Text style={styles.confirmSummaryLabel}>Payment: </Text>
                         {getPaymentLabel()}
@@ -1469,6 +1567,7 @@ export default function GiftFlowScreen() {
 
     const getCtaLabel = () => {
         if (isSubmitting) return 'Sending...';
+        if (!needsPaymentStep) return 'Send Challenge';
         if (paymentChoice === 'payNow') return 'Pay & Send';
         return 'Commit & Send (pay on success)';
     };
@@ -1593,7 +1692,7 @@ export default function GiftFlowScreen() {
                                                 </View>
                                             </>
                                         )}
-                                        {revealMode && (
+                                        {needsRevealStep && revealMode && (
                                             <>
                                                 <View style={styles.contextDivider} />
                                                 <View style={styles.contextBadge}>
@@ -1619,7 +1718,7 @@ export default function GiftFlowScreen() {
                             <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>
                                     {state.user?.id
-                                        ? (paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
+                                        ? (!needsPaymentStep ? 'Send Challenge' : paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
                                         : 'Sign Up & Send Gift'}
                                 </Text>
                                 <ChevronRight color={colors.white} size={20} strokeWidth={3} />
@@ -1670,7 +1769,7 @@ export default function GiftFlowScreen() {
                                     </Text>
                                     <Text style={styles.modalRow}>
                                         <Text style={styles.modalLabel}>Per session: </Text>
-                                        {hours || '0'}h {minutes || '0'}m
+                                        {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
                                     </Text>
                                 </>
                             )}
@@ -1685,13 +1784,13 @@ export default function GiftFlowScreen() {
                                     {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                                 </Text>
                             ) : null}
-                            {revealMode && (
+                            {needsRevealStep && revealMode && (
                                 <Text style={styles.modalRow}>
                                     <Text style={styles.modalLabel}>Mode: </Text>
                                     {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
                                 </Text>
                             )}
-                            {paymentChoice && (
+                            {needsPaymentStep && paymentChoice && (
                                 <Text style={styles.modalRow}>
                                     <Text style={styles.modalLabel}>Payment: </Text>
                                     {getPaymentLabel()}
@@ -1700,9 +1799,11 @@ export default function GiftFlowScreen() {
                         </View>
 
                         <Text style={styles.pledgeNote}>
-                            {paymentChoice === 'payNow'
-                                ? 'Experience will be secured immediately after payment.'
-                                : 'Your card will only be charged when they succeed.'}
+                            {!needsPaymentStep
+                                ? 'We\'ll find the perfect experience as they progress!'
+                                : paymentChoice === 'payNow'
+                                    ? 'Experience will be secured immediately after payment.'
+                                    : 'Your card will only be charged when they succeed.'}
                         </Text>
 
                         <View style={styles.modalButtons}>
@@ -1814,19 +1915,22 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         marginBottom: Spacing.xl,
     },
 
-    // Goal type grid (Together step 2)
+    // Goal type grid (Together step 2) — 2x2 large cards
     goalTypeGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: Spacing.md,
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        rowGap: Spacing.md,
+        marginTop: Spacing.sm,
     },
     goalTypeCard: {
-        width: '45%',
-        backgroundColor: colors.white,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.lg,
+        flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: vh(28),
+        paddingHorizontal: Spacing.lg,
+        borderRadius: BorderRadius.xl,
+        backgroundColor: colors.white,
         borderWidth: 2,
         borderColor: colors.border,
     },
@@ -1835,16 +1939,42 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.primarySurface,
     },
     goalTypeEmoji: {
-        fontSize: 32,
-        marginBottom: Spacing.sm,
+        fontSize: 42,
+        lineHeight: 52,
     },
     goalTypeName: {
         ...Typography.bodyBold,
-        color: colors.textPrimary,
-        textAlign: 'center',
+        color: colors.gray800,
+        marginTop: Spacing.sm,
+        textAlign: 'center' as const,
     },
     goalTypeNameActive: {
-        color: colors.primary,
+        color: colors.white,
+    },
+    goalTypeTagline: {
+        ...Typography.caption,
+        color: colors.textMuted,
+        textAlign: 'center' as const,
+        marginTop: Spacing.xxs,
+    },
+    presetChip: {
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+    },
+    presetChipActive: {
+        backgroundColor: colors.secondary,
+        borderColor: colors.secondary,
+    },
+    presetChipText: {
+        ...Typography.smallBold,
+        color: colors.textSecondary,
+    },
+    presetChipTextActive: {
+        color: colors.white,
     },
 
     // Error

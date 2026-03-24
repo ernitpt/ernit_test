@@ -143,14 +143,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [pendingStartAfterVenue, setPendingStartAfterVenue] = useState(false);
   const shouldResumeStartRef = useRef(false);
 
-  // Resume session start after venue selection (avoids stale closure)
-  useEffect(() => {
-    if (shouldResumeStartRef.current && (currentGoal.venueId || currentGoal.venueName)) {
-      shouldResumeStartRef.current = false;
-      handleStart();
-    }
-  }, [currentGoal.venueId, currentGoal.venueName, handleStart]);
-
   // Partner goal state for shared/together challenges
   const [partnerGoalData, setPartnerGoalData] = useState<PartnerGoalData | null>(null);
 
@@ -575,6 +567,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       setLoading(false);
     }
   }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer]);
+
+  // Resume session start after venue selection (avoids stale closure)
+  useEffect(() => {
+    if (shouldResumeStartRef.current && (currentGoal.venueId || currentGoal.venueName)) {
+      shouldResumeStartRef.current = false;
+      handleStart();
+    }
+  }, [currentGoal.venueId, currentGoal.venueName, handleStart]);
 
   const finishLock = useRef(false);
   const hintGeneratingRef = useRef(false);

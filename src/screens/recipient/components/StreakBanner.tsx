@@ -123,7 +123,7 @@ const SparkParticle: React.FC<{
   return (
     <Animated.View
       style={[
-        styles.spark,
+        { position: 'absolute' as const },
         {
           left: position.left,
           top: position.top,

@@ -19,8 +19,7 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff",
       },
-      googleServicesFile: "./android/app/google-services.json",
-      versionCode: 1,
+      googleServicesFile: "./google-services.json",
     },
     web: {
       bundler: "metro",
@@ -28,6 +27,10 @@ export default {
     plugins: [
       "expo-secure-store",
       "expo-web-browser",
+      "expo-notifications",
+      "expo-image-picker",
+      "expo-sensors",
+      "expo-av",
       ["@stripe/stripe-react-native", { merchantIdentifier: "merchant.app.ernit" }],
     ],
     extra: {

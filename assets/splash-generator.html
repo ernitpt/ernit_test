@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ernit Splash Screen Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui; color: #fff; }
+  .controls { margin-bottom: 24px; display: flex; gap: 12px; }
+  .controls button { padding: 12px 28px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; background: #059669; color: #fff; transition: background 0.2s; }
+  .controls button:hover { background: #047857; }
+  .preview-label { font-size: 14px; opacity: 0.6; margin-bottom: 8px; }
+  .preview { border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+  canvas { display: block; }
+  .status { margin-top: 12px; font-size: 14px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <button onclick="downloadSplash()">Download splash.png (1284x2778)</button>
+</div>
+<p class="preview-label">Preview (scaled down)</p>
+<div class="preview">
+  <canvas id="canvas" width="1284" height="2778"></canvas>
+</div>
+<p class="status" id="status">Loading icon...</p>
+
+<script>
+const BRAND = {
+  primary: '#059669',
+  primaryDark: '#047857',
+  primaryDeep: '#065F46',
+  secondary: '#10B981',
+  accent: '#14B8A6',
+  white: '#FFFFFF',
+};
+
+let iconImg = null;
+
+function drawSplash(ctx, w, h) {
+  // Background gradient
+  const bg = ctx.createLinearGradient(0, 0, w, h);
+  bg.addColorStop(0, BRAND.primaryDeep);
+  bg.addColorStop(0.5, BRAND.primary);
+  bg.addColorStop(1, BRAND.accent);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle decorative circles
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = BRAND.white;
+  ctx.beginPath(); ctx.arc(w * 0.15, h * 0.2, 300, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w * 0.85, h * 0.75, 400, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w * 0.5, h * 0.45, 200, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const cx = w / 2;
+  const cy = h * 0.42;
+
+  // Draw the actual icon
+  if (iconImg) {
+    const iconSize = 280;
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 10;
+    ctx.drawImage(iconImg, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
+  // App name
+  ctx.fillStyle = BRAND.white;
+  ctx.shadowColor = 'rgba(0,0,0,0.2)';
+  ctx.shadowBlur = 20;
+  ctx.font = '700 72px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ERNIT', cx, cy + 220);
+
+  // Tagline
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 0.7;
+  ctx.font = '400 32px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Earn it. Experience it.', cx, cy + 285);
+  ctx.globalAlpha = 1;
+}
+
+// Load icon then render preview
+const canvas = document.getElementById('canvas');
+canvas.style.width = '321px';
+canvas.style.height = '694px';
+const ctx = canvas.getContext('2d');
+
+iconImg = new Image();
+iconImg.onload = function() {
+  document.getElementById('status').textContent = 'Icon loaded. Ready to download.';
+  drawSplash(ctx, 1284, 2778);
+};
+iconImg.onerror = function() {
+  document.getElementById('status').textContent = 'Could not load icon.png — drawing without it.';
+  drawSplash(ctx, 1284, 2778);
+};
+iconImg.src = './icon.png';
+
+function downloadSplash() {
+  const c = document.createElement('canvas');
+  c.width = 1284; c.height = 2778;
+  const cx = c.getContext('2d');
+  drawSplash(cx, 1284, 2778);
+  const link = document.createElement('a');
+  link.download = 'splash.png';
+  link.href = c.toDataURL('image/png');
+  link.click();
+}
+</script>
+</body>
+</html>

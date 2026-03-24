@@ -1,0 +1,10 @@
+.claude/
+ErnitB2B/
+ErnitPartnerApp/
+web/
+assets/*.html
+functions/
+.firebase/
+*.md
+b2b-onepager.html
+firestore.ernitxfi.*

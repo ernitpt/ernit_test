@@ -76,8 +76,12 @@ export const createFreeGift_Test = onRequest(
             sameExperienceForBoth,
         } = req.body;
 
-        if (!experienceId || typeof experienceId !== 'string') {
-            res.status(400).json({ error: 'experienceId is required' });
+        const preferredRewardCategory = req.body.preferredRewardCategory;
+        const goalType = req.body.goalType;
+
+        // experienceId required unless category-only Together challenge
+        if (!preferredRewardCategory && (!experienceId || typeof experienceId !== 'string')) {
+            res.status(400).json({ error: 'experienceId or preferredRewardCategory is required' });
             return;
         }
 
@@ -86,7 +90,8 @@ export const createFreeGift_Test = onRequest(
             return;
         }
 
-        if (!revealMode || !['revealed', 'secret'].includes(revealMode)) {
+        // revealMode required only when a specific experience is chosen
+        if (experienceId && (!revealMode || !['revealed', 'secret'].includes(revealMode))) {
             res.status(400).json({ error: 'revealMode must be "revealed" or "secret"' });
             return;
         }
@@ -111,14 +116,6 @@ export const createFreeGift_Test = onRequest(
         }
 
         try {
-            // Fetch the experience to snapshot its data
-            const experienceDoc = await db.collection('experiences').doc(experienceId).get();
-            if (!experienceDoc.exists) {
-                res.status(404).json({ error: 'Experience not found' });
-                return;
-            }
-            const experienceData = experienceDoc.data()!;
-
             // Generate unique claim code
             const claimCode = await generateUniqueClaimCode();
 
@@ -128,36 +125,67 @@ export const createFreeGift_Test = onRequest(
 
             const giftId = db.collection("experienceGifts").doc().id;
 
-            const newGift: Record<string, any> = {
-                id: giftId,
-                giverId: userId,
-                giverName: giverName || "",
-                experienceId,
-                personalizedMessage: personalizedMessage || "",
-                partnerId: experienceData.partnerId || "",
-                deliveryDate: admin.firestore.Timestamp.now(),
-                status: "pending",
-                payment: "free",
-                claimCode,
-                expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                challengeType,
-                revealMode,
-                isMystery: revealMode === 'secret',
-                pledgedExperience: {
+            let newGift: Record<string, any>;
+
+            if (experienceId) {
+                // Standard path: specific experience selected
+                const experienceDoc = await db.collection('experiences').doc(experienceId).get();
+                if (!experienceDoc.exists) {
+                    res.status(404).json({ error: 'Experience not found' });
+                    return;
+                }
+                const experienceData = experienceDoc.data()!;
+
+                newGift = {
+                    id: giftId,
+                    giverId: userId,
+                    giverName: giverName || "",
                     experienceId,
-                    title: experienceData.title || "",
-                    subtitle: experienceData.subtitle || "",
-                    description: experienceData.description || "",
-                    category: experienceData.category || "",
-                    price: experienceData.price || 0,
-                    coverImageUrl: experienceData.coverImageUrl || "",
-                    imageUrl: experienceData.imageUrl || [],
+                    personalizedMessage: personalizedMessage || "",
                     partnerId: experienceData.partnerId || "",
-                    location: experienceData.location || "",
-                },
-            };
+                    deliveryDate: admin.firestore.Timestamp.now(),
+                    status: "pending",
+                    payment: "free",
+                    claimCode,
+                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    challengeType,
+                    revealMode: revealMode || 'secret',
+                    isMystery: revealMode === 'secret',
+                    pledgedExperience: {
+                        experienceId,
+                        title: experienceData.title || "",
+                        subtitle: experienceData.subtitle || "",
+                        description: experienceData.description || "",
+                        category: experienceData.category || "",
+                        price: experienceData.price || 0,
+                        coverImageUrl: experienceData.coverImageUrl || "",
+                        imageUrl: experienceData.imageUrl || [],
+                        partnerId: experienceData.partnerId || "",
+                        location: experienceData.location || "",
+                    },
+                };
+            } else {
+                // Category-only path: no specific experience, discovery engine will match later
+                newGift = {
+                    id: giftId,
+                    giverId: userId,
+                    giverName: giverName || "",
+                    personalizedMessage: personalizedMessage || "",
+                    deliveryDate: admin.firestore.Timestamp.now(),
+                    status: "pending",
+                    payment: "free",
+                    claimCode,
+                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    challengeType,
+                    preferredRewardCategory: preferredRewardCategory || "",
+                    goalType: goalType || "custom",
+                    isCategoryOnly: true,
+                };
+            }
 
             if (challengeType === 'shared') {
                 newGift.togetherData = {
@@ -191,7 +219,7 @@ export const createFreeGift_Test = onRequest(
                 // Embed giverGoalId into the gift before writing
                 newGift.togetherData.giverGoalId = giverGoalRef.id;
 
-                const giverGoalData = {
+                const giverGoalData: Record<string, any> = {
                     userId,
                     experienceGiftId: giftId,
                     name: td.goalName || `${weeks}-week challenge`,
@@ -216,6 +244,7 @@ export const createFreeGift_Test = onRequest(
                     isWeekCompleted: false,
                     isActive: true,
                     isRevealed: false,
+                    isFreeGoal: !experienceId,
                     startDate: admin.firestore.Timestamp.fromDate(now),
                     endDate: admin.firestore.Timestamp.fromDate(endDate),
                     plannedStartDate: admin.firestore.Timestamp.fromDate(now),
@@ -224,8 +253,16 @@ export const createFreeGift_Test = onRequest(
                     expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    experienceId,
                 };
+                if (experienceId) {
+                    giverGoalData.experienceId = experienceId;
+                }
+                if (preferredRewardCategory) {
+                    giverGoalData.preferredRewardCategory = preferredRewardCategory;
+                }
+                if (goalType) {
+                    giverGoalData.goalType = goalType;
+                }
 
                 const batch = db.batch();
                 batch.set(giftDocRef, newGift);
@@ -243,10 +280,13 @@ export const createFreeGift_Test = onRequest(
             if (recipientEmail && typeof recipientEmail === 'string' && recipientEmail.includes('@')) {
                 try {
                     const claimUrl = `https://ernit981723498127658912765187923546.vercel.app/recipient/redeem/${claimCode}`;
+                    const experienceTitle = experienceId
+                        ? (newGift.pledgedExperience?.title || 'a special experience')
+                        : `a ${preferredRewardCategory || ''} challenge`;
                     await sendEmail(
                         recipientEmail,
                         `${giverName || 'Someone'} sent you an Ernit challenge!`,
-                        buildGiftEmailHtml(giverName || 'Someone', experienceData.title, claimUrl, revealMode)
+                        buildGiftEmailHtml(giverName || 'Someone', experienceTitle, claimUrl, revealMode || 'secret')
                     );
                 } catch (emailErr) {
                     console.error(`⚠️ Failed to send gift email:`, emailErr);

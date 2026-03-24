@@ -4,6 +4,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   Animated,
   StyleSheet,
   ViewStyle,
@@ -59,9 +60,8 @@ export const BaseModal = React.memo<BaseModalProps>(({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
+      <Pressable
         style={styles.overlay}
-        activeOpacity={1}
         onPress={onClose}
         accessibilityLabel="Dismiss modal"
         accessibilityRole="button"
@@ -75,7 +75,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
           ]}
           accessibilityViewIsModal={true}
         >
-          <TouchableOpacity activeOpacity={1}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
             {variant === 'bottom' && (
               <View style={styles.dragHandle}>
                 <View style={styles.dragHandlePill} />
@@ -103,9 +103,9 @@ export const BaseModal = React.memo<BaseModalProps>(({
                 {children}
               </View>
             </ScrollView>
-          </TouchableOpacity>
+          </Pressable>
         </Animated.View>
-      </TouchableOpacity>
+      </Pressable>
     </Modal>
   );
 });

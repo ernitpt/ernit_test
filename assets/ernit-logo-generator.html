@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ernit Logo Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui; color: #fff; }
+  .controls { margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .controls button { padding: 12px 28px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; background: #059669; color: #fff; transition: background 0.2s; }
+  .controls button:hover { background: #047857; }
+  .preview { margin-top: 16px; padding: 40px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; }
+  .label { font-size: 14px; opacity: 0.5; margin-bottom: 8px; text-align: center; }
+  .checkerboard { background-image: repeating-conic-gradient(#333 0% 25%, #444 0% 50%); background-size: 20px 20px; }
+  .size-controls { margin-bottom: 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .size-controls label { font-size: 14px; opacity: 0.7; }
+  .size-controls input, .size-controls select { padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; font-size: 14px; }
+  .size-controls input { width: 80px; }
+</style>
+</head>
+<body>
+
+<div class="size-controls">
+  <label>Font size (px):</label>
+  <input type="number" id="fontSize" value="200" min="40" max="800" step="10" onchange="updatePreview()">
+  <label>Text color:</label>
+  <select id="textColor" onchange="updatePreview()">
+    <option value="#FFFFFF">White (footer style)</option>
+    <option value="#1E293B">Dark (hero style)</option>
+  </select>
+  <label>Dot color:</label>
+  <select id="dotColor" onchange="updatePreview()">
+    <option value="#F59E0B">Amber / warning (#F59E0B)</option>
+    <option value="#10B981">Emerald / secondary (#10B981)</option>
+  </select>
+</div>
+<div class="controls">
+  <button onclick="download()">Download PNG (transparent bg)</button>
+</div>
+<p class="label">Transparent background — checkerboard = transparency</p>
+<div class="preview checkerboard">
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+// Exact match from ChallengeLandingScreen.tsx brandTitle style:
+// fontSize: vh(44), fontWeight: '900', fontStyle: 'italic', letterSpacing: -1.5
+
+function getFont(size) {
+  return 'italic 900 ' + size + 'px system-ui, -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif';
+}
+
+function render(ctx, w, h, fontSize, textColor, dotColor) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = getFont(fontSize);
+  ctx.textBaseline = 'middle';
+
+  // letterSpacing: -1.5 scaled proportionally
+  const spacing = -1.5 * (fontSize / 44);
+
+  // Measure and draw "ernit" char by char for letter-spacing
+  const chars = 'ernit'.split('');
+  const dotChar = '.';
+
+  // Measure total width first
+  let totalWidth = 0;
+  for (const ch of chars) {
+    totalWidth += ctx.measureText(ch).width + spacing;
+  }
+  totalWidth -= spacing; // remove last spacing
+  const dotWidth = ctx.measureText(dotChar).width;
+  totalWidth += dotWidth;
+
+  let x = (w - totalWidth) / 2;
+  const y = h / 2;
+
+  // Draw "ernit" with letter-spacing
+  ctx.fillStyle = textColor;
+  for (const ch of chars) {
+    ctx.fillText(ch, x, y);
+    x += ctx.measureText(ch).width + spacing;
+  }
+
+  // Draw "." in dot color
+  ctx.fillStyle = dotColor;
+  ctx.fillText(dotChar, x, y);
+}
+
+function measure(fontSize) {
+  const c = document.createElement('canvas').getContext('2d');
+  c.font = getFont(fontSize);
+  const spacing = -1.5 * (fontSize / 44);
+  let totalWidth = 0;
+  for (const ch of 'ernit.'.split('')) {
+    totalWidth += c.measureText(ch).width + spacing;
+  }
+  totalWidth -= spacing;
+  const w = Math.ceil(totalWidth) + Math.ceil(fontSize * 0.3);
+  const h = Math.ceil(fontSize * 1.5);
+  return { w, h };
+}
+
+function updatePreview() {
+  const fontSize = parseInt(document.getElementById('fontSize').value) || 200;
+  const textColor = document.getElementById('textColor').value;
+  const dotColor = document.getElementById('dotColor').value;
+  const { w, h } = measure(fontSize);
+  const canvas = document.getElementById('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  render(ctx, w, h, fontSize, textColor, dotColor);
+}
+
+function download() {
+  const fontSize = parseInt(document.getElementById('fontSize').value) || 200;
+  const textColor = document.getElementById('textColor').value;
+  const dotColor = document.getElementById('dotColor').value;
+  const { w, h } = measure(fontSize);
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  render(ctx, w, h, fontSize, textColor, dotColor);
+  const link = document.createElement('a');
+  link.download = 'ernit-logo-' + fontSize + 'px.png';
+  link.href = c.toDataURL('image/png');
+  link.click();
+}
+
+updatePreview();
+</script>
+</body>
+</html>

@@ -136,6 +136,10 @@ export default function ChallengeSetupScreen() {
     // Refs for focus chaining
     const minutesRef = useRef<RNTextInput>(null);
 
+    // Animated dial: displayMinutes drives the visual, sessionMinutes is the form value
+    const [displayMinutes, setDisplayMinutes] = useState(30);
+    const animFrameRef = useRef<number | null>(null);
+
     // Category filter state (single-select, 'All' by default)
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showFilterScrollHint, setShowFilterScrollHint] = useState(true);
@@ -431,10 +435,10 @@ export default function ChallengeSetupScreen() {
                     });
                 }, 300);
             } else if (paymentChoice === 'payLater' && selectedExperience) {
-                // "Pay on success" — save card via DeferredSetup
-                // For self-challenges, we create a lightweight SetupIntent client-side
-                // The card will be charged at goal completion via chargeDeferredGift
-                showSuccess('Challenge created! Save your payment method next.');
+                // "Pay on success" — goal created with paymentCommitment: 'payOnCompletion'.
+                // At completion, the user will be prompted to purchase via ExperienceCheckout.
+                // No card collection at setup (supports MB WAY and all payment methods at completion).
+                showSuccess('Challenge created! You\'ll pay when you complete your goal.');
                 setTimeout(() => {
                     navigation.navigate('Goals' as any);
                 }, 300);
@@ -552,7 +556,7 @@ export default function ChallengeSetupScreen() {
                         maxLength={50}
                         autoFocus
                         accessibilityLabel="Custom goal name"
-                        leftIcon={<Text style={styles.customGoalIcon}>{'\u2728'}</Text>}
+
                         containerStyle={{ marginBottom: 0 }}
                     />
                     {validationErrors.goal && customGoal.trim() === '' && (
@@ -602,23 +606,41 @@ export default function ChallengeSetupScreen() {
     const DIAL_STROKE = 8;
     const HANDLE_RADIUS = 14;
 
+    // Animate displayMinutes toward sessionMinutes smoothly
+    const snapToPreset = (target: number) => {
+        setSessionMinutes(target);
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        const start = displayMinutes;
+        const diff = target - start;
+        const duration = 350;
+        const startTime = performance.now();
+        const step = (now: number) => {
+            const t = Math.min((now - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+            setDisplayMinutes(Math.round(start + diff * eased));
+            if (t < 1) animFrameRef.current = requestAnimationFrame(step);
+        };
+        animFrameRef.current = requestAnimationFrame(step);
+    };
+
     const renderTimeStep = () => {
-        // Convert minutes to angle (0-360, starting from top/12 o'clock position)
-        const angle = (sessionMinutes / 60) * 360;
+        // Use displayMinutes for visual rendering (animated), sessionMinutes for form state
+        const visMinutes = displayMinutes;
+        const angle = (visMinutes / 60) * 360;
         const angleRad = ((angle - 90) * Math.PI) / 180;
         const arcRadius = DIAL_RADIUS - 20;
         const handleX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
         const handleY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
 
         // Arc path for filled portion
-        const startAngleRad = (-90 * Math.PI) / 180; // 12 o'clock
+        const startAngleRad = (-90 * Math.PI) / 180;
         const largeArc = angle > 180 ? 1 : 0;
         const startX = DIAL_RADIUS + arcRadius * Math.cos(startAngleRad);
         const startY = DIAL_RADIUS + arcRadius * Math.sin(startAngleRad);
         const endX = DIAL_RADIUS + arcRadius * Math.cos(angleRad);
         const endY = DIAL_RADIUS + arcRadius * Math.sin(angleRad);
-        const isFullCircle = sessionMinutes >= 60;
-        const arcPath = (!isFullCircle && sessionMinutes > 0)
+        const isFullCircle = visMinutes >= 60;
+        const arcPath = (!isFullCircle && visMinutes > 0)
             ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
             : '';
 
@@ -628,13 +650,15 @@ export default function ChallengeSetupScreen() {
             const dy = locationY - DIAL_RADIUS;
             let a = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
             if (a < 0) a += 360;
-            const mins = Math.round((a / 360) * 60 / 5) * 5; // snap to 5
-            setSessionMinutes(Math.max(5, Math.min(60, mins)));
+            const mins = Math.round((a / 360) * 60 / 5) * 5;
+            const clamped = Math.max(5, Math.min(60, mins));
+            setSessionMinutes(clamped);
+            setDisplayMinutes(clamped); // direct set on drag, no animation
         };
 
         return (
             <View style={styles.stepContent}>
-                <View style={{ alignItems: 'center', marginTop: vh(10) }}>
+                <View style={{ alignItems: 'center', marginTop: vh(4) }}>
                     <View
                         style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
                         onStartShouldSetResponder={() => true}
@@ -643,6 +667,21 @@ export default function ChallengeSetupScreen() {
                         onResponderMove={handleTouch}
                     >
                         <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
+                            {/* Tick marks (every 5 min = 12 ticks) */}
+                            {Array.from({ length: 12 }).map((_, i) => {
+                                const tickAngle = ((i * 30 - 90) * Math.PI) / 180;
+                                const isMajor = i % 3 === 0;
+                                const outerR = arcRadius + 4;
+                                const innerR = arcRadius - (isMajor ? 10 : 6);
+                                return (
+                                    <Path
+                                        key={`tick-${i}`}
+                                        d={`M ${DIAL_RADIUS + innerR * Math.cos(tickAngle)} ${DIAL_RADIUS + innerR * Math.sin(tickAngle)} L ${DIAL_RADIUS + outerR * Math.cos(tickAngle)} ${DIAL_RADIUS + outerR * Math.sin(tickAngle)}`}
+                                        stroke={colors.border}
+                                        strokeWidth={isMajor ? 2 : 1}
+                                    />
+                                );
+                            })}
                             {/* Background circle */}
                             <Circle
                                 cx={DIAL_RADIUS}
@@ -662,7 +701,7 @@ export default function ChallengeSetupScreen() {
                                     strokeWidth={DIAL_STROKE}
                                     fill="none"
                                 />
-                            ) : sessionMinutes > 0 ? (
+                            ) : visMinutes > 0 ? (
                                 <Path
                                     d={arcPath}
                                     stroke={colors.secondary}
@@ -671,7 +710,13 @@ export default function ChallengeSetupScreen() {
                                     fill="none"
                                 />
                             ) : null}
-                            {/* Handle */}
+                            {/* Handle with shadow effect */}
+                            <Circle
+                                cx={handleX}
+                                cy={handleY}
+                                r={HANDLE_RADIUS + 3}
+                                fill={colors.secondary + '20'}
+                            />
                             <Circle
                                 cx={handleX}
                                 cy={handleY}
@@ -693,7 +738,7 @@ export default function ChallengeSetupScreen() {
                                 color: colors.secondary,
                                 letterSpacing: -2,
                             }}>
-                                {sessionMinutes}
+                                {visMinutes}
                             </Text>
                             <Text style={{
                                 ...Typography.caption,
@@ -706,10 +751,10 @@ export default function ChallengeSetupScreen() {
                             </Text>
                         </View>
 
-                        {/* Minute markers around edge */}
+                        {/* Minute markers inside the circle */}
                         {[0, 15, 30, 45].map((m) => {
                             const markerAngle = ((m / 60) * 360 - 90) * Math.PI / 180;
-                            const markerR = DIAL_RADIUS + 16;
+                            const markerR = DIAL_RADIUS - 45;
                             const mx = DIAL_RADIUS + markerR * Math.cos(markerAngle);
                             const my = DIAL_RADIUS + markerR * Math.sin(markerAngle);
                             return (
@@ -718,7 +763,7 @@ export default function ChallengeSetupScreen() {
                                     left: mx - 10,
                                     top: my - 8,
                                     ...Typography.caption,
-                                    fontWeight: '600',
+                                    fontWeight: '700',
                                     color: colors.textMuted,
                                     width: 20,
                                     textAlign: 'center',
@@ -730,9 +775,34 @@ export default function ChallengeSetupScreen() {
                     </View>
                 </View>
 
+                {/* Preset time chips */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginTop: vh(20) }}>
+                    {[15, 30, 45, 60].map((m) => (
+                        <MotiView
+                            key={m}
+                            animate={{ scale: sessionMinutes === m ? 1.06 : 1 }}
+                            transition={{ type: 'spring', damping: 15, stiffness: 150 }}
+                        >
+                            <TouchableOpacity
+                                style={[
+                                    styles.presetChip,
+                                    sessionMinutes === m && styles.presetChipActive,
+                                ]}
+                                onPress={() => snapToPreset(m)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[
+                                    styles.presetChipText,
+                                    sessionMinutes === m && styles.presetChipTextActive,
+                                ]}>{m} min</Text>
+                            </TouchableOpacity>
+                        </MotiView>
+                    ))}
+                </View>
+
                 {/* Custom time toggle */}
                 <TouchableOpacity
-                    style={{ alignSelf: 'center', marginTop: vh(36) }}
+                    style={{ alignSelf: 'center', marginTop: vh(16) }}
                     onPress={() => setShowCustomTime(!showCustomTime)}
                     activeOpacity={0.7}
                 >
@@ -1713,6 +1783,25 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         color: colors.textMuted,
         textAlign: 'center' as const,
         marginTop: Spacing.xxs,
+    },
+    presetChip: {
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+    },
+    presetChipActive: {
+        backgroundColor: colors.secondary,
+        borderColor: colors.secondary,
+    },
+    presetChipText: {
+        ...Typography.smallBold,
+        color: colors.textSecondary,
+    },
+    presetChipTextActive: {
+        color: colors.white,
     },
     customGoalContainer: {
         marginTop: Spacing.xl,

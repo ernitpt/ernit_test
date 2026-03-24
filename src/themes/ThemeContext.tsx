@@ -25,7 +25,7 @@ export const useTheme = () => {
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>('light');
+  const [mode, setModeState] = useState<ThemeMode>('system');
 
   // Load persisted theme on mount
   useEffect(() => {

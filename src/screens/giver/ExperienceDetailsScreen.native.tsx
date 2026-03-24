@@ -75,7 +75,7 @@ export default function ExperienceDetailsScreen() {
       <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.white, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
       </MainScreen>
       </ErrorBoundary>

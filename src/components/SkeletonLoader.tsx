@@ -309,6 +309,33 @@ export const ProfileSkeleton: React.FC = () => {
     );
 };
 
+// Featured Hero Skeleton — matches FeaturedHeroCard on redesigned CategorySelectionScreen
+export const FeaturedHeroSkeleton: React.FC = () => {
+    const colors = useColors();
+    return (
+        <View style={{ marginHorizontal: 24, marginTop: 12, marginBottom: 8 }} accessibilityLabel="Loading">
+            <SkeletonBox
+                width="100%"
+                height={240}
+                borderRadius={20}
+            />
+        </View>
+    );
+};
+
+// Bento Card Skeleton — matches BentoCard on redesigned CategorySelectionScreen
+export const BentoCardSkeleton: React.FC<{ height: number; width: number }> = ({ height, width }) => {
+    return (
+        <View accessibilityLabel="Loading">
+            <SkeletonBox
+                width={width}
+                height={height}
+                borderRadius={16}
+            />
+        </View>
+    );
+};
+
 const createStyles = (colors: typeof Colors) =>
     StyleSheet.create({
         skeleton: {
