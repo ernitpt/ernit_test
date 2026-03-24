@@ -264,6 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - optimize list rendering with React.memo and useCallback
 - remove unused styles sliderTrack, sliderProgress, sliderThumb, goalTypeCardActive from GiftFlowScreen
 - remove unused style definitions from GiftFlowScreen
+- replace last hardcoded color in GiftFlowScreen with whiteAlpha80 token
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

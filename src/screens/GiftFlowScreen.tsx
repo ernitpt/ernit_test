@@ -776,7 +776,7 @@ export default function GiftFlowScreen() {
                                 <Text style={[styles.goalTypeName, isSelected && styles.goalTypeNameActive]}>{type.name}</Text>
                                 <Text style={[
                                     styles.goalTypeTagline,
-                                    isSelected && { color: '#ffffffCC' },
+                                    isSelected && { color: colors.whiteAlpha80 },
                                 ]}>{type.tagline}</Text>
                             </TouchableOpacity>
                         </MotiView>
