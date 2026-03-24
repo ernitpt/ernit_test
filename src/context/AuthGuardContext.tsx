@@ -7,12 +7,12 @@ import { pushNotificationService } from '../services/PushNotificationService';
 import { logger } from '../utils/logger';
 type PendingNavigation = {
   routeName: keyof RootStackParamList;
-  params?: any;
+  params?: Record<string, unknown>;
 };
 
 interface AuthGuardContextType {
   isAuthenticated: boolean;
-  requireAuth: (message?: string, routeName?: keyof RootStackParamList, params?: any) => boolean;
+  requireAuth: (message?: string, routeName?: keyof RootStackParamList, params?: Record<string, unknown>) => boolean;
   showLoginPrompt: boolean;
   loginMessage: string;
   closeLoginPrompt: () => void;
@@ -146,7 +146,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
    * @returns true = allowed, false = BLOCKED (modal shown)
    */
   const requireAuth = useCallback(
-    (message?: string, routeName?: keyof RootStackParamList, params?: any): boolean => {
+    (message?: string, routeName?: keyof RootStackParamList, params?: Record<string, unknown>): boolean => {
       if (isAuthenticated) return true; // user allowed
 
       // Avoid repeated modal triggers

@@ -257,6 +257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace hardcoded font sizes with typography tokens
 - replace hardcoded spacing values with spacing tokens
 - replace hardcoded colors with design tokens in ChallengeLandingScreen
+- replace any types with proper TypeScript types across codebase
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -612,6 +613,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - show featured carousel and allow filter switching in empower flow
 - replace broken horizontal scroll tabs with conditional rendering (UserProfile + Journey)
 - use correct info color token instead of hardcoded purple fallback
+- replace any types with proper TypeScript types across codebase
 
 ### Added
 - Automatic changelog system with `npm run log` script

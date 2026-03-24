@@ -19,6 +19,7 @@ import {
     Animated,
     Alert,
     KeyboardAvoidingView,
+    GestureResponderEvent,
 } from 'react-native';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
@@ -35,6 +36,7 @@ import {
     GiftRevealMode,
     GiftPaymentChoice,
     GiftFlowPrefill,
+    CartItem,
 } from '../types';
 import { useRootNavigation } from '../types/navigation';
 import { useApp } from '../context/AppContext';
@@ -271,7 +273,7 @@ export default function GiftFlowScreen() {
 
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
-        const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+        const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
             if (giftCreatedRef.current) return; // Don't block navigation after successful creation
             if (currentStep === 1) return; // Allow back from step 1
             e.preventDefault();
@@ -588,7 +590,7 @@ export default function GiftFlowScreen() {
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
-                    throw new Error((errorData as any)?.message || 'Failed to create challenge');
+                    throw new Error((errorData as { message?: string })?.message || 'Failed to create challenge');
                 }
 
                 const result = await response.json();
@@ -598,13 +600,13 @@ export default function GiftFlowScreen() {
                     index: 0,
                     routes: [
                         {
-                            name: 'Confirmation' as any,
+                            name: 'Confirmation' as 'Confirmation',
                             params: {
                                 experienceGift: result.gift,
                                 challengeType: 'shared',
                                 isCategory: true,
                                 preferredRewardCategory,
-                            },
+                            } as { experienceGift: typeof result.gift },
                         },
                     ],
                 });
@@ -642,7 +644,7 @@ export default function GiftFlowScreen() {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error((errorData as any)?.message || 'Failed to create gift');
+                throw new Error((errorData as { message?: string })?.message || 'Failed to create gift');
             }
 
             const result = await response.json();
@@ -650,10 +652,10 @@ export default function GiftFlowScreen() {
             giftCreatedRef.current = true;
 
             if (paymentChoice === 'payNow') {
-                navigation.navigate('ExperienceCheckout' as any, {
+                navigation.navigate('ExperienceCheckout', {
                     cartItems: [{ experienceId: selectedExperience!.id, quantity: 1 }],
                     giftId: result.gift?.id,
-                });
+                } as { cartItems: CartItem[] });
             } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
                 navigation.navigate('DeferredSetup', {
                     setupIntentClientSecret: result.setupIntentClientSecret,
@@ -868,7 +870,7 @@ export default function GiftFlowScreen() {
             ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
             : '';
 
-        const handleTouch = (event: any) => {
+        const handleTouch = (event: GestureResponderEvent) => {
             const { pageX, pageY, locationX, locationY } = event.nativeEvent;
             const x = locationX ?? (pageX - clockLayout.current.x);
             const y = locationY ?? (pageY - clockLayout.current.y);

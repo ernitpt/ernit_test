@@ -18,6 +18,7 @@ import {
     Animated,
     Alert,
     KeyboardAvoidingView,
+    GestureResponderEvent,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
@@ -155,7 +156,7 @@ export default function ChallengeSetupScreen() {
 
     // Exit confirmation for unsaved wizard progress
     useEffect(() => {
-        const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+        const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
             if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after successful creation
             e.preventDefault();
             Alert.alert(
@@ -427,7 +428,7 @@ export default function ChallengeSetupScreen() {
                 // "Lock it in" — pay now via ExperienceCheckout
                 showSuccess('Challenge created! Complete payment to secure your reward.');
                 setTimeout(() => {
-                    navigation.replace('ExperienceCheckout' as any, {
+                    navigation.replace('ExperienceCheckout', {
                         cartItems: [{
                             experienceId: selectedExperience.id,
                             quantity: 1,
@@ -441,7 +442,7 @@ export default function ChallengeSetupScreen() {
                 // No card collection at setup (supports MB WAY and all payment methods at completion).
                 showSuccess('Challenge created! You\'ll pay when you complete your goal.');
                 setTimeout(() => {
-                    navigation.reset({ index: 0, routes: [{ name: 'Goals' as any }] });
+                    navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
                 }, 300);
             } else {
                 // Free goal (category preference or skip) — go straight to Goals
@@ -454,7 +455,7 @@ export default function ChallengeSetupScreen() {
                         });
                     } catch (navError) {
                         logger.warn('navigation.reset failed, using navigate fallback:', navError);
-                        navigation.navigate('Goals' as any);
+                        navigation.navigate('Goals');
                     }
                 }, 300);
             }
@@ -467,7 +468,7 @@ export default function ChallengeSetupScreen() {
             });
             const isLimitError = error instanceof Error && (
                 error.message?.includes('3 active') ||
-                (error as any).code === 'GOAL_LIMIT_REACHED'
+                (error as Error & { code?: string }).code === 'GOAL_LIMIT_REACHED'
             );
             showError(isLimitError
                 ? 'You already have 3 active free goals. Complete or delete one first to start a new challenge.'
@@ -648,7 +649,7 @@ export default function ChallengeSetupScreen() {
             ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
             : '';
 
-        const handleTouch = (event: any) => {
+        const handleTouch = (event: GestureResponderEvent) => {
             const { pageX, pageY, locationX, locationY } = event.nativeEvent;
             const x = locationX ?? (pageX - clockLayout.current.x);
             const y = locationY ?? (pageY - clockLayout.current.y);

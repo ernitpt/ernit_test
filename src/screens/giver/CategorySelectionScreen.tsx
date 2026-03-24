@@ -17,6 +17,8 @@ import {
   ScrollView,
   Dimensions,
   LayoutAnimation,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -566,7 +568,7 @@ const CategorySelectionScreen = () => {
   // Whether to show hero carousel — stays visible regardless of category filter
   const showHero = popularExperiences.length > 0 && !searchQuery.trim();
 
-  const onCarouselScroll = useCallback((e: any) => {
+  const onCarouselScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / HERO_SNAP_INTERVAL);
     setActiveCarouselIndex(Math.max(0, Math.min(index, popularExperiences.length - 1)));

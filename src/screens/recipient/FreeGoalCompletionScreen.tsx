@@ -70,10 +70,12 @@ const FreeGoalCompletionScreen = () => {
   const confettiRef = useRef<any>(null);
   const animTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const toDate = (value: any): Date | undefined => {
+  const toDate = (value: unknown): Date | undefined => {
     if (!value) return undefined;
-    if (value?.seconds) return new Date(value.seconds * 1000);
-    const date = new Date(value);
+    if (typeof value === 'object' && value !== null && 'seconds' in value) {
+      return new Date((value as { seconds: number }).seconds * 1000);
+    }
+    const date = new Date(value as string | number | Date);
     return isNaN(date.getTime()) ? undefined : date;
   };
 

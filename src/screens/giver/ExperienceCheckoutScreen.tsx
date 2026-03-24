@@ -120,7 +120,7 @@ const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGif
     const gifts = await response.json();
     if (!Array.isArray(gifts)) return [];
 
-    return gifts.map((gift: any) => ({
+    return gifts.map((gift: ExperienceGift) => ({
       ...gift,
       createdAt: new Date(gift.createdAt),
       deliveryDate: new Date(gift.deliveryDate),
@@ -215,7 +215,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
   // --- Block hardware back / gesture swipe during active payment ---
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+    const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void }) => {
       if (!isProcessing && !isCheckingRedirect) return; // Allow normal back
       e.preventDefault(); // Block navigation during payment
     });

@@ -267,8 +267,8 @@ const CompletionScreen = () => {
       }
 
       await generateCouponWithTransaction();
-    } catch (error: any) {
-      if (error?.code === 'PAYMENT_PENDING') {
+    } catch (error: unknown) {
+      if (error instanceof Error && (error as Error & { code?: string }).code === 'PAYMENT_PENDING') {
         setPaymentPending(true);
         return;
       }

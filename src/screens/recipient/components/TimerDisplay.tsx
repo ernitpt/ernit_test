@@ -111,15 +111,15 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     return (
       <View
         {...{
-          onPointerDown: (e: any) => { e.preventDefault(); handlePressIn(); },
+          onPointerDown: (e: { preventDefault: () => void }) => { e.preventDefault(); handlePressIn(); },
           onPointerUp: handlePressOut,
           onPointerLeave: handlePressOut,
-          onContextMenu: (e: any) => e.preventDefault(),
-        } as any}
+          onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
+        } as Record<string, unknown>}
         style={[
           styles.finishButton,
           canFinish ? styles.finishButtonActive : styles.finishButtonDisabled,
-          { cursor: canFinish && !loading ? 'pointer' : 'default', userSelect: 'none' } as any,
+          { cursor: canFinish && !loading ? 'pointer' : 'default', userSelect: 'none' } as object,
         ]}
       >
         {/* Fill overlay */}
@@ -133,7 +133,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
             },
           ]}
         />
-        <Text style={[styles.finishButtonText, { userSelect: 'none' } as any]}>
+        <Text style={[styles.finishButtonText, { userSelect: 'none' } as object]}>
           {!canFinish ? 'Finish' : pressing ? 'Hold...' : 'Hold to Finish'}
         </Text>
       </View>

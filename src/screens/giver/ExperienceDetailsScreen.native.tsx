@@ -103,7 +103,7 @@ export default function ExperienceDetailsScreen() {
         partnerId: experience.partnerId || '',
         quantity: 1,
       }];
-      const { data }: any = await createIntent({
+      const result = await createIntent({
         amount: experience.price,
         giverId: state.user?.id,
         giverName: state.user?.displayName || '',
@@ -111,13 +111,14 @@ export default function ExperienceDetailsScreen() {
         cartMetadata,
         personalizedMessage,
       });
+      const data = result.data as { clientSecret: string };
 
       // Hand off to the web checkout flow — gift creation happens server-side
       // via the stripeWebhook Cloud Function after payment succeeds.
       navigation.navigate('ExperienceCheckout', {
         cartItems: [{ experienceId: experience.id, quantity: 1 }],
         clientSecret: data.clientSecret,
-      });
+      } as never);
     } catch (err: unknown) {
       logger.error('❌ Payment error:', err);
       const message = err instanceof Error ? err.message : String(err);

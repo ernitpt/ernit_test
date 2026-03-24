@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Alert,
   Image,
+  GestureResponderEvent,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
@@ -135,7 +136,7 @@ const GoalSettingScreen = () => {
 
   // Exit confirmation for unsaved wizard progress
   useEffect(() => {
-    const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+    const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
       if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after creation
       e.preventDefault();
       Alert.alert(
@@ -153,7 +154,7 @@ const GoalSettingScreen = () => {
   // Validate required data
   const hasValidData = Boolean(
     experienceGift?.id &&
-    (experienceGift?.experienceId || (experienceGift as any)?.isCategoryOnly || (experienceGift as any)?.preferredRewardCategory)
+    (experienceGift?.experienceId || (experienceGift as ExperienceGift & { isCategoryOnly?: boolean; preferredRewardCategory?: string })?.isCategoryOnly || (experienceGift as ExperienceGift & { isCategoryOnly?: boolean; preferredRewardCategory?: string })?.preferredRewardCategory)
   );
 
   useEffect(() => {
@@ -388,7 +389,7 @@ const GoalSettingScreen = () => {
         isActive: true,
         isCompleted: false,
         isRevealed: false,
-        location: experience?.location || (experienceGift as any)?.preferredRewardCategory || 'Unknown location',
+        location: experience?.location || (experienceGift as ExperienceGift & { preferredRewardCategory?: string })?.preferredRewardCategory || 'Unknown location',
         targetHours: hoursNum,
         targetMinutes: minutesNum,
         createdAt: now,
@@ -914,7 +915,7 @@ const GoalSettingScreen = () => {
       ? `M ${startX} ${startY} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${endX} ${endY}`
       : '';
 
-    const handleTouch = (event: any) => {
+    const handleTouch = (event: GestureResponderEvent) => {
       const { pageX, pageY, locationX, locationY } = event.nativeEvent;
       const x = locationX ?? (pageX - clockLayout.current.x);
       const y = locationY ?? (pageY - clockLayout.current.y);

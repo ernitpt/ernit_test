@@ -12,6 +12,8 @@ import {
   Platform,
   Dimensions,
   Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -138,7 +140,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
   const images = Array.isArray(experience.imageUrl) ? experience.imageUrl : [experience.imageUrl];
 
-  const handleScroll = (event: any) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / slideSize);

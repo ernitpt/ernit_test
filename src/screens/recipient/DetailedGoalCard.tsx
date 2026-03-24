@@ -15,7 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Goal, isSelfGifted } from '../../types';
+import { Goal, ExperienceGift, isSelfGifted } from '../../types';
 import { db } from '../../services/firebase';
 import { addDoc, collection, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { normalizeGoal } from '../../services/GoalService';
@@ -747,14 +747,15 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(err);
       await logErrorToFirestore(err, {
         screenName: 'DetailedGoalCard',
         feature: 'UpdateGoalProgress',
         additionalData: { goalId: currentGoal.id },
       });
-      if (err?.code === 'unavailable' || err?.message?.includes('network') || err?.message?.includes('offline')) {
+      const errWithCode = err as Error & { code?: string };
+      if (errWithCode?.code === 'unavailable' || errWithCode?.message?.includes('network') || errWithCode?.message?.includes('offline')) {
         showError('You appear to be offline. Your session is saved — please try again when connected.');
       } else {
         showError('Could not update goal progress. Please try again.');
@@ -1313,12 +1314,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                       showError('Could not find invite code');
                       return;
                     }
-                    navigation.navigate('Confirmation' as any, {
-                      experienceGift: giftData || { id: currentGoal.id, claimCode: currentGoal.claimCode },
+                    navigation.navigate('Confirmation', {
+                      experienceGift: (giftData || { id: currentGoal.id, claimCode: currentGoal.claimCode }) as ExperienceGift,
                       challengeType: 'shared',
                       isCategory: !currentGoal.experienceGiftId || !giftData?.experienceId,
                       preferredRewardCategory: currentGoal.preferredRewardCategory,
-                    });
+                    } as { experienceGift: ExperienceGift });
                   } catch (err) {
                     logger.warn('Navigate to share screen failed:', err);
                   }
@@ -1579,7 +1580,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         }}
         onBrowseOthers={() => {
           setShowExperienceReveal(false);
-          navigation.navigate('CategorySelection' as any);
+          navigation.navigate('CategorySelection');
         }}
       />
 
