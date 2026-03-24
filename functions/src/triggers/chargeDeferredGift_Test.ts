@@ -2,6 +2,7 @@ import * as functions from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getOrCreateStripeCustomer } from "../utils/stripeCustomer";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 
@@ -97,11 +98,19 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                 }
 
                 // Read partner goal to check completion and get their userId (H3)
-                const partnerGoalSnap = await db.collection('goals').doc(afterData.partnerGoalId).get();
-                const partnerGoalData = partnerGoalSnap.data();
-                const partnerUserId: string | undefined = partnerGoalData?.userId;
+                let partnerGoalSnap;
+                let partnerGoalData;
+                let partnerUserId: string | undefined;
+                try {
+                    partnerGoalSnap = await db.collection('goals').doc(afterData.partnerGoalId).get();
+                    partnerGoalData = partnerGoalSnap.data();
+                    partnerUserId = partnerGoalData?.userId;
+                } catch (readErr) {
+                    console.error(`❌ [TEST] Failed to read partner goal ${afterData.partnerGoalId}:`, readErr);
+                    return null; // Don't charge if we can't verify partner completion
+                }
 
-                if (!partnerGoalSnap.exists) {
+                if (!partnerGoalSnap?.exists) {
                     console.warn('Partner goal deleted, treating as completed for charge purposes');
                     // Proceed with charge (fall through to charge logic)
                 } else if (!partnerGoalData?.isCompleted) {
@@ -244,6 +253,15 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
 
             if (!giftData.setupIntentId) {
                 console.error(`❌ [TEST] ExperienceGift ${giftId} has no setupIntentId`);
+                await db.collection("notifications").add({
+                    userId: giftData.giverId,
+                    type: 'payment_failed',
+                    title: 'Payment method needed',
+                    message: `${recipientName} completed their goal! Please add a payment method to unlock their reward.`,
+                    data: { giftId, goalId },
+                    read: false,
+                    createdAt: FieldValue.serverTimestamp(),
+                });
                 return null;
             }
 
@@ -273,7 +291,12 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
             const currency = giftData.deferredCurrency || 'eur';
 
             if (amount <= 0) {
-                console.warn(`⚠️ [TEST] Deferred amount is 0 for gift ${giftId}`);
+                console.warn(`⚠️ [TEST] Deferred amount is 0 for gift ${giftId} — treating as free`);
+                await giftRef.update({
+                    payment: 'paid',
+                    status: 'completed',
+                    updatedAt: FieldValue.serverTimestamp(),
+                });
                 return null;
             }
 
@@ -316,10 +339,29 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
             let paymentIntentStatus: string;
 
             try {
+                // Retrieve Stripe Customer from gift doc, or create one on-the-fly
+                // (handles old gifts created before customer tracking was added)
+                const stripeCustomerId = giftData.stripeCustomerId
+                    || await getOrCreateStripeCustomer(stripe, db, giftData.giverId);
+
+                // Ensure the payment method is attached to the customer
+                // (needed for legacy gifts where SetupIntent had no customer).
+                // If already attached, Stripe throws — safe to ignore.
+                try {
+                    await stripe.paymentMethods.attach(claimedPaymentMethodId!, {
+                        customer: stripeCustomerId,
+                    });
+                } catch (attachErr: any) {
+                    // Stripe throws if PM is already attached to this or another customer.
+                    // Log but don't block — the charge will still work if PM belongs to this customer.
+                    console.log(`ℹ️ PM attach skipped: ${attachErr.message}`);
+                }
+
                 const paymentIntent = await stripe.paymentIntents.create(
                     {
                         amount: claimedAmount!,
                         currency: claimedCurrency!,
+                        customer: stripeCustomerId,
                         payment_method: claimedPaymentMethodId!,
                         off_session: true,
                         confirm: true,
@@ -336,14 +378,31 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                 paymentIntentId = paymentIntent.id;
                 paymentIntentStatus = paymentIntent.status;
 
-                // ── Step 3: Mark as paid on success ──────────────────────────
-                await giftRef.update({
+                // ── Step 3: Mark as paid on success (retry up to 3 times) ────
+                // Critical: Stripe charge succeeded — we MUST record it.
+                // If this fails, gift stays in 'processing' with no way to retry.
+                const paidUpdate = {
                     payment: 'paid',
                     status: 'completed',
                     paymentIntentId: paymentIntent.id,
                     chargedAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
-                });
+                };
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        await giftRef.update(paidUpdate);
+                        break;
+                    } catch (updateErr) {
+                        if (attempt === 3) {
+                            // All retries failed — log critical error with PaymentIntent ID
+                            // for manual reconciliation. Do NOT revert to 'deferred'.
+                            console.error(`🚨 [CRITICAL] Gift ${giftId} charged (PI: ${paymentIntent.id}) but Firestore update failed after 3 attempts:`, updateErr);
+                        } else {
+                            console.warn(`⚠️ Firestore update attempt ${attempt}/3 failed for gift ${giftId}, retrying...`);
+                            await new Promise(r => setTimeout(r, 500 * attempt));
+                        }
+                    }
+                }
             } catch (stripeError: any) {
                 // ── Step 4: Revert to 'deferred' on Stripe failure ────────────
                 try {
@@ -429,36 +488,39 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
         } catch (error: any) {
             console.error(`❌ [TEST] Error charging deferred gift for goal ${goalId}:`, error);
 
-            if (error.type === 'StripeCardError' || error.code === 'payment_intent_authentication_failure' || error.code === 'authentication_required') {
-                try {
-                    const giftDoc2 = await db.collection("experienceGifts").doc(experienceGiftId).get();
-                    const giverId = giftDoc2.data()?.giverId;
-                    if (giverId) {
-                        // SCA / authentication_required — provide a recovery URL
-                        const isAuthRequired = error.code === 'authentication_required';
-                        const recoveryUrl: string | undefined = error.raw?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
-                            ?? error.raw?.payment_intent?.next_action?.redirect_to_url?.url
-                            ?? undefined;
+            // Notify giver of ANY charge failure so the gift doesn't silently stall
+            const db2 = getFirestore("ernitclone2");
+            try {
+                const giftDoc2 = await db2.collection("experienceGifts").doc(experienceGiftId).get();
+                const giverId = giftDoc2.data()?.giverId;
+                if (giverId) {
+                    const isAuthRequired = error.code === 'authentication_required';
+                    const recoveryUrl: string | undefined = error.raw?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
+                        ?? error.raw?.payment_intent?.next_action?.redirect_to_url?.url
+                        ?? undefined;
 
-                        const notifMessage = isAuthRequired
-                            ? recoveryUrl
-                                ? `Your card requires additional verification. Please visit ${recoveryUrl} to complete the payment.`
-                                : 'Your card requires additional verification. Please open the app and update your payment method to complete the charge.'
-                            : `${recipientName} completed their goal, but the charge failed. Please update your payment method.`;
+                    let notifTitle = 'Payment failed';
+                    let notifMessage = `${recipientName} completed their goal, but the charge failed. Please update your payment method.`;
 
-                        await db.collection("notifications").add({
-                            userId: giverId,
-                            type: 'payment_failed',
-                            title: isAuthRequired ? 'Card Verification Required' : 'Payment failed',
-                            message: notifMessage,
-                            data: { giftId: experienceGiftId, goalId, recoveryUrl: recoveryUrl || '' },
-                            read: false,
-                            createdAt: FieldValue.serverTimestamp(),
-                        });
+                    if (isAuthRequired) {
+                        notifTitle = 'Card Verification Required';
+                        notifMessage = recoveryUrl
+                            ? `Your card requires additional verification. Please visit ${recoveryUrl} to complete the payment.`
+                            : 'Your card requires additional verification. Please open the app and update your payment method to complete the charge.';
                     }
-                } catch (notifError) {
-                    console.error("❌ [TEST] Failed to send payment failure notification:", notifError);
+
+                    await db2.collection("notifications").add({
+                        userId: giverId,
+                        type: 'payment_failed',
+                        title: notifTitle,
+                        message: notifMessage,
+                        data: { giftId: experienceGiftId, goalId, recoveryUrl: recoveryUrl || '' },
+                        read: false,
+                        createdAt: FieldValue.serverTimestamp(),
+                    });
                 }
+            } catch (notifError) {
+                console.error("❌ [TEST] Failed to send payment failure notification:", notifError);
             }
 
             return null;
