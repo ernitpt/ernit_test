@@ -143,6 +143,14 @@ export const Colors = {
     textOnImage: '#FFFFFF',
     overlayOnImage: 'rgba(0, 0, 0, 0.45)',
 
+    // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
+    landingBg: '#0F172A',           // slate-900
+    landingSectionBg: '#111827',    // gray-900
+
+    // ─── Additional alpha variants ──────────────────────────────────
+    whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
+    whiteAlpha08: 'rgba(255, 255, 255, 0.08)',
+
     // ─── Disabled state ───────────────────────────────────────────────
     disabled: '#D1D5DB',
     disabledText: '#6B7280',
@@ -293,6 +301,14 @@ export const DarkColors = {
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
     textOnImage: '#FFFFFF',
     overlayOnImage: 'rgba(0, 0, 0, 0.45)',
+
+    // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
+    landingBg: '#0F172A',           // slate-900
+    landingSectionBg: '#111827',    // gray-900
+
+    // ─── Additional alpha variants ──────────────────────────────────
+    whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
+    whiteAlpha08: 'rgba(255, 255, 255, 0.08)',
 
     // ─── Disabled state ─────────────────────────────────────────────
     disabled: '#3D4556',
