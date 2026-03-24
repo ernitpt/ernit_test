@@ -139,6 +139,10 @@ const FriendsListScreen: React.FC = () => {
     );
   }, [handleFriendPress]);
 
+  const handleLoadMore = useCallback(() => {
+    setDisplayCount(prev => Math.min(prev + 20, friends.length));
+  }, [friends.length]);
+
   return (
     <ErrorBoundary screenName="FriendsListScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Profile">
@@ -182,7 +186,7 @@ const FriendsListScreen: React.FC = () => {
             maxToRenderPerBatch={10}
             windowSize={5}
             getItemLayout={(data, index) => ({ length: 88, offset: 88 * index, index })}
-            onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, friends.length))}
+            onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               displayCount < friends.length ? (

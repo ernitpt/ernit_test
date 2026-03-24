@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
@@ -223,4 +223,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default CompletedGoalCard;
+export default memo(CompletedGoalCard);

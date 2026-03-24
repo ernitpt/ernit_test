@@ -416,6 +416,10 @@ const NotificationsScreen = () => {
     // No-op: the real-time onSnapshot listener in useEffect handles updates automatically
   }, []);
 
+  const handleLoadMore = useCallback(() => {
+    setDisplayCount(prev => Math.min(prev + 20, notifications.length));
+  }, [notifications.length]);
+
   const renderItem = useCallback(({ item, index }: { item: Notification; index: number }) => {
     // Handle friend request notifications specially
     if (item.type === 'friend_request') {
@@ -1105,7 +1109,7 @@ const NotificationsScreen = () => {
             removeClippedSubviews={Platform.OS !== 'web'}
             maxToRenderPerBatch={10}
             windowSize={5}
-            onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, notifications.length))}
+            onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               displayCount < notifications.length ? (

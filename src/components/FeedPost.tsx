@@ -324,6 +324,9 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         }
     };
 
+    const handleOpenFullscreen = useCallback(() => setFullscreenMedia(true), []);
+    const handleOpenComments = useCallback(() => setShowCommentModal(true), []);
+
     const typeInfo = getPostTypeInfo();
     const timeAgo = getTimeAgo(post.createdAt);
 
@@ -371,7 +374,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             {post.mediaUrl && (
                 <TouchableOpacity
                     activeOpacity={0.9}
-                    onPress={() => setFullscreenMedia(true)}
+                    onPress={handleOpenFullscreen}
                     style={styles.sessionMediaContainer}
                     accessibilityRole="button"
                     accessibilityLabel="View session media in fullscreen"
@@ -420,7 +423,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
                 <TouchableOpacity
                     style={styles.commentIconButton}
-                    onPress={() => setShowCommentModal(true)}
+                    onPress={handleOpenComments}
                     activeOpacity={0.7}
                     accessibilityRole="button"
                     accessibilityLabel={`View ${commentCount} comment${commentCount !== 1 ? 's' : ''}`}

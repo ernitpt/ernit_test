@@ -260,6 +260,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace any types with proper TypeScript types across codebase
 - replace hardcoded hex colors in HeroPreviewScreen with design tokens
 - overnight code quality pass complete
+- wrap CompletedGoalCard in memo, extract onEndReached and inline press handlers to useCallback
+- optimize list rendering with React.memo and useCallback
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

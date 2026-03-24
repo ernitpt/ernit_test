@@ -215,6 +215,10 @@ const PurchasedGiftsScreen = () => {
     </MotiView>
   ), []);
 
+  const handleLoadMore = useCallback(() => {
+    setDisplayCount(prev => Math.min(prev + 20, filteredGifts.length));
+  }, [filteredGifts.length]);
+
   return (
     <ErrorBoundary screenName="PurchasedGiftsScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Settings">
@@ -287,7 +291,7 @@ const PurchasedGiftsScreen = () => {
           maxToRenderPerBatch={10}
           windowSize={5}
           getItemLayout={(data, index) => ({ length: 120, offset: 120 * index, index })}
-          onEndReached={() => setDisplayCount(prev => Math.min(prev + 20, filteredGifts.length))}
+          onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             displayCount < filteredGifts.length ? (
