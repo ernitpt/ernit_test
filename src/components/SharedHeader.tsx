@@ -200,6 +200,8 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                                     styles.debugButton,
                                     state.debugMode && styles.debugActiveBackground,
                                 ]}
+                                accessibilityLabel="Toggle debug mode"
+                                accessibilityRole="button"
                             >
                                 <Bug
                                     color={state.debugMode ? colors.white : colors.textMuted}

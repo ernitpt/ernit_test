@@ -626,6 +626,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing sanitization to Firestore writes and remove unused imports
 - guard setTimeout callbacks with isMounted ref in ClaimExperienceModal and ExperienceRevealModal to prevent memory leaks on unmount
 - add mounting guards to setTimeout callbacks to prevent memory leaks
+- added missing accessibility attributes to SharedHeader debug toggle and SideMenu picker items
+- add missing accessibility labels to SharedHeader and SideMenu picker elements
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -677,6 +677,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                             key={h}
                             onPress={() => setPickerHour(h)}
                             style={[styles.pickerItem, pickerHour === h && styles.pickerItemActive]}
+                            accessibilityLabel={label}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: pickerHour === h }}
                           >
                             <Text style={[styles.pickerItemText, pickerHour === h && styles.pickerItemTextActive]}>
                               {label}
@@ -695,6 +698,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                           key={m}
                           onPress={() => setPickerMinute(m)}
                           style={[styles.pickerItem, pickerMinute === m && styles.pickerItemActive]}
+                          accessibilityLabel={`:${m.toString().padStart(2, '0')}`}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: pickerMinute === m }}
                         >
                           <Text style={[styles.pickerItemText, pickerMinute === m && styles.pickerItemTextActive]}>
                             :{m.toString().padStart(2, '0')}
