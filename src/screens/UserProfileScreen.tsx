@@ -975,7 +975,7 @@ const UserProfileScreen: React.FC = () => {
                 numberOfLines={6}
                 maxLength={300}
                 error={formErrors.description}
-                inputStyle={{ minHeight: 120 }}
+                inputStyle={{ minHeight: Spacing.textareaMinHeight }}
               />
             </ScrollView>
           </KeyboardAvoidingView>

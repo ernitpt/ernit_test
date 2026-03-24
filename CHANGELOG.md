@@ -255,6 +255,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace console statements with logger utility across services and screens
 - replace hardcoded font sizes with Typography tokens across 8 files
 - replace hardcoded font sizes with typography tokens
+- replace hardcoded spacing values with spacing tokens
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

@@ -384,7 +384,7 @@ const createStyles = (colors: typeof Colors) =>
             padding: Spacing.lg,
             ...Typography.subheading,
             color: colors.textPrimary,
-            minHeight: 120,
+            minHeight: Spacing.textareaMinHeight,
             borderWidth: 1,
             borderColor: colors.border,
         },

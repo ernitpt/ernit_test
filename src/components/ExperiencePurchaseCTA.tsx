@@ -147,7 +147,7 @@ const createInlineStyles = (colors: typeof Colors) =>
             ...Typography.tiny,
             color: colors.textMuted,
             marginBottom: Spacing.md,
-            marginLeft: 20,
+            marginLeft: Spacing.xl,
             fontStyle: 'italic',
         },
         experienceRow: {

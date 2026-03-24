@@ -193,7 +193,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                     disabled={isSending}
                                     returnKeyType="done"
                                     helperText={`${message.length}/1000`}
-                                    inputStyle={{ minHeight: 120, paddingTop: 12 }}
+                                    inputStyle={{ minHeight: Spacing.textareaMinHeight, paddingTop: Spacing.md }}
                                 />
 
                                 {/* Info Box */}

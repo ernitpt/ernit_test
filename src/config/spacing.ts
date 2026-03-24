@@ -33,6 +33,9 @@ export const Spacing = {
 
     /** Vertical padding for full-width landing page sections */
     sectionVertical: 64,
+
+    /** Minimum height for multi-line text inputs / textareas */
+    textareaMinHeight: 120,
 } as const;
 
 export default Spacing;

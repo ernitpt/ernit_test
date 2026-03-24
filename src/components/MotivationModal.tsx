@@ -249,7 +249,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                             multiline
                                             maxLength={MAX_TEXT_LENGTH}
                                             helperText={`${remainingChars} characters remaining`}
-                                            inputStyle={{ minHeight: 120 }}
+                                            inputStyle={{ minHeight: Spacing.textareaMinHeight }}
                                             containerStyle={{ marginBottom: 0 }}
                                         />
 
