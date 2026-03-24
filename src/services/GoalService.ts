@@ -67,7 +67,7 @@ export class GoalService {
   }
 
   /** Create a new goal */
-  async createGoal(goal: Goal) {
+  async createGoal(goal: Goal): Promise<Goal> {
     try {
       // Check goal limit (max 3 active goals, exempt paid gifted goals)
       const isPaidGiftedGoal = !!goal.experienceGiftId && !goal.isFreeGoal;
@@ -264,7 +264,7 @@ export class GoalService {
 
 
   /** Real-time listener */
-  listenToUserGoals(userId: string, cb: (goals: Goal[]) => void) {
+  listenToUserGoals(userId: string, cb: (goals: Goal[]) => void): () => void {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
     const unsub = onSnapshot(qy, async (snap) => {
       try {
@@ -315,7 +315,7 @@ export class GoalService {
     return await this.applyExpiredWeeksSweep(data);
   }
 
-  async appendHint(goalId: string, hintObj: Record<string, unknown>) {
+  async appendHint(goalId: string, hintObj: Record<string, unknown>): Promise<void> {
     // SECURITY: Validate hint structure
     if (!hintObj || typeof hintObj !== 'object') {
       throw new AppError('INVALID_HINT', 'Invalid hint object', 'validation');
@@ -424,7 +424,7 @@ export class GoalService {
     return Math.min(100, Math.round((goal.weeklyCount / denom) * 100));
   }
 
-  async updateGoal(goalId: string, updates: Partial<Goal>) {
+  async updateGoal(goalId: string, updates: Partial<Goal>): Promise<void> {
     const goalDoc = await getDoc(doc(db, 'goals', goalId));
     if (!goalDoc.exists() || goalDoc.data()?.userId !== auth.currentUser?.uid) {
       throw new AppError('UNAUTHORIZED', 'Not authorized to update this goal', 'auth');
