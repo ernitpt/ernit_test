@@ -624,6 +624,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace all hardcoded colors in HeroPreviewScreen with design tokens
 - add sanitizeText to ExperienceGiftService, FriendService, GoalService, ContactService, and NotificationService before Firestore/Cloud Function writes
 - add missing sanitization to Firestore writes and remove unused imports
+- guard setTimeout callbacks with isMounted ref in ClaimExperienceModal and ExperienceRevealModal to prevent memory leaks on unmount
+- add mounting guards to setTimeout callbacks to prevent memory leaks
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -68,6 +68,12 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
+    // ── Mounted guard (prevents setState/navigation after unmount) ────────────
+    const isMounted = useRef(true);
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
+
     // ── Animated values ───────────────────────────────────────────────────────
     const backdropOpacity  = useRef(new Animated.Value(0)).current;
     const headlineOpacity  = useRef(new Animated.Value(0)).current;
@@ -180,12 +186,12 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
     const handleClaim = useCallback(() => {
         animateClose();
         // Small delay so the modal starts closing before nav transition
-        setTimeout(onClaim, 150);
+        setTimeout(() => { if (!isMounted.current) return; onClaim(); }, 150);
     }, [animateClose, onClaim]);
 
     const handleBrowse = useCallback(() => {
         animateClose();
-        setTimeout(onBrowseOthers, 150);
+        setTimeout(() => { if (!isMounted.current) return; onBrowseOthers(); }, 150);
     }, [animateClose, onBrowseOthers]);
 
     // ── Guard ─────────────────────────────────────────────────────────────────

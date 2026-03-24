@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -41,6 +41,11 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state, dispatch } = useApp();
     const [isNavigating, setIsNavigating] = useState(false);
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
     useEffect(() => {
         if (!visible) setIsNavigating(false);
@@ -66,6 +71,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
         }
         // Brief delay so user sees loading feedback before modal closes
         setTimeout(() => {
+            if (!isMounted.current) return;
             onClose();
             navigation.navigate('ExperienceCheckout', {
                 cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
@@ -81,6 +87,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
         setTimeout(() => {
+            if (!isMounted.current) return;
             onClose();
             navigation.navigate('CategorySelection',
                 preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
