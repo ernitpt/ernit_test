@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   Share,
   TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,6 +34,7 @@ import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import { vh } from '../../utils/responsive';
+import { sanitizeText } from '../../utils/sanitization';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -148,11 +149,12 @@ const ConfirmationMultipleScreen = () => {
   }, []);
 
   const handleSendMessage = useCallback(async (giftId: string) => {
-    const message = personalizedMessages[giftId]?.trim() || '';
-    if (!message) {
+    const raw = personalizedMessages[giftId]?.trim() || '';
+    if (!raw) {
       showError('Please enter a message before sending.');
       return;
     }
+    const message = sanitizeText(raw, 500);
 
     setSendingMessageId(giftId);
     try {
@@ -319,7 +321,8 @@ Earn it. Unlock it. Enjoy it 🚀
                 <Image
                   source={{ uri: experienceImage }}
                   style={styles.giftImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                   accessibilityLabel={`${item.experience.title} experience image`}
                 />
                 <View style={styles.giftOverlay}>
