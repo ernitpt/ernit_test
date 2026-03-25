@@ -477,4 +477,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default ExperienceRevealModal;
+export default React.memo(ExperienceRevealModal);

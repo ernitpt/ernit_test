@@ -557,4 +557,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default CommentModal;
+export default React.memo(CommentModal);

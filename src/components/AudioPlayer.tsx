@@ -182,4 +182,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default AudioPlayer;
+export default React.memo(AudioPlayer);

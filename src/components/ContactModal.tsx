@@ -317,4 +317,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default ContactModal;
+export default React.memo(ContactModal);

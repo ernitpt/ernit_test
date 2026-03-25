@@ -487,4 +487,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default ExperienceDetailModal;
+export default React.memo(ExperienceDetailModal);
