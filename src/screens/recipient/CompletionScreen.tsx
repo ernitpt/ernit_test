@@ -29,7 +29,7 @@ import {
 import { useRecipientNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
-import { collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { goalService } from '../../services/GoalService';
 import { experienceService } from '../../services/ExperienceService';

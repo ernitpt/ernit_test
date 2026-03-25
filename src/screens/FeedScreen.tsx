@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View,
-    Text,
     FlatList,
     StyleSheet,
     RefreshControl,
@@ -26,7 +25,6 @@ import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from '../services/AnalyticsService';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';

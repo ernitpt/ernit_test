@@ -5,12 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ScrollView,
   Dimensions,
 } from 'react-native';
 import { BaseModal } from '../../../components/BaseModal';
 import { Share2 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';

@@ -6,7 +6,6 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
-import { WebView } from 'react-native-webview';
 import { ChevronLeft, HelpCircle } from 'lucide-react-native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
@@ -18,7 +17,6 @@ import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import HowItWorksModal from '../../components/HowItWorksModal';
-import { ExperienceDetailSkeleton } from '../../components/SkeletonLoader';
 import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';

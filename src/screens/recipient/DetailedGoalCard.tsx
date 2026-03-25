@@ -9,7 +9,6 @@ import {
   Pressable,
   Platform,
   UIManager,
-  Share,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';

@@ -28,7 +28,6 @@ import { useToast } from '../context/ToastContext';
 import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
-import { partnerService } from '../services/PartnerService';
 import AudioPlayer from '../components/AudioPlayer';
 import ImageViewer from '../components/ImageViewer';
 import { goalService } from '../services/GoalService';

@@ -15,7 +15,7 @@ import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import * as Haptics from 'expo-haptics';
 import { TextInput } from '../components/TextInput';
 import { BaseModal } from '../components/BaseModal';
-import { Edit2, Users, Award, Gift, Heart, Target } from 'lucide-react-native';
+import { Edit2, Users, Award, Heart, Target } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -28,12 +28,10 @@ import { notificationService } from '../services/NotificationService';
 import MainScreen from './MainScreen';
 import { storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc, arrayRemove, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { useFocusEffect } from '@react-navigation/native';
 
-//👇 you'll need these services in your project for partner & experience lookups
 import { experienceService } from '../services/ExperienceService';
-import { partnerService } from '../services/PartnerService';
 import { logger } from '../utils/logger';
 import { toJSDate } from '../utils/GoalHelpers';
 import { serializeNav } from '../utils/serializeNav';
@@ -51,7 +49,6 @@ import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import { Avatar } from '../components/Avatar';
-import { MotiView } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // =========================

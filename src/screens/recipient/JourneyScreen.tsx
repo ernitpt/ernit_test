@@ -6,8 +6,8 @@ import {
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
-import { useRoute, useFocusEffect } from '@react-navigation/native';
-import { doc, onSnapshot, getDoc, collection, getDocs, query, limit, Timestamp } from 'firebase/firestore';
+import { useRoute } from '@react-navigation/native';
+import { doc, onSnapshot, collection, getDocs, query, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import type { Goal, ExperienceGift, SessionRecord, Motivation, Experience, PersonalizedHint, PartnerUser } from '../../types';
 
