@@ -532,6 +532,13 @@ export const aiGenerateHint = onCall(
       throw new HttpsError('invalid-argument', 'Missing required fields');
     }
 
+    // Validate and narrow style to HintStyle union
+    const VALID_HINT_STYLES: HintStyle[] = ['neutral', 'personalized', 'motivational'];
+    if (typeof style !== 'string' || !VALID_HINT_STYLES.includes(style as HintStyle)) {
+        throw new HttpsError('invalid-argument', 'style must be one of: neutral, personalized, motivational');
+    }
+    const validatedStyle = style as HintStyle;
+
     // Input length and range validation
     if (typeof experienceType !== 'string' || experienceType.length > 200) {
         throw new HttpsError('invalid-argument', 'experienceType must be a string under 200 characters');
@@ -573,8 +580,14 @@ export const aiGenerateHint = onCall(
         throw new HttpsError('invalid-argument', 'previousCategories must be an array with max 100 items');
     }
 
+    // Filter previousCategories to valid HintCategory values for type safety
+    const validCategoryKeys = Object.keys(HINT_CATEGORIES);
+    const sanitizedCategories: HintCategory[] = Array.isArray(previousCategories)
+        ? previousCategories.filter((c): c is HintCategory => typeof c === 'string' && validCategoryKeys.includes(c))
+        : [];
+
     // NEW: Select category for this hint
-    const assignedCategory = selectHintCategory(sessionNumber, previousCategories);
+    const assignedCategory = selectHintCategory(sessionNumber, sanitizedCategories);
     const categoryDef = HINT_CATEGORIES[assignedCategory];
 
     logger.info(`📂 Session ${sessionNumber}: Assigned category "${assignedCategory}"`);
@@ -585,7 +598,7 @@ export const aiGenerateHint = onCall(
       totalSessions,
       style,
       previousHintsCount: sanitizedHints.length,
-      previousCategoriesCount: previousCategories.length,
+      previousCategoriesCount: sanitizedCategories.length,
       assignedCategory,
     });
 
@@ -597,7 +610,7 @@ export const aiGenerateHint = onCall(
       sessionNumber,
       totalSessions,
       userName,
-      style,
+      style: validatedStyle,
       previousHints: sanitizedHints,
       hintCategory: assignedCategory, // NEW
       categoryDefinition: categoryDef, // NEW

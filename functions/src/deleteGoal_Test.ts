@@ -1,6 +1,6 @@
 // ========== DELETE GOAL (TEST — ernitclone2) ==========
 import { onRequest } from "firebase-functions/v2/https";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, DocumentData } from "firebase-admin/firestore";
 import { allowedOrigins } from "./cors";
 import { db } from './index';
 
@@ -83,7 +83,7 @@ export const deleteGoal_Test = onRequest(
                 return;
             }
 
-            let giftData: FirebaseFirestore.DocumentData | null = null;
+            let giftData: DocumentData | null = null;
 
             // Step 6: Handle experienceGiftId
             if (goalData.experienceGiftId) {

@@ -2,7 +2,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, DocumentData } from "firebase-admin/firestore";
 import { allowedOrigins } from "./cors";
 
 export const deleteGoal = onRequest(
@@ -86,7 +86,7 @@ export const deleteGoal = onRequest(
                 return;
             }
 
-            let giftData: FirebaseFirestore.DocumentData | null = null;
+            let giftData: DocumentData | null = null;
 
             // Step 6: Handle experienceGiftId
             if (goalData.experienceGiftId) {

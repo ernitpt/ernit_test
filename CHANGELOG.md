@@ -726,6 +726,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add try/catch error handling to PartnerService.getPartnerById
 - add unknown type to remaining catch (e) blocks for strict TypeScript compliance
 - add unknown type to all remaining catch variable declarations for strict TypeScript compliance
+- resolve TypeScript type errors in cloud functions - HintCategory validation, HintStyle narrowing, and FirebaseFirestore namespace
 
 ### Added
 - Automatic changelog system with `npm run log` script

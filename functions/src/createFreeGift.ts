@@ -1,7 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
 import { buildGiftEmailHtml } from "./utils/giftEmailTemplate";
 import crypto from 'crypto';
@@ -303,7 +303,7 @@ function generateClaimCode(): string {
     return code;
 }
 
-async function generateUniqueClaimCode(db: FirebaseFirestore.Firestore): Promise<string> {
+async function generateUniqueClaimCode(db: Firestore): Promise<string> {
     const maxAttempts = 10;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const code = generateClaimCode();
