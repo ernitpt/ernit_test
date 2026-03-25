@@ -880,7 +880,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     ...Typography.subheading,
     color: colors.textPrimary,
   },
-  subtitle: { ...Typography.small, color: colors.textSecondary, marginTop: 2 },
+  subtitle: { ...Typography.small, color: colors.textSecondary, marginTop: Spacing.xxs },
   quantityText: {
     marginTop: Spacing.xs,
     ...Typography.caption,

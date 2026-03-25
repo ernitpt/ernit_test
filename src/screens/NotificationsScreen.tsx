@@ -940,7 +940,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={[styles.reminderMessage, { color: colors.warning, fontWeight: '600', marginTop: 4 }]}>
+                <Text style={[styles.reminderMessage, { color: colors.warning, fontWeight: '600', marginTop: Spacing.xs }]}>
                   Set up your goal →
                 </Text>
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>

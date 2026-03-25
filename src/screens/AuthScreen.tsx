@@ -1214,7 +1214,7 @@ const AuthScreen = () => {
                               </Text>
                             </Animated.View>
                           ) : isLoading ? (
-                            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 2 }}>
+                            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxs }}>
                               <ActivityIndicator size="small" color={colors.white} />
                             </View>
                           ) : (

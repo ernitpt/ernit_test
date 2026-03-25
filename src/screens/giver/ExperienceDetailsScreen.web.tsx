@@ -606,7 +606,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: Spacing.xl,
-    marginTop: 5,
+    marginTop: Spacing.xs,
 
   },
   titleContainer: {
@@ -617,7 +617,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     ...Typography.display,
     fontWeight: "bold",
     color: colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   subtitle: {
     ...Typography.subheading,
@@ -648,7 +648,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   priceLabel: {
     ...Typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   quickInfoContainer: {
     flexDirection: "row",
