@@ -85,13 +85,15 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
       return;
     }
 
+    const userId = state.user.id;
+
     // Check token health every 5 minutes
     const healthCheckInterval = setInterval(async () => {
       try {
         const { doc, getDoc } = await import('firebase/firestore');
         const { db } = await import('../services/firebase');
 
-        const userRef = doc(db, 'users', state.user!.id);
+        const userRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
@@ -101,7 +103,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
           // If user has no tokens, re-register
           if (fcmTokens.length === 0) {
             logger.warn('🔔 FCM token missing from Firestore, re-registering...');
-            await pushNotificationService.setupPushNotifications(state.user!.id);
+            await pushNotificationService.setupPushNotifications(userId);
           }
         }
       } catch (error) {
@@ -115,7 +117,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
         const { doc, getDoc } = await import('firebase/firestore');
         const { db } = await import('../services/firebase');
 
-        const userRef = doc(db, 'users', state.user!.id);
+        const userRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
@@ -124,7 +126,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
           if (fcmTokens.length === 0) {
             logger.warn('🔔 FCM token missing on startup, re-registering...');
-            await pushNotificationService.setupPushNotifications(state.user!.id);
+            await pushNotificationService.setupPushNotifications(userId);
           }
         }
       } catch (error) {
