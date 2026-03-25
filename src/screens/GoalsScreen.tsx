@@ -356,7 +356,7 @@ const GoalsScreen: React.FC = () => {
                 tintColor={colors.secondary}
               />
             }
-            ListHeaderComponent={sessionStreak >= 3 ? (
+            ListHeaderComponent={currentGoals.length > 0 ? (
               <StreakBanner streak={sessionStreak} />
             ) : null}
             ListEmptyComponent={

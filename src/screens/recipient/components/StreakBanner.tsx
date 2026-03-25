@@ -145,9 +145,50 @@ interface StreakBannerProps {
   streak: number;
 }
 
+// ─── Compact Streak Banner (streaks 0-2) ────────────────────────────
+
+const CompactStreakBanner: React.FC<{ streak: number }> = ({ streak }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const getMessage = () => {
+    if (streak === 0) return { title: 'Start your streak today!', emoji: '🔥', subtitle: 'Complete a session to light the flame' };
+    if (streak === 1) return { title: '1 day streak!', emoji: '🔥', subtitle: 'Keep it going — come back tomorrow!' };
+    return { title: '2 days strong!', emoji: '🔥🔥', subtitle: 'One more day and your streak is on fire!' };
+  };
+
+  const { title, emoji, subtitle } = getMessage();
+
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: -10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 400 }}
+    >
+      <View
+        style={styles.compactBanner}
+        accessibilityLabel={streak === 0 ? 'Start your streak' : `${streak} day streak`}
+        accessibilityRole="text"
+      >
+        <Text style={styles.compactEmoji}>{emoji}</Text>
+        <View style={styles.compactTextContainer}>
+          <Text style={[styles.compactTitle, { color: colors.warningMedium }]}>{title}</Text>
+          <Text style={styles.compactSubtitle}>{subtitle}</Text>
+        </View>
+      </View>
+    </MotiView>
+  );
+};
+
+// ─── Full Streak Banner (streaks 3+) ────────────────────────────────
+
 const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // For streaks 0-2, show compact motivational variant
+  if (streak < 3) return <CompactStreakBanner streak={streak} />;
+
   const config = useMemo(() => getStreakConfig(streak), [streak]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -365,6 +406,32 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   spark: {
     position: 'absolute',
+  },
+  // ─── Compact variant (streaks 0-2) ──────────────────────────────
+  compactBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: colors.warningLighter,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.warningBorder,
+  },
+  compactEmoji: {
+    ...Typography.heading2,
+  },
+  compactTextContainer: {
+    flex: 1,
+  },
+  compactTitle: {
+    ...Typography.bodyBold,
+    marginBottom: Spacing.xxs,
+  },
+  compactSubtitle: {
+    ...Typography.caption,
+    color: colors.warningDark,
   },
 });
 
