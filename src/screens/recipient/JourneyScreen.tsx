@@ -1666,6 +1666,62 @@ const JourneyScreen = () => {
           </View>
         )}
 
+        {/* ─── Goal Retrospective ─────────────────────────── */}
+        {sessions.length > 0 && (() => {
+          const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+          const longestSession = Math.max(...sessions.map(s => s.duration || 0));
+          const formatSecs = (secs: number) => {
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+            return `${m}m`;
+          };
+          const startDate = currentGoal.createdAt
+            ? toJSDate(currentGoal.createdAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            : null;
+          const endDate = currentGoal.completedAt
+            ? toJSDate(currentGoal.completedAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            : null;
+
+          return (
+            <View style={[cStyles.section, { paddingBottom: 0 }]}>
+              <Text style={cStyles.sectionTitle}>Your Journey</Text>
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: Spacing.sm,
+                marginBottom: Spacing.md,
+              }}>
+                {[
+                  { label: 'Sessions', value: String(sessions.length), emoji: '🏃' },
+                  { label: 'Total Time', value: formatSecs(totalTime), emoji: '⏱️' },
+                  { label: 'Longest', value: formatSecs(longestSession), emoji: '🔝' },
+                  { label: 'Motivations', value: String(motivations.length), emoji: '💌' },
+                ].map(item => (
+                  <View key={item.label} style={{
+                    flex: 1,
+                    minWidth: 100,
+                    backgroundColor: colors.backgroundLight,
+                    borderRadius: BorderRadius.lg,
+                    padding: Spacing.md,
+                    alignItems: 'center',
+                    gap: Spacing.xs,
+                  }}>
+                    <Text style={{ fontSize: 20, lineHeight: 26 }}>{item.emoji}</Text>
+                    <Text style={{ ...Typography.heading3, fontWeight: '800', color: colors.textPrimary }}>{item.value}</Text>
+                    <Text style={{ ...Typography.caption, color: colors.textSecondary }}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+              {startDate && endDate && (
+                <Text style={{ ...Typography.caption, color: colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }}>
+                  {startDate} → {endDate}
+                </Text>
+              )}
+            </View>
+          );
+        })()}
+
         {/* ─── Sessions History ───────────────────────────── */}
         <View style={cStyles.section}>
           <Text style={cStyles.sectionTitle}>
