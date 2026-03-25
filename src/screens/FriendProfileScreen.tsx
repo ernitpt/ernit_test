@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { BaseModal } from '../components/BaseModal';
-import { ProfileSkeleton } from '../components/SkeletonLoader';
+import { ProfileSkeleton, SkeletonBox } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, UserPlus, UserMinus, Clock, Heart, Gift } from 'lucide-react-native';
@@ -450,7 +450,12 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
 
       <View style={styles.achievementContent}>
         {loadingCard ? (
-          <Text style={styles.achievementLoadingText}>Loading...</Text>
+          <>
+            <SkeletonBox width="80%" height={14} style={{ marginBottom: Spacing.xs }} />
+            <SkeletonBox width="60%" height={12} style={{ marginBottom: Spacing.xs }} />
+            <SkeletonBox width="70%" height={12} style={{ marginBottom: Spacing.xs }} />
+            <SkeletonBox width="50%" height={11} />
+          </>
         ) : (
           <>
             <Text style={styles.achievementTitle} numberOfLines={1}>
