@@ -308,6 +308,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - memoize filteredGifts computation and wrap handleFilterChange in useCallback in PurchasedGiftsScreen
 - wrap ReactionIcons and DefaultUserIcon components in React.memo
 - memoize cart calculations and FlatList optimizations
+- wrap handlers in useCallback across MainScreen and NotificationsScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

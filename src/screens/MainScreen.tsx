@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation, { FOOTER_HEIGHT } from '../components/FooterNavigation';
@@ -48,8 +48,8 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
     return unsubscribe;
   }, [state.user?.id]);
 
-  const handleMenuPress = () => setSideMenuVisible(true);
-  const handleCloseSideMenu = () => setSideMenuVisible(false);
+  const handleMenuPress = useCallback(() => setSideMenuVisible(true), []);
+  const handleCloseSideMenu = useCallback(() => setSideMenuVisible(false), []);
 
   return (
     <ErrorBoundary screenName="MainScreen" userId={state.user?.id}>

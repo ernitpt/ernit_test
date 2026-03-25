@@ -366,11 +366,11 @@ const NotificationsScreen = () => {
   }, []);
 
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setShowClearAllConfirm(true);
-  };
+  }, []);
 
-  const confirmClearAll = async () => {
+  const confirmClearAll = useCallback(async () => {
     setShowClearAllConfirm(false);
     if (!userId) {
       showError('User not authenticated');
@@ -386,19 +386,19 @@ const NotificationsScreen = () => {
       logger.error('Error clearing all notifications:', error);
       showError('Failed to clear notifications. Please try again.');
     }
-  };
+  }, [userId, showError, showSuccess]);
 
 
-  const handleClearNotification = (notificationId: string) => {
+  const handleClearNotification = useCallback((notificationId: string) => {
     if (!notificationId) {
       showError('Cannot clear notification: missing ID');
       return;
     }
 
     setClearNotificationId(notificationId);
-  };
+  }, [showError]);
 
-  const confirmClearNotification = async () => {
+  const confirmClearNotification = useCallback(async () => {
     const notificationId = clearNotificationId;
     if (!notificationId) return;
     setClearNotificationId(null);
@@ -410,7 +410,7 @@ const NotificationsScreen = () => {
       logger.error('Error clearing notification:', error);
       showError('Failed to clear notification. Please try again.');
     }
-  };
+  }, [clearNotificationId, showError]);
 
 
   const handleApprovalActionTaken = useCallback(() => {
