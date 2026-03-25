@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -42,10 +42,15 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     const [alreadySentMotivation, setAlreadySentMotivation] = useState(false);
     const [goalIsCompleted, setGoalIsCompleted] = useState(false);
     const [targetSession, setTargetSession] = useState<number>(1);
+    const isMounted = useRef(true);
 
     const data = notification.data || {};
     const isCompleted = notification.type === 'free_goal_completed' || data.milestone === 100;
     const milestone = data.milestone || 0;
+
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
     // Check if goal already has a gift attached, is completed, and if user already sent motivation
     useEffect(() => {
@@ -53,6 +58,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
         const check = async () => {
             try {
                 const goal = await goalService.getGoalById(data.goalId);
+                if (!isMounted.current) return;
                 if (goal?.giftAttachedAt) setAlreadyEmpowered(true);
                 if (goal?.isCompleted) setGoalIsCompleted(true);
                 if (goal) {
@@ -64,6 +70,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     const alreadySent = await motivationService.hasUserSentMotivation(
                         data.goalId, state.user.id, nextSession
                     );
+                    if (!isMounted.current) return;
                     setAlreadySentMotivation(alreadySent);
                 }
             } catch (error) {
