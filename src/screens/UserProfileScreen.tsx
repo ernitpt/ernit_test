@@ -707,7 +707,7 @@ const UserProfileScreen: React.FC = () => {
     setWishlistRemoveId(null);
 
     try {
-      const userRef = doc(db, 'users', state.user!.id);
+      const userRef = doc(db, 'users', state.user?.id ?? "");
       await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
 
       // Update local state

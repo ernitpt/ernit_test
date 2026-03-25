@@ -98,16 +98,16 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
 
         try {
             // Get giver name
-            const giverName = await userService.getUserName(state.user!.id);
+            const giverName = await userService.getUserName(state.user?.id ?? "");
 
             let audioUrl: string | undefined;
             let imageUrl: string | undefined;
 
             // Upload media if present
             if (submission.type === 'audio' && submission.audioUri) {
-                audioUrl = await storageService.uploadAudio(submission.audioUri, state.user!.id);
+                audioUrl = await storageService.uploadAudio(submission.audioUri, state.user?.id ?? "");
             } else if (submission.imageUri) {
-                imageUrl = await storageService.uploadImage(submission.imageUri, state.user!.id);
+                imageUrl = await storageService.uploadImage(submission.imageUri, state.user?.id ?? "");
             }
 
             const hintData: PersonalizedHint = {
@@ -131,7 +131,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             // Send notification to recipient
             await notificationService.createPersonalizedHintNotification(
                 notification.data.recipientId!,
-                state.user!.id,
+                state.user?.id ?? "",
                 giverName || 'Your Giver',
                 notification.data.goalId,
                 goal.title,

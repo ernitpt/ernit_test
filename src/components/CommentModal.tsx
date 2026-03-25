@@ -139,8 +139,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             return {
                 ...c,
                 likedBy: isLiked
-                    ? currentLikedBy.filter(id => id !== state.user!.id)
-                    : [...currentLikedBy, state.user!.id],
+                    ? currentLikedBy.filter(id => id !== (state.user?.id ?? ""))
+                    : [...currentLikedBy, state.user?.id ?? ""],
             };
         }));
 

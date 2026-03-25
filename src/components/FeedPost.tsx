@@ -96,7 +96,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 // Check if user already sent motivation for this session
                 const targetSession = post.sessionNumber ? post.sessionNumber + 1 : 1;
                 const alreadySent = await motivationService.hasUserSentMotivation(
-                    post.goalId, state.user!.id, targetSession
+                    post.goalId, state.user?.id ?? "", targetSession
                 );
                 setCanMotivate(!alreadySent);
             } catch (error) {

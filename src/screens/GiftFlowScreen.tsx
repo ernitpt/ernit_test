@@ -622,7 +622,7 @@ export default function GiftFlowScreen() {
                         'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({
-                        experienceId: selectedExperience!.id,
+                        experienceId: selectedExperience?.id ?? "",
                         challengeType,
                         revealMode,
                         giverName: state.user.displayName || '',
@@ -651,7 +651,7 @@ export default function GiftFlowScreen() {
 
             if (paymentChoice === 'payNow') {
                 navigation.navigate('ExperienceCheckout', {
-                    cartItems: [{ experienceId: selectedExperience!.id, quantity: 1 }],
+                    cartItems: [{ experienceId: selectedExperience?.id ?? "", quantity: 1 }],
                     giftId: result.gift?.id,
                 } as { cartItems: CartItem[] });
             } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {

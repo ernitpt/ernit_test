@@ -1417,11 +1417,11 @@ const JourneyScreen = () => {
                   <Button
                     variant="primary"
                     onPress={() => navigation.navigate('ExperienceCheckout', {
-                      cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+                      cartItems: [{ experienceId: currentGoal.pledgedExperience?.experienceId ?? "", quantity: 1 }],
                       goalId: currentGoal.id,
                     })}
-                    title={currentGoal.pledgedExperience!.price > 0
-                      ? `Buy Now · \u20AC${currentGoal.pledgedExperience!.price}`
+                    title={(currentGoal.pledgedExperience?.price ?? 0) > 0
+                      ? `Buy Now · \u20AC${currentGoal.pledgedExperience?.price}`
                       : 'Get This Experience'}
                     icon={<ShoppingBag size={15} color={colors.white} />}
                     fullWidth
@@ -1643,11 +1643,11 @@ const JourneyScreen = () => {
                           <Button
                             variant="primary"
                             onPress={() => navigation.navigate('ExperienceCheckout', {
-                              cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+                              cartItems: [{ experienceId: currentGoal.pledgedExperience?.experienceId ?? "", quantity: 1 }],
                               goalId: currentGoal.id,
                             })}
-                            title={currentGoal.pledgedExperience!.price > 0
-                              ? `Buy Now · \u20AC${currentGoal.pledgedExperience!.price}`
+                            title={(currentGoal.pledgedExperience?.price ?? 0) > 0
+                              ? `Buy Now · \u20AC${currentGoal.pledgedExperience?.price}`
                               : 'Get This Experience'}
                             icon={<ShoppingBag size={15} color={colors.white} />}
                             fullWidth

@@ -1487,7 +1487,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           onGift={() => {
             setShowCTA(false);
             navigation.navigate('ExperienceCheckout', {
-              cartItems: [{ experienceId: currentGoal.pledgedExperience!.experienceId, quantity: 1 }],
+              cartItems: [{ experienceId: currentGoal.pledgedExperience?.experienceId ?? "", quantity: 1 }],
               goalId: currentGoal.id,
             });
           }}

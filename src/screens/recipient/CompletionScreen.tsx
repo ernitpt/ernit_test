@@ -128,10 +128,10 @@ const CompletionScreen = () => {
   const goal: Goal | null = hasValidData
     ? {
       ...rawGoal,
-      startDate: toDate(rawGoal!.startDate)!,
-      endDate: toDate(rawGoal!.endDate)!,
-      createdAt: toDate(rawGoal!.createdAt)!,
-      completedAt: toDate(rawGoal!.completedAt),
+      startDate: toDate(rawGoal?.startDate)!,
+      endDate: toDate(rawGoal?.endDate)!,
+      createdAt: toDate(rawGoal?.createdAt)!,
+      completedAt: toDate(rawGoal?.completedAt),
     } as Goal
     : null;
 

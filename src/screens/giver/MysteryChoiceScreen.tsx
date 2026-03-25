@@ -89,7 +89,7 @@ const MysteryChoiceScreen = () => {
 
         const checkoutCartItems = isCartFlow
             ? cartItems!
-            : [{ experienceId: experience!.id, quantity: 1 }];
+            : [{ experienceId: experience?.id ?? "", quantity: 1 }];
 
         navigation.navigate('ExperienceCheckout', {
             cartItems: checkoutCartItems,
