@@ -691,6 +691,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use theme-aware colors.warning in HeroPreviewScreen animated interpolation
 - update StatusBar styles for dark mode compatibility
 - replace static Colors references with dynamic theme-aware colors for dark mode
+- safe userId capture in AuthGuardContext to avoid null assertion
 
 ### Added
 - Automatic changelog system with `npm run log` script
