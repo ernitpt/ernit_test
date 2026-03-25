@@ -194,16 +194,16 @@ const PurchasedGiftsScreen = () => {
   }, [fetchGifts]);
 
   // Filter gifts based on selected filter
-  const filteredGifts = gifts.filter(gift => {
+  const filteredGifts = useMemo(() => gifts.filter(gift => {
     if (filterStatus === 'all') return true;
     return gift.status === filterStatus;
-  });
+  }), [gifts, filterStatus]);
 
   // Reset display count when filter changes
-  const handleFilterChange = (status: 'all' | 'pending' | 'claimed') => {
+  const handleFilterChange = useCallback((status: 'all' | 'pending' | 'claimed') => {
     setFilterStatus(status);
     setDisplayCount(20);
-  };
+  }, []);
 
   const renderGiftItem = useCallback(({ item, index }: { item: ExperienceGift; index: number }) => (
     <MotiView

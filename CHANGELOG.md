@@ -305,6 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add FlatList performance props to CategorySelectionScreen and VenueSelectionModal
 - wrap async handler functions in useCallback across screens to prevent unnecessary re-renders
 - wrap remaining async handlers in useCallback in FeedScreen, AddFriendScreen, CompletionScreen, AchievementDetailScreen, and UserProfileScreen
+- memoize filteredGifts computation and wrap handleFilterChange in useCallback in PurchasedGiftsScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
