@@ -15,12 +15,13 @@ import {
     StyleSheet,
     Platform,
     TextInput as RNTextInput,
-    Image,
+    Image as RNImage,
     Animated,
     Alert,
     KeyboardAvoidingView,
     GestureResponderEvent,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
@@ -1078,7 +1079,8 @@ export default function GiftFlowScreen() {
                     <Image
                         source={{ uri: exp.coverImageUrl }}
                         style={styles.expImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                         accessibilityLabel={exp.title}
                     />
                 </View>
@@ -1247,7 +1249,8 @@ export default function GiftFlowScreen() {
                                                             <Image
                                                                 source={{ uri: exp.coverImageUrl }}
                                                                 style={styles.expImage}
-                                                                resizeMode="cover"
+                                                                contentFit="cover"
+                                                                cachePolicy="memory-disk"
                                                                 accessibilityLabel={exp.title}
                                                             />
                                                         </View>
@@ -1328,7 +1331,7 @@ export default function GiftFlowScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Choose a shared experience"
                     >
-                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
+                        <RNImage source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
@@ -1732,7 +1735,8 @@ export default function GiftFlowScreen() {
                                             <Image
                                                 source={{ uri: selectedExperience.coverImageUrl }}
                                                 style={styles.heroImage}
-                                                resizeMode="cover"
+                                                contentFit="cover"
+                                                cachePolicy="memory-disk"
                                                 accessibilityLabel={selectedExperience.title}
                                             />
                                         </View>

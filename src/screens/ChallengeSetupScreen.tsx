@@ -14,13 +14,14 @@ import {
     StyleSheet,
     Platform,
     TextInput as RNTextInput,
-    Image,
+    Image as RNImage,
     Animated,
     Alert,
     KeyboardAvoidingView,
     GestureResponderEvent,
     DimensionValue,
 } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
@@ -1048,7 +1049,8 @@ export default function ChallengeSetupScreen() {
                     <Image
                         source={{ uri: exp.coverImageUrl }}
                         style={styles.expImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                         accessibilityLabel={exp.title}
                     />
                 </View>
@@ -1195,7 +1197,8 @@ export default function ChallengeSetupScreen() {
                                                             <Image
                                                                 source={{ uri: exp.coverImageUrl }}
                                                                 style={styles.expImage}
-                                                                resizeMode="cover"
+                                                                contentFit="cover"
+                                                                cachePolicy="memory-disk"
                                                                 accessibilityLabel={exp.title}
                                                             />
                                                         </View>
@@ -1270,7 +1273,7 @@ export default function ChallengeSetupScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Choose your experience"
                     >
-                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
+                        <RNImage source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
@@ -1509,7 +1512,8 @@ export default function ChallengeSetupScreen() {
                                         <Image
                                             source={{ uri: selectedExperience.coverImageUrl }}
                                             style={styles.heroImage}
-                                            resizeMode="cover"
+                                            contentFit="cover"
+                                            cachePolicy="memory-disk"
                                             accessibilityLabel={selectedExperience.title}
                                         />
                                     </View>

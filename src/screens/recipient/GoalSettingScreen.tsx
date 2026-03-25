@@ -13,10 +13,10 @@ import {
   Animated,
   KeyboardAvoidingView,
   Alert,
-  Image,
   GestureResponderEvent,
   DimensionValue,
 } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
@@ -694,7 +694,8 @@ const GoalSettingScreen = () => {
                   borderRadius: BorderRadius.lg,
                   backgroundColor: colors.border,
                 }}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={{
