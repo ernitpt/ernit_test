@@ -681,7 +681,7 @@ const AuthScreen = () => {
           const pendingCode = await getStorageItem('pending_claim_code');
           if (pendingCode) {
             await removeStorageItem('pending_claim_code');
-            navigation.navigate('RecipientFlow' as any, { screen: 'CouponEntry', params: { code: pendingCode } });
+            navigation.navigate('RecipientFlow', { screen: 'CouponEntry', params: { code: pendingCode } });
             return;
           }
         } catch (error) {
