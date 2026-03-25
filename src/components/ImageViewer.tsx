@@ -7,7 +7,6 @@ import {
     NativeScrollEvent,
     NativeSyntheticEvent,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,

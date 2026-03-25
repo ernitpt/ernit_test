@@ -2,7 +2,7 @@
 import { NavigationContainer, NavigationContainerRef, LinkingOptions, NavigationState, PartialState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
-import { View, Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, useColors } from '../config';
 import { onAuthStateChanged } from 'firebase/auth';

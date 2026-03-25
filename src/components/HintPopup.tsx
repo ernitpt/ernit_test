@@ -1,6 +1,6 @@
 // components/HintPopup.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Animated, Pressable, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, Animated, Pressable, StyleSheet, Image, Platform } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import type { GestureEvent, HandlerStateChangeEvent } from 'react-native-gesture-handler';
 import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler';

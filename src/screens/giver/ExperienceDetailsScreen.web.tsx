@@ -29,7 +29,6 @@ import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
 import { cartService } from "../../services/CartService";
 import HowItWorksModal from "../../components/HowItWorksModal";
-import { ExperienceDetailSkeleton } from "../../components/SkeletonLoader";
 
 import {
   Experience,
