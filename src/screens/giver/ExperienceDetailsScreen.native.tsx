@@ -134,7 +134,7 @@ export default function ExperienceDetailsScreen() {
     <MainScreen activeRoute="Home">
       <StatusBar style="light" />
       <LinearGradient colors={colors.gradientPrimary} style={styles.gradient}>
-        <ScrollView contentContainerStyle={{ padding: Spacing.xxl }}>          <View style={styles.headerRow}>
+        <ScrollView contentContainerStyle={{ padding: Spacing.xxl }} keyboardShouldPersistTaps="handled">          <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();

@@ -389,7 +389,7 @@ Earn it. Unlock it. Enjoy it 🚀
         explosionSpeed={400}
         colors={[colors.secondary, colors.primary, colors.celebrationGold, colors.warning, colors.categoryPink]}
       />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         {/* Success Header with Animation */}
         <View style={styles.heroSection}>
           <Animated.View

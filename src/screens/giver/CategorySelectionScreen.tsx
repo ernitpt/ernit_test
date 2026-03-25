@@ -761,6 +761,7 @@ const CategorySelectionScreen = () => {
             style={styles.listContainer}
             contentContainerStyle={styles.bentoListContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {ListHeader}
             <AnimatePresence>

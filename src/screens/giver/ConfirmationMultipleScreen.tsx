@@ -282,7 +282,7 @@ Earn it. Unlock it. Enjoy it 🚀
     <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
       <StatusBar style="auto" />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         {/* Success Header with Animation */}
         <View style={styles.heroSection}>
           <Animated.View
