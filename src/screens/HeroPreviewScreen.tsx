@@ -339,7 +339,7 @@ export default function HeroPreviewScreen() {
     });
     const animLoginColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.whiteAlpha90, Colors.warning],
+        outputRange: [Colors.whiteAlpha90, colors.warning],
     });
     const animStatColor = sliderAnim.interpolate({
         inputRange: [0, 1],
