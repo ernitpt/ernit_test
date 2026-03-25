@@ -367,13 +367,13 @@ const CategorySelectionScreen = () => {
     loadGuestCart();
   }, []);
 
-  const handleCartPress = () => {
+  const handleCartPress = useCallback(() => {
     navigation.navigate('Cart');
-  };
+  }, [navigation]);
 
-  const handleSignInPress = () => {
+  const handleSignInPress = useCallback(() => {
     rootNavigation.navigate('Auth', { mode: 'signin' });
-  };
+  }, [rootNavigation]);
 
   // Load experiences from Firestore
   const fetchExperiences = useCallback(async () => {
@@ -553,14 +553,14 @@ const CategorySelectionScreen = () => {
     return new Set(cats.map((c) => c.id));
   }, [allCarouselCategories, activeCategory, searchQuery, routeParams?.prefilterCategory]);
 
-  const handleExperiencePress = (experienceId: string) => {
+  const handleExperiencePress = useCallback((experienceId: string) => {
     const experience = categoriesWithExperiences
       .flatMap((cat) => cat.experiences)
       .find((exp) => exp.id === experienceId);
     if (!experience) return;
 
     navigation.navigate('ExperienceDetails', { experience });
-  };
+  }, [categoriesWithExperiences, navigation]);
 
   // Animate category filter changes
   const handleCategoryChange = useCallback((cat: ExperienceCategory | 'all') => {
