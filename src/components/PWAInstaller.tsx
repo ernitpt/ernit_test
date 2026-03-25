@@ -156,7 +156,7 @@ export const PWAInstaller: React.FC = () => {
 
                         {/* Header */}
                         <View style={styles.header}>
-                            <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" />
+                            <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" accessible={false} />
                             <Text style={styles.title}>Install Ernit</Text>
                             <Text style={styles.subtitle}>Get the full app experience with push notifications</Text>
                         </View>
@@ -243,7 +243,7 @@ export const PWAInstaller: React.FC = () => {
 
                         {/* Header */}
                         <View style={styles.header}>
-                            <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" />
+                            <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" accessible={false} />
                             <Text style={styles.title}>Install Ernit</Text>
                             <Text style={styles.subtitle}>Get the full app experience</Text>
                         </View>

@@ -92,7 +92,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                     )}
 
                     {pHint.imageUrl && (
-                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} resizeMode="cover" />
+                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} resizeMode="cover" accessibilityRole="image" accessibilityLabel="Hint image" />
                     )}
 
                     {pHint.audioUrl && (

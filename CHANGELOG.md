@@ -736,6 +736,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing accessibilityRole and accessibilityLabel to interactive elements in components
 - add comprehensive accessibilityRole and accessibilityLabel to remaining interactive components
 - replace any with unknown in logger.table for stricter TypeScript
+- add accessible={false} to decorative images and accessibilityRole to content images
 
 ### Added
 - Automatic changelog system with `npm run log` script

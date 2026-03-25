@@ -72,7 +72,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
             {/* Experience preview */}
             <View style={inlineStyles.experienceRow}>
                 {experience.coverImageUrl ? (
-                    <Image source={{ uri: experience.coverImageUrl }} style={inlineStyles.thumb} />
+                    <Image source={{ uri: experience.coverImageUrl }} style={inlineStyles.thumb} accessible={false} />
                 ) : (
                     <View style={[inlineStyles.thumb, inlineStyles.thumbPlaceholder]}>
                         <Gift size={16} color={colors.textMuted} />

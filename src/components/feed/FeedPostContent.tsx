@@ -80,7 +80,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                             <Text style={styles.experienceImagePlaceholderText}>?</Text>
                         </View>
                     ) : post.experienceImageUrl ? (
-                        <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} cachePolicy="memory-disk" />
+                        <Image source={{ uri: post.experienceImageUrl }} style={styles.experienceImage} cachePolicy="memory-disk" accessible={false} />
                     ) : (
                         <View style={[styles.experienceImage, styles.experienceImagePlaceholder]}>
                             <Text style={styles.experienceImagePlaceholderText}>🎁</Text>

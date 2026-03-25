@@ -265,7 +265,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                         <View style={styles.attachmentContainer}>
                                             {media.imageUri ? (
                                                 <View style={styles.imagePreview}>
-                                                    <Image source={{ uri: media.imageUri }} style={styles.attachedImage} />
+                                                    <Image source={{ uri: media.imageUri }} style={styles.attachedImage} accessibilityRole="image" accessibilityLabel="Attached photo" />
                                                     <TouchableOpacity
                                                         style={styles.removeImageButton}
                                                         onPress={() => media.setImageUri(null)}
