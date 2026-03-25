@@ -48,7 +48,7 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import ImageViewer from '../../components/ImageViewer';
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 
 function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }) {

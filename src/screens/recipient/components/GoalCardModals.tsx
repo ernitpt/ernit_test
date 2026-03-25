@@ -128,7 +128,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   }, [visible]);
 
 
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+  const { width: screenWidth } = Dimensions.get('window');
 
   return (
     <>
