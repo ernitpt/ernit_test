@@ -476,4 +476,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default GoalApprovalNotification;
+export default React.memo(GoalApprovalNotification);

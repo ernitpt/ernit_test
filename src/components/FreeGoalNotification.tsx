@@ -367,4 +367,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default FreeGoalNotification;
+export default React.memo(FreeGoalNotification);

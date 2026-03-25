@@ -215,4 +215,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default FriendRequestNotification;
+export default React.memo(FriendRequestNotification);

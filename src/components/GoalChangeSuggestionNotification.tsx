@@ -292,4 +292,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default GoalChangeSuggestionNotification;
+export default React.memo(GoalChangeSuggestionNotification);

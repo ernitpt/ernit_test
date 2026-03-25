@@ -25,7 +25,7 @@ interface GoalProgressNotificationProps {
     isLatest?: boolean;
 }
 
-export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> = ({
+const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps> = ({
     notification,
     isLatest = true, // Default to true for backwards compatibility
 }) => {
@@ -417,3 +417,5 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         paddingVertical: Spacing.huge,
     },
 });
+
+export const GoalProgressNotification = React.memo(GoalProgressNotificationComponent);

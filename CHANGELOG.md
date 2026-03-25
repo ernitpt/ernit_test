@@ -277,6 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing color tokens and replace remaining hardcoded rgba values with design tokens
 - remove unused imports (StatusBar, Alert, ActivityIndicator, Heart icon) across screen files
 - update deprecated hook imports to use canonical context path for useAuthGuard
+- wrap notification list components with React.memo to prevent unnecessary re-renders
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
