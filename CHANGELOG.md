@@ -749,6 +749,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate remaining RN Image to expo-image in CompletedGoalCard and PledgedExperiencePreview
 - migrate remaining components from RN Image to expo-image for consistent caching
 - migrate JourneyDemo reward image from RN Image to expo-image
+- migrate MotivationModal and PersonalizedHintModal to expo-image
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -11,8 +11,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -202,7 +202,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                     <View style={styles.attachmentContainer}>
                                         {media.imageUri ? (
                                             <View style={styles.imagePreview}>
-                                                <Image source={{ uri: media.imageUri }} style={styles.attachedImage} accessibilityRole="image" accessibilityLabel="Attached photo" />
+                                                <Image source={{ uri: media.imageUri }} style={styles.attachedImage} contentFit="cover" cachePolicy="memory-disk" accessibilityRole="image" accessibilityLabel="Attached photo" />
                                                 <TouchableOpacity
                                                     style={styles.removeImageButton}
                                                     onPress={() => media.setImageUri(null)}
