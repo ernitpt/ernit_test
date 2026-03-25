@@ -91,7 +91,7 @@ interface ModeConfig {
 
 const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.secondary,
-    gradient: [Colors.landingBg, '#0F2A2E', Colors.landingBg] as const,
+    gradient: [Colors.landingBg, Colors.landingGradientTeal, Colors.landingBg] as const,
     rotatingWords: [
         { word: 'workout', color: colors.secondary },
         { word: 'read', color: colors.accent },
@@ -146,7 +146,7 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
 
 const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.warning,
-    gradient: [Colors.landingBg, '#2A1A0F', Colors.landingBg] as const,
+    gradient: [Colors.landingBg, Colors.landingGradientAmber, Colors.landingBg] as const,
     rotatingWords: [
         { word: 'workout', color: colors.warning },
         { word: 'read', color: colors.categoryAmber },
@@ -162,7 +162,7 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     statHighlight: 'doubles',
     statColor: colors.warning,
     ctaText: 'Gift an Experience',
-    ctaGradient: [Colors.warning, '#EA580C'] as const,
+    ctaGradient: [Colors.warning, Colors.orange] as const,
     ctaShadowColor: colors.warning,
     badgeText: 'Pay only on success',
     badgeBg: colors.warningLight,

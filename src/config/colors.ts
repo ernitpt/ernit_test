@@ -146,6 +146,9 @@ export const Colors = {
     // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
     landingBg: '#0F172A',           // slate-900
     landingSectionBg: '#111827',    // gray-900
+    landingGradientTeal: '#0F2A2E', // dark teal midpoint for self-challenge gradient
+    landingGradientAmber: '#2A1A0F', // dark amber midpoint for gift gradient
+    orange: '#EA580C',               // orange-600 — CTA gradient endpoint
 
     // ─── Additional alpha variants ──────────────────────────────────
     whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
@@ -305,6 +308,9 @@ export const DarkColors = {
     // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
     landingBg: '#0F172A',           // slate-900
     landingSectionBg: '#111827',    // gray-900
+    landingGradientTeal: '#0F2A2E', // dark teal midpoint for self-challenge gradient
+    landingGradientAmber: '#2A1A0F', // dark amber midpoint for gift gradient
+    orange: '#EA580C',               // orange-600 — CTA gradient endpoint
 
     // ─── Additional alpha variants ──────────────────────────────────
     whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
