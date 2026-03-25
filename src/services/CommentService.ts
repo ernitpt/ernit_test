@@ -79,7 +79,7 @@ class CommentService {
                         );
                     }
                 }
-            } catch (e) {
+            } catch (e: unknown) {
                 logger.warn('Failed to send comment notification:', e);
             }
         } catch (error: unknown) {

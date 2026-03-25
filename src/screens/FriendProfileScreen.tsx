@@ -481,8 +481,8 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
 
-  const handlePress = () =>
-    navigation.navigate('ExperienceDetails', { experience });
+  const handlePress = useCallback(() =>
+    navigation.navigate('ExperienceDetails', { experience }), [navigation, experience]);
 
   const experienceImage = Array.isArray(experience.imageUrl)
     ? experience.imageUrl[0]

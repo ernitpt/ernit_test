@@ -3,7 +3,7 @@
 // The server creates the SetupIntent in createDeferredGift; this screen presents the
 // PaymentElement in setup mode so the giver's card is saved for off-session charging later.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
@@ -127,10 +127,10 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     showInfo('You can add payment details later from Purchased Gifts.');
     navigation.replace('Confirmation', { experienceGift });
-  };
+  }, [navigation, experienceGift]);
 
   return (
     <MainScreen activeRoute="Home">

@@ -34,6 +34,11 @@ const GoalDetailScreen: React.FC = () => {
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Goals');
+  }, [navigation]);
+
   // Redirect if goalId is missing
   useEffect(() => {
     if (!goalId) {
@@ -138,10 +143,7 @@ const GoalDetailScreen: React.FC = () => {
         <Button
           variant="ghost"
           title="Back"
-          onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('Goals');
-          }}
+          onPress={handleBack}
         />
         <Text style={styles.headerTitle} accessibilityRole="header">Goal Details</Text>
       </View>

@@ -54,7 +54,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // =========================
 // Goal Card (Active goals)
 // =========================
-const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => {
+const CapsuleMini: React.FC<{ filled: boolean }> = React.memo(({ filled }) => {
   const colors = useColors();
   return (
     <View
@@ -67,9 +67,9 @@ const CapsuleMini: React.FC<{ filled: boolean }> = ({ filled }) => {
       }}
     />
   );
-};
+});
 
-const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
@@ -93,9 +93,9 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
     ? totalWeeks
     : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     navigation.navigate('Journey', { goal });
-  };
+  }, [navigation, goal]);
 
   return (
     <TouchableOpacity
@@ -158,12 +158,12 @@ const GoalCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       )}
     </TouchableOpacity>
   );
-};
+});
 
 // ==================================
 // Achievement Card (Completed goals)
 // ==================================
-const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = ({ sessions, weeks, completedAt }) => {
+const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = React.memo(({ sessions, weeks, completedAt }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
@@ -187,9 +187,9 @@ const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string 
       )}
     </View>
   );
-};
+});
 
-const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
+const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
@@ -249,9 +249,9 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const weeks = goal.targetCount || 0;
   const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     navigation.navigate('Journey', { goal });
-  };
+  }, [navigation, goal]);
 
   // Completion date
   const completedAt = goal.completedAt
@@ -391,7 +391,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 // ==================================
 // Experience Card (Wishlist)

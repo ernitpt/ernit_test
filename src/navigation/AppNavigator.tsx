@@ -87,7 +87,7 @@ const isIncognitoMode = () => {
     localStorage.setItem('test', 'test');
     localStorage.removeItem('test');
     return false;
-  } catch (e) {
+  } catch (e: unknown) {
     return true; // Incognito mode detected
   }
 };

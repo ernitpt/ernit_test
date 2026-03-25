@@ -102,9 +102,9 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
     fetchExperience();
   }, [item.experienceId]);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     navigation.navigate("Confirmation", { experienceGift: item });
-  };
+  }, [navigation, item]);
 
   return (
     <Card

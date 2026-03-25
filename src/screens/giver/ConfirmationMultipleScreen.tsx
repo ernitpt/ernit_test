@@ -201,12 +201,12 @@ Earn it. Unlock it. Enjoy it 🚀
     }
   }, []);
 
-  const handleBackToHome = () => {
+  const handleBackToHome = useCallback(() => {
     navigation.reset({
       index: 0,
       routes: [{ name: 'CategorySelection' }],
     });
-  };
+  }, [navigation]);
 
   if (loading) {
     return (

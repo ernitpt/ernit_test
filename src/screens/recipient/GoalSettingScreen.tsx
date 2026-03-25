@@ -419,7 +419,7 @@ const GoalSettingScreen = () => {
       let goal: Goal;
       try {
         goal = await goalService.createGoal(goalData as Goal);
-      } catch (goalError) {
+      } catch (goalError: unknown) {
         // Revert gift claim so the user can retry
         try {
           const giftRef = doc(db, 'experienceGifts', experienceGift.id);
@@ -430,7 +430,7 @@ const GoalSettingScreen = () => {
             claimedAt: deleteField(),
             updatedAt: serverTimestamp(),
           });
-        } catch (revertError) {
+        } catch (revertError: unknown) {
           logger.error('Failed to revert gift claim:', revertError);
           showError('Something went wrong. Please contact support with your claim code — we will fix this.');
         }
@@ -448,7 +448,7 @@ const GoalSettingScreen = () => {
             });
             linkSuccess = true;
             logger.log(`Linked giver goal ${experienceGift.togetherData.giverGoalId} -> recipient goal ${goal.id}`);
-          } catch (linkErr) {
+          } catch (linkErr: unknown) {
             if (attempt === 2) {
               logger.error('Failed to link partner goal after 3 attempts:', linkErr);
               try {
@@ -456,7 +456,7 @@ const GoalSettingScreen = () => {
                   recipientGoalId: goal.id,
                   updatedAt: serverTimestamp(),
                 });
-              } catch (e) { logger.error('Fallback link also failed:', e); }
+              } catch (e: unknown) { logger.error('Fallback link also failed:', e); }
             }
           }
         }
@@ -480,7 +480,7 @@ const GoalSettingScreen = () => {
             read: false,
             createdAt: serverTimestamp(),
           });
-        } catch (e) {
+        } catch (e: unknown) {
           logger.warn('Failed to send shared_start notification:', e);
         }
       }

@@ -138,7 +138,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
           const { db } = await import('../services/firebase');
           const ref = doc(db, 'notifications', notification.id);
           await deleteDocFn(ref);
-        } catch (e) {
+        } catch (e: unknown) {
           logger.warn('Direct delete failed:', e);
         }
       }

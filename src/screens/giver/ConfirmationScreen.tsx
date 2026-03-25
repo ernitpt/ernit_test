@@ -325,12 +325,12 @@ Earn it. Unlock it. Enjoy it 🚀
     }
   }, [isTogether, experienceGift.claimCode]);
 
-  const handleBackToHome = () => {
+  const handleBackToHome = useCallback(() => {
     navigation.reset({
       index: 0,
       routes: [{ name: 'CategorySelection' }],
     });
-  };
+  }, [navigation]);
 
   // Show error state if fetch failed
   if (loadError && !experience) {

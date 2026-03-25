@@ -640,7 +640,7 @@ const AchievementDetailScreen = () => {
     copyTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   }, [partner?.contactEmail, partner?.email]);
 
-  const handleEmailFallback = (url: string) => {
+  const handleEmailFallback = useCallback((url: string) => {
     Linking.canOpenURL(url).then(supported => {
       if (supported) {
         Linking.openURL(url);
@@ -648,9 +648,9 @@ const AchievementDetailScreen = () => {
         showInfo('Could not open email client.');
       }
     }).catch(() => showInfo('Could not open email client.'));
-  };
+  }, []);
 
-  const handleWhatsAppSchedule = () => {
+  const handleWhatsAppSchedule = useCallback(() => {
     if (!partner?.phone || !experience) return;
 
     const dateString = preferredDate
@@ -678,9 +678,9 @@ const AchievementDetailScreen = () => {
         showInfo('WhatsApp is not installed. Please use email to contact the partner.');
       }
     }).catch(() => showInfo('WhatsApp is not installed. Please use email to contact the partner.'));
-  };
+  }, [partner, experience, preferredDate, userName]);
 
-  const handleEmailSchedule = () => {
+  const handleEmailSchedule = useCallback(() => {
     if (!partner || !experience) return;
     const contactEmail = partner.contactEmail || partner.email;
     if (!contactEmail) {
@@ -702,19 +702,19 @@ const AchievementDetailScreen = () => {
     const subject = `Experience Booking - ${experience.title}`;
     const emailUrl = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
     handleEmailFallback(emailUrl);
-  };
+  }, [partner, experience, preferredDate, userName, handleEmailFallback]);
 
-  const handleBookNowWhatsApp = () => {
+  const handleBookNowWhatsApp = useCallback(() => {
     setBookingMethod('whatsapp');
     setShowCalendar(true);
-  };
+  }, []);
 
-  const handleBookNowEmail = () => {
+  const handleBookNowEmail = useCallback(() => {
     setBookingMethod('email');
     setShowCalendar(true);
-  };
+  }, []);
 
-  const handleConfirmBooking = (date: Date) => {
+  const handleConfirmBooking = useCallback((date: Date) => {
     setPreferredDate(date);
     setShowCalendar(false);
 
@@ -723,9 +723,9 @@ const AchievementDetailScreen = () => {
     } else if (bookingMethod === 'email') {
       handleEmailSchedule();
     }
-  };
+  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
-  const handleCancelBooking = () => {
+  const handleCancelBooking = useCallback(() => {
     setPreferredDate(null);
     setShowCalendar(false);
 
@@ -734,7 +734,7 @@ const AchievementDetailScreen = () => {
     } else if (bookingMethod === 'email') {
       handleEmailSchedule();
     }
-  };
+  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
   const handleShare = useCallback(async () => {
     if (!shareCardRef.current) return;

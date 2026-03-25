@@ -186,7 +186,7 @@ class PushNotificationService {
                         // Samsung Internet and Chrome Mobile PWAs throw "Illegal constructor" for new Notification()
                         // We need to use ServiceWorkerRegistration.showNotification() instead
                         new Notification(notificationTitle, notificationOptions);
-                    } catch (e) {
+                    } catch (e: unknown) {
                         // Fallback: try service worker notification if available
                         logger.warn('🔔 Failed to create browser notification, trying service worker:', e);
                         if ('serviceWorker' in navigator) {

@@ -338,7 +338,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               window.focus();
               notification.close();
             };
-          } catch (e) {
+          } catch (e: unknown) {
             logger.warn('Failed to create browser notification:', e);
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.ready.then(registration => {
@@ -940,7 +940,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           read: false,
           createdAt: serverTimestamp(),
         });
-      } catch (e) {
+      } catch (e: unknown) {
         logger.warn('Failed to send partner session notification:', e);
       }
     }

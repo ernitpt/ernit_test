@@ -320,6 +320,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove unused imports across screen and component files
 - remove more unused imports from AuthScreen, ExperienceCheckoutScreen, CartScreen
 - remove remaining unused imports from components and navigation
+- wrap remaining event handlers in useCallback across AchievementDetailScreen, ConfirmationScreen, FriendProfileScreen, and PurchasedGiftsScreen
+- wrap handleSkip in useCallback in DeferredSetupScreen
+- wrap sub-components in React.memo and handlers in useCallback in UserProfileScreen
+- extract and memoize navigation handlers in GoalDetailScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -718,6 +722,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace @ts-ignore with Platform.OS web guard for backdropFilter in HintPopup
 - add keyboardShouldPersistTaps to ScrollViews in ConfirmationScreen, ConfirmationMultipleScreen, ExperienceDetailsScreen, and CategorySelectionScreen
 - add try/catch error handling to PartnerService.getPartnerById
+- add unknown type to remaining catch (e) blocks for strict TypeScript compliance
+- add unknown type to all remaining catch variable declarations for strict TypeScript compliance
 
 ### Added
 - Automatic changelog system with `npm run log` script
