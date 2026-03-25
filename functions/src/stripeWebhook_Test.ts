@@ -59,7 +59,7 @@ export const stripeWebhook_Test = onRequest(
       try {
         await handleSuccessfulPayment(paymentIntent);
         res.status(200).json({ received: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Error handling payment:", err);
         // T1-2: Return 500 so Stripe retries — gifts must be created
         res.status(500).json({ error: "Payment processing failed" });

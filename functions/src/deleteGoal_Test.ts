@@ -258,7 +258,7 @@ export const deleteGoal_Test = onRequest(
                 goalId,
                 archivedAt: new Date().toISOString(),
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`[deleteGoal_Test] Unexpected error:`, error);
             res.status(500).json({ error: 'Failed to delete goal' });
         }

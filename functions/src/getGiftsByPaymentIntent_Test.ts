@@ -87,7 +87,7 @@ export const getGiftsByPaymentIntent_Test = onRequest(
 
       console.log(`✅ Returning ${gifts.length} gifts for user ${userId}`);
       res.status(200).json(gifts);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ Error fetching gifts:", err);
       res.status(500).json({ error: "Internal error" });
     }

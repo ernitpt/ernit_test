@@ -297,7 +297,7 @@ export const createDeferredGift_Test = onRequest(
                 claimUrl: `https://ernit981723498127658912765187923546.vercel.app/recipient/redeem/${claimCode}`,
                 setupIntentClientSecret: setupIntent.client_secret,
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("❌ Error creating deferred gift:", err);
             res.status(500).json({ error: "Failed to create deferred gift" });
         }
