@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Platform,
   Dimensions,
@@ -46,6 +45,7 @@ import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import ImageViewer from '../../components/ImageViewer';
+import { Image } from 'expo-image';
 
 const { width } = Dimensions.get("window");
 
@@ -337,7 +337,8 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                 <Image
                   source={{ uri: url }}
                   style={styles.heroImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                   accessibilityLabel={`${experience.title} image ${index + 1}`}
                 />
               </TouchableOpacity>

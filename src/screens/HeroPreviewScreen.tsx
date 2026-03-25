@@ -6,11 +6,11 @@ import {
     ScrollView,
     StyleSheet,
     Platform,
-    Image,
     Dimensions,
     Linking,
     Animated as RNAnimated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -588,7 +588,8 @@ export default function HeroPreviewScreen() {
                                                         <Image
                                                             source={{ uri: url }}
                                                             style={styles.cardImg}
-                                                            resizeMode="cover"
+                                                            contentFit="cover"
+                                                            cachePolicy="memory-disk"
                                                             accessibilityLabel={`Goal activity ${i + 1}`}
                                                         />
                                                     </MotiView>
@@ -631,7 +632,8 @@ export default function HeroPreviewScreen() {
                                                         <Image
                                                             source={{ uri: url }}
                                                             style={styles.cardImg}
-                                                            resizeMode="cover"
+                                                            contentFit="cover"
+                                                            cachePolicy="memory-disk"
                                                             accessibilityLabel={`Reward experience ${i + 1}`}
                                                         />
                                                     </MotiView>
@@ -804,7 +806,8 @@ export default function HeroPreviewScreen() {
                                         <Image
                                             source={{ uri: founder.image }}
                                             style={styles.founderPhoto}
-                                            resizeMode="cover"
+                                            contentFit="cover"
+                                                            cachePolicy="memory-disk"
                                             accessibilityLabel={`${founder.name}, ${founder.role}`}
                                         />
                                         <Text style={styles.founderName}>{founder.name}</Text>
@@ -829,7 +832,8 @@ export default function HeroPreviewScreen() {
                                         <Image
                                             source={{ uri: 'https://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
                                             style={styles.incubatorLogo}
-                                            resizeMode="contain"
+                                            contentFit="contain"
+                                            cachePolicy="memory-disk"
                                             accessibilityLabel="Unicorn Factory Lisboa logo"
                                         />
                                     </TouchableOpacity>
