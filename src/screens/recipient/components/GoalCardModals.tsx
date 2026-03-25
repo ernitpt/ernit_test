@@ -26,7 +26,7 @@ interface CancelSessionModalProps {
   message: string;
 }
 
-export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
+export const CancelSessionModal: React.FC<CancelSessionModalProps> = React.memo(({
   visible,
   onClose,
   onConfirm,
@@ -65,7 +65,7 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = ({
       </View>
     </BaseModal>
   );
-};
+});
 
 // ─── CelebrationModal ───────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ interface CelebrationModalProps {
   totalWeeks?: number;
 }
 
-export const CelebrationModal: React.FC<CelebrationModalProps> = ({
+export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   visible,
   onClose,
   onPostToFeed,
@@ -282,7 +282,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
       )}
     </>
   );
-};
+});
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
