@@ -1,5 +1,6 @@
 import React, { useMemo, memo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import type { Goal } from '../../types';
@@ -87,7 +88,8 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                                 <Image
                                     source={{ uri: goal.pledgedExperience.coverImageUrl }}
                                     style={styles.experienceThumb}
-                                    resizeMode="cover"
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
                                     accessibilityLabel={`${goal.pledgedExperience.title} thumbnail`}
                                 />
                             ) : null}

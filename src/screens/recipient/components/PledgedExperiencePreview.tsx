@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Gift, Check } from 'lucide-react-native';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -51,7 +52,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
             <View style={styles.row}>
                 {/* Small thumbnail or icon */}
                 {experience.coverImageUrl ? (
-                    <Image source={{ uri: experience.coverImageUrl }} style={styles.thumb} accessibilityLabel={`${experience.title} thumbnail`} />
+                    <Image source={{ uri: experience.coverImageUrl }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel={`${experience.title} thumbnail`} />
                 ) : (
                     <View style={[styles.thumb, styles.thumbFallback]}>
                         <Gift size={14} color={colors.primary} />

@@ -744,6 +744,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add cachePolicy, contentFit, and accessibilityLabel to expo-image instances; add accessibility labels to RN Image components
 - sanitize personalized message, add useCallback, and use expo-image in ExperienceDetailsScreen native
 - sanitize personalized messages and use expo-image in ConfirmationMultipleScreen
+- migrate remaining RN Image to expo-image in CompletedGoalCard and PledgedExperiencePreview
 
 ### Added
 - Automatic changelog system with `npm run log` script
