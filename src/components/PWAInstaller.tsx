@@ -38,11 +38,15 @@ export const PWAInstaller: React.FC = () => {
         }
 
         // Detect iOS
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        // MSStream is an IE11-only property used to detect IE on Windows Phone
+        const msStreamWindow = window as Window & { MSStream?: unknown };
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !msStreamWindow.MSStream;
 
         // Check if currently in standalone mode (installed)
+        // navigator.standalone is an iOS Safari non-standard property
+        const safariNav = window.navigator as Navigator & { standalone?: boolean };
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-            (window.navigator as any).standalone ||
+            safariNav.standalone === true ||
             document.referrer.includes('android-app://');
 
         // Check previous installation state

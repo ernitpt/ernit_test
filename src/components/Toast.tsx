@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     zIndex: 9999,
-    ...(Platform.OS === 'web' ? { position: 'fixed' as any } : {}),
+    ...(Platform.OS === 'web' ? { position: 'fixed' as 'absolute' } : {}),
   },
   toast: {
     flexDirection: 'row',

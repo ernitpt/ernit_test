@@ -73,8 +73,9 @@ class PushNotificationService {
     isStandalone(): boolean {
         if (Platform.OS !== 'web') return false;
 
+        const safariNav = window.navigator as Navigator & { standalone?: boolean };
         return window.matchMedia('(display-mode: standalone)').matches ||
-            (window.navigator as any).standalone ||
+            safariNav.standalone === true ||
             document.referrer.includes('android-app://');
     }
 

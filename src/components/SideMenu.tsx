@@ -162,8 +162,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       return;
     }
 
+    const safariNav = window.navigator as Navigator & { standalone?: boolean };
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone ||
+      safariNav.standalone === true ||
       document.referrer.includes('android-app://');
 
     setShowInstallButton(!isStandalone);

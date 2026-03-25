@@ -660,6 +660,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace remaining as-any casts in GoalService, CouponEntryScreen, MysteryChoiceScreen, and FeedPost with type-safe alternatives
 - remove unnecessary navigation type casts in AuthScreen and clean up as-any in GoalSessionService
 - navigate goal_completed notifications to GoalDetail screen for proper type-safety and correct UX
+- replace window.navigator as any with typed Navigator intersection for iOS standalone detection across PWAInstaller, SideMenu, PushNotificationService, and Toast
 
 ### Added
 - Automatic changelog system with `npm run log` script
