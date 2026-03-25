@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
-  Platform, Linking, LayoutAnimation, RefreshControl, Dimensions,
+  Platform, Linking, LayoutAnimation, RefreshControl, Dimensions, Share,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -332,6 +332,31 @@ const SessionCard = React.memo(({
               </View>
             </>
           )}
+          {/* Per-session share button */}
+          {session.mediaUrl && session.mediaType === 'photo' && Platform.OS !== 'web' && (
+            <>
+              <View style={sessStyles.expandedDivider} />
+              <TouchableOpacity
+                style={sessStyles.sessionShareBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Share session ${session.sessionNumber} photo`}
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      url: session.mediaUrl!,
+                      message: `Session #${session.sessionNumber} 💪 #Ernit #GoalProgress`,
+                    });
+                  } catch {
+                    // User cancelled — no-op
+                  }
+                }}
+              >
+                <ShareIcon size={14} color={colors.textSecondary} />
+                <Text style={sessStyles.sessionShareText}>Share this session</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </MotiView>
       )}
 
@@ -544,6 +569,18 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.sm,
     marginTop: Spacing.sm,
     backgroundColor: colors.backgroundLight,
+  },
+  sessionShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  sessionShareText: {
+    ...Typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   expandedDivider: {
     height: StyleSheet.hairlineWidth,
@@ -1473,6 +1510,18 @@ const JourneyScreen = () => {
                   <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{currentGoal.targetCount || 0}</Text>
                   <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
                 </View>
+                {sessions.length > 0 && (() => {
+                  const totalSecs = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+                  const h = Math.floor(totalSecs / 3600);
+                  const m = Math.floor((totalSecs % 3600) / 60);
+                  const label = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+                  return (
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{label}</Text>
+                      <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>TOTAL</Text>
+                    </View>
+                  );
+                })()}
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image
