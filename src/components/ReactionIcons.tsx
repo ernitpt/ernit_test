@@ -12,7 +12,7 @@ const useUniqueId = (prefix: string): string => {
     return id;
 };
 
-export const ReactionLike: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+export const ReactionLike = React.memo<ReactionIconProps>(({ size = 24 }) => {
     const colors = useColors();
     const gradientId = useUniqueId('likeGradient');
     return (
@@ -29,9 +29,9 @@ export const ReactionLike: React.FC<ReactionIconProps> = ({ size = 24 }) => {
             />
         </Svg>
     );
-};
+});
 
-export const ReactionHeart: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+export const ReactionHeart = React.memo<ReactionIconProps>(({ size = 24 }) => {
     const colors = useColors();
     const gradientId = useUniqueId('heartGradient');
     return (
@@ -48,9 +48,9 @@ export const ReactionHeart: React.FC<ReactionIconProps> = ({ size = 24 }) => {
             />
         </Svg>
     );
-};
+});
 
-export const ReactionMuscle: React.FC<ReactionIconProps> = ({ size = 24 }) => {
+export const ReactionMuscle = React.memo<ReactionIconProps>(({ size = 24 }) => {
     const colors = useColors();
     const gradientId = useUniqueId('muscleGradient');
     return (
@@ -72,4 +72,4 @@ export const ReactionMuscle: React.FC<ReactionIconProps> = ({ size = 24 }) => {
             />
         </Svg>
     );
-};
+});

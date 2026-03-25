@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useColors } from '../config';
 
-export const DefaultUserIcon = ({ size = 96 }) => {
+export const DefaultUserIcon = React.memo<{ size?: number }>(({ size = 96 }) => {
   const colors = useColors();
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
@@ -22,4 +22,4 @@ export const DefaultUserIcon = ({ size = 96 }) => {
       />
     </Svg>
   );
-};
+});
