@@ -1,3 +1,5 @@
+import logger from './logger';
+
 export class DateHelper {
     private static offsetMs = 0;
 
@@ -23,7 +25,7 @@ export class DateHelper {
     static addOffset(ms: number) {
         const { config } = require('../config/environment');
         if (!config.debugEnabled) {
-            console.warn('DateHelper.addOffset is disabled in production');
+            logger.warn('DateHelper.addOffset is disabled in production');
             return;
         }
         this.offsetMs += ms;

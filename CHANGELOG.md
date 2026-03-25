@@ -267,6 +267,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace last hardcoded color in GiftFlowScreen with whiteAlpha80 token
 - add explicit return type annotations to GoalService methods
 - replace remaining hardcoded gradient colors in HeroPreviewScreen with design tokens
+- replace console.warn in DateHelper with logger and fix any type in AppNavigator
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

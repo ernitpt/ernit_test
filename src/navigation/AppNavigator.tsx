@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, LinkingOptions, NavigationState, PartialState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
 import { View, Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
@@ -273,8 +273,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
 
         // Track screen views
         if (navState) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let route: { name?: string; state?: any } = navState.routes[navState.index ?? 0];
+          let route: { name?: string; state?: NavigationState | PartialState<NavigationState> } = navState.routes[navState.index ?? 0];
           // Drill into nested navigators
           while (route.state?.routes) {
             route = route.state.routes[route.state.index ?? 0];
