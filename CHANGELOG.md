@@ -272,6 +272,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace console.log/warn/error with Firebase Functions v2 structured logger across all Cloud Functions
 - replace console statements with Firebase structured logger in cloud functions
 - remove unused height destructuring from Dimensions.get calls in screen files
+- add missing return type annotations to NotificationService methods
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

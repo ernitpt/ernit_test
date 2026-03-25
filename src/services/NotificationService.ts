@@ -31,7 +31,7 @@ export class NotificationService {
     data?: Record<string, any>,
     clearable: boolean = true,
     senderId?: string
-  ) {
+  ): Promise<string> {
     try {
       const docData: Record<string, any> = {
         userId,
@@ -63,7 +63,7 @@ export class NotificationService {
     friendRequestId: string,
     senderProfileImageUrl?: string,
     senderCountry?: string
-  ) {
+  ): Promise<void> {
     try {
       // Note: Firestore rules require data.requestId (not friendRequestId) and top-level senderId
       await this.createNotification(
