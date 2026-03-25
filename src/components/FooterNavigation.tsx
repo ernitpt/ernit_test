@@ -32,7 +32,7 @@ import MenuIcon from '../assets/icons/sidemenu.svg';
 
 import type { SvgProps } from 'react-native-svg';
 
-import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useAuthGuard } from '../context/AuthGuardContext';
 
 export const FOOTER_HEIGHT = 72;
 

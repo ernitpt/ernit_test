@@ -24,7 +24,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { getAuth, signOut } from 'firebase/auth';
 import { useApp } from '../context/AppContext';
-import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useAuthGuard } from '../context/AuthGuardContext';
 import { Avatar } from './Avatar';
 
 import PurchaseIcon from '../assets/icons/PurchaseIcon';

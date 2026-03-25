@@ -34,7 +34,7 @@ import { stripeService } from "../../services/stripeService";
 import { experienceService } from "../../services/ExperienceService";
 import { userService } from "../../services/userService";
 import { useApp } from "../../context/AppContext";
-import { useAuthGuard } from "../../hooks/useAuthGuard";
+import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
 import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';

@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
-import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useAuthGuard } from '../context/AuthGuardContext';
 import { RootStackParamList } from '../types';
 
 interface ProtectedRouteProps {

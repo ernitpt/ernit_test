@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FooterNavigation, { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
 import LoginPrompt from '../components/LoginPrompt';
-import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useAuthGuard } from '../context/AuthGuardContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';

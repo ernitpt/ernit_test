@@ -11,7 +11,7 @@ import { auth } from '../services/firebase';
 import { userService } from '../services/userService';
 import { cartService } from '../services/CartService';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { useAuthGuard } from '../hooks/useAuthGuard';
+import { useAuthGuard } from '../context/AuthGuardContext';
 import LoginPrompt from '../components/LoginPrompt';
 import { setNavigationRef } from '../context/AuthGuardContext';
 import { AuthGuardProvider } from '../context/AuthGuardContext';

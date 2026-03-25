@@ -25,7 +25,7 @@ import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firest
 import { db } from "../../services/firebase";
 import { userService } from "../../services/userService";
 import { CartItem } from "../../types";
-import { useAuthGuard } from "../../hooks/useAuthGuard";
+import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
 import { cartService } from "../../services/CartService";
 import HowItWorksModal from "../../components/HowItWorksModal";

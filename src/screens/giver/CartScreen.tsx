@@ -16,7 +16,7 @@ import { useApp } from "../../context/AppContext";
 import { userService } from "../../services/userService";
 import { experienceService } from "../../services/ExperienceService";
 import { cartService } from "../../services/CartService";
-import { useAuthGuard } from "../../hooks/useAuthGuard";
+import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GiverStackParamList, Experience, CartItem } from "../../types";
