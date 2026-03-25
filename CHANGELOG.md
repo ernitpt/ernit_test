@@ -283,6 +283,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - extract useBeforeRemove hook to eliminate beforeRemove-as-never cast in 4 wizard screens
 - replace manual Firestore Timestamp handling with toJSDate utility in GoalProgressNotification and FriendProfileScreen
 - replace as-unknown Timestamp casts with toJSDate utility across AchievementDetailScreen, PurchasedGiftsScreen, FriendProfileScreen, HeroPreviewScreen, and ChallengeLandingScreen
+- replace remaining as-unknown Timestamp casts with toJSDate in JourneyScreen, UserProfileScreen, and fix gradient type in HeroPreviewScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

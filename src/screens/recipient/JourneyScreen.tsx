@@ -58,6 +58,7 @@ import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { vh } from '../../utils/responsive';
+import { toJSDate } from '../../utils/GoalHelpers';
 import Button from '../../components/Button';
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
@@ -588,19 +589,8 @@ const HintItem = React.memo(({
   const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
   const text = hint.text || hint.hint;
 
-  let dateMs = 0;
-  if (hint.createdAt) {
-    const ts = hint.createdAt as unknown as { toMillis?: () => number };
-    if (typeof ts.toMillis === 'function') {
-      dateMs = ts.toMillis();
-    } else if (hint.createdAt instanceof Date) {
-      dateMs = hint.createdAt.getTime();
-    } else {
-      dateMs = new Date(hint.createdAt as unknown as string).getTime();
-    }
-  } else if (hint.date) {
-    dateMs = hint.date;
-  }
+  const parsedDate = hint.createdAt ? toJSDate(hint.createdAt) : null;
+  const dateMs = parsedDate?.getTime() ?? hint.date ?? 0;
 
   return (
     <Animated.View

@@ -209,7 +209,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
   const getEffectiveDeadline = (): Date | null => {
     if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
     if (goal.completedAt) {
-      const d = new Date(toJSDate(goal.completedAt) ?? goal.completedAt as unknown as Date);
+      const d = toJSDate(goal.completedAt) ?? new Date();
       d.setDate(d.getDate() + 30);
       return d;
     }
@@ -517,7 +517,7 @@ const UserProfileScreen: React.FC = () => {
         (g) =>
           !g.isCompleted &&
           g.currentCount < g.targetCount &&
-          (!g.startDate || new Date(g.startDate as unknown as Date) <= new Date())
+          (!g.startDate || (toJSDate(g.startDate) ?? new Date(g.startDate as Date)) <= new Date())
       );
       const completed = userGoals.filter(
         (g) => {
