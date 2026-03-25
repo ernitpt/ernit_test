@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const handleAccept = async () => {
+  const handleAccept = useCallback(async () => {
     if (!notification.data?.friendRequestId) return;
 
     try {
@@ -52,9 +52,9 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     } finally {
       setIsHandling(false);
     }
-  };
+  }, [notification, onRequestHandled, showSuccess, showError]);
 
-  const handleDecline = async () => {
+  const handleDecline = useCallback(async () => {
     if (!notification.data?.friendRequestId) return;
 
     try {
@@ -75,7 +75,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
     } finally {
       setIsHandling(false);
     }
-  };
+  }, [notification, onRequestHandled, showInfo, showError]);
 
   const senderName = notification.data?.senderName || 'Unknown User';
   const senderCountry = notification.data?.senderCountry || '';
