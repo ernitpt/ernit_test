@@ -6,6 +6,7 @@ import {
     RefreshControl,
     Animated,
     Platform,
+    ScrollView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +26,7 @@ import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Chip } from '../components/Chip';
 import { analyticsService } from '../services/AnalyticsService';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
@@ -33,6 +35,12 @@ import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
+const FILTER_OPTIONS = [
+    { key: 'all', label: 'All' },
+    { key: 'goals', label: 'Goals' },
+    { key: 'sessions', label: 'Sessions' },
+    { key: 'completed', label: 'Completed' },
+] as const;
 
 const FeedScreen: React.FC = () => {
     const colors = useColors();
@@ -54,6 +62,20 @@ const FeedScreen: React.FC = () => {
     const lastTimestampRef = useRef<Date | undefined>(undefined);
     const FEED_PAGE_SIZE = 15;
     const MAX_POSTS = 200;
+
+    const [activeFilter, setActiveFilter] = useState<string>('all');
+
+    const filteredPosts = useMemo(() => {
+        if (activeFilter === 'all') return posts;
+        if (activeFilter === 'goals') return posts.filter(p => p.type === 'goal_started' || p.type === 'goal_approved');
+        if (activeFilter === 'sessions') return posts.filter(p => p.type === 'session_progress');
+        if (activeFilter === 'completed') return posts.filter(p => p.type === 'goal_completed');
+        return posts;
+    }, [posts, activeFilter]);
+
+    const handleFilterChange = useCallback((key: string) => {
+        setActiveFilter(key);
+    }, []);
 
     // Handle highlight parameter from navigation
     useEffect(() => {
@@ -208,11 +230,42 @@ const FeedScreen: React.FC = () => {
         );
     }, [highlightedPostId, highlightAnim, colors]);
 
+    const renderFilterRow = useCallback(() => (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            accessibilityRole="tablist"
+            accessibilityLabel="Filter posts by type"
+        >
+            {FILTER_OPTIONS.map(({ key, label }) => (
+                <Chip
+                    key={key}
+                    label={label}
+                    selected={activeFilter === key}
+                    onPress={() => handleFilterChange(key)}
+                    size="sm"
+                    style={styles.filterChip}
+                />
+            ))}
+        </ScrollView>
+    ), [activeFilter, handleFilterChange, styles]);
+
     const renderEmpty = () => {
         if (isLoading) return null;
 
         if (error) {
             return <ErrorRetry message="Could not load your feed" onRetry={loadFeed} />;
+        }
+
+        if (activeFilter !== 'all') {
+            return (
+                <EmptyState
+                    icon="🔍"
+                    title="No Posts Found"
+                    message="There are no posts matching this filter yet."
+                />
+            );
         }
 
         return (
@@ -238,6 +291,7 @@ const FeedScreen: React.FC = () => {
                 <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
                 {isLoading ? (
                     <View style={styles.list}>
+                        {renderFilterRow()}
                         <FeedPostSkeleton />
                         <FeedPostSkeleton />
                         <FeedPostSkeleton />
@@ -245,8 +299,9 @@ const FeedScreen: React.FC = () => {
                 ) : (
                     <FlatList
                         ref={flatListRef}
-                        data={posts}
+                        data={filteredPosts}
                         keyExtractor={(item) => item.id}
+                        ListHeaderComponent={renderFilterRow}
                         renderItem={renderPost}
                         contentContainerStyle={styles.list}
                         accessibilityRole="list"
@@ -301,6 +356,16 @@ const createStyles = (_colors: typeof Colors) => StyleSheet.create({
     loadingMore: {
         paddingVertical: Spacing.xl,
         alignItems: 'center',
+    },
+    filterRow: {
+        paddingHorizontal: Spacing.screenPadding,
+        gap: Spacing.sm,
+        marginBottom: Spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    filterChip: {
+        borderRadius: BorderRadius.xl,
     },
 });
 

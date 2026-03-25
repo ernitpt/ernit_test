@@ -76,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add achievement deadline countdown and friends since date to FriendProfileScreen
 - 5B achievement deadline countdown badges on FriendProfileScreen
 - 5C friend since date on FriendProfileScreen
+- add post type filter pills to FeedScreen
+- 4A feed post type filtering with chip pills
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
