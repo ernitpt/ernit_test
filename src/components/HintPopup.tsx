@@ -552,4 +552,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default HintPopup;
+export default React.memo(HintPopup);

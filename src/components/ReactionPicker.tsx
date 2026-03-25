@@ -172,4 +172,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default ReactionPicker;
+export default React.memo(ReactionPicker);

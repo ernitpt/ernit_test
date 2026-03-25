@@ -99,4 +99,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default ReactionBar;
+export default React.memo(ReactionBar);

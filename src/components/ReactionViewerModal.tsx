@@ -248,4 +248,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default ReactionViewerModal;
+export default React.memo(ReactionViewerModal);

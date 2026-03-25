@@ -22,7 +22,7 @@ interface HintHistoryModalProps {
     onClose: () => void;
 }
 
-export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
+export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
     visible,
     goal,
     onClose,
@@ -161,7 +161,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
             </ScrollView>
         </BaseModal>
     );
-};
+});
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
     subtitle: {

@@ -48,4 +48,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default WizardProgressBar;
+export default React.memo(WizardProgressBar);

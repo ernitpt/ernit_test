@@ -131,4 +131,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default LoginPrompt;
+export default React.memo(LoginPrompt);

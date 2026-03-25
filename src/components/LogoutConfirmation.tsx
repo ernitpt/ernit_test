@@ -107,4 +107,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default LogoutConfirmation;
+export default React.memo(LogoutConfirmation);

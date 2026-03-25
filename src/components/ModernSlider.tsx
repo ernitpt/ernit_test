@@ -141,4 +141,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default ModernSlider;
+export default React.memo(ModernSlider);

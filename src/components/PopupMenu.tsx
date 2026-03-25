@@ -165,4 +165,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
 });
 
-export default PopupMenu;
+export default React.memo(PopupMenu);

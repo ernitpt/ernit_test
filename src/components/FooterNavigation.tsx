@@ -346,4 +346,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default FooterNavigation;
+export default React.memo(FooterNavigation);
