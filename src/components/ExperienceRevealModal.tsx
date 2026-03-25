@@ -217,7 +217,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                     <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]}>
                         <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
                         <LinearGradient
-                            colors={['rgba(6,79,70,0.55)', 'rgba(0,0,0,0.72)']}
+                            colors={[Colors.revealGradientStart, Colors.revealGradientEnd]}
                             style={StyleSheet.absoluteFill}
                             start={{ x: 0.3, y: 0 }}
                             end={{ x: 0.7, y: 1 }}
@@ -269,7 +269,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
 
                             {/* Gradient over image bottom */}
                             <LinearGradient
-                                colors={['transparent', 'rgba(0,0,0,0.45)']}
+                                colors={['transparent', Colors.overlayOnImage]}
                                 style={styles.heroGradient}
                                 pointerEvents="none"
                             />

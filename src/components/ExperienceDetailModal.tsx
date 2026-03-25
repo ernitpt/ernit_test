@@ -177,7 +177,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
 
                             {/* Gradient overlay at bottom of image */}
                             <LinearGradient
-                                colors={['transparent', 'rgba(0,0,0,0.4)']}
+                                colors={['transparent', Colors.overlayOnImageLight]}
                                 style={styles.imageGradient}
                                 pointerEvents="none"
                             />

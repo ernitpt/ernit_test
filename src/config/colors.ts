@@ -145,6 +145,9 @@ export const Colors = {
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
     textOnImage: '#FFFFFF',
     overlayOnImage: 'rgba(0, 0, 0, 0.45)',
+    overlayOnImageLight: 'rgba(0, 0, 0, 0.4)',
+    revealGradientStart: 'rgba(6, 79, 70, 0.55)',
+    revealGradientEnd: 'rgba(0, 0, 0, 0.72)',
 
     // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
     landingBg: '#0F172A',           // slate-900
@@ -310,6 +313,9 @@ export const DarkColors = {
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
     textOnImage: '#FFFFFF',
     overlayOnImage: 'rgba(0, 0, 0, 0.45)',
+    overlayOnImageLight: 'rgba(0, 0, 0, 0.4)',
+    revealGradientStart: 'rgba(6, 79, 70, 0.55)',
+    revealGradientEnd: 'rgba(0, 0, 0, 0.72)',
 
     // ─── Landing / marketing page backgrounds (theme-invariant dark) ──
     landingBg: '#0F172A',           // slate-900
