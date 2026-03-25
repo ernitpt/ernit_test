@@ -161,8 +161,8 @@ export const searchUsers = onCall(
         users: limitedResults,
         count: limitedResults.length,
       };
-    } catch (err: any) {
-      logger.error("searchUsers error:", err?.message || err);
+    } catch (err: unknown) {
+      logger.error("searchUsers error:", (err as Error).message ?? String(err));
       throw new HttpsError('internal', 'Failed to search users');
     }
   }

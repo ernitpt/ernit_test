@@ -197,7 +197,7 @@ export const stripeCreatePaymentIntent = onRequest(
                 clientSecret: intent.client_secret,
                 paymentIntentId: intent.id,
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             logger.error("❌ Stripe error:", err);
             // ✅ Generic error message to client
             res.status(500).json({

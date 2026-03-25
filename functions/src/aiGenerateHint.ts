@@ -297,7 +297,7 @@ Output: Plain text only. No quotes, tags, or formatting.`,
     throw new Error(`OpenRouter error ${res.status}: ${text}`);
   }
 
-  const json: any = await res.json();
+  const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
   const out = json?.choices?.[0]?.message?.content?.trim();
   if (!out) throw new Error("OpenRouter returned empty content.");
   return out.replace(/\n+/g, " ").trim();
@@ -432,7 +432,7 @@ export const aiGenerateHint = onCall(
           lastRequest: now,
         });
       }
-    } catch (rateLimitError: any) {
+    } catch (rateLimitError: unknown) {
       // Re-throw HttpsError (e.g. resource-exhausted) — that's an intentional gate.
       // For unexpected Firestore errors, warn and allow the request to proceed.
       if (rateLimitError instanceof HttpsError) {
@@ -615,8 +615,8 @@ export const aiGenerateHint = onCall(
       const finalHint = sentences.slice(0, 3).join(' ').trim();
 
       return { hint: finalHint, style, category: assignedCategory };
-    } catch (err: any) {
-      logger.error("aiGenerateHint error:", err?.message || err);
+    } catch (err: unknown) {
+      logger.error("aiGenerateHint error:", (err as Error).message ?? String(err));
       throw new HttpsError('internal', 'Failed to generate hint');
     }
   }

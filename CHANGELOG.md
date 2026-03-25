@@ -273,6 +273,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace console statements with Firebase structured logger in cloud functions
 - remove unused height destructuring from Dimensions.get calls in screen files
 - add missing return type annotations to NotificationService methods
+- replace any types in catch blocks and json responses with unknown across Cloud Functions
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -642,6 +643,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve all remaining TypeScript errors across app — zero tsc errors in src/
 - use unknown instead of any in serializeNav utility for better type safety
 - use theme-aware color tokens for dark mode in HintPopup, FeedScreen, and ExperienceDetailModal
+- replace any types with unknown in cloud function catch blocks for type safety
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -309,7 +309,7 @@ export const createDeferredGift = onRequest(
                 claimUrl: `https://ernit.app/recipient/redeem/${claimCode}`,
                 setupIntentClientSecret: setupIntent.client_secret,
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             logger.error("❌ Error creating deferred gift:", err);
             res.status(500).json({ error: "Failed to create deferred gift" });
         }

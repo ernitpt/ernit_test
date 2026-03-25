@@ -47,8 +47,8 @@ export const stripeWebhook = onRequest(
                 sig,
                 STRIPE_WEBHOOK_SECRET.value()
             );
-        } catch (err: any) {
-            logger.error("❌ Webhook signature verification failed:", err.message);
+        } catch (err: unknown) {
+            logger.error("❌ Webhook signature verification failed:", (err as Error).message ?? String(err));
             res.status(400).send('Webhook signature verification failed');
             return;
         }
@@ -63,7 +63,7 @@ export const stripeWebhook = onRequest(
             try {
                 await handleSuccessfulPayment(paymentIntent);
                 res.status(200).json({ received: true });
-            } catch (err: any) {
+            } catch (err: unknown) {
                 logger.error("❌ Error handling payment:", err);
                 // T1-2: Return 500 so Stripe retries — gifts must be created
                 res.status(500).json({ error: "Payment processing failed" });

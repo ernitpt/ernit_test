@@ -283,7 +283,7 @@ export const createFreeGift = onRequest(
                 claimCode,
                 claimUrl: `https://ernit.app/recipient/redeem/${claimCode}`,
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             logger.error("❌ Error creating free gift:", err);
             res.status(500).json({ error: "Failed to create gift" });
         }

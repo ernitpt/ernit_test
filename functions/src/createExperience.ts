@@ -187,7 +187,7 @@ export const createExperience = onCall(
                 experienceId: experienceRef.id,
                 message: "Experience created successfully",
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Preserve HttpsError codes (e.g. invalid-argument, permission-denied) so the
             // client receives the correct error message rather than a generic 'internal' one.
             if (error instanceof HttpsError) {
@@ -209,8 +209,8 @@ export const createExperience = onCall(
                             await bucket.file(filePath).delete();
                             logger.info(`✅ Cleaned up: ${filePath}`);
                         }
-                    } catch (cleanupError: any) {
-                        logger.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                    } catch (cleanupError: unknown) {
+                        logger.warn(`⚠️ Failed to cleanup ${url}: ${(cleanupError as Error).message ?? String(cleanupError)}`);
                     }
                 }
             }

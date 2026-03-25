@@ -101,9 +101,9 @@ export const deleteExperience = onCall(
                     await file.delete();
 
                     logger.info(`✅ Deleted image ${i + 1}/${imageUrls.length}`);
-                } catch (imageError: any) {
+                } catch (imageError: unknown) {
                     // Don't fail the entire deletion if an image is already deleted or inaccessible
-                    logger.warn(`⚠️ Failed to delete image ${i + 1}: ${imageError.message}`);
+                    logger.warn(`⚠️ Failed to delete image ${i + 1}: ${(imageError as Error).message ?? String(imageError)}`);
                 }
             }
 
@@ -130,7 +130,7 @@ export const deleteExperience = onCall(
                 success: true,
                 message: "Experience deleted successfully",
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Preserve HttpsError codes (e.g. not-found, failed-precondition) so the
             // client receives the correct error message rather than a generic 'internal' one.
             if (error instanceof HttpsError) {
