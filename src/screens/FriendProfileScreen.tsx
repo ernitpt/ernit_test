@@ -514,13 +514,19 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   );
 };
 
-const ExperienceCard = ({ experience }: { experience: Experience }) => {
+const ExperienceCard = ({ experience, friendUserId }: { experience: Experience; friendUserId?: string }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
 
   const handlePress = useCallback(() =>
     navigation.navigate('ExperienceDetails', { experience }), [navigation, experience]);
+
+  const handleGiftThis = useCallback(() => {
+    navigation.navigate('ExperienceCheckout', {
+      cartItems: [{ experienceId: experience.id, quantity: 1 }],
+    });
+  }, [navigation, experience.id]);
 
   const experienceImage = Array.isArray(experience.imageUrl)
     ? experience.imageUrl[0]
@@ -548,9 +554,20 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
         <Text style={styles.experienceDescription} numberOfLines={2}>
           {experience.description}
         </Text>
-        <Text style={styles.experiencePrice}>
-          €{Number(experience.price || 0).toFixed(2)}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs }}>
+          <Text style={styles.experiencePrice}>
+            €{Number(experience.price || 0).toFixed(2)}
+          </Text>
+          <TouchableOpacity
+            style={styles.giftThisButton}
+            onPress={handleGiftThis}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Gift ${experience.title}`}
+          >
+            <Text style={styles.giftThisText}>🎁 Gift This</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -731,7 +748,7 @@ const FriendProfileScreen: React.FC = () => {
         transition={{ type: 'timing', duration: 300, delay: index * 60 }}
       >
         {tab === 'wishlist' ? (
-          <ExperienceCard experience={item} />
+          <ExperienceCard experience={item} friendUserId={userId} />
         ) : tab === 'goals' ? (
           <GoalCard goal={item} currentUserId={currentUserId} userName={userName} />
         ) : (
@@ -1129,6 +1146,17 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   experiencePrice: { ...Typography.heading3, color: colors.secondary },
+  giftThisButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.pill,
+  },
+  giftThisText: {
+    ...Typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+  },
 
   emptyStateText: {
     ...Typography.subheading,
