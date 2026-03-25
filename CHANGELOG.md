@@ -754,6 +754,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate remaining screens to expo-image for remote URI images
 - migrate GoalCardModals and SessionMediaPrompt to expo-image
 - migrate HeroPreviewScreen and ExperienceDetailsScreen.web to expo-image
+- replace raw error messages with getUserMessage() utility across giver and recipient screens
+- replace raw error messages with getUserMessage for user-friendly error toasts
 
 ### Added
 - Automatic changelog system with `npm run log` script

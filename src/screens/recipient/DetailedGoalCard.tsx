@@ -38,6 +38,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import { getUserMessage } from '../../utils/AppError';
 import { vh } from '../../utils/responsive';
 
 // Extracted utilities, hooks, and components
@@ -1132,8 +1133,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showSuccess('Goal removed');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not remove goal. Please try again.';
-      showError(message);
+      showError(getUserMessage(err, 'Could not remove goal. Please try again.'));
       setIsRemoving(false);
     } finally {
       setShowRemoveDialog(false);

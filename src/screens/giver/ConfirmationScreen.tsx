@@ -44,6 +44,7 @@ import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
+import { getUserMessage } from '../../utils/AppError';
 
 const ConfirmationScreen = () => {
   const colors = useColors();
@@ -320,8 +321,7 @@ Earn it. Unlock it. Enjoy it 🚀
         logger.log('Share dismissed');
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      showError(message || 'Failed to share the code');
+      showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
     }
   }, [isTogether, experienceGift.claimCode]);
 

@@ -39,6 +39,7 @@ import MainScreen from "../MainScreen";
 import { partnerService } from "../../services/PartnerService";
 import { logger } from '../../utils/logger';
 import { vh } from '../../utils/responsive';
+import { getUserMessage } from '../../utils/AppError';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -200,8 +201,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       showSuccess(`Added ${quantity} item(s) to cart!`);
     } catch (error: unknown) {
       logger.error("Error adding to cart:", error);
-      const message = error instanceof Error ? error.message : String(error);
-      showError(message || "Failed to add item to cart.");
+      showError(getUserMessage(error, 'Could not add item to cart. Please try again.'));
     } finally {
       setIsAddingToCart(false);
       addingToCartRef.current = false;
@@ -230,8 +230,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         await userService.addToCart(user.uid, cartItem);
       } catch (error: unknown) {
         logger.error("Error adding to cart:", error);
-        const message = error instanceof Error ? error.message : String(error);
-        showError(message || "Failed to add item to cart.");
+        showError(getUserMessage(error, 'Could not add item to cart. Please try again.'));
         return;
       }
     }

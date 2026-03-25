@@ -48,6 +48,7 @@ import { Typography } from '../../config/typography';
 import { useToast } from '../../context/ToastContext';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
+import { getUserMessage } from '../../utils/AppError';
 import * as Haptics from 'expo-haptics';
 
 const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
@@ -373,8 +374,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       // If redirect happens, the useEffect above will handle it
     } catch (err: unknown) {
       await removeStorageItem(`pending_payment_${clientSecret}`);
-      const errorMessage = (err instanceof Error ? err.message : String(err)) || "Something went wrong.";
-
       await logErrorToFirestore(err, {
         screenName: 'ExperienceCheckoutScreen',
         feature: 'HandlePurchase',
@@ -386,6 +385,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         }
       });
 
+      const errorMessage = getUserMessage(err, 'Payment failed. Please verify your card details and try again.');
       analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
       showError(errorMessage);
       logger.error("Payment error:", err);
@@ -629,8 +629,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
             itemCount: cartItems.length
           }
         });
-        const errMessage = err instanceof Error ? err.message : String(err);
-        showError(errMessage || "Failed to initialize payment.");
+        showError(getUserMessage(err, 'Could not set up payment. Please check your connection and try again.'));
         initRef.current = false; // Allow retry
         if (navigation.canGoBack()) navigation.goBack();
         else navigation.navigate('CategorySelection');
@@ -740,7 +739,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
                     setPaymentIntentId(response.paymentIntentId);
                   } catch (err: unknown) {
                     logger.error('Retry init failed:', err);
-                    showError(err instanceof Error ? err.message : 'Failed to initialize payment.');
+                    showError(getUserMessage(err, 'Payment setup failed. Please try again or use a different method.'));
                     initRef.current = false;
                   } finally {
                     setLoading(false);
