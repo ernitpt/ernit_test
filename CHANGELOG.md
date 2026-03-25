@@ -314,6 +314,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add name cache to UserService.getUserName
 - wrap handlers in useCallback across LandingScreen and CartScreen
 - wrap handlers in useCallback in CategorySelectionScreen
+- wrap handlers in useCallback in ExperienceDetailsScreen.web
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

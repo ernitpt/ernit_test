@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
@@ -139,12 +139,12 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
   const images = Array.isArray(experience.imageUrl) ? experience.imageUrl : [experience.imageUrl];
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / slideSize);
     setActiveIndex(index);
-  };
+  }, []);
 
   const streetMapUrl = partner?.mapsUrl
     ? partner.mapsUrl.includes("?")
@@ -241,26 +241,26 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
     navigation.navigate("Cart");
   };
 
-  const decreaseQuantity = () => {
+  const decreaseQuantity = useCallback(() => {
     if (quantity > 1) {
       setQuantity(quantity - 1);
     }
-  };
+  }, [quantity]);
 
-  const increaseQuantity = () => {
+  const increaseQuantity = useCallback(() => {
     if (quantity < 10) {
       setQuantity(quantity + 1);
     }
-  };
+  }, [quantity]);
 
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = useMemo(() => currentCart.reduce((total, item) => total + item.quantity, 0) || 0, [currentCart]);
 
-  const handleCartPress = () => {
+  const handleCartPress = useCallback(() => {
     // Allow opening cart even when empty - CartScreen handles empty state
     navigation.navigate("Cart");
-  };
+  }, [navigation]);
 
   return (
     <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
