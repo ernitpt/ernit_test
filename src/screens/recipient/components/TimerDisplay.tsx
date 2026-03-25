@@ -200,8 +200,26 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const hasNotifiedTarget = useRef(false);
   const almostDone = totalGoalSeconds > 0 && timeElapsed >= totalGoalSeconds * 0.9;
   const isOvertime = totalGoalSeconds > 0 && timeElapsed >= totalGoalSeconds;
+
+  // Haptic + visual feedback when target duration reached (fires once)
+  useEffect(() => {
+    if (isOvertime && !hasNotifiedTarget.current) {
+      hasNotifiedTarget.current = true;
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+  }, [isOvertime]);
+
+  // Reset notification flag when timer restarts
+  useEffect(() => {
+    if (timeElapsed === 0) {
+      hasNotifiedTarget.current = false;
+    }
+  }, [timeElapsed]);
 
   // Pulse animation when almost done
   useEffect(() => {

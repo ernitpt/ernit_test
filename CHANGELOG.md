@@ -72,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 2A sort goals by date (newest first)
 - 2B streak banner from day 0 with compact motivational variant
 - 1C motivational countdown in already-logged-today card
+- 1B haptic feedback when timer reaches target duration
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
