@@ -357,7 +357,11 @@ const GoalsScreen: React.FC = () => {
               />
             }
             ListHeaderComponent={currentGoals.length > 0 ? (
-              <StreakBanner streak={sessionStreak} />
+              <StreakBanner
+                streak={sessionStreak}
+                weeklyDone={currentGoals.reduce((acc, g) => acc + (g.weeklyCount || 0), 0)}
+                weeklyTarget={currentGoals.reduce((acc, g) => acc + (g.sessionsPerWeek || 0), 0)}
+              />
             ) : null}
             ListEmptyComponent={
               <View style={{ flex: 1, justifyContent: 'center', minHeight: vh(50) }}>

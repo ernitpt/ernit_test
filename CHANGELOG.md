@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 3C hint timing
 - 1A weekly celebration
 - 2C deadline warning
+- 2D dashboard summary
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge

@@ -143,11 +143,13 @@ const SparkParticle: React.FC<{
 
 interface StreakBannerProps {
   streak: number;
+  weeklyDone?: number;
+  weeklyTarget?: number;
 }
 
 // ─── Compact Streak Banner (streaks 0-2) ────────────────────────────
 
-const CompactStreakBanner: React.FC<{ streak: number }> = ({ streak }) => {
+const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weeklyTarget?: number }> = ({ streak, weeklyDone, weeklyTarget }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -174,6 +176,11 @@ const CompactStreakBanner: React.FC<{ streak: number }> = ({ streak }) => {
         <View style={styles.compactTextContainer}>
           <Text style={[styles.compactTitle, { color: colors.warningMedium }]}>{title}</Text>
           <Text style={styles.compactSubtitle}>{subtitle}</Text>
+          {weeklyTarget != null && weeklyTarget > 0 && (
+            <Text style={styles.weeklyRow}>
+              This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+            </Text>
+          )}
         </View>
       </View>
     </MotiView>
@@ -182,12 +189,12 @@ const CompactStreakBanner: React.FC<{ streak: number }> = ({ streak }) => {
 
 // ─── Full Streak Banner (streaks 3+) ────────────────────────────────
 
-const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
+const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyTarget }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // For streaks 0-2, show compact motivational variant
-  if (streak < 3) return <CompactStreakBanner streak={streak} />;
+  if (streak < 3) return <CompactStreakBanner streak={streak} weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
 
   const config = useMemo(() => getStreakConfig(streak), [streak]);
 
@@ -356,6 +363,11 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
             <Text style={styles.subtitle}>
               Keep it up! Your streak resets after 7 days of inactivity
             </Text>
+            {weeklyTarget != null && weeklyTarget > 0 && (
+              <Text style={styles.weeklyRow}>
+                This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -432,6 +444,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   compactSubtitle: {
     ...Typography.caption,
     color: colors.warningDark,
+  },
+  weeklyRow: {
+    ...Typography.caption,
+    color: colors.warningDark,
+    marginTop: Spacing.xxs,
+    fontWeight: '600',
   },
 });
 
