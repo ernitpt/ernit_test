@@ -651,6 +651,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add isMounted guard to FreeGoalNotification async useEffect to prevent state updates on unmounted component
 - use useSafeAreaInsets for proper hero section padding in UserProfileScreen
 - replace percentage width as any casts with DimensionValue for proper TypeScript typing
+- replace width as any casts in CompletionScreen with DimensionValue for proper TypeScript typing
 
 ### Added
 - Automatic changelog system with `npm run log` script

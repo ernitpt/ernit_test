@@ -10,6 +10,7 @@ import {
   Platform,
   Linking,
   Dimensions,
+  DimensionValue,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -1365,7 +1366,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.xs,
     marginBottom: Spacing.lg,
-    width: '100%' as any,
+    width: '100%' as DimensionValue,
   },
   shareFormatOption: {
     flex: 1,
@@ -1398,7 +1399,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
     borderRadius: BorderRadius.lg,
-    width: '100%' as any,
+    width: '100%' as DimensionValue,
   },
   shareButtonText: {
     color: colors.white,
@@ -1459,7 +1460,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.xxxl,
     borderRadius: BorderRadius.lg,
     marginTop: Spacing.sm,
-    width: '100%' as any,
+    width: '100%' as DimensionValue,
     alignItems: 'center' as const,
   },
   streakCtaPrimaryText: {
@@ -1472,7 +1473,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.xxxl,
     borderRadius: BorderRadius.lg,
     marginTop: Spacing.sm,
-    width: '100%' as any,
+    width: '100%' as DimensionValue,
     alignItems: 'center' as const,
     borderWidth: 1,
     borderColor: colors.border,
