@@ -255,7 +255,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
 
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
-  const cartItemCount = currentCart.reduce((total, item) => total + item.quantity, 0) || 0;
+  const cartItemCount = useMemo(() => currentCart.reduce((total, item) => total + item.quantity, 0) || 0, [currentCart]);
 
   const handleCartPress = () => {
     // Allow opening cart even when empty - CartScreen handles empty state

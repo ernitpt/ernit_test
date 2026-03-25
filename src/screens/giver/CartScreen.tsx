@@ -222,12 +222,12 @@ export default function CartScreen() {
     }
   };
 
-  const total = currentCart.reduce((sum, item) => {
+  const total = useMemo(() => currentCart.reduce((sum, item) => {
     const exp = cartExperiences.find((e) => e.id === item.experienceId);
     return exp ? sum + exp.price * item.quantity : sum;
-  }, 0);
+  }, 0), [currentCart, cartExperiences]);
 
-  const cartItemCount = currentCart.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const cartItemCount = useMemo(() => currentCart.reduce((sum, item) => sum + item.quantity, 0) || 0, [currentCart]);
 
   const proceedToCheckout = () => {
     if (!currentCart || currentCart.length === 0) {

@@ -161,6 +161,9 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             getItemLayout={getItemLayout}
             onMomentumScrollEnd={handleMomentumScrollEnd}
             initialScrollIndex={initialIndex || 0}
+            removeClippedSubviews={Platform.OS !== 'web'}
+            maxToRenderPerBatch={3}
+            windowSize={3}
         />
     );
 
