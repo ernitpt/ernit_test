@@ -274,6 +274,9 @@ const CategoryCarousel = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Spacing.xxl, gap: Spacing.md }}
+        removeClippedSubviews={false}
+        maxToRenderPerBatch={8}
+        windowSize={3}
         renderItem={({ item, index }) => (
           <MotiView
             from={{ opacity: 0, translateX: 20 }}
@@ -607,6 +610,9 @@ const CategorySelectionScreen = () => {
               paddingHorizontal: Spacing.xxl,
               gap: Spacing.md,
             }}
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={5}
+            windowSize={3}
             renderItem={({ item, index }) => (
               <MotiView
                 from={{ opacity: 0, scale: 0.95 }}

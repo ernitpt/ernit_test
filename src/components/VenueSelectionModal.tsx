@@ -493,6 +493,9 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                         showsVerticalScrollIndicator={false}
                                         ItemSeparatorComponent={() => <View style={styles.divider} />}
                                         accessibilityLabel="Venue search results"
+                                        removeClippedSubviews={false}
+                                        maxToRenderPerBatch={10}
+                                        windowSize={5}
                                     />
                                 ) : searchQuery.trim().length > 0 ? (
                                     <View style={styles.emptyState}>
