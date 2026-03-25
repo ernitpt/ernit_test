@@ -104,7 +104,7 @@ const HintItem = React.memo(({ hint, index, onImagePress }: HintItemProps) => {
       </Text>
       {hasImage && hint.imageUrl && (
         <TouchableOpacity onPress={() => onImagePress(hint.imageUrl!)} activeOpacity={0.9} accessibilityRole="button" accessibilityLabel="View hint image">
-          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" />
+          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" cachePolicy="memory-disk" contentFit="cover" />
         </TouchableOpacity>
       )}
       {text && (
@@ -208,7 +208,7 @@ const SessionCard = ({
         </View>
         {session.mediaUrl && (
           <View style={sessStyles.thumb}>
-            <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} accessibilityLabel={session.mediaType === 'video' ? 'Session video thumbnail' : 'Session photo'} />
+            <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} accessibilityLabel={session.mediaType === 'video' ? 'Session video thumbnail' : 'Session photo'} cachePolicy="memory-disk" contentFit="cover" />
             {session.mediaType === 'video' && (
               <View style={sessStyles.videoOverlay}>
                 <PlayCircle size={18} color={colors.white} />
@@ -236,7 +236,7 @@ const SessionCard = ({
               {motivations.map((m) => (
                 <View key={m.id} style={sessStyles.motivationItem}>
                   {m.authorProfileImage ? (
-                    <Image source={{ uri: m.authorProfileImage }} style={sessStyles.motivationAvatar} accessibilityLabel={`${m.authorName || 'Friend'}'s profile photo`} />
+                    <Image source={{ uri: m.authorProfileImage }} style={sessStyles.motivationAvatar} accessibilityLabel={`${m.authorName || 'Friend'}'s profile photo`} cachePolicy="memory-disk" contentFit="cover" />
                   ) : (
                     <View style={sessStyles.motivationAvatarPlaceholder}>
                       <Text style={sessStyles.motivationAvatarText}>
@@ -860,7 +860,7 @@ const AchievementDetailScreen = () => {
           <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: colors.cyan }} collapsable={false}>
             <LinearGradient colors={[colors.secondary, colors.cyan, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}>
               {experienceImage ? (
-                <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: BorderRadius.pill, marginBottom: 60 }} contentFit="cover" cachePolicy="memory-disk" />
+                <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: BorderRadius.pill, marginBottom: 60 }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
               ) : null}
               <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
               <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
@@ -876,7 +876,7 @@ const AchievementDetailScreen = () => {
                 </View>
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
-                <Image source={require('../../assets/favicon.png')} style={{ width: 60, height: 60, marginBottom: 12 }} contentFit="contain" cachePolicy="memory-disk" />
+                <Image source={require('../../assets/favicon.png')} style={{ width: 60, height: 60, marginBottom: 12 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
                 <Text style={{ ...Typography.display, fontWeight: '600', color: colors.whiteAlpha40 }}>Earned with Ernit</Text>
               </View>
             </LinearGradient>

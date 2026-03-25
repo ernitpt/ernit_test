@@ -389,7 +389,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
     return (
       <View style={styles.achievementCard}>
         {cover ? (
-          <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${pledged.title} cover image`} />
+          <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${pledged.title} cover image`} cachePolicy="memory-disk" contentFit="cover" />
         ) : (
           <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
             <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
@@ -440,7 +440,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   return (
     <View style={styles.achievementCard}>
       {cover ? (
-        <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${experience?.title || 'Experience'} cover image`} />
+        <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${experience?.title || 'Experience'} cover image`} cachePolicy="memory-disk" contentFit="cover" />
       ) : (
         <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
           <Text style={styles.achievementImagePlaceholderText}>🎁</Text>

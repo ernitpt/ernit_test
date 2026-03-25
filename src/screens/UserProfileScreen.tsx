@@ -307,7 +307,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
       <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
         {cover ? (
           <View>
-            <Image source={{ uri: cover }} style={styles.achievementImage} />
+            <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${pledged.title} cover image`} />
             <View style={styles.achCompletedBadge}>
               <Text style={styles.achCompletedBadgeText}>Completed</Text>
             </View>
@@ -359,7 +359,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
     <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
       {cover ? (
         <View>
-          <Image source={{ uri: cover }} style={styles.achievementImage} />
+          <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${experience?.title || 'Experience'} cover image`} />
           <View style={styles.achCompletedBadge}>
             <Text style={styles.achCompletedBadgeText}>Completed</Text>
           </View>

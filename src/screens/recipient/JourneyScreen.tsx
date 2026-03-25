@@ -254,7 +254,7 @@ const SessionCard = React.memo(({
           {/* Right: media thumbnail (if any) */}
           {session.mediaUrl && (
             <View style={sessStyles.thumb}>
-              <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} />
+              <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} accessibilityLabel={session.mediaType === 'video' ? 'Session video thumbnail' : 'Session photo'} cachePolicy="memory-disk" contentFit="cover" />
               {session.mediaType === 'video' && (
                 <View style={sessStyles.videoOverlay}>
                   <PlayCircle size={18} color={colors.white} />
@@ -337,7 +337,7 @@ const SessionCard = React.memo(({
               {motivations.map((m) => (
                 <View key={m.id} style={sessStyles.motivationItem}>
                   {m.authorProfileImage ? (
-                    <Image source={{ uri: m.authorProfileImage }} style={sessStyles.motivationAvatar} />
+                    <Image source={{ uri: m.authorProfileImage }} style={sessStyles.motivationAvatar} accessibilityLabel={`${m.authorName || 'Friend'}'s profile photo`} cachePolicy="memory-disk" contentFit="cover" />
                   ) : (
                     <View style={sessStyles.motivationAvatarPlaceholder}>
                       <Text style={sessStyles.motivationAvatarText}>
@@ -615,7 +615,7 @@ const HintItem = React.memo(({
           accessibilityRole="button"
           accessibilityLabel="View hint image"
         >
-          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" />
+          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" cachePolicy="memory-disk" contentFit="cover" />
         </TouchableOpacity>
       )}
 
