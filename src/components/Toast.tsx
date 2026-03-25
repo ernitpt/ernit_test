@@ -41,7 +41,7 @@ const getToastConfig = (colors: typeof Colors) => ({
   },
 } as const);
 
-const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({
+const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = React.memo(({
   toast,
   onDismiss,
 }) => {
@@ -83,7 +83,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
       </TouchableOpacity>
     </MotiView>
   );
-};
+});
 
 const ToastOverlay: React.FC = () => {
   const { toasts, removeToast } = useToast();

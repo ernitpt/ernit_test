@@ -343,4 +343,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default SharedHeader;
+export default React.memo(SharedHeader);

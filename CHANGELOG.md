@@ -289,6 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace any types with proper TypeScript types in cloud functions
 - wrap ExperienceCard, StreakBanner, SessionActionArea, and SessionMediaPrompt with React.memo to prevent unnecessary re-renders
 - wrap PledgedExperiencePreview and TimerDisplay with React.memo
+- wrap SharedHeader and ToastItem with React.memo to prevent unnecessary re-renders
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
