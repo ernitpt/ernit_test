@@ -697,6 +697,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace static Colors references with dynamic theme-aware colors for dark mode
 - safe userId capture in AuthGuardContext to avoid null assertion
 - replace @ts-ignore with CommonActions.reset in GoalSettingScreen for type-safe navigation reset
+- add keyboardShouldPersistTaps to edit profile ScrollView in UserProfileScreen
 
 ### Added
 - Automatic changelog system with `npm run log` script

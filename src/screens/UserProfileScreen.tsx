@@ -934,7 +934,7 @@ const UserProfileScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalContent}>
+            <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
               <View style={styles.imageSection}>
                 <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
                   {editFormData.profileImageUrl &&
