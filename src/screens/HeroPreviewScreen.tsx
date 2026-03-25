@@ -77,7 +77,7 @@ interface ModeConfig {
     badgeBg: string;
     badgeBorder: string;
     badgeTextColor: string;
-    navigateTo: keyof RootStackParamList;
+    navigateTo: 'ChallengeSetup' | 'GiftFlow';
     steps: StepConfig[];
     stepNumberBg: string;
     stepDividerColor: string;
@@ -315,7 +315,7 @@ export default function HeroPreviewScreen() {
         ctaNavigatingRef.current = true;
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         analyticsService.trackEvent('landing_cta_tapped', 'conversion', { mode });
-        navigation.navigate(config.navigateTo as any);
+        navigation.navigate(config.navigateTo);
         setTimeout(() => { ctaNavigatingRef.current = false; }, 1000);
     }, [navigation, config.navigateTo, mode]);
 

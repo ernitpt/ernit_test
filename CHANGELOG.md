@@ -652,6 +652,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use useSafeAreaInsets for proper hero section padding in UserProfileScreen
 - replace percentage width as any casts with DimensionValue for proper TypeScript typing
 - replace width as any casts in CompletionScreen with DimensionValue for proper TypeScript typing
+- narrow navigateTo type in landing screens to remove as any navigation casts
 
 ### Added
 - Automatic changelog system with `npm run log` script
