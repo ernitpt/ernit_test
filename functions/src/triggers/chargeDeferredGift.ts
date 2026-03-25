@@ -496,10 +496,11 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 const giftDoc2 = await db2.collection("experienceGifts").doc(experienceGiftId).get();
                 const giverId = giftDoc2.data()?.giverId;
                 if (giverId) {
-                    const stripeErr = error as Stripe.StripeError;
+                    const stripeErr = error as Stripe.errors.StripeError;
                     const isAuthRequired = stripeErr.code === 'authentication_required';
-                    const recoveryUrl: string | undefined = stripeErr.raw?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
-                        ?? stripeErr.raw?.payment_intent?.next_action?.redirect_to_url?.url
+                    const rawObj = stripeErr.raw as Record<string, any> | undefined;
+                    const recoveryUrl: string | undefined = rawObj?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
+                        ?? rawObj?.payment_intent?.next_action?.redirect_to_url?.url
                         ?? undefined;
 
                     let notifTitle = 'Payment failed';

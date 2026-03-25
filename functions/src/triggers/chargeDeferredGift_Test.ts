@@ -327,7 +327,7 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                     });
                 });
             } catch (txError: unknown) {
-                if (txError.message === 'ALREADY_PROCESSING') {
+                if ((txError as Error).message === 'ALREADY_PROCESSING') {
                     console.log(`ℹ️ [TEST] ExperienceGift ${giftId} is already being processed — skipping`);
                     return null;
                 }
@@ -354,7 +354,7 @@ export const chargeDeferredGift_Test = functions.firestore.onDocumentUpdated(
                 } catch (attachErr: unknown) {
                     // Stripe throws if PM is already attached to this or another customer.
                     // Log but don't block — the charge will still work if PM belongs to this customer.
-                    console.log(`ℹ️ PM attach skipped: ${attachErr.message}`);
+                    console.log(`ℹ️ PM attach skipped: ${(attachErr as Error).message}`);
                 }
 
                 const paymentIntent = await stripe.paymentIntents.create(
