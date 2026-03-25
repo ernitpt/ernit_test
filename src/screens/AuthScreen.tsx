@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { vh } from '../utils/responsive';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
@@ -82,13 +82,13 @@ const AuthScreen = () => {
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
   const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
       navigation.navigate('Goals');
     }
-  };
+  }, [navigation]);
 
   // Button glow animation - pulsing effect
   const buttonGlowAnim = useRef(new Animated.Value(0)).current;
@@ -172,7 +172,7 @@ const AuthScreen = () => {
   }, []);
 
   // Button press animation handler
-  const handleButtonPressIn = () => {
+  const handleButtonPressIn = useCallback(() => {
     Animated.parallel([
       Animated.spring(buttonScaleAnim, {
         toValue: 0.96,
@@ -181,9 +181,9 @@ const AuthScreen = () => {
         tension: 100,
       }),
     ]).start();
-  };
+  }, [buttonScaleAnim]);
 
-  const handleButtonPressOut = () => {
+  const handleButtonPressOut = useCallback(() => {
     Animated.parallel([
       Animated.spring(buttonScaleAnim, {
         toValue: 1,
@@ -192,7 +192,7 @@ const AuthScreen = () => {
         tension: 100,
       }),
     ]).start();
-  };
+  }, [buttonScaleAnim]);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -503,7 +503,7 @@ const AuthScreen = () => {
     }
   };
 
-  const handleEmailChange = async (text: string) => {
+  const handleEmailChange = useCallback(async (text: string) => {
     const sanitized = sanitizeText(text, 254);
     setEmail(sanitized);
     // Clear email error when user starts typing
@@ -517,9 +517,9 @@ const AuthScreen = () => {
         checkEmailExists(sanitized);
       }, 600);
     }
-  };
+  }, [emailError, isLogin, checkEmailExists]);
 
-  const handlePasswordChange = (text: string) => {
+  const handlePasswordChange = useCallback((text: string) => {
     // SECURITY: Never sanitize passwords — they must reach Firebase Auth unmodified
     setPassword(text);
     if (passwordError) {
@@ -528,12 +528,12 @@ const AuthScreen = () => {
     if (!isLogin) {
       validatePasswordStrength(text);
     }
-  };
+  }, [passwordError, isLogin, validatePasswordStrength]);
 
-  const handleDisplayNameChange = (text: string) => {
+  const handleDisplayNameChange = useCallback((text: string) => {
     const sanitized = sanitizeText(text, 30); // Limit username to 30 characters
     setDisplayName(sanitized);
-  };
+  }, []);
 
   const handleAuth = async () => {
     const sanitizedEmail = sanitizeText(email, 254);
