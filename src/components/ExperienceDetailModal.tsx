@@ -377,10 +377,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         borderRadius: 4,
     },
     dotActive: {
-        backgroundColor: colors.white,
+        backgroundColor: colors.textOnImage,
     },
     dotInactive: {
-        backgroundColor: 'rgba(255,255,255,0.5)',
+        backgroundColor: colors.whiteAlpha40,
     },
 
     // Content

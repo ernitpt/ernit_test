@@ -180,7 +180,7 @@ const FeedScreen: React.FC = () => {
         const borderColor = isHighlighted
             ? highlightAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: ['rgba(5, 150, 105, 0)', 'rgba(5, 150, 105, 1)'],
+                outputRange: ['transparent', colors.primary],
             })
             : 'transparent';
 
@@ -208,7 +208,7 @@ const FeedScreen: React.FC = () => {
                 </Animated.View>
             </MotiView>
         );
-    }, [highlightedPostId, highlightAnim]);
+    }, [highlightedPostId, highlightAnim, colors]);
 
     const renderEmpty = () => {
         if (isLoading) return null;

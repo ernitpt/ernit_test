@@ -508,11 +508,11 @@ const createStyles = (colors: typeof Colors) =>
     },
     blurLayer2: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(240, 242, 245, 0.3)',
+      backgroundColor: colors.whiteAlpha25,
     },
     blurLayer3: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(250, 251, 252, 0.2)',
+      backgroundColor: colors.whiteAlpha15,
     },
     btn: {
       width: '100%',
