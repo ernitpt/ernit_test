@@ -432,7 +432,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             </View>
           )}
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             {/* Summary */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Your Gifts</Text>

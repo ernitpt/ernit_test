@@ -167,6 +167,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
           >
             {/* Info card */}
             <View style={styles.infoCard}>
