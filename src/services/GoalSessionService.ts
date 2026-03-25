@@ -56,7 +56,7 @@ export class GoalSessionService {
 
   /** Handle expired or completed weeks */
   async sweepExpiredWeeks(goal: Goal): Promise<Goal> {
-    let g = normalizeGoal(goal as unknown as Record<string, unknown> & { id: string });
+    let g = normalizeGoal(goal);
     if (!g.weekStartAt || !g.id) return g;
 
     // ✅ Skip completed goals - no need to sweep them

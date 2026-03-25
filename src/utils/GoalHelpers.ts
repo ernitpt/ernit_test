@@ -60,7 +60,11 @@ export function addDaysSafe(base: Date | null | undefined, days: number): Date {
 }
 
 /** Ensure all date-like fields are valid Dates (or null) and fix missing arrays/numbers */
-export function normalizeGoal(g: Record<string, unknown> & { id: string }): Goal {
+export function normalizeGoal<T extends { id: string }>(input: T): Goal {
+  // Cast to a loose record for generic field access — this is a Firestore boundary cast
+  // where raw document data (possibly containing Timestamps) is converted to a typed Goal.
+  const g = input as unknown as Record<string, unknown> & { id: string };
+
   const startDate = toJSDate(g.startDate) ?? DateHelper.now();
   const endDate = toJSDate(g.endDate) ?? addDaysSafe(startDate, 7);
   const weekStartAt = toJSDate(g.weekStartAt);
@@ -106,7 +110,7 @@ export function normalizeGoal(g: Record<string, unknown> & { id: string }): Goal
     giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
     giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
     // Discovery engine fields
-    discoveredAt: toJSDate(g.discoveredAt as unknown) ?? null,
-    experienceRevealedAt: toJSDate(g.experienceRevealedAt as unknown) ?? null,
+    discoveredAt: toJSDate(g.discoveredAt) ?? null,
+    experienceRevealedAt: toJSDate(g.experienceRevealedAt) ?? null,
   } as unknown as Goal;
 }

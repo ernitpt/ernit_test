@@ -98,7 +98,7 @@ export class GoalService {
         }
       }
 
-      const normalized = normalizeGoal(goal as unknown as Record<string, unknown> & { id: string });
+      const normalized = normalizeGoal(goal);
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
@@ -164,7 +164,7 @@ export class GoalService {
         }
       }
 
-      const normalized = normalizeGoal(goal as unknown as Record<string, unknown> & { id: string });
+      const normalized = normalizeGoal(goal);
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
