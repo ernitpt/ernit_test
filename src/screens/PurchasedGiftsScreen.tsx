@@ -32,6 +32,7 @@ import { MotiView } from 'moti';
 import { EmptyState } from '../components/EmptyState';
 import { Card } from '../components/Card';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { toJSDate } from '../utils/GoalHelpers';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -44,8 +45,7 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 
 const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!date) return 'N/A';
-  const ts = date as unknown as { toDate?: () => Date };
-  const jsDate = typeof ts.toDate === 'function' ? ts.toDate() : new Date(date as string | number | Date);
+  const jsDate = toJSDate(date) ?? new Date(date as string | number | Date);
   return jsDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

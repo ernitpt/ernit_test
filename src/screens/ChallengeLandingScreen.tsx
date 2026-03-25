@@ -107,7 +107,7 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
     statHighlight: '42%',
     statColor: colors.secondary,
     ctaText: 'Start My Challenge',
-    ctaGradient: colors.gradientDark as unknown as readonly [string, string],
+    ctaGradient: colors.gradientDark,
     ctaShadowColor: colors.primary,
     badgeText: '100% Free',
     badgeBg: colors.primarySurface,

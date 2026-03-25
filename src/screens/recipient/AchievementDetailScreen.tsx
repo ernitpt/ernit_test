@@ -49,6 +49,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { logger } from '../../utils/logger';
+import { toJSDate } from '../../utils/GoalHelpers';
 import ErrorRetry from '../../components/ErrorRetry';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -87,19 +88,8 @@ const HintItem = React.memo(({ hint, index, onImagePress }: HintItemProps) => {
   const hasImage = hint.imageUrl || (hint.type === 'mixed' && hint.imageUrl);
   const text = hint.text || hint.hint;
 
-  let dateMs = 0;
-  if (hint.createdAt) {
-    const ts = hint.createdAt as unknown as { toMillis?: () => number };
-    if (typeof ts.toMillis === 'function') {
-      dateMs = ts.toMillis();
-    } else if (hint.createdAt instanceof Date) {
-      dateMs = hint.createdAt.getTime();
-    } else {
-      dateMs = new Date(hint.createdAt as unknown as string).getTime();
-    }
-  } else if (hint.date) {
-    dateMs = hint.date;
-  }
+  const parsedDate = hint.createdAt ? toJSDate(hint.createdAt) : null;
+  const dateMs = parsedDate?.getTime() ?? hint.date ?? 0;
 
   return (
     <Animated.View style={{

@@ -302,7 +302,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   const getEffectiveDeadline = (): Date | null => {
     if (goal.giftAttachDeadline) return new Date(goal.giftAttachDeadline);
     if (goal.completedAt) {
-      const d = new Date(toJSDate(goal.completedAt) ?? goal.completedAt as unknown as Date);
+      const d = toJSDate(goal.completedAt) ?? new Date();
       d.setDate(d.getDate() + 30);
       return d;
     }
