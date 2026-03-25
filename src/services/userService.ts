@@ -35,7 +35,7 @@ export class UserService {
         updatedAt: new Date().toISOString(),
         cart: user.cart ?? [],
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('createUserProfile failed'), {
         screenName: 'userService',
         feature: 'createUserProfile',
@@ -52,7 +52,7 @@ export class UserService {
 
       if (!snapshot.exists()) return null;
       return snapshot.data().profile ?? null;
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('getUserProfile failed'), {
         screenName: 'userService',
         feature: 'getUserProfile',
@@ -106,7 +106,7 @@ export class UserService {
           }
           : undefined,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('getUserById failed'), {
         screenName: 'userService',
         feature: 'getUserById',
@@ -130,7 +130,7 @@ export class UserService {
         return data.displayName || 'Unknown';
       }
       return 'Unknown';
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching user name:', error);
       await logErrorToFirestore(error, {
         screenName: 'UserService',
@@ -152,7 +152,7 @@ export class UserService {
       );
 
       return experiences.filter(Boolean);
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('getWishlist failed'), {
         screenName: 'userService',
         feature: 'getWishlist',
@@ -196,7 +196,7 @@ export class UserService {
         ...sanitizedUpdates,
         updatedAt: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('updateUserProfile failed'), {
         screenName: 'userService',
         feature: 'updateUserProfile',
@@ -213,7 +213,7 @@ export class UserService {
         cart,
         updatedAt: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('updateCart failed'), {
         screenName: 'userService',
         feature: 'updateCart',
@@ -230,7 +230,7 @@ export class UserService {
         cart: arrayUnion(cartItem),
         updatedAt: serverTimestamp(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('addToCart failed'), {
         screenName: 'userService',
         feature: 'addToCart',
@@ -256,7 +256,7 @@ export class UserService {
         cart: newCart,
         updatedAt: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('removeFromCart failed'), {
         screenName: 'userService',
         feature: 'removeFromCart',
@@ -273,7 +273,7 @@ export class UserService {
         cart: [],
         updatedAt: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('clearCart failed'), {
         screenName: 'userService',
         feature: 'clearCart',

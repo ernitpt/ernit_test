@@ -127,7 +127,7 @@ const ConfirmationMultipleScreen = () => {
         });
         setPersonalizedMessages(initialMessages);
         setMessageSentStatus(initialSentStatus);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error fetching experiences:", error);
         setLoadError(true);
         showError("Could not load experience details.");
@@ -162,7 +162,7 @@ const ConfirmationMultipleScreen = () => {
         [giftId]: true,
       }));
       showSuccess('Your personalized message has been saved!');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error updating personalized message:', error);
       showError('Failed to save message. Please try again.');
     } finally {
@@ -175,7 +175,7 @@ const ConfirmationMultipleScreen = () => {
     try {
       await Clipboard.setStringAsync(code);
       showSuccess('Claim code copied to clipboard.');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
@@ -256,7 +256,7 @@ Earn it. Unlock it. Enjoy it 🚀
                   });
                   setPersonalizedMessages(initialMessages);
                   setMessageSentStatus(initialSentStatus);
-                } catch (error) {
+                } catch (error: unknown) {
                   logger.error("Error fetching experiences:", error);
                   setLoadError(true);
                   showError("Could not load experience details.");

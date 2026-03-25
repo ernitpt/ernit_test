@@ -61,7 +61,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             const goalData = await goalService.getGoalById(notification.data?.goalId || '');
             setGoal(goalData);
             setShowHintModal(true);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error fetching goal:', error);
             showError('Could not load goal details');
         } finally {
@@ -76,7 +76,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                 const goalData = await goalService.getGoalById(notification.data?.goalId || '');
                 setGoal(goalData);
                 setShowHistoryModal(true);
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error fetching goal:', error);
                 showError('Could not load goal details');
             } finally {
@@ -150,7 +150,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             });
 
             logger.log('✅ Personalized hint set successfully');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error setting personalized hint:', error);
             throw error;
         }
@@ -166,7 +166,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             await notificationService.deleteNotification(notification.id!);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error clearing notification:', error);
         }
     };

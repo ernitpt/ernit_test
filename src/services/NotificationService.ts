@@ -48,7 +48,7 @@ export class NotificationService {
       }
       const docRef = await addDoc(collection(db, 'notifications'), docData);
       return docRef.id;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to create notification:', error);
       // Don't rethrow — notification is non-critical
       return '';
@@ -82,7 +82,7 @@ export class NotificationService {
         true, // Allow clearing after responding
         senderId // Pass senderId as top-level field
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to create friend request notification:', error);
       // Don't rethrow — notification is non-critical
     }
@@ -181,7 +181,7 @@ export class NotificationService {
           true
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error creating/updating post reaction notification:', error);
       throw error;
     }
@@ -233,7 +233,7 @@ export class NotificationService {
     try {
       const ref = doc(db, 'notifications', notificationId);
       await updateDoc(ref, { read: true });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to mark notification as read:', error);
     }
   }
@@ -253,7 +253,7 @@ export class NotificationService {
         }
       }
       await deleteDoc(ref);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof AppError) throw error; // Re-throw business logic errors
       logger.warn('Failed to delete notification:', error);
     }
@@ -279,7 +279,7 @@ export class NotificationService {
       await batch.commit();
 
       logger.log(`✅ Cleared ${clearableDocs.length} clearable notifications for user ${userId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error clearing all notifications:', error);
       throw error;
     }
@@ -301,7 +301,7 @@ export class NotificationService {
       await batch.commit();
 
       logger.log(`✅ Cleared read clearable notifications for user ${userId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error clearing read notifications:', error);
       throw error;
     }
@@ -330,7 +330,7 @@ export class NotificationService {
       await Promise.all(updatePromises);
 
       logger.log(`✅ Marked ${updatePromises.length} old goal_progress notifications as stale for goal ${goalId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error invalidating old goal_progress notifications:', error);
       // Don't throw - this is a cleanup operation
     }

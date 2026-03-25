@@ -18,7 +18,7 @@ export const initializeAnalytics = () => {
                 },
             });
             logger.log('✅ Google Analytics initialized');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Failed to initialize Google Analytics:', error);
         }
     }

@@ -106,7 +106,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
             await pushNotificationService.setupPushNotifications(userId);
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('🔔 Token health check failed:', error);
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
@@ -129,7 +129,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
             await pushNotificationService.setupPushNotifications(userId);
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('🔔 Initial token check failed:', error);
       }
     }, 10000);
@@ -202,7 +202,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
           } else {
             logger.error('Navigation ref not available');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Navigation error:', error);
           // Fallback to safe route
           try {
@@ -219,7 +219,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
           if (navigationRef) {
             navigationRef.navigate('Goals');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Fallback navigation error:', error);
         }
       }

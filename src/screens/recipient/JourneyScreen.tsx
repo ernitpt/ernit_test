@@ -749,7 +749,7 @@ const JourneyScreen = () => {
             currentGoal.experienceGiftId
           );
           if (gift) setExperienceGift(gift);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error fetching experience gift:', error);
           setError(true);
         }
@@ -765,7 +765,7 @@ const JourneyScreen = () => {
     try {
       const data = await sessionService.getSessionsForGoal(currentGoal.id);
       setSessions(data);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching sessions:', error);
       setError(true);
     } finally {
@@ -792,7 +792,7 @@ const JourneyScreen = () => {
       try {
         const data = await motivationService.getAllMotivations(currentGoal.id);
         setMotivations(data);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching motivations:', error);
         setError(true);
       }
@@ -827,7 +827,7 @@ const JourneyScreen = () => {
           .filter(exp => exp.category?.toLowerCase() === currentGoal.preferredRewardCategory?.toLowerCase())
           .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         setRecommendedExperiences(filtered.slice(0, 3));
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching recommended experiences:', error);
       }
     };
@@ -852,7 +852,7 @@ const JourneyScreen = () => {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
             if (gift) expId = gift.experienceId;
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to load experience gift:', error);
             // Continue without gift data — non-fatal
           }
@@ -872,7 +872,7 @@ const JourneyScreen = () => {
         if (currentGoal.couponCode) {
           setCouponCode(currentGoal.couponCode);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error('Error fetching completed goal data:', err);
         setError(true);
       }
@@ -897,7 +897,7 @@ const JourneyScreen = () => {
     setCouponLoading(true);
     try {
       await generateCouponWithTransaction();
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Coupon generation failed:', err);
       showError('Could not generate your coupon. Please try again.');
       couponRequestedRef.current = false; // Allow retry on error
@@ -1028,7 +1028,7 @@ const JourneyScreen = () => {
           showInfo('Sharing is not available on this device');
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error sharing achievement:', error);
       showError('Could not share. Please try again.');
     } finally {

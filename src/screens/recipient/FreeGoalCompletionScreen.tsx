@@ -197,7 +197,7 @@ const FreeGoalCompletionScreen = () => {
       await Share.share({
         message: `I just completed my goal "${goal?.title}"! ${pledgedExperience ? `Working towards: ${pledgedExperience.title}` : ''} #Ernit #GoalAchieved`,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error sharing achievement:', error);
     }
   }, [goal?.title, pledgedExperience]);

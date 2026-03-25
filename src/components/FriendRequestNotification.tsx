@@ -46,7 +46,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showSuccess(`You are now friends with ${notification.data.senderName}!`);
       onRequestHandled();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error accepting friend request:', error);
       showError('Failed to accept friend request. Please try again.');
     } finally {
@@ -69,7 +69,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       showInfo(`Friend request from ${notification.data.senderName} has been declined.`);
       onRequestHandled();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error declining friend request:', error);
       showError('Failed to decline friend request. Please try again.');
     } finally {

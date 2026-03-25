@@ -173,7 +173,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
         Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true, friction: 3, tension: 200 }),
         Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, friction: 4, tension: 100 }),
       ]).start();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error updating wishlist:", error);
       showError("Failed to update wishlist. Please try again.");
     }

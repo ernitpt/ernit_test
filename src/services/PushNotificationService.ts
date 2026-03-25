@@ -33,7 +33,7 @@ class PushNotificationService {
             this.isInitialized = true;
             logger.log('🔔 Firebase Messaging initialized successfully');
             return true;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error initializing Firebase Messaging:', error);
             return false;
         }
@@ -51,7 +51,7 @@ class PushNotificationService {
             const permission = await Notification.requestPermission();
             logger.log('🔔 Notification permission:', permission);
             return permission;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error requesting notification permission:', error);
             return 'denied';
         }
@@ -126,7 +126,7 @@ class PushNotificationService {
                 logger.warn('🔔 No registration token available');
                 return null;
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error getting FCM token:', error);
             return null;
         }
@@ -151,7 +151,7 @@ class PushNotificationService {
             });
 
             logger.log('🔔 FCM token saved to Firestore (deduplicated)');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error saving FCM token to Firestore:', error);
             throw error;
         }
@@ -204,7 +204,7 @@ class PushNotificationService {
             });
 
             return unsubscribe;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error setting up message listener:', error);
             return () => { };
         }
@@ -258,7 +258,7 @@ class PushNotificationService {
 
             logger.log('🔔 Push notifications setup successfully');
             return true;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error setting up push notifications:', error);
             return false;
         }
@@ -303,7 +303,7 @@ class PushNotificationService {
 
             logger.log('🔔 Local notification permission granted');
             return true;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error requesting local notification permission:', error);
             return false;
         }
@@ -351,7 +351,7 @@ class PushNotificationService {
 
                 logger.log(`🔔 Session notification scheduled for goal ${goalId} in ${targetSeconds}s (ID: ${notificationId})`);
                 return notificationId;
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('🔔 Error scheduling session notification:', error);
                 return null;
             }
@@ -416,7 +416,7 @@ class PushNotificationService {
 
                     logger.log(`🔔 Service Worker notification scheduled for goal ${goalId} in ${targetSeconds}s`);
                     return messageId;
-                } catch (error) {
+                } catch (error: unknown) {
                     logger.error('🔔 Service Worker registration failed:', error);
                     return null;
                 }
@@ -424,7 +424,7 @@ class PushNotificationService {
                 logger.warn('🔔 Service Worker not supported');
                 return null;
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error scheduling session notification:', error);
             return null;
         }
@@ -465,7 +465,7 @@ class PushNotificationService {
 
                 await AsyncStorage.removeItem(`session_notification_${goalId}`);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error cancelling session notification:', error);
         }
     }
@@ -477,7 +477,7 @@ class PushNotificationService {
         try {
             await Notifications.cancelAllScheduledNotificationsAsync();
             logger.log('🔔 All scheduled notifications cancelled');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('🔔 Error cancelling all notifications:', error);
         }
     }

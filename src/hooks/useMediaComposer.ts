@@ -142,7 +142,7 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
                     return newDuration;
                 });
             }, 1000);
-        } catch (err) {
+        } catch (err: unknown) {
             logger.error('Failed to start recording', err);
         }
     };
@@ -159,7 +159,7 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
             const uri = currentRecording.getURI();
             setAudioUri(uri);
             setRecording(null);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Failed to stop recording', error);
         }
     };
@@ -191,7 +191,7 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
                     }
                 });
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error playing sound', error);
         }
     };

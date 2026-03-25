@@ -77,7 +77,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
         try {
             const loadedComments = await commentService.getComments(postId);
             setComments(loadedComments);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading comments:', error);
         } finally {
             setIsLoading(false);
@@ -108,7 +108,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             const reloaded = await commentService.getComments(postId);
             setComments(reloaded);
             onChange?.(reloaded.length);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error sending/updating comment:', error);
             showError('Could not send comment. Please try again.');
         } finally {
@@ -151,7 +151,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 await commentService.likeComment(postId, comment.id, state.user.id);
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error toggling comment like:', error);
             await loadComments();
         }
@@ -172,7 +172,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             setComments(reloaded);
             onChange?.(reloaded.length);
             setMenuVisibleId(null);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error deleting comment:', error);
             showError('Could not delete comment. Please try again.');
         }

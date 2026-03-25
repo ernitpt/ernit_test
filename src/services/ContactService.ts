@@ -77,7 +77,7 @@ class ContactService {
             const result = await sendContactEmail(submission);
 
             logger.log(`${type} submitted successfully:`, result.data);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error(`Error submitting ${type}:`, error);
             throw error;
         }

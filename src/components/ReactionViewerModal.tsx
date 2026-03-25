@@ -62,7 +62,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                 const firstType = allReactions[0].type;
                 setSelectedTab('all');
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading reactions:', error);
             await logErrorToFirestore(error, {
                 screenName: 'ReactionViewerModal',

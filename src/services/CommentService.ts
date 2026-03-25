@@ -82,7 +82,7 @@ class CommentService {
             } catch (e) {
                 logger.warn('Failed to send comment notification:', e);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error adding comment:', error);
             throw error;
         }
@@ -107,7 +107,7 @@ class CommentService {
                 updatedAt: Timestamp.now(),
             });
             logger.log('✅ Comment updated');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error updating comment:', error);
             throw error;
         }
@@ -137,7 +137,7 @@ class CommentService {
                     likedBy: data.likedBy || [],
                 } as Comment;
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error fetching comments:', error);
             throw error;
         }
@@ -162,7 +162,7 @@ class CommentService {
             await batch.commit();
 
             logger.log('✅ Comment deleted');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error deleting comment:', error);
             throw error;
         }
@@ -177,7 +177,7 @@ class CommentService {
             await updateDoc(commentRef, {
                 likedBy: arrayUnion(userId),
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error liking comment:', error);
             throw error;
         }
@@ -192,7 +192,7 @@ class CommentService {
             await updateDoc(commentRef, {
                 likedBy: arrayRemove(userId),
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error unliking comment:', error);
             throw error;
         }

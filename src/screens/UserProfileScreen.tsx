@@ -240,7 +240,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = ({ goal }) => {
         } catch (dataErr) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error('Error loading achievement data:', err);
       } finally {
         setLoadingCard(false);
@@ -517,7 +517,7 @@ const UserProfileScreen: React.FC = () => {
 
       const userWishlist = await userService.getWishlist(userId);
       setWishlist(userWishlist || []);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error loading profile data:', error);
       setError(true);
       showError('Could not load profile. Please try again.');
@@ -593,7 +593,7 @@ const UserProfileScreen: React.FC = () => {
         showError('Could not upload profile image.');
       }
     }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Image picker error:', error);
       showError('Could not open image picker. Please try again.');
     }
@@ -678,7 +678,7 @@ const UserProfileScreen: React.FC = () => {
     // 5. Call API in background
     try {
       await userService.updateUserProfile(userId, { profile: updatedProfile });
-    } catch (error) {
+    } catch (error: unknown) {
       // 6. Rollback on failure
       logger.error('Error updating profile:', error);
       setUserProfile(previousProfile);
@@ -721,7 +721,7 @@ const UserProfileScreen: React.FC = () => {
         );
         dispatch({ type: 'SET_USER', payload: { ...state.user, wishlist: updatedWishlist } });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error removing from wishlist:', error);
       showError('Failed to remove item from wishlist. Please try again.');
     }

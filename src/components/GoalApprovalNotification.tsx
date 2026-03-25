@@ -84,7 +84,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       setShowApproveModal(false);
       setApproveMessage('');
       onActionTaken();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error approving goal:', error);
       setError('Failed to approve goal. Please try again.');
     } finally {
@@ -180,7 +180,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       setSuggestSessions('');
       setSuggestMessage('');
       onActionTaken();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error suggesting goal change:', error);
       setSuggestError('Failed to suggest goal change. Please try again.');
     } finally {

@@ -210,7 +210,7 @@ const CouponEntryScreen = () => {
           routes: [{ name: 'GoalSetting', params: { experienceGift } }],
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error claiming experience gift:', error);
       await logErrorToFirestore(error, {
         screenName: 'CouponEntryScreen',

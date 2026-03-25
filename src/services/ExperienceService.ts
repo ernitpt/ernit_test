@@ -21,7 +21,7 @@ export const experienceService = {
         logger.warn(`Experience not found: ${id}`);
         return null;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error fetching experience:", error);
       return null;
     }

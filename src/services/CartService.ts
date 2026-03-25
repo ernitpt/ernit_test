@@ -31,7 +31,7 @@ export class CartService {
         return Array.isArray(parsed) ? parsed : [];
       }
       return [];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[CartService] Error getting guest cart:', error);
       return [];
     }
@@ -48,7 +48,7 @@ export class CartService {
       } else {
         await AsyncStorage.setItem(CART_STORAGE_KEY, cartJson);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error saving guest cart:', error);
     }
   }
@@ -63,7 +63,7 @@ export class CartService {
       } else {
         await AsyncStorage.removeItem(CART_STORAGE_KEY);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error clearing guest cart:', error);
     }
   }

@@ -101,7 +101,7 @@ const ConfirmationScreen = () => {
             // Gift doesn't exist — clear key and fall through to redirect
             await AsyncStorage.removeItem('pending_sca_gift');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn('SCA recovery failed:', error);
         }
         // No recovery possible — redirect
@@ -149,7 +149,7 @@ const ConfirmationScreen = () => {
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
         setExperience(exp);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error fetching experience:", error);
         await logErrorToFirestore(error, {
           screenName: 'ConfirmationScreen',
@@ -196,7 +196,7 @@ const ConfirmationScreen = () => {
           // Mark goal as having a pending gift to prevent duplicate purchases
           await goalService.markEmpowerPending(goalId);
           logger.log('Empower notification sent to goal owner', empowerContext.userId);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to send empower notification:', error);
           await logErrorToFirestore(error, {
             screenName: 'ConfirmationScreen',
@@ -215,7 +215,7 @@ const ConfirmationScreen = () => {
         try {
           await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user?.id ?? "");
           logger.log('Gift auto-attached to goal', goalId);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to auto-attach gift to goal:', error);
           await logErrorToFirestore(error, {
             screenName: 'ConfirmationScreen',
@@ -266,7 +266,7 @@ const ConfirmationScreen = () => {
       await experienceGiftService.updatePersonalizedMessage(experienceGift.id, sanitizedMessage);
       setMessageSent(true);
       showSuccess('Your personalized message has been saved!');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error updating personalized message:', error);
       await logErrorToFirestore(error, {
         screenName: 'ConfirmationScreen',
@@ -287,7 +287,7 @@ const ConfirmationScreen = () => {
       setIsCopied(true);
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }

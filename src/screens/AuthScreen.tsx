@@ -310,7 +310,7 @@ const AuthScreen = () => {
                 navigation.navigate('GiftFlow', { prefill: config });
                 return;
               }
-            } catch (error) {
+            } catch (error: unknown) {
               logger.error('Error handling pending gift flow after auth:', error);
               await removeStorageItem('pending_gift_flow').catch(() => {});
               showInfo('Your previous progress could not be restored. Please start again.');
@@ -325,7 +325,7 @@ const AuthScreen = () => {
                 navigation.navigate('ChallengeSetup', { prefill: config });
                 return;
               }
-            } catch (error) {
+            } catch (error: unknown) {
               logger.error('Error handling pending challenge after auth:', error);
               await removeStorageItem('pending_free_challenge').catch(() => {});
               showInfo('Your previous progress could not be restored. Please start again.');
@@ -392,7 +392,7 @@ const AuthScreen = () => {
                         navigation.navigate('GiftFlow', { prefill: config });
                         return;
                       }
-                    } catch (error) {
+                    } catch (error: unknown) {
                       logger.error('Error handling pending gift flow after auth:', error);
                       await removeStorageItem('pending_gift_flow').catch(() => {});
                       showInfo('Your previous progress could not be restored. Please start again.');
@@ -406,7 +406,7 @@ const AuthScreen = () => {
                         navigation.navigate('ChallengeSetup', { prefill: config });
                         return;
                       }
-                    } catch (error) {
+                    } catch (error: unknown) {
                       logger.error('Error handling pending challenge after auth:', error);
                       await removeStorageItem('pending_free_challenge').catch(() => {});
                       showInfo('Your previous progress could not be restored. Please start again.');
@@ -657,7 +657,7 @@ const AuthScreen = () => {
             navigation.navigate('GiftFlow', { prefill: config });
             return;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error handling pending gift flow after auth:', error);
           await removeStorageItem('pending_gift_flow').catch(() => {});
           showInfo('Your previous progress could not be restored. Please start again.');
@@ -671,7 +671,7 @@ const AuthScreen = () => {
             navigation.navigate('ChallengeSetup', { prefill: config });
             return;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error handling pending challenge after auth:', error);
           await removeStorageItem('pending_free_challenge').catch(() => {});
           showInfo('Your previous progress could not be restored. Please start again.');
@@ -684,7 +684,7 @@ const AuthScreen = () => {
             navigation.navigate('RecipientFlow', { screen: 'CouponEntry', params: { code: pendingCode } });
             return;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error handling pending claim code after auth:', error);
           await removeStorageItem('pending_claim_code').catch(() => {});
         }

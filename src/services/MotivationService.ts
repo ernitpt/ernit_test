@@ -140,7 +140,7 @@ class MotivationService {
       }
 
       return docRef.id;
-    } catch (error) {
+    } catch (error: unknown) {
       // Re-throw validation errors as-is
       if (error instanceof Error && (
         error.message.includes('already sent') ||
@@ -191,7 +191,7 @@ class MotivationService {
       });
 
       return motivations;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching motivations:', error);
       return [];
     }
@@ -202,7 +202,7 @@ class MotivationService {
     try {
       const motivationRef = doc(db, 'goals', goalId, 'motivations', motivationId);
       await updateDoc(motivationRef, { seen: true });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error marking motivation as seen:', error);
     }
   }
@@ -213,7 +213,7 @@ class MotivationService {
       const motivationsRef = this.getMotivationsCollection(goalId);
       const snapshot = await getCountFromServer(motivationsRef);
       return snapshot.data().count;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting motivation count:', error);
       return 0;
     }
@@ -242,7 +242,7 @@ class MotivationService {
       });
 
       return motivations;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching all motivations:', error);
       return [];
     }
@@ -255,7 +255,7 @@ class MotivationService {
       const q = query(motivationsRef, where('seen', '==', false));
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting unseen motivation count:', error);
       return 0;
     }

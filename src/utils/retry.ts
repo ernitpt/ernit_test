@@ -40,7 +40,7 @@ export async function withRetry<T>(
   for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
     try {
       return await fn();
-    } catch (error) {
+    } catch (error: unknown) {
       lastError = error;
       if (attempt >= opts.maxAttempts || !opts.isRetryable(error)) {
         throw error;

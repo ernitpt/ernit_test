@@ -315,7 +315,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       dispatch({ type: 'RESET_STATE' });
 
       navigation.reset({ index: 0, routes: [{ name: 'ChallengeLanding' }] });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Logout failed:', error);
       showError('Failed to log out. Please try again.');
     } finally {
@@ -339,7 +339,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       await userService.updateUserProfile(state.user.id, {
         profile: { ...state.user.profile, reminderEnabled: newValue, timezone },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error saving reminder preference:', error);
       setReminderEnabled(!newValue);
     }
@@ -354,7 +354,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       await userService.updateUserProfile(state.user.id, {
         profile: { ...state.user.profile, reminderTime: time, timezone },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error saving reminder time:', error);
     }
   };

@@ -63,7 +63,7 @@ class LocationService {
             }
 
             return granted;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('[LocationService] Failed to request location permissions:', error);
             return false;
         }
@@ -166,7 +166,7 @@ class LocationService {
                 lat: location.coords.latitude,
                 lng: location.coords.longitude,
             };
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('[LocationService] Native: failed to get current position:', error);
             return null;
         }

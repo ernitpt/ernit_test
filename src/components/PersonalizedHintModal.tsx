@@ -100,7 +100,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
             onClose();
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error submitting hint:', error);
             showError('Failed to send hint. Please try again.');
         } finally {

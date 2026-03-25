@@ -96,7 +96,7 @@ class AnalyticsService {
         }
         await batch.commit();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('AnalyticsService flush failed:', error);
       // Don't re-add to buffer to avoid infinite growth
     }
@@ -145,7 +145,7 @@ class AnalyticsService {
       if (this.buffer.length >= BUFFER_SIZE) {
         this.flush();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('AnalyticsService enqueue failed:', error);
     }
   }

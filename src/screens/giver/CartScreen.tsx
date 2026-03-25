@@ -74,7 +74,7 @@ export default function CartScreen() {
           if (guestCart.length > 0) {
             dispatch({ type: 'SET_CART', payload: guestCart });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error loading guest cart:', error);
         }
       }
@@ -122,7 +122,7 @@ export default function CartScreen() {
 
       setCartExperiences(list);
       loadedExperienceIds.current = ids;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error loading cart items:', error);
       setLoadError(true);
     } finally {
@@ -158,7 +158,7 @@ export default function CartScreen() {
       if (state.user) {
         await userService.updateCart(state.user.id, updated);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error updating quantity:", error);
       await logErrorToFirestore(error, {
         screenName: 'CartScreen',
@@ -205,7 +205,7 @@ export default function CartScreen() {
       }
 
       showSuccess("Item removed from cart");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error removing item:", error);
       await logErrorToFirestore(error, {
         screenName: 'CartScreen',

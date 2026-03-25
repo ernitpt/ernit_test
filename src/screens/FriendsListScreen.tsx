@@ -82,7 +82,7 @@ const FriendsListScreen: React.FC = () => {
       );
 
       setFriends(enrichedFriends);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error loading friends', err);
       setError(true);
       showError('Could not load friends. Pull to refresh to try again.');

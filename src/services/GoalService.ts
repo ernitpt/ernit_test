@@ -123,13 +123,13 @@ export class GoalService {
           totalSessions: normalized.targetCount * normalized.sessionsPerWeek,
           createdAt: new Date(),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error creating feed post:', error);
       }
 
       analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: false });
       return { ...normalized, id: docRef.id };
-    } catch (error) {
+    } catch (error: unknown) {
       // Log error to Firestore
       await logErrorToFirestore(error, {
         feature: 'GoalCreation',
@@ -194,13 +194,13 @@ export class GoalService {
           preferredRewardCategory: normalized.preferredRewardCategory,
           createdAt: new Date(),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error creating feed post for free goal:', error);
       }
 
       analyticsService.trackEvent('goal_creation_completed', 'conversion', { goalId: docRef.id, targetCount: normalized.targetCount, sessionsPerWeek: normalized.sessionsPerWeek, isFreeGoal: true, ...(normalized.pledgedExperience?.experienceId ? { pledgedExperienceId: normalized.pledgedExperience.experienceId } : {}) });
       return { ...normalized, id: docRef.id };
-    } catch (error) {
+    } catch (error: unknown) {
       await logErrorToFirestore(error, {
         feature: 'FreeGoalCreation',
         userId: goal.userId,
@@ -295,7 +295,7 @@ export class GoalService {
           })
         );
         cb(goals);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error processing goals in listenToUserGoals:', error);
         // Still try to return basic normalized goals
         const fallbackGoals = snap.docs.map((d) => normalizeGoal({ id: d.id, ...d.data() }));
@@ -471,7 +471,7 @@ export class GoalService {
         return data?.couponCode || null;
       }
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching goal coupon:', error);
       return null;
     }
@@ -489,7 +489,7 @@ export class GoalService {
         },
         { merge: true }
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error saving goal coupon:', error);
       throw error; // Don't swallow — caller needs to know
     }
@@ -583,7 +583,7 @@ export class GoalService {
         totalSessions: goal.targetCount * goal.sessionsPerWeek,
         createdAt: new Date(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error creating goal approval feed post:', error);
     }
 
@@ -701,7 +701,7 @@ export class GoalService {
         totalSessions: newTargetCount * newSessionsPerWeek,
         createdAt: new Date(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error creating goal approval feed post:', error);
     }
 

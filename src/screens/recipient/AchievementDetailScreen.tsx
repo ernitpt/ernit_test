@@ -547,7 +547,7 @@ const AchievementDetailScreen = () => {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             if (gift) expId = gift.experienceId;
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to load experience gift:', error);
           }
         }
@@ -572,7 +572,7 @@ const AchievementDetailScreen = () => {
             setCouponCode(snapshot.docs[0].data().code);
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching achievement data:', error);
         showError('Could not load achievement details.');
         setError(true);
@@ -591,7 +591,7 @@ const AchievementDetailScreen = () => {
       try {
         const data = await sessionService.getSessionsForGoal(goal.id);
         setSessions(data);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching sessions:', error);
       } finally {
         setSessionsLoading(false);
@@ -607,7 +607,7 @@ const AchievementDetailScreen = () => {
       try {
         const data = await motivationService.getAllMotivations(goal.id);
         setMotivations(data);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching motivations:', error);
       }
     };
@@ -787,7 +787,7 @@ const AchievementDetailScreen = () => {
           showInfo('Sharing is not available on this device');
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error sharing achievement:', error);
       showError('Could not share. Please try again.');
     } finally {
@@ -834,7 +834,7 @@ const AchievementDetailScreen = () => {
                     const name = await userService.getUserName(goal.userId);
                     setUserName(name || 'User');
                   }
-                } catch (err) {
+                } catch (err: unknown) {
                   logger.error('Retry failed:', err);
                   setError(true);
                 } finally {

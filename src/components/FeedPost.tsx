@@ -99,7 +99,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     post.goalId, state.user?.id ?? "", targetSession
                 );
                 setCanMotivate(!alreadySent);
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error checking goal:', error);
                 setCanMotivate(false);
             }
@@ -146,7 +146,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         try {
             const reaction = await reactionService.getUserReaction(post.id, state.user.id);
             setUserReaction(reaction?.type || null);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading user reaction:', error);
             await logErrorToFirestore(error, {
                 screenName: 'FeedPost',
@@ -161,7 +161,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         try {
             const loadedComments = await commentService.getComments(post.id, 3);
             setComments(loadedComments);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading comments:', error);
             await logErrorToFirestore(error, {
                 screenName: 'FeedPost',
@@ -220,7 +220,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 type,
                 state.user.profile?.profileImageUrl
             );
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error reacting:', error);
             await logErrorToFirestore(error, {
                 screenName: 'FeedPost',

@@ -71,7 +71,7 @@ class StorageService {
             await uploadBytes(storageRef, blob);
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error uploading audio:', error);
             throw error;
         }
@@ -104,7 +104,7 @@ class StorageService {
             await uploadBytes(storageRef, blob);
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error uploading image:', error);
             throw error;
         }
@@ -126,7 +126,7 @@ class StorageService {
             const storageRef = ref(this.storage, path);
             await uploadBytes(storageRef, blob);
             return await getDownloadURL(storageRef);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error uploading motivation audio:', error);
             throw error;
         }
@@ -150,7 +150,7 @@ class StorageService {
             const storageRef = ref(this.storage, path);
             await uploadBytes(storageRef, blob);
             return await getDownloadURL(storageRef);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error uploading motivation image:', error);
             throw error;
         }
@@ -188,7 +188,7 @@ class StorageService {
             await uploadBytes(storageRef, blob);
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error(`Error uploading session ${mediaType}:`, error);
             throw error;
         }

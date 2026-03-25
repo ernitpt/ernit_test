@@ -94,7 +94,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
             timerRef.current = setTimeout(() => {
                 onClose();
             }, 2000);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error(`Error sending ${type}:`, error);
             setIsSending(false);
             setShowSuccess(false);

@@ -73,7 +73,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     if (!isMounted.current) return;
                     setAlreadySentMotivation(alreadySent);
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error checking goal empowerment:', error);
             }
         };
@@ -84,7 +84,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             await notificationService.deleteNotification(notification.id!);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error clearing notification:', error);
             await logErrorToFirestore(error, {
                 screenName: 'FreeGoalNotification',

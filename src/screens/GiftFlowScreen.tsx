@@ -325,7 +325,7 @@ export default function GiftFlowScreen() {
                     .filter(exp => exp.status !== 'draft')
                     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
                 setExperiences(fetched);
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error fetching experiences:', error);
                 setExperienceLoadError(true);
             } finally {
@@ -522,7 +522,7 @@ export default function GiftFlowScreen() {
             try {
                 await setStorageItem('pending_gift_flow', JSON.stringify(giftConfig));
                 navigation.navigate('Auth', { mode: 'signup' });
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error storing gift flow config:', error);
                 showError('Something went wrong. Please try again.');
             }
@@ -666,7 +666,7 @@ export default function GiftFlowScreen() {
             } else {
                 navigation.navigate('Confirmation', { experienceGift: result.gift });
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error creating gift:', error);
             await logErrorToFirestore(error, {
                 screenName: 'GiftFlowScreen',

@@ -60,7 +60,7 @@ class SessionService {
                 ...sessionData,
                 createdAt: new Date(),
             };
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error creating session record:', error);
             throw error;
         }
@@ -97,7 +97,7 @@ class SessionService {
                     createdAt: toDateSafe(data.createdAt),
                 } as SessionRecord;
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error fetching sessions for goal:', error);
             return [];
         }
@@ -128,7 +128,7 @@ class SessionService {
             const sessionRef = doc(db, 'goals', goalId, 'sessions', sessionId);
             await updateDoc(sessionRef, updates);
             logger.log('Session updated:', sessionId);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error updating session:', error);
             throw error;
         }

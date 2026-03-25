@@ -193,7 +193,7 @@ const GoalSettingScreen = () => {
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
         setExperience(exp);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching experience:', error);
         await logErrorToFirestore(error, {
           screenName: 'GoalSettingScreen',
@@ -239,7 +239,7 @@ const GoalSettingScreen = () => {
             userName: recipientName,
           });
           setHintPromise(promise.then(res => res.hint));
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('Failed to start hint generation:', err);
         }
       };
@@ -543,7 +543,7 @@ const GoalSettingScreen = () => {
           routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error creating goal:', error);
       await logErrorToFirestore(error, {
         screenName: 'GoalSettingScreen',

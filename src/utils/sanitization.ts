@@ -123,7 +123,7 @@ export function sanitizeUrl(url: string): string {
         }
 
         return parsed.toString();
-    } catch (error) {
+    } catch (error: unknown) {
         return '';
     }
 }

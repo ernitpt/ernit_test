@@ -57,7 +57,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 await commentService.likeComment(postId, comment.id, currentUserId);
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error toggling comment like:', error);
         }
     };

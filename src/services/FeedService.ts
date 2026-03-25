@@ -101,7 +101,7 @@ class FeedService {
             const docRef = await addDoc(this.feedPostsCollection, feedPost);
             logger.log('✅ Feed post created:', docRef.id);
             return docRef.id;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error creating feed post:', error);
             throw error;
         }
@@ -189,7 +189,7 @@ class FeedService {
                 posts: sliced,
                 lastTimestamp: newLastTimestamp,
             };
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error fetching feed:', error);
             throw error;
         }
@@ -267,7 +267,7 @@ class FeedService {
             await updateDoc(postRef, {
                 [`reactionCounts.${reactionType}`]: increment(incrementValue),
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error updating reaction count:', error);
             throw error;
         }
@@ -283,7 +283,7 @@ class FeedService {
             await updateDoc(postRef, {
                 commentCount: increment(incrementValue),
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error updating comment count:', error);
             throw error;
         }
@@ -305,7 +305,7 @@ class FeedService {
                 ...data,
                 createdAt: toDateSafe(data.createdAt),
             } as FeedPost;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error fetching feed post:', error);
             throw error;
         }

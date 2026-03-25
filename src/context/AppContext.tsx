@@ -324,7 +324,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (Platform.OS === 'web' && state.guestCart !== undefined) {
       try {
         localStorage.setItem('guest_cart', JSON.stringify(state.guestCart));
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to persist cart:', error);
       }
     }
@@ -341,7 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             dispatch({ type: 'SET_CART', payload: parsedCart });
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to restore cart:', error);
       }
     }

@@ -226,7 +226,7 @@ const NotificationsScreen = () => {
         if (gift && gift.experienceId) {
           navigation.navigate('GoalSetting', { experienceGift: gift });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching experience gift:', error);
       }
     }
@@ -243,7 +243,7 @@ const NotificationsScreen = () => {
         if (goal) {
           navigation.navigate('Journey', { goal });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching goal:', error);
       }
     }
@@ -258,7 +258,7 @@ const NotificationsScreen = () => {
         if (goal) {
           navigation.navigate('Journey', { goal });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error navigating from reminder notification:', error);
       }
     }
@@ -269,7 +269,7 @@ const NotificationsScreen = () => {
         if (goal) {
           navigation.navigate('Journey', { goal });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error navigating from motivation notification:', error);
       }
     }
@@ -290,7 +290,7 @@ const NotificationsScreen = () => {
         if (goal) {
           navigation.navigate('Journey', { goal });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error attaching empowered gift:', error);
         showError('Could not attach the gift. Please try again.');
       }
@@ -309,7 +309,7 @@ const NotificationsScreen = () => {
           }
           navigation.navigate('Journey', { goal });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error navigating from booking reminder:', error);
       }
     }
@@ -382,7 +382,7 @@ const NotificationsScreen = () => {
     try {
       await notificationService.clearAllNotifications(userId);
       showSuccess('All notifications have been cleared.');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error clearing all notifications:', error);
       showError('Failed to clear notifications. Please try again.');
     }
@@ -406,7 +406,7 @@ const NotificationsScreen = () => {
     try {
       await notificationService.deleteNotification(notificationId);
       // No toast needed - the notification just disappears
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error clearing notification:', error);
       showError('Failed to clear notification. Please try again.');
     }
@@ -1060,7 +1060,7 @@ const NotificationsScreen = () => {
                     if (!userId) return;
                     try {
                       await notificationService.markAllAsRead(userId);
-                    } catch (error) {
+                    } catch (error: unknown) {
                       logger.error('Error marking all as read:', error);
                       showError('Failed to mark all as read.');
                     }

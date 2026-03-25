@@ -73,7 +73,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
           try {
             const name = await userService.getUserName(goal.empoweredBy);
             setGiverName(name || 'Giver');
-          } catch (error) {
+          } catch (error: unknown) {
             logger.error('Error fetching giver name:', error);
             setGiverName('Giver');
           }

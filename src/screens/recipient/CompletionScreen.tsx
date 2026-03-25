@@ -160,7 +160,7 @@ const CompletionScreen = () => {
           (g: Goal) => g.id !== goal.id && !g.isCompleted
         );
         setOtherActiveGoals(activeOthers.length);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching streak/goals:', error);
       }
     };
@@ -192,7 +192,7 @@ const CompletionScreen = () => {
           const name = await userService.getUserName(goal.userId);
           setUserName(name || 'User');
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("? Error fetching data:", error);
         showError("Could not load experience details.");
         setError(true);
@@ -481,7 +481,7 @@ const CompletionScreen = () => {
           showInfo('Sharing is not available on this device');
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error sharing achievement:', error);
       showError('Could not share. Please try again.');
     } finally {
@@ -528,7 +528,7 @@ const CompletionScreen = () => {
                     setPartner(partnerData);
                   }
                 }
-              } catch (err) {
+              } catch (err: unknown) {
                 logger.error('Retry failed:', err);
                 setError(true);
               } finally {

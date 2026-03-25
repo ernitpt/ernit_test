@@ -73,7 +73,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
                     await sound.playAsync();
                 }
             }
-        } catch (error) {
+        } catch (error: unknown) {
             setIsLoading(false);
             logger.error("Error loading audio:", error);
             showError('Failed to load audio');

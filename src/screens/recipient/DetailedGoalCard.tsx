@@ -382,7 +382,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         await AsyncStorage.setItem('global_timer_state', JSON.stringify(timers));
       }
       await pushNotificationService.cancelSessionNotification(currentGoal.id);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error clearing timer state:', error);
     }
   }, [currentGoal.id]);
@@ -424,7 +424,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         setSessionMediaUri(asset.uri);
         setSessionMediaType(asset.type === 'video' ? 'video' : 'photo');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Media capture failed:', error);
     }
   }, []);
@@ -447,7 +447,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         setSessionMediaUri(asset.uri);
         setSessionMediaType(asset.type === 'video' ? 'video' : 'photo');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Gallery pick failed:', error);
     }
   }, []);
@@ -588,7 +588,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         const notifId = await pushNotificationService.scheduleSessionCompletionNotification(goalId, goalSeconds);
         logger.log(`Scheduled session notification with ID: ${notifId} for ${goalSeconds}s`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Session start failed:', err);
     } finally {
       setLoading(false);
@@ -679,7 +679,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             duration: Math.min(timeElapsed, MAX_SESSION_SECONDS), sessionNumber: totalSessionsDone,
             weekNumber: updated.currentCount,
           });
-        } catch (err) {
+        } catch (err: unknown) {
           // Non-critical: goal progress and charge trigger are already committed
           logger.warn('Failed to save final session record (non-critical):', err);
         }
@@ -787,7 +787,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             sessionMediaUri, updated.userId, goalId, sessionMediaType
           );
           mediaType = sessionMediaType;
-        } catch (err) {
+        } catch (err: unknown) {
           logger.warn('Failed to upload session media:', err);
         }
       }
@@ -802,7 +802,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         mediaUrl,
         mediaType,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       // Non-critical: goal progress (tickWeeklySession transaction) already committed
       logger.warn('Failed to save session record (non-critical):', err);
     }
@@ -904,7 +904,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               discoveredAt: new Date(),
             }));
           }
-        } catch (err) {
+        } catch (err: unknown) {
           logger.warn('Discovery matching failed:', err);
         }
       }
@@ -998,7 +998,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         createdAt: new Date(),
       });
       logger.log('Feed post created for session', lastSessionNumber);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Failed to create feed post:', err);
     }
   }, [currentGoal, lastSessionNumber, lastSessionMediaUrl, lastSessionMediaType]);
@@ -1053,13 +1053,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           ...prev,
           hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
         }));
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error('Failed to save personalized hint to history:', err);
       }
 
       try {
         await goalService.clearPersonalizedNextHint(updated.id);
-      } catch (err) {
+      } catch (err: unknown) {
         logger.warn('Failed to clear personalized hint:', err);
       }
 
@@ -1088,7 +1088,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           }));
           updated.hints = [...(updated.hints || []), hintObj];
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.warn('Failed to retrieve/save AI hint:', err);
         hintToShow = "Keep going! You're doing great";
       }
@@ -1103,7 +1103,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       stopTimer(currentGoal.id);
       await clearTimerState();
       await pushNotificationService.cancelSessionNotification(currentGoal.id);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error cancelling session:', error);
       await logErrorToFirestore(error, {
         screenName: 'DetailedGoalCard',
@@ -1319,7 +1319,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                       isCategory: !currentGoal.experienceGiftId || !giftData?.experienceId,
                       preferredRewardCategory: currentGoal.preferredRewardCategory,
                     } as { experienceGift: ExperienceGift });
-                  } catch (err) {
+                  } catch (err: unknown) {
                     logger.warn('Navigate to share screen failed:', err);
                   }
                 }}
@@ -1539,7 +1539,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                   showSuccess('We found the perfect experience for you!');
                 }
               }
-            } catch (err) {
+            } catch (err: unknown) {
               logger.warn('Quiz answer save failed:', err);
             }
           }}
@@ -1558,7 +1558,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           try {
             await discoveryService.markExperienceRevealed(currentGoal.id);
             setCurrentGoal(prev => ({ ...prev, experienceRevealed: true, experienceRevealedAt: new Date() }));
-          } catch (err) {
+          } catch (err: unknown) {
             logger.warn('Failed to mark experience revealed:', err);
           }
           // If goal is already completed, navigate to completion screen
@@ -1612,7 +1612,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               venueName: venue.name,
               venueLocation: venue.location,
             }));
-          } catch (err) {
+          } catch (err: unknown) {
             logger.error('Failed to save venue:', err);
             showError('Failed to save venue. Please try again.');
             setLoading(false);
@@ -1630,7 +1630,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               setPendingStartAfterVenue(false);
             }
             setCurrentGoal(prev => ({ ...prev, venueName: 'Working out on my own' }));
-          } catch (err) {
+          } catch (err: unknown) {
             logger.error('Failed to save venue skip:', err);
             setLoading(false);
           }

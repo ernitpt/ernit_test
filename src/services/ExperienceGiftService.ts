@@ -43,7 +43,7 @@ export class ExperienceGiftService {
 
       const foundDoc = querySnapshot.docs[0];
       return { id: foundDoc.id, ...foundDoc.data() } as ExperienceGift;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get experience gift:', error);
       return null;
     }
@@ -64,7 +64,7 @@ export class ExperienceGiftService {
           deliveryDate: toDateSafe(data.deliveryDate),
         };
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching gifts by user:', error);
       await logErrorToFirestore(error, {
         screenName: 'ExperienceGiftService',
@@ -107,7 +107,7 @@ export class ExperienceGiftService {
         updatedAt: serverTimestamp(),
       });
       analyticsService.trackEvent('gift_message_updated', 'engagement', { giftId });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error updating personalized message:', error);
       await logErrorToFirestore(error, {
         screenName: 'ExperienceGiftService',

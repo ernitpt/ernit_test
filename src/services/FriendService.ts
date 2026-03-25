@@ -54,7 +54,7 @@ export class FriendService {
         isFriend: !!u.isFriend,
         hasPendingRequest: !!u.hasPendingRequest,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error searching users:', error);
       return [];
     }
@@ -149,7 +149,7 @@ export class FriendService {
       );
 
       return docRef.id;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error sending friend request:', error);
       throw error;
     }
@@ -242,7 +242,7 @@ export class FriendService {
 
       analyticsService.trackEvent('friend_request_accepted', 'social', { requestId, senderId, recipientId });
       logger.log(`✅ Friend request accepted and removed: ${senderName} ↔ ${recipientName}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error accepting friend request:', error);
       throw error;
     }
@@ -287,7 +287,7 @@ export class FriendService {
 
       analyticsService.trackEvent('friend_request_declined', 'social', { requestId });
       logger.log(`❌ Friend request declined and removed: ${requestId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error declining friend request:', error);
       throw error;
     }
@@ -320,7 +320,7 @@ export class FriendService {
           updatedAt: toDateSafe(data.updatedAt),
         };
       }) as FriendRequest[];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error getting pending friend requests:', error);
       return [];
     }
@@ -344,7 +344,7 @@ export class FriendService {
         createdAt: toDateSafe(doc.data().createdAt),
         updatedAt: toDateSafe(doc.data().updatedAt),
       })) as FriendRequest[];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting sent friend requests:', error);
       return [];
     }
@@ -364,7 +364,7 @@ export class FriendService {
       })) as Friend[];
 
       return friends.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting friends:', error);
       return [];
     }
@@ -392,7 +392,7 @@ export class FriendService {
         await batch.commit();
       }
       analyticsService.trackEvent('friend_removed', 'social', { userId, friendId });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error removing friend:', error);
       throw error;
     }
@@ -404,7 +404,7 @@ export class FriendService {
       const q = query(collection(db, 'friends'), where('userId', '==', userId1), where('friendId', '==', userId2));
       const snap = await getDocs(q);
       return !snap.empty;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error checking areFriends:', error);
       return false;
     }
@@ -421,7 +421,7 @@ export class FriendService {
       );
       const snap = await getDocs(q);
       return !snap.empty;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error checking hasPendingRequest:', error);
       return false;
     }
@@ -447,7 +447,7 @@ export class FriendService {
         createdAt: toDateSafe(docSnap.data().createdAt),
         updatedAt: toDateSafe(docSnap.data().updatedAt),
       } as FriendRequest;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting friend request:', error);
       return null;
     }
@@ -464,7 +464,7 @@ export class FriendService {
         friendProfileImageUrl: friendProfileImageUrl ?? null,
         createdAt: serverTimestamp(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('❌ Error adding friend:', error);
       throw error;
     }
@@ -477,7 +477,7 @@ export class FriendService {
       const q = query(friendsRef, where('userId', '==', userId));
       const snap = await getDocs(q);
       return snap.size;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error getting friend count:', error);
       return 0;
     }

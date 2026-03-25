@@ -140,7 +140,7 @@ const FeedScreen: React.FC = () => {
 
             lastTimestampRef.current = lastTimestamp;
             setHasMore(loadedPosts.length >= FEED_PAGE_SIZE);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading feed:', error);
             if (!loadMore) {
                 setError(true);

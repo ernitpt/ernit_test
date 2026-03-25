@@ -76,7 +76,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
             setClaimedByName(name);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error(`? Error fetching claimer for gift ${item.id}:`, err);
       } finally {
         setLoadingName(false);
@@ -95,7 +95,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       try {
         const exp = await experienceService.getExperienceById(item.experienceId);
         setExperience(exp);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error fetching experience:", error);
       }
     };
@@ -172,7 +172,7 @@ const PurchasedGiftsScreen = () => {
       const userGifts = await experienceGiftService.getExperienceGiftsByUser(userId);
       setGifts(userGifts);
       setError(false);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching purchased gifts:', error);
       setError(true);
     } finally {

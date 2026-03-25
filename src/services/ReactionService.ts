@@ -105,7 +105,7 @@ class ReactionService {
                         userProfileImageUrl,
                         type
                     );
-                } catch (error) {
+                } catch (error: unknown) {
                     logger.warn('Could not create reaction notification:', error);
                 }
             }
@@ -116,7 +116,7 @@ class ReactionService {
             }
 
             logger.log('✅ Reaction toggled');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error toggling reaction:', error);
             throw error;
         }
@@ -141,7 +141,7 @@ class ReactionService {
             });
 
             logger.log('✅ Reaction removed');
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error removing reaction:', error);
             throw error;
         }
@@ -164,7 +164,7 @@ class ReactionService {
                     createdAt: toDateSafe(data.createdAt),
                 } as Reaction;
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error fetching reactions:', error);
             throw error;
         }
@@ -188,7 +188,7 @@ class ReactionService {
                 ...data,
                 createdAt: toDateSafe(data.createdAt),
             } as Reaction;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Error fetching user reaction:', error);
             throw error;
         }

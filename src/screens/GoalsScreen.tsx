@@ -141,7 +141,7 @@ const GoalsScreen: React.FC = () => {
           setRefreshing(false);
           showInfo('Goals are up to date');
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error processing goals in GoalsScreen:', error);
         if (!mountedRef.current) return;
         setError(true);
@@ -177,7 +177,7 @@ const GoalsScreen: React.FC = () => {
           if (now >= goal.approvalDeadline) {
             try {
               await goalService.checkAndAutoApprove(goal.id);
-            } catch (error) {
+            } catch (error: unknown) {
               logger.error('Error auto-approving goal:', error);
             }
           }
@@ -196,7 +196,7 @@ const GoalsScreen: React.FC = () => {
         if (userSnap.exists()) {
           setSessionStreak(userSnap.data().sessionStreak || 0);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching session streak:', error);
       }
     };
@@ -273,7 +273,7 @@ const GoalsScreen: React.FC = () => {
         });
       }
       // Don't show toast here - the hint popup from DetailedGoalCard already provides feedback
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error finishing goal:', err);
       await logErrorToFirestore(err, {
         screenName: 'GoalsScreen',

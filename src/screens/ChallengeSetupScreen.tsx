@@ -205,7 +205,7 @@ export default function ChallengeSetupScreen() {
                     .filter(exp => exp.status !== 'draft')
                     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
                 setExperiences(fetched);
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error fetching experiences:', error);
             } finally {
                 setLoadingExperiences(false);
@@ -335,7 +335,7 @@ export default function ChallengeSetupScreen() {
             try {
                 await setStorageItem('pending_free_challenge', JSON.stringify(challengeConfig));
                 navigation.navigate('Auth', { mode: 'signup' });
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error storing challenge config:', error);
                 showError('Something went wrong. Please try again.');
             }
@@ -458,7 +458,7 @@ export default function ChallengeSetupScreen() {
                     }
                 }, 300);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error creating free goal:', error);
             await logErrorToFirestore(error, {
                 screenName: 'ChallengeSetupScreen',

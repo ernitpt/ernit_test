@@ -127,7 +127,7 @@ const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGif
       deliveryDate: new Date(gift.deliveryDate),
       updatedAt: new Date(gift.updatedAt),
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error checking gifts:", error);
     return [];
   }

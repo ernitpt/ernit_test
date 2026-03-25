@@ -71,7 +71,7 @@ const AddFriendScreen: React.FC = () => {
       setSearchError(false);
       const results = await friendService.searchUsers(sanitizeText(searchTerm, 100), currentUserId);
       setSearchResults(results);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error searching users:', error);
       setSearchError(true);
       showError('Failed to search users. Please try again.');
@@ -106,7 +106,7 @@ const AddFriendScreen: React.FC = () => {
         state.user?.profile?.country,
         currentUserProfileImageUrl
       );
-    } catch (error) {
+    } catch (error: unknown) {
       // 5. Rollback on failure
       logger.error('Error sending friend request:', error);
       setSearchResults(previousResults);

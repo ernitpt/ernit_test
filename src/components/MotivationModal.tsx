@@ -136,7 +136,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                 onClose();
                 onSent?.();
             }, 1500);
-        } catch (error) {
+        } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
             if (errorMessage.includes('already sent')) {
                 setError('You have already sent motivation for this session.');

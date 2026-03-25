@@ -468,7 +468,7 @@ export class GoalSessionService {
               logger.error('Error sending category completion notifications:', completionError);
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error creating goal completion feed post:', error);
         }
     } else if (previousWeeklyCount < g.weeklyCount) {
@@ -498,7 +498,7 @@ export class GoalSessionService {
           preferredRewardCategory: g.preferredRewardCategory,
           createdAt: new Date(),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error creating progress feed post:', error);
       }
 

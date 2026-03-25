@@ -330,7 +330,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
         } catch (dataErr) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error("Error loading achievement data:", err);
       } finally {
         setLoadingCard(false);
@@ -644,7 +644,7 @@ const FriendProfileScreen: React.FC = () => {
         setIsFriend(friendshipStatus);
         setHasPendingRequest(pendingStatus);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error loading profile:', error);
       showError('Failed to load profile. Please try again.');
       setError(true);
@@ -805,7 +805,7 @@ const FriendProfileScreen: React.FC = () => {
                       currentUserProfileImageUrl
                     );
                     setHasPendingRequest(true);
-                  } catch (error) {
+                  } catch (error: unknown) {
                     logger.error('Friend request failed:', error);
                     showError('Could not send friend request. Please try again.');
                   } finally {
@@ -918,7 +918,7 @@ const FriendProfileScreen: React.FC = () => {
                   try {
                     await friendService.removeFriend(currentUserId!, userId);
                     setIsFriend(false);
-                  } catch (error) {
+                  } catch (error: unknown) {
                     logger.error('Remove friend failed:', error);
                     showError('Could not remove friend. Please try again.');
                   } finally {

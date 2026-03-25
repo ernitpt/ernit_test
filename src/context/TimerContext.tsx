@@ -93,7 +93,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
         const flushTimers = () => {
             try {
                 AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timersRef.current));
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error('Error flushing timer state on background:', error);
             }
         };
@@ -144,7 +144,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
             }
             // Mark as loaded so saves can happen
             hasLoaded.current = true;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error loading timer state:', error);
             hasLoaded.current = true; // Still mark as loaded even on error
         }
@@ -153,7 +153,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     const saveTimers = async () => {
         try {
             await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timersRef.current));
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('Error saving timer state:', error);
         }
     };

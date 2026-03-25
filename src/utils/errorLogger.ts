@@ -112,7 +112,7 @@ export const withErrorLogging = async <T>(
 ): Promise<T> => {
     try {
         return await fn();
-    } catch (error) {
+    } catch (error: unknown) {
         await logErrorToFirestore(error, context);
         throw error; // Re-throw so calling code can handle it
     }

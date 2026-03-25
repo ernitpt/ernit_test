@@ -359,7 +359,7 @@ const CategorySelectionScreen = () => {
           if (guestCart.length > 0) {
             dispatch({ type: 'SET_CART', payload: guestCart });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error loading guest cart:', error);
         }
       }
@@ -419,7 +419,7 @@ const CategorySelectionScreen = () => {
 
       setCategories(categoriesArray as CategoryData[]);
       setError(false);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching experiences:', error);
       setError(true);
     } finally {
@@ -447,7 +447,7 @@ const CategorySelectionScreen = () => {
           } else {
             setWishlist([]);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error fetching wishlist:', error);
         }
       };
@@ -493,7 +493,7 @@ const CategorySelectionScreen = () => {
         await updateDoc(userRef, { wishlist: arrayUnion(experienceId) });
         setWishlist((prev) => [...prev, experienceId]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error updating wishlist:', error);
       showError('Failed to update wishlist. Please try again.');
     }
