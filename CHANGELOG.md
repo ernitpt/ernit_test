@@ -731,6 +731,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve TypeScript type errors in cloud functions - HintCategory validation, HintStyle narrowing, and FirebaseFirestore namespace
 - type-safe catch blocks with unknown annotation across services and screens
 - type-safe catch blocks in Cloud Functions - unknown annotation for all named catch variables
+- sanitize profile name/displayName in userService and add explicit return types to AIHintService
 
 ### Added
 - Automatic changelog system with `npm run log` script

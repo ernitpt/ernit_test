@@ -42,7 +42,7 @@ export type SessionDoc = {
 const LOCAL_HINT_CACHE_KEY = "local_hint_cache_v1";
 let localCache: Record<string, { hint: string; cachedAt: number }> = {};
 
-async function loadLocalCache() {
+async function loadLocalCache(): Promise<void> {
   if (Object.keys(localCache).length > 0) return;
 
   try {
@@ -69,7 +69,7 @@ async function loadLocalCache() {
   } catch { }
 }
 
-async function saveLocalCache() {
+async function saveLocalCache(): Promise<void> {
   try {
     await AsyncStorage.setItem(
       LOCAL_HINT_CACHE_KEY,

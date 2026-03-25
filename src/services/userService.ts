@@ -14,6 +14,7 @@ import { experienceService } from './ExperienceService';
 import { logger } from '../utils/logger';
 import { logErrorToFirestore } from '../utils/errorLogger';
 import { AppError } from '../utils/AppError';
+import { sanitizeProfileData, sanitizeText } from '../utils/sanitization';
 
 export class UserService {
   private static instance: UserService;
@@ -32,6 +33,8 @@ export class UserService {
       const userRef = doc(db, 'users', user.id);
       await setDoc(userRef, {
         ...user,
+        // ✅ SECURITY: Sanitize display name sourced from OAuth providers
+        displayName: user.displayName ? sanitizeText(user.displayName, 100) : user.displayName,
         createdAt: user.createdAt.toISOString(),
         updatedAt: new Date().toISOString(),
         cart: user.cart ?? [],
@@ -175,8 +178,18 @@ export class UserService {
       const userRef = doc(db, 'users', userId);
 
       if (updates.profile) {
+        // ✅ SECURITY: Sanitize user-provided text fields before writing to Firestore
+        const sanitized = sanitizeProfileData({
+          name: updates.profile.name,
+          description: updates.profile.description,
+          country: updates.profile.country,
+        });
+
         const profileUpdates = {
           ...updates.profile,
+          ...(updates.profile.name !== undefined && { name: sanitized.name }),
+          ...(updates.profile.description !== undefined && { description: sanitized.description }),
+          ...(updates.profile.country !== undefined && { country: sanitized.country }),
           updatedAt: new Date().toISOString(),
         };
 
@@ -185,9 +198,9 @@ export class UserService {
           updatedAt: new Date().toISOString(),
         };
 
-        // Sync profile.name → displayName
+        // Sync profile.name → displayName (sanitized)
         if (updates.profile.name) {
-          userUpdates.displayName = updates.profile.name;
+          userUpdates.displayName = sanitized.name;
         }
 
         await updateDoc(userRef, userUpdates);
