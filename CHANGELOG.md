@@ -87,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 1E share social
 - 3D goal retrospective
 - 3E journey sharing
+- 4B post creation
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge

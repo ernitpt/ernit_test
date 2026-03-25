@@ -395,6 +395,7 @@ export interface SessionRecord {
   thumbnailUrl?: string;
   notes?: string;
   createdAt: Date;
+  visibility?: 'friends' | 'private';  // Strava-style privacy: default 'friends'
 }
 
 // Feed Types

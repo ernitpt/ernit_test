@@ -43,7 +43,7 @@ import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -270,7 +270,10 @@ const SessionCard = React.memo(({
             </View>
           </View>
 
-          {/* Right: media thumbnail (if any) */}
+          {/* Right: privacy + media thumbnail */}
+          {session.visibility === 'private' && !session.mediaUrl && (
+            <Lock size={14} color={colors.textMuted} accessibilityLabel="Private session" />
+          )}
           {session.mediaUrl && (
             <View style={sessStyles.thumb}>
               <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} accessibilityLabel={session.mediaType === 'video' ? 'Session video thumbnail' : 'Session photo'} cachePolicy="memory-disk" contentFit="cover" />

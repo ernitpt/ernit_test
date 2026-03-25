@@ -1516,6 +1516,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         totalWeeks={celebrationData?.totalWeeks}
         weekJustCompleted={celebrationData?.weekJustCompleted}
         completedWeekNumber={celebrationData?.completedWeekNumber}
+        onSessionPrivacy={(visibility) => {
+          // Future: update last session visibility in Firestore
+          // For now, if private: don't post to feed (handled by not calling onPostToFeed)
+          logger.log('Session visibility set to:', visibility);
+        }}
       />
 
       <SessionMediaPrompt

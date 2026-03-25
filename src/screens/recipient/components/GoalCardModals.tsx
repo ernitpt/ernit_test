@@ -8,9 +8,10 @@ import {
   Share,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
-import { Share2, ExternalLink } from 'lucide-react-native';
+import { Share2, ExternalLink, Globe, Lock } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -88,6 +89,8 @@ interface CelebrationModalProps {
   // Weekly celebration tiers
   weekJustCompleted?: boolean;
   completedWeekNumber?: number;
+  // Privacy callback: called with 'friends' (share) or 'private' (skip)
+  onSessionPrivacy?: (visibility: 'friends' | 'private') => void;
 }
 
 export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
@@ -107,12 +110,26 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   totalWeeks,
   weekJustCompleted,
   completedWeekNumber,
+  onSessionPrivacy,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const confettiRef = useRef<ConfettiCannon | null>(null);
   const confettiTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
+  const [sessionVisibility, setSessionVisibility] = useState<'friends' | 'private'>('friends');
+
+  // Load persisted visibility preference
+  useEffect(() => {
+    AsyncStorage.getItem('session_visibility_pref').then(v => {
+      if (v === 'private' || v === 'friends') setSessionVisibility(v);
+    }).catch(() => {});
+  }, []);
+
+  const handleVisibilityChange = useCallback((v: 'friends' | 'private') => {
+    setSessionVisibility(v);
+    AsyncStorage.setItem('session_visibility_pref', v).catch(() => {});
+  }, []);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -287,12 +304,44 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
           )}
         </View>
 
-        {/* Buttons */}
+        {/* Privacy selector + Buttons */}
         <View style={styles.celebrationButtons}>
-          {onPostToFeed && (
+          {(onPostToFeed || onSessionPrivacy) && (
+            <View style={styles.privacySelector}>
+              <TouchableOpacity
+                style={[styles.privacyOption, sessionVisibility === 'friends' && styles.privacyOptionActive]}
+                onPress={() => handleVisibilityChange('friends')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Share with friends"
+              >
+                <Globe size={14} color={sessionVisibility === 'friends' ? colors.white : colors.textSecondary} />
+                <Text style={[styles.privacyOptionText, sessionVisibility === 'friends' && styles.privacyOptionTextActive]}>
+                  Friends
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.privacyOption, sessionVisibility === 'private' && styles.privacyOptionActive]}
+                onPress={() => handleVisibilityChange('private')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Keep private"
+              >
+                <Lock size={14} color={sessionVisibility === 'private' ? colors.white : colors.textSecondary} />
+                <Text style={[styles.privacyOptionText, sessionVisibility === 'private' && styles.privacyOptionTextActive]}>
+                  Private
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {onPostToFeed && sessionVisibility === 'friends' && (
             <TouchableOpacity
               style={styles.shareButton}
-              onPress={() => { onPostToFeed(); onClose(); }}
+              onPress={() => {
+                onSessionPrivacy?.('friends');
+                onPostToFeed();
+                onClose();
+              }}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Share to Feed"
@@ -315,13 +364,16 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
           )}
           <TouchableOpacity
             style={styles.celebrationCloseBtn}
-            onPress={onClose}
+            onPress={() => {
+              onSessionPrivacy?.(sessionVisibility);
+              onClose();
+            }}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={onPostToFeed ? 'Skip' : 'Close'}
+            accessibilityLabel={sessionVisibility === 'private' ? 'Save as Private' : 'Skip'}
           >
             <Text style={styles.celebrationCloseBtnText}>
-              {onPostToFeed ? 'Skip' : 'Close'}
+              {sessionVisibility === 'private' ? 'Save as Private' : (onPostToFeed ? 'Skip' : 'Close')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -506,6 +558,34 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     ...Typography.body,
     color: colors.white,
     fontWeight: '700',
+  },
+  privacySelector: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xxs,
+    marginBottom: Spacing.sm,
+    gap: Spacing.xxs,
+  },
+  privacyOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+  },
+  privacyOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  privacyOptionText: {
+    ...Typography.small,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  privacyOptionTextActive: {
+    color: colors.white,
   },
   socialShareButton: {
     flexDirection: 'row',
