@@ -742,6 +742,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace any with unknown in logger.table for stricter TypeScript
 - add accessible={false} to decorative images and accessibilityRole to content images
 - add cachePolicy, contentFit, and accessibilityLabel to expo-image instances; add accessibility labels to RN Image components
+- sanitize personalized message, add useCallback, and use expo-image in ExperienceDetailsScreen native
 
 ### Added
 - Automatic changelog system with `npm run log` script

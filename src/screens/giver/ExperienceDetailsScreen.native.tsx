@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, Image, TextInput,
+  View, Text, TouchableOpacity, ScrollView, TextInput,
   StyleSheet,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
@@ -22,6 +23,7 @@ import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { vh } from '../../utils/responsive';
+import { sanitizeText } from '../../utils/sanitization';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -80,7 +82,7 @@ export default function ExperienceDetailsScreen() {
     );
   }
 
-  const handlePurchase = async () => {
+  const handlePurchase = useCallback(async () => {
     if (submittingRef.current || isSubmitting) return;
     submittingRef.current = true;
 
@@ -101,13 +103,14 @@ export default function ExperienceDetailsScreen() {
         partnerId: experience.partnerId || '',
         quantity: 1,
       }];
+      const sanitizedMessage = sanitizeText(personalizedMessage.trim(), 500);
       const result = await createIntent({
         amount: experience.price,
         giverId: state.user?.id,
         giverName: state.user?.displayName || '',
         partnerId: experience.partnerId || '',
         cartMetadata,
-        personalizedMessage,
+        personalizedMessage: sanitizedMessage,
       });
       const data = result.data as { clientSecret: string };
 
@@ -125,7 +128,7 @@ export default function ExperienceDetailsScreen() {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-  };
+  }, [experience, isSubmitting, personalizedMessage, state.user, navigation, showError]);
 
   return (
     <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>
@@ -150,6 +153,8 @@ export default function ExperienceDetailsScreen() {
           <Image
             source={{ uri: experience.coverImageUrl }}
             style={styles.image}
+            contentFit="cover"
+            cachePolicy="memory-disk"
             accessibilityLabel={`${experience.title} experience cover image`}
           />
           <Text style={styles.title}>{experience.title}</Text>
