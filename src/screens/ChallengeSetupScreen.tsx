@@ -1913,7 +1913,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         width: 26,
         height: 26,
         borderRadius: BorderRadius.circle,
-        backgroundColor: Colors.overlay,
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,

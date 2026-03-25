@@ -900,7 +900,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     padding: Spacing.lg,
-    backgroundColor: Colors.blackAlpha25,
+    backgroundColor: colors.blackAlpha25,
   },
   heroTitle: {
     ...Typography.heading3,
@@ -952,7 +952,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.blackAlpha25,
+    backgroundColor: colors.blackAlpha25,
   },
   bentoTitle: {
     ...Typography.small,

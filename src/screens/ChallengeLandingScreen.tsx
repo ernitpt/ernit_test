@@ -1392,7 +1392,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: BorderRadius.md,
-        backgroundColor: Colors.whiteAlpha10,
+        backgroundColor: colors.whiteAlpha10,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1403,6 +1403,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     footerCopy: {
         ...Typography.caption,
-        color: Colors.whiteAlpha40,
+        color: colors.whiteAlpha40,
     },
 });

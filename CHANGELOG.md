@@ -290,6 +290,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap ExperienceCard, StreakBanner, SessionActionArea, and SessionMediaPrompt with React.memo to prevent unnecessary re-renders
 - wrap PledgedExperiencePreview and TimerDisplay with React.memo
 - wrap SharedHeader and ToastItem with React.memo to prevent unnecessary re-renders
+- replace non-null assertions with optional chaining in screens and components
+- replace hardcoded spacing values with Spacing tokens in screen files
+- add accessible={false} to decorative images and fix spacing token in JourneyScreen
+- replace Loading text with SkeletonBox in FriendProfileScreen achievement card
+- wrap CancelSessionModal and CelebrationModal with React.memo
+- wrap ExperienceDetailModal, ExperienceRevealModal, AudioPlayer, CommentModal, ContactModal with React.memo
+- wrap FooterNavigation, WizardProgressBar, ModernSlider, and 8 other components with React.memo
+- wrap ClaimExperienceModal, GoalChangeSuggestionModal, ImageViewer, SideMenu, and other modals with React.memo
+- wrap BookingCalendar, InlineExperienceCTA, PersonalizedHintModal with React.memo
+- wrap DiscoveryQuizModal with React.memo
+- wrap HowItWorksModal with React.memo
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -674,6 +685,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing .catch() handlers to Linking.canOpenURL calls and getUserName promise in FriendProfileScreen
 - add isDeleted field to FeedPost type and remove as-unknown cast in FeedService filter
 - add missing accessibility labels to interactive elements and replace Dimensions height with vh() in VenueSelectionModal
+- add keyboardShouldPersistTaps=handled to payment form ScrollViews
+- use theme-aware colors in HeroPreviewScreen factory functions for dark mode compatibility
+- use theme-aware colors.warning in HeroPreviewScreen animated interpolation
+- update StatusBar styles for dark mode compatibility
 
 ### Added
 - Automatic changelog system with `npm run log` script

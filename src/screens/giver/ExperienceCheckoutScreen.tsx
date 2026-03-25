@@ -467,7 +467,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <CreditCard color={colors.secondary} size={20} />
-                <Text style={[styles.sectionTitle, { marginLeft: 8 }]}>Payment Details</Text>
+                <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>Payment Details</Text>
               </View>
               <View style={styles.paymentBox}>
                 <PaymentElement />

@@ -339,7 +339,7 @@ export default function HeroPreviewScreen() {
     });
     const animLoginColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.whiteAlpha90, colors.warning],
+        outputRange: [colors.whiteAlpha90, colors.warning],
     });
     const animStatColor = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -359,20 +359,20 @@ export default function HeroPreviewScreen() {
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.whiteAlpha08, Colors.whiteAlpha08],
+        outputRange: [colors.whiteAlpha08, colors.whiteAlpha08],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.whiteAlpha20, Colors.whiteAlpha20],
+        outputRange: [colors.whiteAlpha20, colors.whiteAlpha20],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.whiteAlpha80, Colors.whiteAlpha80],
+        outputRange: [colors.whiteAlpha80, colors.whiteAlpha80],
     });
     // Founders section colors
     const animFoundersBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [Colors.landingBg, Colors.landingBg],
+        outputRange: [colors.landingBg, colors.landingBg],
     });
     const animFounderRole = sliderAnim.interpolate({
         inputRange: [0, 1],

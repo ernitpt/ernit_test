@@ -533,7 +533,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     commentIconButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: Spacing.xs,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xs,
         borderRadius: BorderRadius.xl,

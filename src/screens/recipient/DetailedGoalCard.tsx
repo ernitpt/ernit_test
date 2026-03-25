@@ -1703,7 +1703,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     marginTop: Spacing.xs,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
 
   // Debug
