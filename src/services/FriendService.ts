@@ -453,7 +453,7 @@ export class FriendService {
     }
   }
 
-  private async addFriend(userId: string, friendId: string, friendName: string, friendProfileImageUrl?: string | null) {
+  private async addFriend(userId: string, friendId: string, friendName: string, friendProfileImageUrl?: string | null): Promise<void> {
     if (!userId || !friendId || !friendName) return;
 
     try {

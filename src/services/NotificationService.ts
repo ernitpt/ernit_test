@@ -229,7 +229,7 @@ export class NotificationService {
   }
 
   /** Mark as read */
-  async markAsRead(notificationId: string) {
+  async markAsRead(notificationId: string): Promise<void> {
     try {
       const ref = doc(db, 'notifications', notificationId);
       await updateDoc(ref, { read: true });
@@ -239,7 +239,7 @@ export class NotificationService {
   }
 
   /** Delete a single notification */
-  async deleteNotification(notificationId: string, force: boolean = false) {
+  async deleteNotification(notificationId: string, force: boolean = false): Promise<void> {
     if (!notificationId) {
       throw new AppError('INVALID_REQUEST', 'Notification ID is required', 'validation');
     }
@@ -260,7 +260,7 @@ export class NotificationService {
   }
 
   /** Clear all notifications for a user (bounded to 500 per call, uses batched delete) */
-  async clearAllNotifications(userId: string) {
+  async clearAllNotifications(userId: string): Promise<void> {
     try {
       const notificationsRef = collection(db, 'notifications');
       const q = query(notificationsRef, where('userId', '==', userId), limit(500));
@@ -286,7 +286,7 @@ export class NotificationService {
   }
 
   /** Clear all read notifications for a user (bounded to 500 per call, uses batched delete) */
-  async clearReadNotifications(userId: string) {
+  async clearReadNotifications(userId: string): Promise<void> {
     try {
       const notificationsRef = collection(db, 'notifications');
       const q = query(notificationsRef, where('userId', '==', userId), where('read', '==', true), limit(500));
@@ -307,7 +307,7 @@ export class NotificationService {
     }
   }
   /** Mark old goal_progress notifications as stale when a new session is completed */
-  async invalidateOldGoalProgressNotifications(goalId: string, currentSessionNumber: number) {
+  async invalidateOldGoalProgressNotifications(goalId: string, currentSessionNumber: number): Promise<void> {
     try {
       const notificationsRef = collection(db, 'notifications');
       const q = query(

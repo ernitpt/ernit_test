@@ -261,7 +261,7 @@ class FeedService {
      * Update reaction count for a post.
      * Private: only called internally from ReactionService which handles its own auth checks.
      */
-    private async updateReactionCount(postId: string, reactionType: 'muscle' | 'heart' | 'like', incrementValue: number) {
+    private async updateReactionCount(postId: string, reactionType: 'muscle' | 'heart' | 'like', incrementValue: number): Promise<void> {
         try {
             const postRef = doc(db, 'feedPosts', postId);
             await updateDoc(postRef, {
@@ -277,7 +277,7 @@ class FeedService {
      * Update comment count for a post.
      * Private: only called internally from CommentService which handles its own auth checks.
      */
-    private async updateCommentCount(postId: string, incrementValue: number) {
+    private async updateCommentCount(postId: string, incrementValue: number): Promise<void> {
         try {
             const postRef = doc(db, 'feedPosts', postId);
             await updateDoc(postRef, {

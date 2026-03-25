@@ -299,7 +299,7 @@ export const aiHintService = {
   },
 
   /** ✅ Fetch a hint already completed */
-  async getHint(userId: string, goalId: string, sessionNumber: number) {
+  async getHint(userId: string, goalId: string, sessionNumber: number): Promise<string | null> {
     await loadLocalCache();
 
     const cacheKey = `${userId}_${goalId}_${sessionNumber}`;
@@ -336,7 +336,7 @@ export const aiHintService = {
   },
 
   /** 📜 Fetch session history (newest first) */
-  async getAllSessions(goalId: string) {
+  async getAllSessions(goalId: string): Promise<SessionDoc[]> {
     const q = query(
       collection(db, "goalSessions", goalId, "sessions"),
       orderBy("sessionNumber", "desc")

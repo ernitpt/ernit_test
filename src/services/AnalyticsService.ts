@@ -70,7 +70,7 @@ class AnalyticsService {
   }
 
   /** Flush any remaining events (call on app background / unmount) */
-  async flush() {
+  async flush(): Promise<void> {
     if (this.buffer.length === 0) return;
     // Skip flush if user is not authenticated — Firestore rules require auth
     if (!auth.currentUser) {
