@@ -666,6 +666,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - navigate goal_completed notifications to GoalDetail screen for proper type-safety and correct UX
 - replace window.navigator as any with typed Navigator intersection for iOS standalone detection across PWAInstaller, SideMenu, PushNotificationService, and Toast
 - add missing .catch() handlers to Linking.canOpenURL calls and getUserName promise in FriendProfileScreen
+- add isDeleted field to FeedPost type and remove as-unknown cast in FeedService filter
 
 ### Added
 - Automatic changelog system with `npm run log` script

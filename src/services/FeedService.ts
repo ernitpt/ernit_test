@@ -177,7 +177,7 @@ class FeedService {
             }
 
             // Filter out soft-deleted posts and sort by createdAt descending
-            const livePosts = allPosts.filter((p) => !(p as unknown as Record<string, unknown>).isDeleted);
+            const livePosts = allPosts.filter((p) => !p.isDeleted);
             livePosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
             const sliced = livePosts.slice(0, limitCount);
 

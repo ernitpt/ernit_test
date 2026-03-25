@@ -436,6 +436,7 @@ export interface FeedPost {
 
   // Metadata
   createdAt: Date;
+  isDeleted?: boolean;
 
   // Aggregated counts
   reactionCounts: {
