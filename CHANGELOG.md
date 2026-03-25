@@ -644,6 +644,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use unknown instead of any in serializeNav utility for better type safety
 - use theme-aware color tokens for dark mode in HintPopup, FeedScreen, and ExperienceDetailModal
 - replace any types with unknown in cloud function catch blocks for type safety
+- improve type safety in hintCategories by using Partial<Record> instead of any
 
 ### Added
 - Automatic changelog system with `npm run log` script

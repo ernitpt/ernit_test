@@ -299,7 +299,7 @@ export function selectHintCategory(
 
     // All categories used - find least recently used
     // Count how many sessions ago each category was used
-    const categoryLastIndex: Record<HintCategory, number> = {} as any;
+    const categoryLastIndex: Partial<Record<HintCategory, number>> = {};
 
     previousCategories.forEach((cat, index) => {
         categoryLastIndex[cat] = index;
