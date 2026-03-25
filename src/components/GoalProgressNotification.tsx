@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -38,12 +38,19 @@ export const GoalProgressNotification: React.FC<GoalProgressNotificationProps> =
     const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
     const [goal, setGoal] = useState<Goal | null>(null);
     const [loading, setLoading] = useState(false);
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
     // Fetch goal on mount to check completion status
     useEffect(() => {
         const goalId = notification.data?.goalId;
         if (!goalId) return;
-        goalService.getGoalById(goalId).then(setGoal).catch(() => {});
+        goalService.getGoalById(goalId).then((g) => {
+            if (isMounted.current) setGoal(g);
+        }).catch(() => {});
     }, [notification.data?.goalId]);
 
     const handleLeaveHint = async () => {

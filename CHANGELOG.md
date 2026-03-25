@@ -648,6 +648,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace any types with unknown in cloud function catch blocks for type safety
 - improve type safety in hintCategories by using Partial<Record> instead of any
 - add isMounted guard to FreeGoalNotification async useEffect to prevent state updates on unmounted component
+- use useSafeAreaInsets for proper hero section padding in UserProfileScreen
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -52,6 +52,7 @@ import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // =========================
 // Goal Card (Active goals)
@@ -458,6 +459,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
 const UserProfileScreen: React.FC = () => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { state, dispatch } = useApp();
   const navigation = useRootNavigation();
   const { showSuccess, showError, showInfo } = useToast();
@@ -802,7 +804,7 @@ const UserProfileScreen: React.FC = () => {
           }
         >
           {/* Hero Section */}
-          <View style={styles.heroSection}>
+          <View style={[styles.heroSection, { paddingTop: insets.top + Spacing.lg }]}>
             <View style={styles.profileImageContainer}>
               <Avatar
                 uri={userProfile?.profileImageUrl}
@@ -999,8 +1001,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   emptyGoalsCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: vh(40) },
   heroSection: {
     backgroundColor: colors.backgroundLight,
-    // TODO: replace with `paddingTop: insets.top + Spacing.lg` using useSafeAreaInsets() for proper safe-area handling
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingTop: Spacing.lg, // base padding; overridden inline with insets.top + Spacing.lg
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
