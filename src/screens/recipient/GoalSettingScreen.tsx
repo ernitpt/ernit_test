@@ -164,8 +164,7 @@ const GoalSettingScreen = () => {
   useEffect(() => {
     if (!hasValidData) {
       logger.warn('Missing/invalid experienceGift on GoalSettingScreen, redirecting to CouponEntry');
-      // @ts-ignore
-      navigation.reset({ index: 0, routes: [{ name: 'CouponEntry' }] });
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'CouponEntry' }] }));
     }
   }, [hasValidData, navigation]);
 
