@@ -25,6 +25,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
+import { useBeforeRemove } from '../hooks/useBeforeRemove';
 import { ChevronLeft, ChevronRight, Check, Info } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -156,21 +157,18 @@ export default function ChallengeSetupScreen() {
     }, []);
 
     // Exit confirmation for unsaved wizard progress
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
-            if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after successful creation
-            e.preventDefault();
-            Alert.alert(
-                'Discard changes?',
-                'You have unsaved progress. Are you sure you want to leave?',
-                [
-                    { text: 'Stay', style: 'cancel' },
-                    { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
-                ]
-            );
-        });
-        return unsubscribe;
-    }, [navigation, currentStep]);
+    useBeforeRemove(navigation, (e) => {
+        if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after successful creation
+        e.preventDefault();
+        Alert.alert(
+            'Discard changes?',
+            'You have unsaved progress. Are you sure you want to leave?',
+            [
+                { text: 'Stay', style: 'cancel' },
+                { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+            ]
+        );
+    }, [currentStep]);
 
     // Prefill from auth redirect
     useEffect(() => {

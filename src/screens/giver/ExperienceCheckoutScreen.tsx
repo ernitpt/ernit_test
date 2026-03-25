@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { CheckoutSkeleton } from '../../components/SkeletonLoader';
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useBeforeRemove } from '../../hooks/useBeforeRemove';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -214,13 +215,10 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   };
 
   // --- Block hardware back / gesture swipe during active payment ---
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void }) => {
-      if (!isProcessing && !isCheckingRedirect) return; // Allow normal back
-      e.preventDefault(); // Block navigation during payment
-    });
-    return unsubscribe;
-  }, [navigation, isProcessing, isCheckingRedirect]);
+  useBeforeRemove(navigation, (e) => {
+    if (!isProcessing && !isCheckingRedirect) return; // Allow normal back
+    e.preventDefault(); // Block navigation during payment
+  }, [isProcessing, isCheckingRedirect]);
 
   // --- Handle redirect-based flows (e.g. MB Way) ---
   useEffect(() => {

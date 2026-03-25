@@ -20,6 +20,7 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
+import { useBeforeRemove } from '../../hooks/useBeforeRemove';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -141,21 +142,18 @@ const GoalSettingScreen = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Exit confirmation for unsaved wizard progress
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove' as never, (e: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
-      if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after creation
-      e.preventDefault();
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved progress. Are you sure you want to leave?',
-        [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
-        ]
-      );
-    });
-    return unsubscribe;
-  }, [navigation, currentStep]);
+  useBeforeRemove(navigation, (e) => {
+    if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after creation
+    e.preventDefault();
+    Alert.alert(
+      'Discard changes?',
+      'You have unsaved progress. Are you sure you want to leave?',
+      [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]
+    );
+  }, [currentStep]);
 
   // Validate required data
   const hasValidData = Boolean(
