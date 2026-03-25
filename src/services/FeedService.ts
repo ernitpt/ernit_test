@@ -20,6 +20,7 @@ import type { FeedPost } from '../types';
 import { friendService } from './FriendService';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
+import { sanitizeText } from '../utils/sanitization';
 
 class FeedService {
     private feedPostsCollection = collection(db, 'feedPosts');
@@ -32,9 +33,9 @@ class FeedService {
             // Build post data object, only including fields that are defined
             const feedPost: Record<string, unknown> = {
                 userId: post.userId,
-                userName: post.userName,
+                userName: sanitizeText(post.userName, 100),
                 goalId: post.goalId,
-                goalDescription: post.goalDescription,
+                goalDescription: sanitizeText(post.goalDescription, 500),
                 type: post.type,
                 createdAt: Timestamp.fromDate(post.createdAt),
                 reactionCounts: {

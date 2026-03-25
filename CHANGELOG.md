@@ -709,6 +709,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add keyboardShouldPersistTaps to edit profile ScrollView in UserProfileScreen
 - add explicit unknown type to catch variables in service layer for strict TypeScript
 - add unknown type to all catch blocks for stricter TypeScript
+- sanitize userName and goalDescription in FeedService and ReactionService writes
 
 ### Added
 - Automatic changelog system with `npm run log` script

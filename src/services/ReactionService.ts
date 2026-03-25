@@ -20,6 +20,7 @@ import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
 import { analyticsService } from './AnalyticsService';
+import { sanitizeText } from '../utils/sanitization';
 class ReactionService {
     /**
      * Add or toggle a reaction on a post (atomic via transaction)
@@ -78,7 +79,7 @@ class ReactionService {
                 const reactionData: Record<string, unknown> = {
                     postId,
                     userId,
-                    userName,
+                    userName: sanitizeText(userName, 100),
                     type,
                     createdAt: Timestamp.now(),
                 };

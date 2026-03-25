@@ -136,7 +136,7 @@ class PushNotificationService {
      * Save FCM token to user's Firestore profile
      * Uses arrayRemove + arrayUnion to ensure deduplication
      */
-    private async saveTokenToFirestore(userId: string, token: string) {
+    private async saveTokenToFirestore(userId: string, token: string): Promise<void> {
         try {
             const userRef = doc(db, 'users', userId);
 
