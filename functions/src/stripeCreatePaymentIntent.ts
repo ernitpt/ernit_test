@@ -165,7 +165,7 @@ export const stripeCreatePaymentIntent = onRequest(
             }
 
             const stripe = new Stripe(STRIPE_SECRET.value(), {
-                apiVersion: "2024-06-20" as any,
+                apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
             });
 
             logger.info("🛒 [PROD] Creating PaymentIntent for cart:", cart);

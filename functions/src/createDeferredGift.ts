@@ -133,7 +133,7 @@ export const createDeferredGift = onRequest(
         }
 
         const stripe = new Stripe(STRIPE_SECRET.value(), {
-            apiVersion: "2024-06-20" as any,
+            apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
         });
 
         try {

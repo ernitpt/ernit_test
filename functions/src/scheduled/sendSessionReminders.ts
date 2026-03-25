@@ -89,7 +89,14 @@ export const sendSessionReminders = functions.onSchedule(
 
                 // Check if user needs a reminder
                 let needsReminder = false;
-                let mostBehindGoal: any = null;
+                interface BehindGoal {
+                    id: string;
+                    title: string;
+                    goalDescription: string;
+                    weeklyCount: number;
+                    sessionsPerWeek: number;
+                }
+                let mostBehindGoal: BehindGoal | null = null;
                 let lowestRatio = 1;
                 let mostBehindDaysLeft = 7;
 

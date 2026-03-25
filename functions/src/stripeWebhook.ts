@@ -28,7 +28,7 @@ export const stripeWebhook = onRequest(
         }
 
         const stripe = new Stripe(STRIPE_SECRET.value(), {
-            apiVersion: "2024-06-20" as any,
+            apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
         });
 
         const sig = req.headers["stripe-signature"];
@@ -187,7 +187,24 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         }
 
         // --- Create multiple experience gifts using transaction ---
-        const createdGifts: any[] = [];
+        interface CreatedGift {
+            id: string;
+            giverId: string;
+            giverName: string;
+            experienceId: string;
+            personalizedMessage: string;
+            partnerId: string;
+            deliveryDate: admin.firestore.Timestamp;
+            status: string;
+            payment: string;
+            paymentIntentId: string;
+            claimCode: string;
+            isMystery: boolean;
+            expiresAt: admin.firestore.Timestamp;
+            createdAt: admin.firestore.Timestamp;
+            updatedAt: admin.firestore.Timestamp;
+        }
+        const createdGifts: CreatedGift[] = [];
 
         for (const item of cart) {
             const { experienceId, quantity } = item;

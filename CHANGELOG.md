@@ -284,6 +284,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace manual Firestore Timestamp handling with toJSDate utility in GoalProgressNotification and FriendProfileScreen
 - replace as-unknown Timestamp casts with toJSDate utility across AchievementDetailScreen, PurchasedGiftsScreen, FriendProfileScreen, HeroPreviewScreen, and ChallengeLandingScreen
 - replace remaining as-unknown Timestamp casts with toJSDate in JourneyScreen, UserProfileScreen, and fix gradient type in HeroPreviewScreen
+- eliminate all remaining as-unknown-as type casts in appendHint callers
+- make normalizeGoal generic, eliminating as-unknown-as casts at all 4 call sites
+- replace any types with proper TypeScript types in cloud functions
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

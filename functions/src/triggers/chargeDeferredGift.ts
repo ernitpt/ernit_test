@@ -268,7 +268,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             }
 
             const stripe = new Stripe(STRIPE_SECRET.value(), {
-                apiVersion: "2024-06-20" as any,
+                apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
             });
 
             // Retrieve the SetupIntent to get the payment method
@@ -328,8 +328,8 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         updatedAt: FieldValue.serverTimestamp(),
                     });
                 });
-            } catch (txError: any) {
-                if (txError.message === 'ALREADY_PROCESSING') {
+            } catch (txError: unknown) {
+                if ((txError as Error).message === 'ALREADY_PROCESSING') {
                     logger.info(`ℹ️ [PROD] ExperienceGift ${giftId} is already being processed — skipping`);
                     return null;
                 }
@@ -353,10 +353,10 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     await stripe.paymentMethods.attach(claimedPaymentMethodId!, {
                         customer: stripeCustomerId,
                     });
-                } catch (attachErr: any) {
+                } catch (attachErr: unknown) {
                     // Stripe throws if PM is already attached to this or another customer.
                     // Log but don't block — the charge will still work if PM belongs to this customer.
-                    logger.info(`ℹ️ PM attach skipped: ${attachErr.message}`);
+                    logger.info(`ℹ️ PM attach skipped: ${(attachErr as Error).message}`);
                 }
 
                 const paymentIntent = await stripe.paymentIntents.create(
@@ -405,7 +405,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         }
                     }
                 }
-            } catch (stripeError: any) {
+            } catch (stripeError: unknown) {
                 // ── Step 4: Revert to 'deferred' on Stripe failure ────────────
                 try {
                     await giftRef.update({
@@ -487,7 +487,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             }
 
             return null;
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`❌ [PROD] Error charging deferred gift for goal ${goalId}:`, error);
 
             // Notify giver of ANY charge failure so the gift doesn't silently stall
@@ -496,9 +496,10 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 const giftDoc2 = await db2.collection("experienceGifts").doc(experienceGiftId).get();
                 const giverId = giftDoc2.data()?.giverId;
                 if (giverId) {
-                    const isAuthRequired = error.code === 'authentication_required';
-                    const recoveryUrl: string | undefined = error.raw?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
-                        ?? error.raw?.payment_intent?.next_action?.redirect_to_url?.url
+                    const stripeErr = error as Stripe.StripeError;
+                    const isAuthRequired = stripeErr.code === 'authentication_required';
+                    const recoveryUrl: string | undefined = stripeErr.raw?.payment_intent?.next_action?.use_stripe_sdk?.stripe_js
+                        ?? stripeErr.raw?.payment_intent?.next_action?.redirect_to_url?.url
                         ?? undefined;
 
                     let notifTitle = 'Payment failed';

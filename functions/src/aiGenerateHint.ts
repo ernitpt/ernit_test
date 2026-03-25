@@ -5,8 +5,10 @@ import { defineSecret } from "firebase-functions/params";
 import {
   selectHintCategory,
   HINT_CATEGORIES,
-  HintCategory
+  HintCategory,
+  HintCategoryDefinition,
 } from './hintCategories';
+import { Firestore } from 'firebase-admin/firestore';
 import { allowedOrigins } from "./cors";
 
 type HintStyle = "neutral" | "personalized" | "motivational";
@@ -56,7 +58,7 @@ function buildUserPrompt({
   style: HintStyle;
   previousHints?: string[];
   hintCategory: HintCategory;
-  categoryDefinition: any;
+  categoryDefinition: HintCategoryDefinition;
 }) {
   const progress = clamp01(sessionNumber / totalSessions);
   const band = difficultyBand(progress);
@@ -395,7 +397,7 @@ export const aiGenerateHint = onCall(
     const RATE_LIMIT = 20; // Maximum hints per hour per user
 
     // Import production db from index
-    let db: any;
+    let db: Firestore;
     try {
       const indexModule = await import('./index.js');
       db = indexModule.dbProd;
@@ -442,7 +444,19 @@ export const aiGenerateHint = onCall(
     }
 
     // `requestData.data` for Firebase SDK clients
-    const data = requestData.data as any;
+    const data = requestData.data as {
+      experienceType?: string;
+      experienceDescription?: string;
+      experienceCategory?: string;
+      experienceSubtitle?: string;
+      sessionNumber?: number;
+      totalSessions?: number;
+      userName?: string | null;
+      style?: string;
+      previousHints?: unknown[];
+      previousCategories?: unknown[];
+      goalId?: string;
+    };
     let {
       experienceType,
       experienceDescription,

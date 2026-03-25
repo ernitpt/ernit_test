@@ -17,7 +17,7 @@ export const searchUsers = onCall(
     }
 
     const userId = auth.uid;
-    const data = (requestData?.data || requestData) as any;
+    const data = requestData.data as { searchTerm?: unknown };
     const { searchTerm } = data;
 
     // ✅ VALIDATION: searchTerm checks
@@ -112,8 +112,17 @@ export const searchUsers = onCall(
         }
       });
 
+      interface UserSearchResult {
+        id: string;
+        name: string;
+        profileImageUrl: string | null;
+        country: string | null;
+        description: string | null;
+        isFriend: boolean;
+        hasPendingRequest: boolean;
+      }
       // Filter and map users
-      const results: any[] = [];
+      const results: UserSearchResult[] = [];
 
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();

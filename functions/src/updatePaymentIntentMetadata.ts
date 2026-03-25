@@ -79,7 +79,7 @@ export const updatePaymentIntentMetadata = onRequest(
 
             // Initialize Stripe with live key
             const stripe = new Stripe(STRIPE_SECRET.value(), {
-                apiVersion: "2024-06-20" as any,
+                apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
             });
 
             // ✅ SECURITY: Verify ownership before updating
@@ -100,7 +100,7 @@ export const updatePaymentIntentMetadata = onRequest(
 
             logger.info(`✅ [PROD] Payment intent ${paymentIntentId} updated by user ${userId}`);
             res.status(200).json({ success: true });
-        } catch (err: any) {
+        } catch (err: unknown) {
             logger.error("❌ Error updating metadata:", err);
             res.status(500).json({ error: "Failed to update payment metadata" });
         }

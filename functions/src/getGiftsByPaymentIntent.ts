@@ -81,10 +81,10 @@ export const getGiftsByPaymentIntent = onRequest(
             // ✅ Only return gifts belonging to the authenticated user
             const gifts = snap.docs
                 .map((d: admin.firestore.QueryDocumentSnapshot<DocumentData>) => ({
-                    ...(d.data() as any),
+                    ...d.data(),
                     id: d.id,
                 }))
-                .filter((gift: any) => gift.giverId === userId);
+                .filter((gift) => (gift as { giverId?: string }).giverId === userId);
 
             if (gifts.length === 0) {
                 logger.info(`No gifts found for user ${userId} with payment intent ${paymentIntentId}`);

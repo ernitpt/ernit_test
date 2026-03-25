@@ -73,12 +73,12 @@ export const sendBookingReminders = functions.onSchedule(
 
             // Pre-fetch all unique experienceGift docs to avoid N+1 sequential reads
             const giftIds = new Set<string>();
-            goalsSnap.docs.forEach((doc: any) => {
+            goalsSnap.docs.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
                 const giftId = doc.data().experienceGiftId;
-                if (giftId) giftIds.add(giftId);
+                if (giftId) giftIds.add(giftId as string);
             });
 
-            const giftDocs = new Map<string, any>();
+            const giftDocs = new Map<string, admin.firestore.DocumentSnapshot>();
             await Promise.all(
                 [...giftIds].map(async (id) => {
                     const snap = await db.collection("experienceGifts").doc(id).get();
@@ -90,10 +90,10 @@ export const sendBookingReminders = functions.onSchedule(
             const experienceIds = new Set<string>();
             giftDocs.forEach((snap) => {
                 const expId = snap.exists ? snap.data()?.experienceId : null;
-                if (expId) experienceIds.add(expId);
+                if (expId) experienceIds.add(expId as string);
             });
 
-            const experienceDocs = new Map<string, any>();
+            const experienceDocs = new Map<string, admin.firestore.DocumentSnapshot>();
             await Promise.all(
                 [...experienceIds].map(async (id) => {
                     const snap = await db.collection("experiences").doc(id).get();

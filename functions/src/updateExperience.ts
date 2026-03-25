@@ -167,8 +167,8 @@ export const updateExperience = onCall(
                         } else {
                             logger.warn(`⚠️ File not found in Storage: ${filePath}`);
                         }
-                    } catch (error: any) {
-                        logger.error(`❌ Error deleting image ${imageUrl}:`, error.message);
+                    } catch (error: unknown) {
+                        logger.error(`❌ Error deleting image ${imageUrl}:`, (error as Error).message);
                         // Continue with other deletions even if one fails
                     }
                 }
@@ -244,7 +244,7 @@ export const updateExperience = onCall(
             }
 
             // ✅ BUILD UPDATE OBJECT
-            const updateData: any = {
+            const updateData: Record<string, unknown> = {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: userId, // Track who updated this experience
             };
@@ -279,7 +279,7 @@ export const updateExperience = onCall(
                 experienceId: experienceId,
                 message: "Experience updated successfully",
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Preserve HttpsError codes (e.g. invalid-argument, not-found) so the
             // client receives the correct error message rather than a generic 'internal' one.
             if (error instanceof HttpsError) {
@@ -301,8 +301,8 @@ export const updateExperience = onCall(
                             await bucket.file(filePath).delete();
                             logger.info(`✅ Cleaned up: ${filePath}`);
                         }
-                    } catch (cleanupError: any) {
-                        logger.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                    } catch (cleanupError: unknown) {
+                        logger.warn(`⚠️ Failed to cleanup ${url}: ${(cleanupError as Error).message}`);
                     }
                 }
             }
