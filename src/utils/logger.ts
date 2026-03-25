@@ -39,7 +39,7 @@ class Logger {
         }
     }
 
-    table(data: any) {
+    table(data: unknown) {
         if (isDev && console.table) {
             console.table(data);
         }
