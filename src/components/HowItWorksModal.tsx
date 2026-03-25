@@ -17,7 +17,7 @@ interface HowItWorksModalProps {
     onClose: () => void;
 }
 
-export default function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
+function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -110,6 +110,8 @@ export default function HowItWorksModal({ visible, onClose }: HowItWorksModalPro
         </BaseModal>
     );
 }
+
+export default React.memo(HowItWorksModal);
 
 const createStyles = (colors: typeof Colors) =>
     StyleSheet.create({
