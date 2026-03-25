@@ -69,6 +69,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         <Image
           source={require('../assets/favicon.png')}
           style={{ width: 92, height: 92, resizeMode: 'contain' }}
+          accessible={false}
         />
       </View>
 

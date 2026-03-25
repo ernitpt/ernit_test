@@ -1253,8 +1253,9 @@ const JourneyScreen = () => {
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image
                   source={require('../../assets/favicon.png')}
-                  style={{ width: 60, height: 60, marginBottom: 12 }}
+                  style={{ width: 60, height: 60, marginBottom: Spacing.md }}
                   contentFit="contain" cachePolicy="memory-disk"
+                  accessible={false}
                 />
                 <Text style={{ ...Typography.display, fontWeight: '600', color: colors.overlayLight }}>
                   Earned with Ernit

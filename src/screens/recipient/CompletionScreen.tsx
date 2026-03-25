@@ -620,6 +620,7 @@ const CompletionScreen = () => {
                 source={require('../../assets/favicon.png')}
                 style={{ width: 60, height: 60, marginBottom: Spacing.md }}
                 contentFit="contain" cachePolicy="memory-disk"
+                accessible={false}
               />
               <Text style={{ ...Typography.display, fontWeight: '600', color: colors.overlayLight }}>
                 Earned with Ernit

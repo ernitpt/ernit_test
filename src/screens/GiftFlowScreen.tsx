@@ -1328,7 +1328,7 @@ export default function GiftFlowScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Choose a shared experience"
                     >
-                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" />
+                        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
