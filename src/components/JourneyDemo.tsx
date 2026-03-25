@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, Platform, Dimensions, TouchableOpacity, DimensionValue } from 'react-native';
+import { View, Text, StyleSheet, Platform, Dimensions, TouchableOpacity, DimensionValue } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -287,7 +288,9 @@ const JourneyDemo: React.FC = React.memo(() => {
                 <Image
                   source={{ uri: rewardExperience.coverImageUrl }}
                   style={s.rewardImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  accessibilityLabel={`${rewardExperience.title ?? 'Experience'} reward image`}
                 />
                 <LinearGradient
                   colors={['transparent', colors.overlayHeavy]}
