@@ -85,7 +85,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
 
   useEffect(() => {
     if (goal.empoweredBy) {
-      userService.getUserName(goal.empoweredBy).then(setGiverName);
+      userService.getUserName(goal.empoweredBy).then(setGiverName).catch(() => {});
     }
   }, [goal.empoweredBy]);
 

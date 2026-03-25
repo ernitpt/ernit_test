@@ -657,7 +657,7 @@ const AchievementDetailScreen = () => {
       } else {
         showInfo('Could not open email client.');
       }
-    });
+    }).catch(() => showInfo('Could not open email client.'));
   };
 
   const handleWhatsAppSchedule = () => {
@@ -687,7 +687,7 @@ const AchievementDetailScreen = () => {
       } else {
         showInfo('WhatsApp is not installed. Please use email to contact the partner.');
       }
-    });
+    }).catch(() => showInfo('WhatsApp is not installed. Please use email to contact the partner.'));
   };
 
   const handleEmailSchedule = () => {

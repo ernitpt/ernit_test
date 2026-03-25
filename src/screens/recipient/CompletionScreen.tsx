@@ -344,7 +344,7 @@ const CompletionScreen = () => {
       } else {
         showInfo('WhatsApp is not installed. Please use email to contact the partner.');
       }
-    });
+    }).catch(() => showInfo('WhatsApp is not installed. Please use email to contact the partner.'));
   };
 
   const handleEmailSchedule = (dateOverride?: Date) => {
