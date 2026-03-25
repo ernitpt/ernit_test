@@ -260,6 +260,7 @@ const FeedScreen: React.FC = () => {
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         removeClippedSubviews={Platform.OS !== 'web'}
+                        initialNumToRender={5}
                         maxToRenderPerBatch={10}
                         windowSize={5}
                         onEndReached={handleLoadMore}

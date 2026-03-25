@@ -325,6 +325,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap sub-components in React.memo and handlers in useCallback in UserProfileScreen
 - extract and memoize navigation handlers in GoalDetailScreen
 - wrap handlers in useCallback in FriendRequestNotification component
+- add initialNumToRender to FlatLists in FeedScreen, NotificationsScreen, and GoalsScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

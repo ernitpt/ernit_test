@@ -1108,6 +1108,7 @@ const NotificationsScreen = () => {
             contentContainerStyle={styles.listContainer}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={Platform.OS !== 'web'}
+            initialNumToRender={8}
             maxToRenderPerBatch={10}
             windowSize={5}
             onEndReached={handleLoadMore}

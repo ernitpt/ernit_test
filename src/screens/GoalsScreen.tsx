@@ -339,6 +339,7 @@ const GoalsScreen: React.FC = () => {
             contentContainerStyle={styles.listContainer}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={Platform.OS !== 'web'}
+            initialNumToRender={5}
             maxToRenderPerBatch={10}
             windowSize={5}
             refreshControl={
