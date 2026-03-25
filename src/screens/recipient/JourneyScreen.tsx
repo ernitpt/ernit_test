@@ -579,6 +579,30 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 });
 
 // ─── Hint Item ───────────────────────────────────────────────────────────────
+// ─── Milestone Card ─────────────────────────────────────────────────────────
+const MilestoneCard = React.memo(({ emoji, label }: { emoji: string; label: string }) => {
+  const colors = useColors();
+  return (
+    <View style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
+      marginVertical: Spacing.sm,
+      backgroundColor: colors.backgroundLight,
+      borderRadius: BorderRadius.pill,
+      alignSelf: 'center',
+    }}>
+      <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text>
+      <Text style={{ ...Typography.caption, color: colors.textSecondary, fontWeight: '700' }}>
+        {label}
+      </Text>
+    </View>
+  );
+});
+
 // ─── Session Stats Bar ──────────────────────────────────────────────────────
 const formatTotalTime = (secs: number): string => {
   if (secs < 60) return `${secs}s`;
@@ -1252,27 +1276,53 @@ const JourneyScreen = () => {
       );
     }
 
+    // Build milestone markers: inject between sessions at week boundaries and session count milestones
+    const SESSION_MILESTONES = new Set([10, 25, 50, 100]);
+    const sortedSessions = [...sessions].sort((a, b) => a.sessionNumber - b.sessionNumber);
+    const seenWeeks = new Set<number>();
+    const shownSessionMilestones = new Set<number>();
+
+    const items: React.ReactNode[] = [];
+    sortedSessions.forEach((s, i) => {
+      // Week completion marker: fires when weekNumber changes (after last session of prior week)
+      const prevWeek = i > 0 ? sortedSessions[i - 1].weekNumber : null;
+      if (prevWeek !== null && s.weekNumber !== prevWeek && !seenWeeks.has(prevWeek)) {
+        seenWeeks.add(prevWeek);
+        items.push(
+          <MilestoneCard key={`week-${prevWeek}`} emoji="📅" label={`Week ${prevWeek} Complete!`} />
+        );
+      }
+      // Session count milestone
+      if (SESSION_MILESTONES.has(s.sessionNumber) && !shownSessionMilestones.has(s.sessionNumber)) {
+        shownSessionMilestones.add(s.sessionNumber);
+        items.push(
+          <MilestoneCard key={`sess-${s.sessionNumber}`} emoji="🎯" label={`${s.sessionNumber} Sessions!`} />
+        );
+      }
+      items.push(
+        <SessionCard
+          key={s.id}
+          session={s}
+          index={i}
+          motivations={motivationsBySession[s.sessionNumber] || []}
+          isExpanded={expandedSessionId === s.id}
+          onToggleExpand={() => {
+            if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setExpandedSessionId(prev => prev === s.id ? null : s.id);
+          }}
+          onImagePress={(uri) => {
+            const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'photo').map(s => s.mediaUrl!);
+            setAllImageUris(sessionImages);
+            setSelectedImageUri(uri);
+          }}
+        />
+      );
+    });
+
     return (
       <View style={{ paddingHorizontal: Spacing.md, alignSelf: 'center', width: '100%', maxWidth: 380 }}>
         <SessionStatsBar sessions={sessions} />
-        {sessions.map((s, i) => (
-          <SessionCard
-            key={s.id}
-            session={s}
-            index={i}
-            motivations={motivationsBySession[s.sessionNumber] || []}
-            isExpanded={expandedSessionId === s.id}
-            onToggleExpand={() => {
-              if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setExpandedSessionId(prev => prev === s.id ? null : s.id);
-            }}
-            onImagePress={(uri) => {
-              const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'photo').map(s => s.mediaUrl!);
-              setAllImageUris(sessionImages);
-              setSelectedImageUri(uri);
-            }}
-          />
-        ))}
+        {items}
       </View>
     );
   };
