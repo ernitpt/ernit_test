@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import {
     View,
-    Text,
     StyleSheet,
     TouchableOpacity,
     Animated,

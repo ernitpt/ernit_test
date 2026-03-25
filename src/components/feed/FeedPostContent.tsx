@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Trophy, Gift } from 'lucide-react-native';
 import Button from '../Button';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../../types';
-import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../../config';
+import { Colors, useColors, Typography, Spacing, BorderRadius } from '../../config';
 import { vh } from '../../utils/responsive';
 
 interface FeedPostContentProps {

@@ -316,6 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap handlers in useCallback in CategorySelectionScreen
 - wrap handlers in useCallback in ExperienceDetailsScreen.web
 - remove unused imports from Avatar, Chip, and EmpowerChoiceModal components
+- remove unused imports across GoalProgressNotification, ProgressBar, FeedPostContent, and ReactionPicker
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

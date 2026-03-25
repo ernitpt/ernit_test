@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from '
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Button from './Button';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BaseModal } from './BaseModal';
 import { Notification, Goal, PersonalizedHint } from '../types';
 import { goalService } from '../services/GoalService';

@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { MotiView } from 'moti';
-import { Colors, useColors } from '../config';
-import { BorderRadius } from '../config/borderRadius';
-import { Spacing } from '../config/spacing';
+import { useColors } from '../config';
 
 interface ProgressBarProps {
   progress: number; // 0-1
