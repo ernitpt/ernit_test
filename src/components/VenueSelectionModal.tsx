@@ -29,6 +29,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Search, MapPin, X } from 'lucide-react-native';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { vh } from '../utils/responsive';
 import Button from './Button';
 import { SkeletonBox } from './SkeletonLoader';
 import { useToast } from '../context/ToastContext';
@@ -540,7 +541,7 @@ const createStyles = (colors: typeof Colors) =>
             backgroundColor: colors.white,
             borderTopLeftRadius: BorderRadius.xxl,
             borderTopRightRadius: BorderRadius.xxl,
-            maxHeight: SCREEN_HEIGHT * 0.82,
+            maxHeight: vh(738),
             ...Shadows.lg,
         },
 
@@ -615,7 +616,7 @@ const createStyles = (colors: typeof Colors) =>
 
         // Result list
         resultList: {
-            maxHeight: SCREEN_HEIGHT * 0.36,
+            maxHeight: vh(324),
             marginBottom: Spacing.md,
         },
         resultItem: {

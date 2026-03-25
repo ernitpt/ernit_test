@@ -670,6 +670,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace window.navigator as any with typed Navigator intersection for iOS standalone detection across PWAInstaller, SideMenu, PushNotificationService, and Toast
 - add missing .catch() handlers to Linking.canOpenURL calls and getUserName promise in FriendProfileScreen
 - add isDeleted field to FeedPost type and remove as-unknown cast in FeedService filter
+- add missing accessibility labels to interactive elements and replace Dimensions height with vh() in VenueSelectionModal
 
 ### Added
 - Automatic changelog system with `npm run log` script

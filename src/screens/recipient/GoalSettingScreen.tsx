@@ -761,6 +761,8 @@ const GoalSettingScreen = () => {
                 }}
                 onPress={handleAcceptGiverGoal}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Accept same challenge as giver"
               >
                 <Text style={{ ...Typography.smallBold, color: colors.white }}>Accept same challenge</Text>
               </TouchableOpacity>
@@ -776,6 +778,8 @@ const GoalSettingScreen = () => {
                 }}
                 onPress={() => setAcceptedGiverGoal(true)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Create my own challenge"
               >
                 <Text style={{ ...Typography.smallBold, color: colors.textSecondary }}>Create my own</Text>
               </TouchableOpacity>
@@ -1074,6 +1078,9 @@ const GoalSettingScreen = () => {
                 ]}
                 onPress={() => snapToPreset(m)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${m} minutes per session`}
+                accessibilityState={{ selected: sessionMinutes === m }}
               >
                 <Text style={[
                   styles.presetChipText,
@@ -1089,6 +1096,8 @@ const GoalSettingScreen = () => {
           style={{ alignSelf: 'center', marginTop: vh(16) }}
           onPress={() => setShowCustomTime(!showCustomTime)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={showCustomTime ? 'Use the time dial' : 'Enter a custom session time'}
         >
           <Text style={{
             ...Typography.body,
