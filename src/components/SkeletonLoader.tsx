@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, Dimensions } from 'react-native';
 import { MotiView } from 'moti';
 import { Colors, useColors } from '../config';
@@ -16,7 +16,7 @@ interface SkeletonLoaderProps {
     style?: StyleProp<ViewStyle>;
 }
 
-export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
+export const SkeletonBox: React.FC<SkeletonLoaderProps> = memo(({
     width = '100%',
     height = 20,
     borderRadius = 4,
@@ -46,10 +46,10 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
             ]}
         />
     );
-};
+});
 
 // Feed Post Skeleton
-export const FeedPostSkeleton: React.FC = () => {
+export const FeedPostSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -83,10 +83,10 @@ export const FeedPostSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // Goal Card Skeleton
-export const GoalCardSkeleton: React.FC = () => {
+export const GoalCardSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -106,10 +106,10 @@ export const GoalCardSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // Experience Card Skeleton - Matches CategorySelectionScreen card dimensions
-export const ExperienceCardSkeleton: React.FC = () => {
+export const ExperienceCardSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -123,10 +123,10 @@ export const ExperienceCardSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // List Item Skeleton
-export const ListItemSkeleton: React.FC = () => {
+export const ListItemSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -139,10 +139,10 @@ export const ListItemSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // Notification Skeleton
-export const NotificationSkeleton: React.FC = () => {
+export const NotificationSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -156,10 +156,10 @@ export const NotificationSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // Comment Skeleton - for CommentModal loading state
-export const CommentSkeleton: React.FC = () => {
+export const CommentSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -173,10 +173,10 @@ export const CommentSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 // Reaction Item Skeleton - for ReactionViewerModal loading state
-export const ReactionSkeleton: React.FC = () => {
+export const ReactionSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -189,10 +189,10 @@ export const ReactionSkeleton: React.FC = () => {
             <SkeletonBox width={24} height={24} borderRadius={12} />
         </View>
     );
-};
+});
 
 // Gift Card Skeleton - for PurchasedGiftsScreen
-export const GiftCardSkeleton: React.FC = () => {
+export const GiftCardSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -206,10 +206,10 @@ export const GiftCardSkeleton: React.FC = () => {
             <SkeletonBox width="40%" height={14} style={{ marginTop: 6 }} />
         </View>
     );
-};
+});
 
 // Cart Item Skeleton - horizontal card for CartScreen
-export const CartItemSkeleton: React.FC = () => {
+export const CartItemSkeleton: React.FC = memo(() => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -226,7 +226,7 @@ export const CartItemSkeleton: React.FC = () => {
             </View>
         </View>
     );
-};
+});
 
 
 // Experience Detail Skeleton — hero image + info sections
