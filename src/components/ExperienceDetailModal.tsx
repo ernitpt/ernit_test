@@ -369,7 +369,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         bottom: Spacing.md,
         right: Spacing.lg,
         flexDirection: 'row',
-        gap: 6,
+        gap: Spacing.tinyGap,
     },
     dot: {
         width: 7,

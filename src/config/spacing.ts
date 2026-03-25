@@ -10,6 +10,8 @@ export const Spacing = {
     // ─── Scale ────────────────────────────────────────────────────────
     xxs: 2,
     xs: 4,
+    /** Gap between tightly-spaced items (skeleton rows, reaction icons) */
+    tinyGap: 6,
     sm: 8,
     md: 12,
     lg: 16,

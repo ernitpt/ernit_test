@@ -177,7 +177,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     capsuleRow: {
         flexDirection: 'row',
-        gap: 6,
+        gap: Spacing.tinyGap,
     },
     capsule: {
         flex: 1,
@@ -222,7 +222,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     goalDescriptionText: {
         ...Typography.small,
         color: colors.textSecondary,
-        marginBottom: 6,
+        marginBottom: Spacing.tinyGap,
     },
     experienceMeta: {
         ...Typography.caption,
