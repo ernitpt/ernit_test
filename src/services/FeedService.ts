@@ -167,7 +167,7 @@ class FeedService {
                 const snapshot = await getDocs(q);
 
                 for (const docSnapshot of snapshot.docs) {
-                    const data = docSnapshot.data();
+                    const data = docSnapshot.data() as Record<string, unknown>;
                     allPosts.push({
                         id: docSnapshot.id,
                         ...data,

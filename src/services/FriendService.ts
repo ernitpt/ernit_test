@@ -44,15 +44,15 @@ export class FriendService {
       const users = (result?.data as { users?: Record<string, unknown>[] })?.users || [];
 
       // Map server response to UserSearchResult (email intentionally omitted for privacy)
-      return users.map((u: Record<string, unknown>) => ({
-        id: u.id,
-        name: u.name || 'Unknown User',
+      return users.map((u: Record<string, unknown>): UserSearchResult => ({
+        id: u.id as string,
+        name: (u.name as string) || 'Unknown User',
         email: '', // Not returned from server for privacy
-        profileImageUrl: u.profileImageUrl || null,
-        country: u.country || '',
-        description: u.description || '',
-        isFriend: u.isFriend || false,
-        hasPendingRequest: u.hasPendingRequest || false,
+        profileImageUrl: (u.profileImageUrl as string) || null,
+        country: (u.country as string) || '',
+        description: (u.description as string) || '',
+        isFriend: !!u.isFriend,
+        hasPendingRequest: !!u.hasPendingRequest,
       }));
     } catch (error) {
       logger.error('❌ Error searching users:', error);

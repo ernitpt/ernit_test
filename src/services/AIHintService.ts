@@ -160,7 +160,7 @@ export const aiHintService = {
     // ✅ Generate remotely
     const style = styleForSession(sessionNumber);
 
-    const callable = httpsCallable(functions, "aiGenerateHint");
+    const callable = httpsCallable<unknown, { hint: string; category?: HintCategory }>(functions, "aiGenerateHint");
     const res = await callable({
       experienceType,
       experienceDescription,
@@ -174,8 +174,8 @@ export const aiHintService = {
       previousCategories, // NEW: Send categories
     });
 
-    const hint = res?.data?.hint as string;
-    const category = res?.data?.category as HintCategory | undefined;
+    const hint = res?.data?.hint;
+    const category = res?.data?.category;
 
     if (!hint) throw new Error("No hint returned");
 
@@ -263,7 +263,7 @@ export const aiHintService = {
     const style = styleForSession(sessionNumber);
 
     // Call Cloud Function with goalId — it resolves experience details server-side
-    const callable = httpsCallable(functions, "aiGenerateHint");
+    const callable = httpsCallable<unknown, { hint: string; category?: HintCategory }>(functions, "aiGenerateHint");
     const res = await callable({
       goalId,
       sessionNumber,
@@ -274,8 +274,8 @@ export const aiHintService = {
       previousCategories,
     });
 
-    const hint = res?.data?.hint as string;
-    const category = res?.data?.category as HintCategory | undefined;
+    const hint = res?.data?.hint;
+    const category = res?.data?.category;
     if (!hint) throw new Error("No hint returned for mystery");
 
     // Save to Firestore (merge to avoid overwriting existing session data)

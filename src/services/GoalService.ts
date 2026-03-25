@@ -83,7 +83,7 @@ export class GoalService {
         }
       }
 
-      const normalized = normalizeGoal(goal);
+      const normalized = normalizeGoal(goal as unknown as Record<string, unknown> & { id: string });
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
@@ -149,7 +149,7 @@ export class GoalService {
         }
       }
 
-      const normalized = normalizeGoal(goal);
+      const normalized = normalizeGoal(goal as unknown as Record<string, unknown> & { id: string });
       const docRef = await addDoc(this.goalsCollection, {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
@@ -334,10 +334,10 @@ export class GoalService {
     }
 
     // SECURITY: Validate URLs if present
-    if (hintObj.audioUrl && !this.isValidUrl(hintObj.audioUrl)) {
+    if (hintObj.audioUrl && typeof hintObj.audioUrl === 'string' && !this.isValidUrl(hintObj.audioUrl)) {
       throw new AppError('INVALID_URL', 'Invalid audio URL', 'validation');
     }
-    if (hintObj.imageUrl && !this.isValidUrl(hintObj.imageUrl)) {
+    if (hintObj.imageUrl && typeof hintObj.imageUrl === 'string' && !this.isValidUrl(hintObj.imageUrl)) {
       throw new AppError('INVALID_URL', 'Invalid image URL', 'validation');
     }
 

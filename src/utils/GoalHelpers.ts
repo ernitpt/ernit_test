@@ -106,7 +106,7 @@ export function normalizeGoal(g: Record<string, unknown> & { id: string }): Goal
     giftAttachedAt: toJSDate(g.giftAttachedAt) ?? null,
     giftAttachDeadline: toJSDate(g.giftAttachDeadline) ?? null,
     // Discovery engine fields
-    discoveredAt: toJSDate((g as any).discoveredAt) ?? null,
-    experienceRevealedAt: toJSDate((g as any).experienceRevealedAt) ?? null,
-  } as Goal;
+    discoveredAt: toJSDate(g.discoveredAt as unknown) ?? null,
+    experienceRevealedAt: toJSDate(g.experienceRevealedAt as unknown) ?? null,
+  } as unknown as Goal;
 }

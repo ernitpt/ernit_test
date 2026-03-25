@@ -14,7 +14,7 @@ class PushNotificationService {
      * Initialize Firebase Messaging
      * Only works on web platform
      */
-    async initialize() {
+    async initialize(): Promise<boolean> {
         // Only run on web
         if (Platform.OS !== 'web') {
             logger.log('🔔 Push notifications are only supported on web platform');
