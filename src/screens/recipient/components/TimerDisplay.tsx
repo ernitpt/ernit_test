@@ -357,4 +357,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
 });
 
-export default TimerDisplay;
+export default React.memo(TimerDisplay);

@@ -288,6 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - make normalizeGoal generic, eliminating as-unknown-as casts at all 4 call sites
 - replace any types with proper TypeScript types in cloud functions
 - wrap ExperienceCard, StreakBanner, SessionActionArea, and SessionMediaPrompt with React.memo to prevent unnecessary re-renders
+- wrap PledgedExperiencePreview and TimerDisplay with React.memo
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
