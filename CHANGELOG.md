@@ -329,6 +329,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add initialNumToRender to FlatLists in FeedScreen, NotificationsScreen, and GoalsScreen
 - add initialNumToRender to remaining FlatLists in AddFriend, FriendsList, PurchasedGifts, CategorySelection screens
 - wrap all SkeletonLoader components in React.memo to prevent unnecessary re-renders
+- wrap handleMessageChange in useCallback in confirmation screens and handlePress in CompletedGoalCard
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

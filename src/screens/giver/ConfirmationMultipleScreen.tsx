@@ -138,14 +138,14 @@ const ConfirmationMultipleScreen = () => {
     fetchExperiences();
   }, [experienceGifts]);
 
-  const handleMessageChange = (giftId: string, text: string) => {
+  const handleMessageChange = useCallback((giftId: string, text: string) => {
     if (text.length <= 500) {
       setPersonalizedMessages((prev) => ({
         ...prev,
         [giftId]: text,
       }));
     }
-  };
+  }, []);
 
   const handleSendMessage = useCallback(async (giftId: string) => {
     const message = personalizedMessages[giftId]?.trim() || '';

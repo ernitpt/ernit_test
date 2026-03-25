@@ -247,12 +247,12 @@ const ConfirmationScreen = () => {
     );
   }
 
-  const handleMessageChange = (text: string) => {
+  const handleMessageChange = useCallback((text: string) => {
     if (text.length <= 500) {
       setPersonalizedMessage(text);
       setCharCount(text.length);
     }
-  };
+  }, []);
 
   const handleSendMessage = useCallback(async () => {
     if (!personalizedMessage.trim()) {

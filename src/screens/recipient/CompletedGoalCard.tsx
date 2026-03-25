@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, memo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
@@ -27,9 +27,9 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
     const hasExperienceGift = !!goal.experienceGiftId && !goal.isFreeGoal;
     const isSelfAchievement = goal.isFreeGoal && !hasPledgedExperience;
 
-    const handlePress = () => {
+    const handlePress = useCallback(() => {
         navigation.navigate('Journey', { goal });
-    };
+    }, [navigation, goal]);
 
     return (
         <ErrorBoundary screenName="CompletedGoalCard" userId={state.user?.id}>
