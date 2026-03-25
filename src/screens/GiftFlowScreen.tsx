@@ -2175,7 +2175,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         width: 26,
         height: 26,
         borderRadius: BorderRadius.circle,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: Colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,

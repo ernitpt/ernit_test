@@ -359,15 +359,15 @@ export default function HeroPreviewScreen() {
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.08)'],
+        outputRange: [Colors.whiteAlpha08, Colors.whiteAlpha08],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.2)'],
+        outputRange: [Colors.whiteAlpha20, Colors.whiteAlpha20],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.8)'],
+        outputRange: [Colors.whiteAlpha80, Colors.whiteAlpha80],
     });
     // Founders section colors
     const animFoundersBg = sliderAnim.interpolate({
@@ -1119,7 +1119,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: colors.whiteAlpha08,
         borderWidth: 1,
-        borderColor: 'rgba(245,158,11,0.25)',
+        borderColor: colors.warningAlpha25,
         shadowColor: colors.warning,
     },
     cardImg: {

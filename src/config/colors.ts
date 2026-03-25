@@ -59,6 +59,7 @@ export const Colors = {
     warningLight: '#FEF3C7',
     warningLighter: '#FFFBEB',  // amber-50
     warningBorder: '#FDE68A',   // amber-200
+    warningAlpha25: 'rgba(245, 158, 11, 0.25)',
     warningMedium: '#D97706',   // amber-600
     warningDark: '#92400E',     // amber-800
     warningDeep: '#854D0E',     // amber-900
@@ -107,8 +108,10 @@ export const Colors = {
     whiteAlpha40: 'rgba(255, 255, 255, 0.4)',
     whiteAlpha25: 'rgba(255, 255, 255, 0.25)',
     whiteAlpha15: 'rgba(255, 255, 255, 0.15)',
+    whiteAlpha20: 'rgba(255, 255, 255, 0.2)',
     whiteAlpha10: 'rgba(255, 255, 255, 0.1)',
     blackAlpha20: 'rgba(0, 0, 0, 0.2)',
+    blackAlpha25: 'rgba(0, 0, 0, 0.25)',
 
     // ─── Brand colors (third-party) ──────────────────────────────────
     whatsappGreen: '#25D366',
@@ -221,6 +224,7 @@ export const DarkColors = {
     warningLight: 'rgba(245, 158, 11, 0.15)',
     warningLighter: 'rgba(245, 158, 11, 0.08)',
     warningBorder: 'rgba(245, 158, 11, 0.3)',
+    warningAlpha25: 'rgba(245, 158, 11, 0.25)',
     warningMedium: '#FBBF24',
     warningDark: '#FDE68A',
     warningDeep: '#FEF3C7',
@@ -269,8 +273,10 @@ export const DarkColors = {
     whiteAlpha40: 'rgba(26, 26, 46, 0.4)',
     whiteAlpha25: 'rgba(255, 255, 255, 0.15)',
     whiteAlpha15: 'rgba(255, 255, 255, 0.1)',
+    whiteAlpha20: 'rgba(255, 255, 255, 0.12)',
     whiteAlpha10: 'rgba(255, 255, 255, 0.06)',
     blackAlpha20: 'rgba(255, 255, 255, 0.1)',
+    blackAlpha25: 'rgba(255, 255, 255, 0.12)',
 
     // ─── Brand colors (unchanged — third-party identity) ────────────
     whatsappGreen: '#25D366',
