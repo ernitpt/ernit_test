@@ -1,5 +1,6 @@
 import React, { useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { Gift, Heart } from 'lucide-react-native';
 import type { FeedPost as FeedPostType } from '../../types';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
@@ -51,6 +52,8 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                             <Image
                                 source={{ uri: post.experienceImageUrl }}
                                 style={styles.experiencePreviewImage}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
                                 accessibilityLabel={`${post.experienceTitle} experience`}
                             />
                         )}

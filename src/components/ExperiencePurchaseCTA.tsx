@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
 import { Gift, X, Sparkles, ShoppingBag } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -72,7 +73,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
             {/* Experience preview */}
             <View style={inlineStyles.experienceRow}>
                 {experience.coverImageUrl ? (
-                    <Image source={{ uri: experience.coverImageUrl }} style={inlineStyles.thumb} accessible={false} />
+                    <Image source={{ uri: experience.coverImageUrl }} style={inlineStyles.thumb} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
                 ) : (
                     <View style={[inlineStyles.thumb, inlineStyles.thumbPlaceholder]}>
                         <Gift size={16} color={colors.textMuted} />

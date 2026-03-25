@@ -4,9 +4,9 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Image,
     Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Heart, Gift, X, CheckCircle } from 'lucide-react-native';
 import { Notification } from '../types';
@@ -135,6 +135,9 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                             <Image
                                 source={{ uri: data.experienceCoverImageUrl }}
                                 style={styles.experienceImage}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                accessibilityLabel={`${data.experienceTitle ?? 'Experience'} thumbnail`}
                             />
                         )}
                         <View style={styles.experienceInfo}>

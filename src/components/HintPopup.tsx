@@ -1,6 +1,7 @@
 // components/HintPopup.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Animated, Pressable, StyleSheet, Image, Platform } from 'react-native';
+import { View, Text, Animated, Pressable, StyleSheet, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import type { GestureEvent, HandlerStateChangeEvent } from 'react-native-gesture-handler';
 import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
@@ -321,7 +322,9 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                           <Image
                             source={{ uri: imageUrl }}
                             style={styles.hintImage}
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            accessibilityLabel="Hint image"
                           />
                         )}
 

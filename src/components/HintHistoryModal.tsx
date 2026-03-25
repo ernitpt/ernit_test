@@ -4,8 +4,8 @@ import {
     Text,
     ScrollView,
     StyleSheet,
-    Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MessageCircle, Mic, Image as ImageIcon } from 'lucide-react-native';
 import { Goal, PersonalizedHint } from '../types';
 import { Colors, useColors } from '../config';
@@ -92,7 +92,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                     )}
 
                     {pHint.imageUrl && (
-                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} resizeMode="cover" accessibilityRole="image" accessibilityLabel="Hint image" />
+                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} contentFit="cover" cachePolicy="memory-disk" accessibilityRole="image" accessibilityLabel="Hint image" />
                     )}
 
                     {pHint.audioUrl && (
