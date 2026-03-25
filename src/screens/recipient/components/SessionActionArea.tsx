@@ -13,7 +13,29 @@ const DEBUG_ALLOW_MULTIPLE_PER_DAY = config.debugEnabled;
 
 // ─── AlreadyLoggedTodayCard ─────────────────────────────────────────
 
-const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
+const getMotivationalSubtitle = (goal: Goal, totalSessionsDone: number): string => {
+  const remainingThisWeek = goal.sessionsPerWeek - goal.weeklyCount;
+  const totalTarget = goal.targetCount * goal.sessionsPerWeek;
+  const totalRemaining = totalTarget - totalSessionsDone;
+
+  // Goal almost done — show excitement
+  if (totalRemaining <= 3 && totalRemaining > 0) {
+    return `Only ${totalRemaining} session${totalRemaining === 1 ? '' : 's'} to your reward! 🎯`;
+  }
+  // Week complete
+  if (remainingThisWeek <= 0) {
+    return 'Week complete! Enjoy the rest 🎉';
+  }
+  // Sessions remaining this week
+  return `${remainingThisWeek} more session${remainingThisWeek === 1 ? '' : 's'} this week — see you tomorrow! 💪`;
+};
+
+interface AlreadyLoggedProps {
+  goal: Goal;
+  totalSessionsDone: number;
+}
+
+const AlreadyLoggedTodayCard: React.FC<AlreadyLoggedProps> = React.memo(({ goal, totalSessionsDone }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -35,6 +57,8 @@ const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
     ]).start();
   }, [checkScale, fadeAnim]);
 
+  const subtitle = getMotivationalSubtitle(goal, totalSessionsDone);
+
   return (
     <Animated.View style={[styles.loggedTodayContainer, { opacity: fadeAnim }]}>
       <LinearGradient
@@ -54,7 +78,7 @@ const AlreadyLoggedTodayCard: React.FC = React.memo(() => {
           </LinearGradient>
         </Animated.View>
         <Text style={styles.loggedTodayTitle}>Great job today!</Text>
-        <Text style={styles.loggedTodaySub}>Come back tomorrow for more</Text>
+        <Text style={styles.loggedTodaySub}>{subtitle}</Text>
       </LinearGradient>
     </Animated.View>
   );
@@ -125,7 +149,7 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
 
   // Already logged today
   if (alreadyLoggedToday && !DEBUG_ALLOW_MULTIPLE_PER_DAY) {
-    return <AlreadyLoggedTodayCard />;
+    return <AlreadyLoggedTodayCard goal={goal} totalSessionsDone={totalSessionsDone} />;
   }
 
   // Normal start button

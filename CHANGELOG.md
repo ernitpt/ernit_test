@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add xl shadow token to Shadows config for high-prominence overlays
 - 2A sort goals by date (newest first)
 - 2B streak banner from day 0 with compact motivational variant
+- 1C motivational countdown in already-logged-today card
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
