@@ -44,7 +44,7 @@ interface PersonalizedHintModalProps {
 
 const MAX_HINT_LENGTH = 100;
 
-export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
+export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React.memo(({
     visible,
     recipientName,
     sessionNumber,
@@ -319,7 +319,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = ({
             </KeyboardAvoidingView>
         </Modal>
     );
-};
+});
 
 const createStyles = (colors: typeof Colors) =>
     StyleSheet.create({

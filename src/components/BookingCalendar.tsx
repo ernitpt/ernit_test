@@ -17,7 +17,7 @@ interface BookingCalendarProps {
     minimumDate?: Date;
 }
 
-export const BookingCalendar: React.FC<BookingCalendarProps> = ({
+export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
     visible,
     selectedDate: initialDate,
     onConfirm,
@@ -218,7 +218,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
             </TouchableOpacity>
         </Modal>
     );
-};
+});
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
     overlay: {

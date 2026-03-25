@@ -21,7 +21,7 @@ interface InlineCTAProps {
     onDismiss: () => void;
 }
 
-export const InlineExperienceCTA: React.FC<InlineCTAProps> = ({
+export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
     experience,
     statMessage,
     statSource,
@@ -105,7 +105,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = ({
             />
         </Animated.View>
     );
-};
+});
 
 const createInlineStyles = (colors: typeof Colors) =>
     StyleSheet.create({
