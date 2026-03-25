@@ -25,8 +25,8 @@ export const PWAInstaller: React.FC = () => {
     const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const { state } = useApp();
-    const iosPromptTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-    const androidPromptTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+    const iosPromptTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const androidPromptTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useEffect(() => {
         // Only run on web platform

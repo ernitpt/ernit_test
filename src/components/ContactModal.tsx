@@ -50,7 +50,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
     // Create refs for focus chaining
     const messageRef = useRef<RNTextInput>(null);
-    const timerRef = useRef<ReturnType<typeof setTimeout>>();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useEffect(() => {
         return () => {
@@ -181,7 +181,6 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
                                 {/* Message Input */}
                                 <TextInput
-                                    ref={messageRef}
                                     label="Message"
                                     placeholder={placeholder}
                                     value={message}

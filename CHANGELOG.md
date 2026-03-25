@@ -634,6 +634,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing accessibility labels to SharedHeader and SideMenu picker elements
 - add missing useMemo imports to ReactionBar, ErrorRetry, and HintHistoryModal
 - resolve TypeScript errors in service layer - AIHintService callable typing, GoalService/GoalSessionService normalizeGoal casts, FriendService map typing, FeedService data spread, AnalyticsEvent optional screenName, add post_comment notification type
+- resolve TypeScript errors in components - HintPopup type narrowing, GoalProgressNotification Timestamp handling, PersonalizedHint backward compat fields, notification types, useRef initial values, SharedHeader color token, ProtectedRoute params cast
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -32,7 +32,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         const params = currentRoute?.params;
 
         // Show login prompt, preserving the deep-link destination
-        requireAuth('Please log in to access this page.', routeName, params);
+        requireAuth('Please log in to access this page.', routeName, params as Record<string, unknown>);
 
         // Navigate back after a short delay to prevent the protected page from rendering
         const timer = setTimeout(() => {

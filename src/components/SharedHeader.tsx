@@ -308,7 +308,7 @@ const createStyles = (colors: typeof Colors) =>
             alignItems: 'center',
             paddingHorizontal: 3,
             borderWidth: 2,
-            borderColor: colors.background,
+            borderColor: colors.surface,
         },
         badgeText: {
             color: colors.white,

@@ -5,7 +5,7 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import type { GestureEvent, HandlerStateChangeEvent } from 'react-native-gesture-handler';
 import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import type { Explosion as ConfettiCannonType } from 'react-native-confetti-cannon';
+import type ConfettiCannonType from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
 import { createCommonStyles } from '../styles/commonStyles';
 import AudioPlayer from './AudioPlayer';
@@ -56,11 +56,12 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
 
   // Determine content type
   const isObj = typeof hint === 'object' && hint !== null;
-  const text = isObj ? (hint.text || hint.hint) : hint;
-  const audioUrl = isObj ? hint.audioUrl : null;
-  const imageUrl = isObj ? hint.imageUrl : null;
-  const duration = isObj ? hint.duration : 0;
-  const giverName = isObj ? hint.giverName : null;
+  const hintObj = isObj ? hint as PersonalizedHint : null;
+  const text = hintObj ? hintObj.text : (hint as string);
+  const audioUrl = hintObj ? hintObj.audioUrl : null;
+  const imageUrl = hintObj ? hintObj.imageUrl : null;
+  const duration = hintObj ? hintObj.duration : 0;
+  const giverName = hintObj ? hintObj.giverName : null;
 
   // Only require scratch for image hints
   const requiresScratch = !!imageUrl;

@@ -286,12 +286,20 @@ export interface GoalFreeGoal {
 export interface PersonalizedHint {
   type: 'text' | 'audio' | 'mixed' | 'image';
   text?: string;
+  /** @deprecated Use text instead */
+  hint?: string;
   audioUrl?: string;
   imageUrl?: string;
   duration?: number; // for audio
   giverName: string;
   createdAt: Date;
   forSessionNumber: number;
+  /** Document ID (populated when fetched from Firestore) */
+  id?: string;
+  /** Session number alias (legacy — use forSessionNumber) */
+  session?: number;
+  /** Unix timestamp in ms (legacy — use createdAt) */
+  date?: number;
 }
 
 /** Hint and nudge tracking */
@@ -520,6 +528,9 @@ export interface Notification {
     // Booking reminder fields
     experienceGiftId?: string;
     experienceName?: string;
+    // Post comment / goal progress fields
+    recipientName?: string;
+    userName?: string;
   };
 }
 

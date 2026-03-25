@@ -33,7 +33,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const navigation = useNavigation<LoginPromptNavigationProp>();
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };

@@ -48,7 +48,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = ({
         }
         // Fallback
         else {
-            d = new Date(date);
+            d = new Date(date as string);
         }
 
         return d.toLocaleDateString('en-US', {

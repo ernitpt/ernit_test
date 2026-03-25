@@ -27,7 +27,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };

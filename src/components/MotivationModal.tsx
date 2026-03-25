@@ -65,7 +65,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
     const media = useMediaComposer(visible);
     const slideAnim = useModalAnimation(visible);
     const successAnim = useRef(new Animated.Value(0)).current;
-    const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const successTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useEffect(() => {
         return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
