@@ -2,6 +2,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase'; // adjust path
 import { PartnerUser } from '../types';
+import { logger } from '../utils/logger';
 
 export const partnerService = {
   /**
@@ -15,8 +16,13 @@ export const partnerService = {
    * haven't purchased a gift yet.
    */
   async getPartnerById(id: string): Promise<PartnerUser | null> {
-    const snap = await getDoc(doc(db, 'partnerUsers', id));
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...(snap.data() as Omit<PartnerUser, 'id'>) };
+    try {
+      const snap = await getDoc(doc(db, 'partnerUsers', id));
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...(snap.data() as Omit<PartnerUser, 'id'>) };
+    } catch (error: unknown) {
+      logger.error('Error fetching partner:', error);
+      return null;
+    }
   },
 };

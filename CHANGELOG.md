@@ -712,6 +712,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sanitize userName and goalDescription in FeedService and ReactionService writes
 - replace @ts-ignore with Platform.OS web guard for backdropFilter in HintPopup
 - add keyboardShouldPersistTaps to ScrollViews in ConfirmationScreen, ConfirmationMultipleScreen, ExperienceDetailsScreen, and CategorySelectionScreen
+- add try/catch error handling to PartnerService.getPartnerById
 
 ### Added
 - Automatic changelog system with `npm run log` script
