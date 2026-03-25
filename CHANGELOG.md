@@ -79,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add post type filter pills to FeedScreen
 - 4A feed post type filtering with chip pills
 - 3A session stats
+- 3C hint timing
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
