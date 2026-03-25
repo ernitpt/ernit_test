@@ -1432,7 +1432,7 @@ export default function ChallengeSetupScreen() {
     return (
         <ErrorBoundary screenName="ChallengeSetupScreen" userId={userId}>
             <View style={styles.container}>
-                <StatusBar style="dark" />
+                <StatusBar style="auto" />
 
                 {/* Header */}
                 <View style={styles.header}>

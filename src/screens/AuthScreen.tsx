@@ -819,7 +819,7 @@ const AuthScreen = () => {
     <ErrorBoundary screenName="AuthScreen" userId={state.user?.id}>
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}

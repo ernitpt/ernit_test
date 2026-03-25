@@ -281,7 +281,7 @@ Earn it. Unlock it. Enjoy it 🚀
   return (
     <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
         {/* Success Header with Animation */}
         <View style={styles.heroSection}>

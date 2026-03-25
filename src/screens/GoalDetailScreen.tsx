@@ -133,7 +133,7 @@ const GoalDetailScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Goals">
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.header}>
         <Button
           variant="ghost"

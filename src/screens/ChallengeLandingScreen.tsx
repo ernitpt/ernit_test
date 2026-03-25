@@ -386,7 +386,7 @@ export default function ChallengeLandingScreen() {
     return (
         <ErrorBoundary screenName="ChallengeLandingScreen" userId={state.user?.id}>
             <View style={styles.container}>
-                <StatusBar style="dark" />
+                <StatusBar style="light" />
                 <ScrollView
                     bounces={false}
                     showsVerticalScrollIndicator={false}

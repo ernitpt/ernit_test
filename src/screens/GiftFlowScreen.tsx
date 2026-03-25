@@ -1660,7 +1660,7 @@ export default function GiftFlowScreen() {
                 style={{ flex: 1 }}
             >
                 <View style={styles.container}>
-                    <StatusBar style="dark" />
+                    <StatusBar style="auto" />
 
                     {/* Header */}
                     <View style={styles.header}>

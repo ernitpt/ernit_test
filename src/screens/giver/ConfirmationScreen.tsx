@@ -378,7 +378,7 @@ Earn it. Unlock it. Enjoy it 🚀
   return (
     <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
     <MainScreen activeRoute="Home">
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ConfettiCannon
         ref={confettiRef}
         count={200}

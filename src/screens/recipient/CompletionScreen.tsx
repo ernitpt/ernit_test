@@ -493,7 +493,7 @@ const CompletionScreen = () => {
     return (
       <ErrorBoundary screenName="CompletionScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Goals">
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
         </View>
