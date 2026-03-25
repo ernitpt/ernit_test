@@ -174,7 +174,7 @@ const pollForGifts = async (
       logger.log(`Direct Firestore query found ${directGifts.length} gifts`);
       return directGifts;
     }
-  } catch (directErr) {
+  } catch (directErr: unknown) {
     logger.error('Direct Firestore gift query failed:', directErr);
   }
 

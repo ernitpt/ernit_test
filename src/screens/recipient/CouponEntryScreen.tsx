@@ -192,7 +192,7 @@ const CouponEntryScreen = () => {
             experienceGift.giverName || '',
           );
           logger.log('🤝 Auto-friend request sent to giver:', experienceGift.giverId);
-        } catch (friendError) {
+        } catch (friendError: unknown) {
           // Don't block redemption if friend request fails (may already be friends)
           logger.warn('Auto-friend request failed (may already exist):', friendError);
         }

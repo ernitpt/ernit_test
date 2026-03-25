@@ -530,7 +530,7 @@ const GoalSettingScreen = () => {
           setFirstHint(hint);
           setShowHintPopup(true);
           setHintPromise(null);
-        } catch (hintError) {
+        } catch (hintError: unknown) {
           logger.error('Failed to get pre-generated hint:', hintError);
           navigation.dispatch(CommonActions.reset({
             index: 1,

@@ -74,7 +74,7 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
     try {
         await addDoc(collection(db, 'errors'), errorData);
         logger.log('✅ Error logged to Firestore');
-    } catch (firestoreError) {
+    } catch (firestoreError: unknown) {
         logger.warn('⚠️ Failed to log to Firestore:', firestoreError);
 
         // Fallback: Save to localStorage (web only)
@@ -91,7 +91,7 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
             const trimmed = existingErrors.slice(-20);
             localStorage.setItem('ernit_error_log', JSON.stringify(trimmed));
             logger.log('✅ Error saved to localStorage instead');
-        } catch (localError) {
+        } catch (localError: unknown) {
             logger.error('❌ Could not save error anywhere:', localError);
         }
     }

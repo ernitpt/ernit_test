@@ -225,6 +225,7 @@ const AddFriendScreen: React.FC = () => {
               data={searchResults}
               renderItem={renderUserItem}
               keyExtractor={(item) => item.id}
+              initialNumToRender={10}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.resultsList}
               keyboardShouldPersistTaps="handled"

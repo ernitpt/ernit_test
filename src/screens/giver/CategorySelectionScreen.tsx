@@ -272,6 +272,7 @@ const CategoryCarousel = ({
         data={category.experiences}
         keyExtractor={(item) => item.id}
         horizontal
+        initialNumToRender={5}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Spacing.xxl, gap: Spacing.md }}
         removeClippedSubviews={false}
@@ -599,6 +600,7 @@ const CategorySelectionScreen = () => {
             data={popularExperiences}
             keyExtractor={(item) => item.id}
             horizontal
+            initialNumToRender={4}
             pagingEnabled={false}
             snapToInterval={HERO_SNAP_INTERVAL}
             snapToAlignment="start"

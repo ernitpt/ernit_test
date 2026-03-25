@@ -179,6 +179,7 @@ const FriendsListScreen: React.FC = () => {
             data={friends.slice(0, displayCount)}
             renderItem={renderFriendItem}
             keyExtractor={(item) => item.id}
+            initialNumToRender={10}
             contentContainerStyle={styles.friendsList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

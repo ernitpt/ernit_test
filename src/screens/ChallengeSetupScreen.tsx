@@ -452,7 +452,7 @@ export default function ChallengeSetupScreen() {
                             index: 0,
                             routes: [{ name: 'Goals' }],
                         });
-                    } catch (navError) {
+                    } catch (navError: unknown) {
                         logger.warn('navigation.reset failed, using navigate fallback:', navError);
                         navigation.navigate('Goals');
                     }

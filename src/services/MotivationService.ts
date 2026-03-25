@@ -135,7 +135,7 @@ class MotivationService {
           },
           true,
         );
-      } catch (notifError) {
+      } catch (notifError: unknown) {
         logger.error('Error creating motivation notification:', notifError);
       }
 

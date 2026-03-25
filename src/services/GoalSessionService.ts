@@ -153,7 +153,7 @@ export class GoalSessionService {
             await updateDoc(userRef, { sessionStreak: 0 });
             logger.log(`🔥 Streak reset for single-goal user ${g.userId} (missed weekly target)`);
           }
-        } catch (streakResetError) {
+        } catch (streakResetError: unknown) {
           logger.error('Error resetting streak during sweep:', streakResetError);
         }
       }
@@ -334,7 +334,7 @@ export class GoalSessionService {
         });
         logger.log(`🔥 Streak updated for user ${g.userId}: ${newStreak} (longest: ${newLongest})`);
       });
-    } catch (streakError) {
+    } catch (streakError: unknown) {
       logger.error('Error updating session streak:', streakError);
     }
 
@@ -379,7 +379,7 @@ export class GoalSessionService {
               experienceTitle = experience?.title;
               experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
               partnerName = experience?.subtitle;
-            } catch (expError) {
+            } catch (expError: unknown) {
               logger.warn('Could not fetch experience details for feed post:', expError);
             }
           }
@@ -434,7 +434,7 @@ export class GoalSessionService {
                 );
               }
               logger.log(`🎯 Sent completion notifications to ${friends.length} friends for free goal ${g.id}`);
-            } catch (completionNotifError) {
+            } catch (completionNotifError: unknown) {
               logger.error('Error sending free goal completion notifications:', completionNotifError);
             }
           }
@@ -464,7 +464,7 @@ export class GoalSessionService {
                 );
               }
               logger.log(`🎯 Sent completion notifications (category: ${g.preferredRewardCategory}) to ${friends.length} friends for free goal ${g.id}`);
-            } catch (completionError) {
+            } catch (completionError: unknown) {
               logger.error('Error sending category completion notifications:', completionError);
             }
           }
@@ -540,7 +540,7 @@ export class GoalSessionService {
             }
 
             logger.log(`🎯 Sent ${crossedMilestone}% milestone notifications to ${friends.length} friends for free goal ${g.id}`);
-          } catch (milestoneError) {
+          } catch (milestoneError: unknown) {
             logger.error('Error sending milestone notifications:', milestoneError);
           }
         }
@@ -581,7 +581,7 @@ export class GoalSessionService {
             }
 
             logger.log(`🎯 Sent ${crossedMilestone}% milestone notifications (category: ${g.preferredRewardCategory}) to ${friends.length} friends for free goal ${g.id}`);
-          } catch (milestoneError) {
+          } catch (milestoneError: unknown) {
             logger.error('Error sending category milestone notifications:', milestoneError);
           }
         }

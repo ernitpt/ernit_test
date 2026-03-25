@@ -286,6 +286,7 @@ const PurchasedGiftsScreen = () => {
           data={filteredGifts.slice(0, displayCount)}
           renderItem={renderGiftItem}
           keyExtractor={(item) => item.id!}
+          initialNumToRender={6}
           contentContainerStyle={styles.listContainer}
           removeClippedSubviews={Platform.OS !== 'web'}
           maxToRenderPerBatch={10}

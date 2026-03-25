@@ -288,7 +288,7 @@ export class GoalService {
             const data = normalizeGoal({ id: d.id, ...d.data() });
             try {
               return await this.applyExpiredWeeksSweep(data);
-            } catch (sweepError) {
+            } catch (sweepError: unknown) {
               logger.error(`Error in applyExpiredWeeksSweep for goal ${data.id}:`, sweepError);
               return data; // Return un-swept goal rather than crashing
             }

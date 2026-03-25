@@ -209,7 +209,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (navigationRef) {
               navigationRef.navigate('Goals');
             }
-          } catch (fallbackError) {
+          } catch (fallbackError: unknown) {
             logger.error('Fallback navigation error:', fallbackError);
           }
         }

@@ -12,6 +12,7 @@ export const Shadows: {
     sm: ViewStyle;
     md: ViewStyle;
     lg: ViewStyle;
+    xl: ViewStyle;
     colored: (color: string) => ViewStyle;
 } = {
     /** Subtle — cards, list items */
@@ -39,6 +40,15 @@ export const Shadows: {
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
         elevation: 8,
+    },
+
+    /** Extra Heavy — high-prominence modals, overlays */
+    xl: {
+        shadowColor: '#000000',
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 16,
     },
 
     /** Brand-colored glow — primary-action buttons */

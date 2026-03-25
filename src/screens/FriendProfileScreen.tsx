@@ -326,7 +326,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
           const exp = await experienceService.getExperienceById(giftData.experienceId);
           setExperience(exp || null);
           setPartnerName(exp?.subtitle || 'Partner');
-        } catch (dataErr) {
+        } catch (dataErr: unknown) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
       } catch (err: unknown) {
@@ -618,7 +618,7 @@ const FriendProfileScreen: React.FC = () => {
       // Fetch goals via service so normalizeGoal() is applied consistently
       try {
         allGoals = await goalService.getUserGoals(userId);
-      } catch (goalError) {
+      } catch (goalError: unknown) {
         logger.log('Note: Could not load goals for this user', goalError);
         allGoals = [];
       }
@@ -626,7 +626,7 @@ const FriendProfileScreen: React.FC = () => {
       // Try to load wishlist - if permissions fail, just show empty
       try {
         wishlistData = await userService.getWishlist(userId);
-      } catch (wishlistError) {
+      } catch (wishlistError: unknown) {
         logger.log('Note: Could not load wishlist for this user', wishlistError);
         wishlistData = [];
       }

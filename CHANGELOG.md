@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HeroPreviewScreen — dark navy redesign of ChallengeLanding hero for preview at /hero-preview
 - sync createDeferredGift_Test with production — added stripeCustomer, input sanitization, experienceId length check, and goal parameter clamping
 - add confetti to giver ConfirmationScreen
+- add xl shadow token to Shadows config for high-prominence overlays
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -326,6 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - extract and memoize navigation handlers in GoalDetailScreen
 - wrap handlers in useCallback in FriendRequestNotification component
 - add initialNumToRender to FlatLists in FeedScreen, NotificationsScreen, and GoalsScreen
+- add initialNumToRender to remaining FlatLists in AddFriend, FriendsList, PurchasedGifts, CategorySelection screens
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -727,6 +729,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add unknown type to remaining catch (e) blocks for strict TypeScript compliance
 - add unknown type to all remaining catch variable declarations for strict TypeScript compliance
 - resolve TypeScript type errors in cloud functions - HintCategory validation, HintStyle narrowing, and FirebaseFirestore namespace
+- type-safe catch blocks with unknown annotation across services and screens
 
 ### Added
 - Automatic changelog system with `npm run log` script

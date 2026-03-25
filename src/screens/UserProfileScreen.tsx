@@ -234,7 +234,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
           const exp = await experienceService.getExperienceById(giftData.experienceId);
           setExperience(exp || null);
           setPartnerName(exp?.subtitle || 'Partner')
-        } catch (dataErr) {
+        } catch (dataErr: unknown) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
       } catch (err: unknown) {
@@ -585,7 +585,7 @@ const UserProfileScreen: React.FC = () => {
           ...prev,
           profileImageUrl: downloadUrl,
         }));
-      } catch (uploadErr) {
+      } catch (uploadErr: unknown) {
         logger.error('Upload failed:', uploadErr);
         showError('Could not upload profile image.');
       }

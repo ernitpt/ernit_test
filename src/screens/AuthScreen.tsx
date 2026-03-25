@@ -416,7 +416,7 @@ const AuthScreen = () => {
                   return;
                 }
               }
-            } catch (linkError) {
+            } catch (linkError: unknown) {
               logger.error('Account linking error:', linkError);
             }
           }
@@ -584,7 +584,7 @@ const AuthScreen = () => {
         // ? Send email verification immediately after signup
         try {
           await sendEmailVerification(userCredential.user);
-        } catch (verifyError) {
+        } catch (verifyError: unknown) {
           logger.error('Error sending verification email:', verifyError);
           // Don't block signup if verification email fails
         }

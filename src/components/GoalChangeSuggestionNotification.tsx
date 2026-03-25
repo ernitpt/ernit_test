@@ -89,7 +89,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       // Delete the notification (force delete after action is taken)
       try {
         await notificationService.deleteNotification(notification.id, true);
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         logger.warn('Could not delete notification:', deleteError);
       }
 
@@ -130,7 +130,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
     if (notification.id) {
       try {
         await notificationService.deleteNotification(notification.id, true);
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         logger.warn('Could not delete notification:', deleteError);
         // Try direct delete as fallback
         try {

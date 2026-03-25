@@ -76,7 +76,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       // Delete original notification (force delete since it's being replaced)
       try {
         await notificationService.deleteNotification(notification.id, true);
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         logger.warn('Could not delete original notification:', deleteError);
       }
 
@@ -162,7 +162,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       // Delete original notification (force delete since it's being replaced)
       try {
         await notificationService.deleteNotification(notification.id, true);
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         logger.warn('Could not delete original notification:', deleteError);
         // Try direct delete as fallback
         try {
