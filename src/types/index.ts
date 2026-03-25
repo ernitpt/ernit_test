@@ -359,7 +359,7 @@ export interface GoalActivity {
   activityType: 'segment_completed' | 'goal_started' | 'goal_completed' | 'reward_revealed';
   timestamp: Date;
   notes?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Goal statistics

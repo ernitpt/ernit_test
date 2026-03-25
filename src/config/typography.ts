@@ -38,6 +38,9 @@ export const Typography: Record<string, TextStyle> = {
     // ─── Tiny ─────────────────────────────────────────────────────────
     tiny: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
 
+    // ─── Tag / label (earned badges, pill labels) ────────────────────
+    tag: { fontSize: 10, fontWeight: '800', lineHeight: 14 },
+
     // ─── Micro (badges, nav labels) ─────────────────────────────────
     micro: { fontSize: 9, fontWeight: '700', lineHeight: 12 },
 

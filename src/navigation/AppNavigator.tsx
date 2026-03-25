@@ -169,13 +169,13 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
     if (Platform.OS === 'web') return;
 
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, any> | undefined;
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
       if (!data) return;
 
       // Wait until navigation is ready before dispatching
       const navigate = () => {
         if (!navigationRef.current) return;
-        if (data.goalId) {
+        if (typeof data.goalId === 'string') {
           navigationRef.current.navigate('GoalDetail', { goalId: data.goalId });
         } else if (data.type === 'friend_request') {
           navigationRef.current.navigate('Notification');

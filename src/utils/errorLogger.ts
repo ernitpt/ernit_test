@@ -24,7 +24,7 @@ export interface ErrorLogData {
     context?: string; // e.g., "ValentineCheckout", "StripePayment", "GoalCreation"
     userId?: string;
     screenName?: string;
-    additionalData?: Record<string, any>;
+    additionalData?: Record<string, unknown>;
     timestamp: Date;
     userAgent?: string;
 }
@@ -37,7 +37,7 @@ export const logErrorToFirestore = async (error: Error | unknown, context: {
     screenName?: string;
     feature?: string;
     userId?: string;
-    additionalData?: Record<string, any>;
+    additionalData?: Record<string, unknown>;
 }): Promise<void> => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -107,7 +107,7 @@ export const withErrorLogging = async <T>(
         screenName?: string;
         feature?: string;
         userId?: string;
-        additionalData?: Record<string, any>;
+        additionalData?: Record<string, unknown>;
     }
 ): Promise<T> => {
     try {

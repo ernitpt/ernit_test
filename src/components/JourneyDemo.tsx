@@ -586,8 +586,7 @@ const createStyles = (colors: typeof Colors) =>
       borderColor: colors.whiteAlpha40,
     },
     earnedTagText: {
-      fontSize: 10,
-      fontWeight: '800',
+      ...Typography.tag,
       color: colors.white,
       letterSpacing: 0.3,
     },

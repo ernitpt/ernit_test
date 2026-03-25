@@ -28,12 +28,12 @@ export class NotificationService {
     type: Notification['type'],
     title: string,
     message: string,
-    data?: Record<string, any>,
+    data?: Record<string, unknown>,
     clearable: boolean = true,
     senderId?: string
   ): Promise<string> {
     try {
-      const docData: Record<string, any> = {
+      const docData: Record<string, unknown> = {
         userId,
         type,
         title: sanitizeText(title, 200),

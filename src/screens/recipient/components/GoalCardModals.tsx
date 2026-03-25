@@ -171,7 +171,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
           {/* Author row */}
           <View style={styles.feedAuthorRow}>
             {userProfileImageUrl ? (
-              <Image source={{ uri: userProfileImageUrl }} style={styles.feedAvatar} />
+              <Image source={{ uri: userProfileImageUrl }} style={styles.feedAvatar} accessibilityLabel={`${userName || 'User'}'s profile photo`} />
             ) : (
               <View style={[styles.feedAvatar, styles.feedAvatarPlaceholder]}>
                 <Text style={styles.feedAvatarText}>

@@ -51,7 +51,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
             <View style={styles.row}>
                 {/* Small thumbnail or icon */}
                 {experience.coverImageUrl ? (
-                    <Image source={{ uri: experience.coverImageUrl }} style={styles.thumb} />
+                    <Image source={{ uri: experience.coverImageUrl }} style={styles.thumb} accessibilityLabel={`${experience.title} thumbnail`} />
                 ) : (
                     <View style={[styles.thumb, styles.thumbFallback]}>
                         <Gift size={14} color={colors.primary} />

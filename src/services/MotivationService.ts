@@ -94,7 +94,7 @@ class MotivationService {
     try {
       const sanitizedAuthorName = sanitizeText(authorName, 100);
       const sanitizedMessage = sanitizeText(message, 500);
-      const motivationData: Record<string, any> = {
+      const motivationData: Record<string, unknown> = {
         authorId,
         authorName: sanitizedAuthorName,
         authorProfileImage: authorProfileImage || null,

@@ -244,7 +244,7 @@ export class GoalService {
       const giftData = giftSnap.data();
       if (giftData.isRedeemed) throw new AppError('GIFT_REDEEMED', 'Gift has already been redeemed', 'business');
 
-      const updateFields: Record<string, any> = {
+      const updateFields: Record<string, unknown> = {
         experienceGiftId,
         giftAttachedAt: serverTimestamp(),
         empoweredBy: giverId,
