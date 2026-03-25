@@ -17,6 +17,7 @@ import { AppError } from '../utils/AppError';
 
 export class UserService {
   private static instance: UserService;
+  private _nameCache = new Map<string, string>();
 
   static getInstance(): UserService {
     if (!UserService.instance) {
@@ -123,12 +124,19 @@ export class UserService {
       return 'Unknown';
     }
 
+    if (this._nameCache.has(userId)) {
+      return this._nameCache.get(userId)!;
+    }
+
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        return data.displayName || 'Unknown';
+        const name = data.displayName || 'Unknown';
+        this._nameCache.set(userId, name);
+        return name;
       }
+      this._nameCache.set(userId, 'Unknown');
       return 'Unknown';
     } catch (error: unknown) {
       logger.error('Error fetching user name:', error);

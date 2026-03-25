@@ -311,6 +311,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap handlers in useCallback across MainScreen and NotificationsScreen
 - wrap handlers in useCallback in AuthScreen
 - add session cache to ExperienceService.getExperienceById
+- add name cache to UserService.getUserName
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
