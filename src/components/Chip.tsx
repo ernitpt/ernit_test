@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors, useColors } from '../config';
+import { useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';

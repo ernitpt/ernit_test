@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
 import {
-    View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';

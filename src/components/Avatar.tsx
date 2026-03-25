@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { View, Text, ViewStyle, ImageStyle, StyleProp, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Colors, useColors } from '../config';
-import { Typography } from '../config/typography';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
