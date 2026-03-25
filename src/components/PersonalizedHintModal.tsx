@@ -129,6 +129,8 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                     style={StyleSheet.absoluteFill}
                     activeOpacity={1}
                     onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close hint modal"
                 />
 
                 <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]} accessibilityViewIsModal={true}>
@@ -155,6 +157,9 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                             <TouchableOpacity
                                 style={[styles.tab, mode === 'text' && styles.activeTab]}
                                 onPress={() => setMode('text')}
+                                accessibilityRole="tab"
+                                accessibilityLabel="Text and photo hint"
+                                accessibilityState={{ selected: mode === 'text' }}
                             >
                                 <Text style={[styles.tabText, mode === 'text' && styles.activeTabText]}>
                                     Text & Photo
@@ -163,6 +168,9 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                             <TouchableOpacity
                                 style={[styles.tab, mode === 'voice' && styles.activeTab]}
                                 onPress={() => setMode('voice')}
+                                accessibilityRole="tab"
+                                accessibilityLabel="Voice memo hint"
+                                accessibilityState={{ selected: mode === 'voice' }}
                             >
                                 <Text style={[styles.tabText, mode === 'voice' && styles.activeTabText]}>
                                     Voice Memo
@@ -198,12 +206,14 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                                 <TouchableOpacity
                                                     style={styles.removeImageButton}
                                                     onPress={() => media.setImageUri(null)}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel="Remove attached photo"
                                                 >
                                                     <X size={16} color={colors.white} />
                                                 </TouchableOpacity>
                                             </View>
                                         ) : (
-                                            <TouchableOpacity style={styles.attachButton} onPress={media.pickImage}>
+                                            <TouchableOpacity style={styles.attachButton} onPress={media.pickImage} accessibilityRole="button" accessibilityLabel="Add photo">
                                                 <ImageIcon size={20} color={colors.primary} />
                                                 <Text style={styles.attachButtonText}>Add Photo</Text>
                                             </TouchableOpacity>
@@ -214,6 +224,8 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                     <TouchableOpacity
                                         style={styles.examplesToggle}
                                         onPress={() => setShowExamples(!showExamples)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={showExamples ? 'Hide hint examples' : 'Show hint examples'}
                                     >
                                         <Text style={styles.examplesToggleText}>
                                             {showExamples ? '▼' : '▶'} Need inspiration?
@@ -227,6 +239,8 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                                     key={index}
                                                     style={styles.exampleCard}
                                                     onPress={() => setHintText(example)}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`Use example: ${example}`}
                                                 >
                                                     <Text style={styles.exampleText}>{example}</Text>
                                                 </TouchableOpacity>
@@ -245,6 +259,8 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                             <TouchableOpacity
                                                 style={[styles.recordButton, media.isRecording && styles.recordingActive]}
                                                 onPress={media.isRecording ? media.stopRecording : media.startRecording}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={media.isRecording ? 'Stop recording' : 'Start recording'}
                                             >
                                                 {media.isRecording ? (
                                                     <Square size={32} color={colors.white} fill={colors.white} />
@@ -258,7 +274,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                         </View>
                                     ) : (
                                         <View style={styles.playbackControls}>
-                                            <TouchableOpacity onPress={media.isPlaying ? media.pauseSound : media.playSound}>
+                                            <TouchableOpacity onPress={media.isPlaying ? media.pauseSound : media.playSound} accessibilityRole="button" accessibilityLabel={media.isPlaying ? 'Pause voice hint' : 'Play voice hint'}>
                                                 {media.isPlaying ? (
                                                     <Pause size={40} color={colors.primary} fill={colors.primary} />
                                                 ) : (
@@ -268,7 +284,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                             <View style={styles.waveformPlaceholder}>
                                                 <View style={[styles.progressBar, { width: `${(media.playbackPosition / (media.soundDuration || 1)) * 100}%` }]} />
                                             </View>
-                                            <TouchableOpacity onPress={media.deleteRecording} style={styles.deleteButton}>
+                                            <TouchableOpacity onPress={media.deleteRecording} style={styles.deleteButton} accessibilityRole="button" accessibilityLabel="Delete recording">
                                                 <Trash2 size={24} color={colors.error} />
                                             </TouchableOpacity>
                                         </View>

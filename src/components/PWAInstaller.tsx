@@ -148,6 +148,8 @@ export const PWAInstaller: React.FC = () => {
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={handleIOSDismiss}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close install prompt"
                         >
                             <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>
@@ -233,6 +235,8 @@ export const PWAInstaller: React.FC = () => {
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={handleAndroidDismiss}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close install prompt"
                         >
                             <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>

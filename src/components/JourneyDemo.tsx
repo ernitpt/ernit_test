@@ -330,6 +330,8 @@ const JourneyDemo: React.FC = React.memo(() => {
                 setStep(-1);
                 setBarProgress(0);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Replay journey demo"
             >
               <Text style={s.replayIcon}>↻</Text>
               <Text style={s.replayText}>Replay</Text>

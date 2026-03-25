@@ -224,6 +224,8 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               onPress={() => adjustWeeks(-1)}
               disabled={selectedWeeks <= minWeeks || loading}
               activeOpacity={selectedWeeks <= minWeeks ? 1 : 0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease weeks"
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -247,6 +249,8 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               onPress={() => adjustWeeks(1)}
               disabled={selectedWeeks >= maxWeeks || loading}
               activeOpacity={selectedWeeks >= maxWeeks ? 1 : 0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Increase weeks"
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -267,6 +271,8 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               onPress={() => adjustSessions(-1)}
               disabled={selectedSessions <= minSessions || loading}
               activeOpacity={selectedSessions <= minSessions ? 1 : 0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease sessions per week"
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -290,6 +296,8 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               onPress={() => adjustSessions(1)}
               disabled={selectedSessions >= maxSessions || loading}
               activeOpacity={selectedSessions >= maxSessions ? 1 : 0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Increase sessions per week"
             >
               <Text style={[
                 styles.adjustButtonText,
