@@ -52,7 +52,7 @@ const GoalDetailScreen: React.FC = () => {
         try {
           const g = await goalService.getGoalById(goalId);
           if (g) {
-            setGoal(normalizeGoal(g));
+            setGoal(normalizeGoal(g as unknown as Record<string, unknown> & { id: string }));
           } else {
             setLoadError(true);
           }

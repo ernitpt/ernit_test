@@ -300,8 +300,8 @@ describe('normalizeGoal', () => {
     const before = DateHelper.now();
     const result = normalizeGoal(raw);
     const after = DateHelper.now();
-    expect(result.startDate.getTime()).toBeGreaterThanOrEqual(before.getTime() - 5);
-    expect(result.startDate.getTime()).toBeLessThanOrEqual(after.getTime() + 5);
+    expect((result.startDate as Date).getTime()).toBeGreaterThanOrEqual(before.getTime() - 5);
+    expect((result.startDate as Date).getTime()).toBeLessThanOrEqual(after.getTime() + 5);
   });
 
   it('falls back endDate to startDate + 7 days when endDate is missing', () => {

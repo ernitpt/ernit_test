@@ -346,7 +346,7 @@ export default function CartScreen() {
                       <Image
                         source={{ uri: imageUrl }}
                         style={styles.cartItemImage}
-                        contentFit="cover" cachePolicy="memory-disk"
+                        resizeMode="cover"
                         accessibilityLabel={`${exp.title} image`}
                       />
                     </TouchableOpacity>

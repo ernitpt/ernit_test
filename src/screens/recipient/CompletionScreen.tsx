@@ -69,10 +69,10 @@ const CompletionScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const confettiRef = useRef<any>(null);
   const couponRequestedRef = useRef(false);
-  const animTimeoutRef = useRef<NodeJS.Timeout>();
-  const copyTimeoutRef = useRef<NodeJS.Timeout>();
-  const phoneTimeoutRef = useRef<NodeJS.Timeout>();
-  const emailTimeoutRef = useRef<NodeJS.Timeout>();
+  const animTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const phoneTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const emailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Handle case where route params might be undefined on browser refresh
   const routeParams = route.params as { goal?: Goal; experienceGift?: ExperienceGift } | undefined;

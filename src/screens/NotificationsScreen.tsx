@@ -53,10 +53,11 @@ const formatNotificationDate = (createdAt: Date | { toDate(): Date } | number | 
   if (!createdAt) return '';
 
   // Handle Firestore Timestamp or Date
+  const ts = createdAt as { toDate?: () => Date };
   const date =
-    createdAt && typeof createdAt.toDate === 'function'
-      ? createdAt.toDate()
-      : new Date(createdAt);
+    typeof ts.toDate === 'function'
+      ? ts.toDate()
+      : new Date(createdAt as string | number | Date);
 
   if (isNaN(date.getTime())) return '';
 

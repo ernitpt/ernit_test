@@ -515,7 +515,7 @@ const UserProfileScreen: React.FC = () => {
         (g) =>
           !g.isCompleted &&
           g.currentCount < g.targetCount &&
-          (!g.startDate || new Date(g.startDate) <= new Date())
+          (!g.startDate || new Date(g.startDate as unknown as Date) <= new Date())
       );
       const completed = userGoals.filter(
         (g) => {

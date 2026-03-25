@@ -15,7 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Goal, ExperienceGift, isSelfGifted } from '../../types';
+import { Goal, ExperienceGift, PersonalizedHint, isSelfGifted } from '../../types';
 import { db } from '../../services/firebase';
 import { addDoc, collection, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { normalizeGoal } from '../../services/GoalService';
@@ -606,7 +606,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const finishLock = useRef(false);
   const hintGeneratingRef = useRef(false);
-  const ctaTimeoutRef = useRef<NodeJS.Timeout>();
+  const ctaTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const handleFinish = useCallback(async () => {
     if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
@@ -937,7 +937,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           userId: partnerGoalData.userId,
           type: 'shared_session',
           title: 'Partner Activity',
-          message: `${appState.user?.displayName || appState.user?.name || 'Your partner'} logged a session!`,
+          message: `${appState.user?.displayName || 'Your partner'} logged a session!`,
           data: { goalId: updated.id },
           read: false,
           createdAt: serverTimestamp(),
@@ -1049,7 +1049,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
 
       try {
-        await goalService.appendHint(updated.id, hintObj);
+        await goalService.appendHint(updated.id, hintObj as unknown as Record<string, unknown>);
         setCurrentGoal((prev) => ({
           ...prev,
           hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
@@ -1082,7 +1082,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             date: Date.now(),
             text: cachedHint,
           };
-          await goalService.appendHint(updated.id, hintObj);
+          await goalService.appendHint(updated.id, hintObj as unknown as Record<string, unknown>);
           setCurrentGoal((prev) => ({
             ...prev,
             hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
@@ -1393,7 +1393,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       {/* Modals */}
       <HintPopup
         visible={showHint}
-        hint={lastHint || ''}
+        hint={(lastHint || '') as PersonalizedHint | string}
         sessionNumber={lastSessionNumber}
         totalSessions={progress.overallTotal}
         onClose={() => {

@@ -33,6 +33,7 @@ import {
   signInWithCredential,
   sendPasswordResetEmail,
   sendEmailVerification,
+  getAdditionalUserInfo,
 } from 'firebase/auth';
 import { sanitizeText } from '../utils/sanitization';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -79,7 +80,7 @@ const AuthScreen = () => {
 
   // Timer management for memory leak prevention
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -248,7 +249,7 @@ const AuthScreen = () => {
       signInWithCredential(auth, credential)
         .then(async (userCredential) => {
           const user = userCredential.user;
-          const isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+          const isNewUser = getAdditionalUserInfo(userCredential)?.isNewUser ?? false;
 
           if (isNewUser) {
             await userService.createUserProfile({

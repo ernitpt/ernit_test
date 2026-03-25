@@ -590,12 +590,13 @@ const HintItem = React.memo(({
 
   let dateMs = 0;
   if (hint.createdAt) {
-    if (typeof hint.createdAt.toMillis === 'function') {
-      dateMs = hint.createdAt.toMillis();
+    const ts = hint.createdAt as unknown as { toMillis?: () => number };
+    if (typeof ts.toMillis === 'function') {
+      dateMs = ts.toMillis();
     } else if (hint.createdAt instanceof Date) {
       dateMs = hint.createdAt.getTime();
     } else {
-      dateMs = new Date(hint.createdAt).getTime();
+      dateMs = new Date(hint.createdAt as unknown as string).getTime();
     }
   } else if (hint.date) {
     dateMs = hint.date;
@@ -692,10 +693,10 @@ const JourneyScreen = () => {
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const couponRequestedRef = useRef(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout>();
-  const phoneTimeoutRef = useRef<NodeJS.Timeout>();
-  const emailTimeoutRef = useRef<NodeJS.Timeout>();
-  const bookingTimeoutRef = useRef<NodeJS.Timeout>();
+  const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const phoneTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const emailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const bookingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const shareCardRef = useRef<View>(null);
   const tabScrollRef = useRef<ScrollView>(null);
   const { width: screenWidth } = Dimensions.get('window');
@@ -1102,7 +1103,7 @@ const JourneyScreen = () => {
               setExpandedSessionId(prev => prev === s.id ? null : s.id);
             }}
             onImagePress={(uri) => {
-              const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'image').map(s => s.mediaUrl!);
+              const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'photo').map(s => s.mediaUrl!);
               setAllImageUris(sessionImages);
               setSelectedImageUri(uri);
             }}
@@ -1128,7 +1129,7 @@ const JourneyScreen = () => {
 
     return (
       <View style={styles.timeline}>
-        {hintsArray
+        {(hintsArray as HintEntry[])
           .slice()
           .sort((a: HintEntry, b: HintEntry) => {
             const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;
@@ -1434,7 +1435,7 @@ const JourneyScreen = () => {
                       : 'Get This Experience'}
                     icon={<ShoppingBag size={15} color={colors.white} />}
                     fullWidth
-                    style={[styles.buyButton, { marginTop: Spacing.sm }]}
+                    style={styles.buyButton}
                   />
                 </>
               )}

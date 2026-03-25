@@ -163,8 +163,10 @@ export interface ExperienceGift {
     sessionTime: string;
     sameExperienceForBoth: boolean;
     giverGoalId?: string;  // ID of the giver's goal once created (set by Cloud Function)
+    goalType?: string;     // Category/type of goal (e.g. 'gym', 'yoga', 'dance')
   };
   recipientGoalId?: string; // Fallback field set when bidirectional goal link cannot be written directly
+  preferredRewardCategory?: string; // Category preference for mystery/deferred gifts
 }
 
 /** Core goal identity and description */
@@ -189,12 +191,14 @@ export interface GoalCore {
   couponCode?: string;
   couponGeneratedAt?: Date;
   createdAt: Date;
+  updatedAt?: Date;
   completedAt?: Date | Timestamp;
   goalType?: 'gym' | 'yoga' | 'dance' | 'custom';
   paymentCommitment?: 'payOnCompletion' | 'paidUpfront' | null;
   venueId?: string;
   venueName?: string;
   venueLocation?: { lat: number; lng: number };
+  claimCode?: string;
 }
 
 /** Weekly session tracking fields */
@@ -531,6 +535,13 @@ export interface Notification {
     // Post comment / goal progress fields
     recipientName?: string;
     userName?: string;
+    // Payment recovery
+    recoveryUrl?: string;
+    // Goal approval response
+    approved?: boolean;
+    // Progress tracking
+    totalSessionsDone?: number;
+    totalSessionsRequired?: number;
   };
 }
 
@@ -598,7 +609,7 @@ export interface ChallengeSetupPrefill {
 // Gift flow types
 export type GiftChallengeType = 'solo' | 'shared';
 export type GiftRevealMode = 'revealed' | 'secret';
-export type GiftPaymentChoice = 'payLater' | 'free';
+export type GiftPaymentChoice = 'payNow' | 'payLater' | 'free';
 
 export interface GiftFlowData {
   challengeType: GiftChallengeType;
@@ -674,6 +685,8 @@ export type GiverStackParamList = {
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   Cart: undefined;
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
+  MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
+  PurchasedGifts: undefined;
 };
 
 export type RecipientStackParamList = {

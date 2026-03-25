@@ -55,7 +55,8 @@ export const Avatar = React.memo<AvatarProps>(({
     return (
       <Image
         source={{ uri }}
-        style={[styles.image, sizeStyle, style]}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        style={[styles.image, sizeStyle, style] as any}
         contentFit="cover"
         transition={200}
         cachePolicy="memory-disk"

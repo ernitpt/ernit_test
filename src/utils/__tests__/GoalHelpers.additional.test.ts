@@ -87,18 +87,18 @@ describe('normalizeGoal — approvalStatus', () => {
 describe('normalizeGoal — challengeType', () => {
   it('preserves challengeType "shared" via spread', () => {
     const result = normalizeGoal(makeRawGoal({ challengeType: 'shared' }));
-    expect((result as Record<string, unknown>).challengeType).toBe('shared');
+    expect((result as unknown as Record<string, unknown>).challengeType).toBe('shared');
   });
 
   it('preserves challengeType "individual" via spread', () => {
     const result = normalizeGoal(makeRawGoal({ challengeType: 'individual' }));
-    expect((result as Record<string, unknown>).challengeType).toBe('individual');
+    expect((result as unknown as Record<string, unknown>).challengeType).toBe('individual');
   });
 
   it('preserves challengeType undefined (not injected as a key)', () => {
     const result = normalizeGoal(makeRawGoal({ challengeType: undefined }));
     // undefined keys from spread are present but undefined
-    expect((result as Record<string, unknown>).challengeType).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).challengeType).toBeUndefined();
   });
 });
 
@@ -109,12 +109,12 @@ describe('normalizeGoal — challengeType', () => {
 describe('normalizeGoal — isReadyToComplete', () => {
   it('preserves isReadyToComplete: true via spread', () => {
     const result = normalizeGoal(makeRawGoal({ isReadyToComplete: true }));
-    expect((result as Record<string, unknown>).isReadyToComplete).toBe(true);
+    expect((result as unknown as Record<string, unknown>).isReadyToComplete).toBe(true);
   });
 
   it('preserves isReadyToComplete: false via spread', () => {
     const result = normalizeGoal(makeRawGoal({ isReadyToComplete: false }));
-    expect((result as Record<string, unknown>).isReadyToComplete).toBe(false);
+    expect((result as unknown as Record<string, unknown>).isReadyToComplete).toBe(false);
   });
 });
 
@@ -386,13 +386,13 @@ describe('normalizeGoal — createdAt Timestamp conversion', () => {
     const ts = makeTimestamp(date);
     const result = normalizeGoal(makeRawGoal({ createdAt: ts }));
     // createdAt is spread through as-is (not converted by normalizeGoal)
-    expect((result as Record<string, unknown>).createdAt).toBe(ts);
+    expect((result as unknown as Record<string, unknown>).createdAt).toBe(ts);
   });
 
   it('preserves a plain Date createdAt unchanged', () => {
     const date = new Date('2025-03-10T00:00:00.000Z');
     const result = normalizeGoal(makeRawGoal({ createdAt: date }));
-    expect((result as Record<string, unknown>).createdAt).toEqual(date);
+    expect((result as unknown as Record<string, unknown>).createdAt).toEqual(date);
   });
 });
 
@@ -459,17 +459,17 @@ describe('normalizeGoal — weekStartAt defaults', () => {
 describe('normalizeGoal — empoweredBy field', () => {
   it('preserves a non-null empoweredBy string via spread', () => {
     const result = normalizeGoal(makeRawGoal({ empoweredBy: 'user-42' }));
-    expect((result as Record<string, unknown>).empoweredBy).toBe('user-42');
+    expect((result as unknown as Record<string, unknown>).empoweredBy).toBe('user-42');
   });
 
   it('preserves undefined empoweredBy (absent field)', () => {
     const result = normalizeGoal(makeRawGoal({ empoweredBy: undefined }));
-    expect((result as Record<string, unknown>).empoweredBy).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).empoweredBy).toBeUndefined();
   });
 
   it('preserves null empoweredBy via spread', () => {
     const result = normalizeGoal(makeRawGoal({ empoweredBy: null }));
-    expect((result as Record<string, unknown>).empoweredBy).toBeNull();
+    expect((result as unknown as Record<string, unknown>).empoweredBy).toBeNull();
   });
 });
 

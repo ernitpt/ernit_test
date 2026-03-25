@@ -60,7 +60,7 @@ const CouponEntryScreen = () => {
   const shakeAnim = useRef(new Animated.Value(0)).current;
   // Animated height for error message area
   const errorHeightAnim = useRef(new Animated.Value(0)).current;
-  const continueTimeoutRef = useRef<NodeJS.Timeout>();
+  const continueTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Cleanup timeout on unmount to prevent memory leaks
   useEffect(() => {

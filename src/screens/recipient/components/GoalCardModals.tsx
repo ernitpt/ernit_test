@@ -106,7 +106,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const confettiRef = useRef<ConfettiCannon | null>(null);
-  const confettiTimeoutRef = useRef<NodeJS.Timeout>();
+  const confettiTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
 
   // Cleanup timeout on unmount

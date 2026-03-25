@@ -20,11 +20,13 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   RecipientStackParamList,
+  RootStackParamList,
   ExperienceGift,
   Goal,
   Experience,
@@ -59,7 +61,10 @@ import Button from '../../components/Button';
 
 const TOTAL_STEPS = 4;
 
-type NavProp = NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>;
+type NavProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 const getGoalTypes = (colors: typeof Colors) => [
   { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
@@ -228,6 +233,7 @@ const GoalSettingScreen = () => {
         try {
           const recipientName = await userService.getUserName(state.user?.id || '');
           const promise = aiHintService.generateHint({
+            userId: state.user?.id || '',
             goalId: 'temp',
             experienceType: experience.title,
             sessionNumber: 1,
@@ -520,21 +526,23 @@ const GoalSettingScreen = () => {
             giverName: 'Ernit',
             date: Date.now(),
             createdAt: new Date(),
-            type: 'text',
+            type: 'text' as const,
           };
-          await goalService.appendHint(goal.id, hintObj);
+          await goalService.appendHint(goal.id, hintObj as unknown as Record<string, unknown>);
           setFirstHint(hint);
           setShowHintPopup(true);
           setHintPromise(null);
         } catch (hintError) {
           logger.error('Failed to get pre-generated hint:', hintError);
-          navigation.reset({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (navigation as any).reset({
             index: 1,
             routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
           });
         }
       } else {
-        navigation.reset({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (navigation as any).reset({
           index: 1,
           routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
         });
@@ -559,7 +567,8 @@ const GoalSettingScreen = () => {
   const handleHintPopupClose = () => {
     setShowHintPopup(false);
     if (createdGoal) {
-      navigation.reset({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (navigation as any).reset({
         index: 1,
         routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(createdGoal) } }],
       });
@@ -681,9 +690,9 @@ const GoalSettingScreen = () => {
             alignItems: 'center',
             gap: Spacing.lg,
           }}>
-            {experience.imageUrl ? (
+            {experience.imageUrl?.[0] ? (
               <Image
-                source={{ uri: experience.imageUrl }}
+                source={{ uri: experience.imageUrl[0] }}
                 style={{
                   width: 64,
                   height: 64,

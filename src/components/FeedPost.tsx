@@ -410,7 +410,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 currentUserId={state.user?.id}
                 goalHasGift={goalHasGift}
                 onEmpowerContext={setEmpowerContext}
-                onNavigate={(screen, params) => navigation.navigate(screen, params as never)}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onNavigate={(screen, params) => (navigation as any).navigate(screen, params)}
             />
 
             <View style={styles.interactionRow}>

@@ -38,7 +38,7 @@ export const SkeletonBox: React.FC<SkeletonLoaderProps> = ({
             style={[
                 styles.skeleton,
                 {
-                    width,
+                    width: width as number,
                     height,
                     borderRadius,
                 },

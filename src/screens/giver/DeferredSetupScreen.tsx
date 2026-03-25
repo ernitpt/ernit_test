@@ -335,7 +335,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xxl,
     borderWidth: 1,
     borderColor: colors.border,
-    ...Shadows.card,
+    ...Shadows.sm,
   },
   infoTitle: {
     ...Typography.heading3,

@@ -404,7 +404,7 @@ Earn it. Unlock it. Enjoy it 🚀
 
                       <TouchableOpacity
                         style={styles.shareCodeButton}
-                        onPress={() => handleShareCode(item.gift.claimCode, item.experience?.title)}
+                        onPress={() => handleShareCode(item.gift.claimCode)}
                         activeOpacity={0.7}
                         accessibilityRole="button"
                         accessibilityLabel={`Share gift code for ${item.experience?.title}`}

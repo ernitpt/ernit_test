@@ -7,7 +7,8 @@ let Location: any = null;
 const getLocation = async () => {
     if (!Location && Platform.OS !== 'web') {
         try {
-            Location = await import('expo-location');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            Location = await (Function('return import("expo-location")')() as Promise<any>);
         } catch {
             logger.warn('expo-location not installed. GPS features disabled.');
         }

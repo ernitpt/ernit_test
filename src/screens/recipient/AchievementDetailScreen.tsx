@@ -89,12 +89,13 @@ const HintItem = React.memo(({ hint, index, onImagePress }: HintItemProps) => {
 
   let dateMs = 0;
   if (hint.createdAt) {
-    if (typeof hint.createdAt.toMillis === 'function') {
-      dateMs = hint.createdAt.toMillis();
+    const ts = hint.createdAt as unknown as { toMillis?: () => number };
+    if (typeof ts.toMillis === 'function') {
+      dateMs = ts.toMillis();
     } else if (hint.createdAt instanceof Date) {
       dateMs = hint.createdAt.getTime();
     } else {
-      dateMs = new Date(hint.createdAt).getTime();
+      dateMs = new Date(hint.createdAt as unknown as string).getTime();
     }
   } else if (hint.date) {
     dateMs = hint.date;
@@ -485,7 +486,7 @@ const AchievementDetailScreen = () => {
   const shareCardRef = useRef<View>(null);
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout>();
+  const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Booking
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
@@ -1066,7 +1067,7 @@ const AchievementDetailScreen = () => {
                   Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
                 </Text>
                 <View>
-                  {hintsArray
+                  {(hintsArray as HintEntry[])
                     .slice()
                     .sort((a: HintEntry, b: HintEntry) => {
                       const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;

@@ -137,7 +137,7 @@ const ConfirmationScreen = () => {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(!!experienceGift?.personalizedMessage);
   const [isCopied, setIsCopied] = useState(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout>();
+  const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     if (!experienceGift?.experienceId) return;

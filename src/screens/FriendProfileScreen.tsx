@@ -209,12 +209,13 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
               // Handle date
               let dateMs = 0;
               if (hint.createdAt) {
-                if (typeof hint.createdAt.toMillis === 'function') {
-                  dateMs = hint.createdAt.toMillis();
+                const ts = hint.createdAt as unknown as { toMillis?: () => number };
+                if (typeof ts.toMillis === 'function') {
+                  dateMs = ts.toMillis();
                 } else if (hint.createdAt instanceof Date) {
                   dateMs = hint.createdAt.getTime();
                 } else {
-                  dateMs = new Date(hint.createdAt).getTime();
+                  dateMs = new Date(hint.createdAt as unknown as string).getTime();
                 }
               } else if (hint.date) {
                 dateMs = hint.date;
@@ -750,7 +751,7 @@ const FriendProfileScreen: React.FC = () => {
         <View style={styles.heroSection}>
           <Avatar
             uri={userProfile?.profileImageUrl}
-            name={userProfile?.displayName || userName || undefined}
+            name={userProfile?.name || userName || undefined}
             size="xl"
           />
 

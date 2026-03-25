@@ -44,8 +44,8 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 
 const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!date) return 'N/A';
-  const jsDate =
-    typeof date.toDate === 'function' ? date.toDate() : new Date(date);
+  const ts = date as unknown as { toDate?: () => Date };
+  const jsDate = typeof ts.toDate === 'function' ? ts.toDate() : new Date(date as string | number | Date);
   return jsDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
