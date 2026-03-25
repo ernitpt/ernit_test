@@ -498,9 +498,10 @@ const createStyles = (colors: typeof Colors) =>
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
-      // @ts-ignore - backdropFilter works on web
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)', // Safari support
+      ...(Platform.OS === 'web' ? {
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      } as Record<string, string> : {}),
     },
     blurLayer1: {
       ...StyleSheet.absoluteFillObject,
