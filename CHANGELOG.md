@@ -698,6 +698,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - safe userId capture in AuthGuardContext to avoid null assertion
 - replace @ts-ignore with CommonActions.reset in GoalSettingScreen for type-safe navigation reset
 - add keyboardShouldPersistTaps to edit profile ScrollView in UserProfileScreen
+- add explicit unknown type to catch variables in service layer for strict TypeScript
 
 ### Added
 - Automatic changelog system with `npm run log` script

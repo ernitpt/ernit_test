@@ -143,7 +143,7 @@ class CTAService {
                 `${DISMISS_KEY_PREFIX}${goalId}`,
                 Date.now().toString()
             );
-        } catch (err) {
+        } catch (err: unknown) {
             logger.warn('CTAService: failed to record dismiss', err);
         }
     }

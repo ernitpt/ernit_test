@@ -143,7 +143,7 @@ class DiscoveryService {
         discoveryQuestionsCompleted: totalCompleted,
       });
       logger.log('[DiscoveryService] saveQuizAnswer:', goalId, questionId, answer);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[DiscoveryService] saveQuizAnswer failed:', err);
       throw err;
     }
@@ -250,7 +250,7 @@ class DiscoveryService {
       });
 
       return winner;
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[DiscoveryService] matchExperience failed:', err);
       throw err;
     }
@@ -294,7 +294,7 @@ class DiscoveryService {
         // Fields not stored in the snapshot default to safe values
         status: 'published',
       } satisfies Experience;
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[DiscoveryService] getDiscoveredExperience failed:', err);
       throw err;
     }
@@ -372,7 +372,7 @@ class DiscoveryService {
         experienceRevealedAt: new Date(),
       });
       logger.log('[DiscoveryService] markExperienceRevealed:', goalId);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[DiscoveryService] markExperienceRevealed failed:', err);
       throw err;
     }

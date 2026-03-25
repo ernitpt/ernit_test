@@ -130,7 +130,7 @@ export const aiHintService = {
         saveLocalCache();
         return { hint: existing.hint, category: existing.category };
       }
-    } catch (err) {
+    } catch (err: unknown) {
       // Document doesn't exist or permission denied - this is expected for future sessions
       logger.log("Session document not found, will generate new hint");
     }
@@ -153,7 +153,7 @@ export const aiHintService = {
         .map(s => s.category)
         .filter((c): c is HintCategory => !!c);
 
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Could not fetch previous hints/categories:', err);
     }
 
@@ -196,7 +196,7 @@ export const aiHintService = {
         giverName: "Anonymous", // Hints are anonymous
       }, { merge: true });
       logger.log(`✅ Saved hint + category to Firestore: ${category}`);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Failed to save hint to Firestore:', err);
       // Continue anyway - hint is still in local cache
     }
@@ -256,7 +256,7 @@ export const aiHintService = {
       const recentSessions = sessions.slice(0, 15).reverse();
       previousHints = recentSessions.map(s => s.hint).filter((h): h is string => !!h);
       previousCategories = recentSessions.map(s => s.category).filter((c): c is HintCategory => !!c);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Could not fetch previous hints/categories for mystery:', err);
     }
 
@@ -289,7 +289,7 @@ export const aiHintService = {
         createdAt: new Date(),
         giverName: "Anonymous",
       }, { merge: true });
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Failed to save mystery hint to Firestore:', err);
     }
 
@@ -329,7 +329,7 @@ export const aiHintService = {
       });
 
       return hints;
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Could not fetch previous hints:', err);
       return []; // Graceful fallback
     }

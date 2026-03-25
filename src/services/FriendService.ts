@@ -236,7 +236,7 @@ export class FriendService {
         const notifSnap = await getDocs(notifQuery);
         const deletePromises = notifSnap.docs.map(d => deleteDoc(d.ref));
         if (deletePromises.length > 0) await Promise.all(deletePromises);
-      } catch (err) {
+      } catch (err: unknown) {
         logger.warn('Could not clean up friend request notifications:', err);
       }
 
@@ -280,7 +280,7 @@ export class FriendService {
           const notifSnap = await getDocs(notifQuery);
           const deletePromises = notifSnap.docs.map(d => deleteDoc(d.ref));
           if (deletePromises.length > 0) await Promise.all(deletePromises);
-        } catch (err) {
+        } catch (err: unknown) {
           logger.warn('Could not clean up friend request notifications:', err);
         }
       }
