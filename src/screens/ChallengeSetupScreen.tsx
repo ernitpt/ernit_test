@@ -1175,7 +1175,7 @@ export default function ChallengeSetupScreen() {
                                             horizontal
                                             showsHorizontalScrollIndicator={false}
                                             style={styles.cardScroll}
-                                            contentContainerStyle={{ paddingRight: 16 }}
+                                            contentContainerStyle={{ paddingRight: Spacing.lg }}
                                         >
                                             {catExperiences.map((exp) => {
                                                 const isSelected = selectedExperience?.id === exp.id;

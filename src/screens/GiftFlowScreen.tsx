@@ -1135,7 +1135,7 @@ export default function GiftFlowScreen() {
                         <View style={styles.helpChoosingCard}>
                             <Text style={styles.helpChoosingTitle}>Need help choosing?</Text>
                             <Text style={styles.helpChoosingDesc}>Here are our most popular experiences:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: Spacing.lg }}>
                                 {experiences
                                     .filter(e => e.status !== 'draft')
                                     .sort((a, b) => {
@@ -1227,7 +1227,7 @@ export default function GiftFlowScreen() {
                                             horizontal
                                             showsHorizontalScrollIndicator={false}
                                             style={styles.cardScroll}
-                                            contentContainerStyle={{ paddingRight: 16 }}
+                                            contentContainerStyle={{ paddingRight: Spacing.lg }}
                                         >
                                             {catExperiences.map((exp) => {
                                                 const isSelected = selectedExperience?.id === exp.id;
