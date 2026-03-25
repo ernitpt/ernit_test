@@ -657,6 +657,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace width as any casts in CompletionScreen with DimensionValue for proper TypeScript typing
 - narrow navigateTo type in landing screens to remove as any navigation casts
 - eliminate remaining any casts with proper TypeScript types across Avatar, GoalSettingScreen, FriendProfileScreen, GoalSessionService, ConfettiRefs, and sanitization
+- replace remaining as-any casts in GoalService, CouponEntryScreen, MysteryChoiceScreen, and FeedPost with type-safe alternatives
 
 ### Added
 - Automatic changelog system with `npm run log` script

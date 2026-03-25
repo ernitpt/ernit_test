@@ -410,8 +410,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 currentUserId={state.user?.id}
                 goalHasGift={goalHasGift}
                 onEmpowerContext={setEmpowerContext}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onNavigate={(screen, params) => (navigation as any).navigate(screen, params)}
+                // React Navigation overloads cannot be inferred from generic screen+params — cast required
+                onNavigate={(screen, params) => (navigation as { navigate: (s: string, p?: unknown) => void }).navigate(screen, params)}
             />
 
             <View style={styles.interactionRow}>

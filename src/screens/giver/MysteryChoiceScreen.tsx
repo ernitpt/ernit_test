@@ -94,7 +94,7 @@ const MysteryChoiceScreen = () => {
         navigation.navigate('ExperienceCheckout', {
             cartItems: checkoutCartItems,
             isMystery,
-        } as any);
+        });
     }, [revealMode, experience, isCartFlow, cartItems, empowerContext, dispatch, navigation]);
 
     if (!experience && !isCartFlow) {

@@ -718,10 +718,10 @@ export class GoalService {
       if (now >= goal.approvalDeadline && !goal.giverActionTaken) {
         // Auto-approve
         await updateDoc(ref, {
-          approvalStatus: 'approved',
+          approvalStatus: 'approved' as const,
           giverActionTaken: true,
           updatedAt: serverTimestamp(),
-        } as any);
+        });
         const updatedSnap = await getDoc(ref);
         return normalizeGoal({ id: updatedSnap.id, ...updatedSnap.data() });
       }

@@ -163,10 +163,12 @@ const CouponEntryScreen = () => {
 
       // Check if claim code has expired
       if (experienceGift.expiresAt) {
-        const expiresAt = experienceGift.expiresAt instanceof Date
-          ? experienceGift.expiresAt
-          : (experienceGift.expiresAt as any).toDate?.()
-            ?? new Date(experienceGift.expiresAt as any);
+        const rawExpiry = experienceGift.expiresAt;
+        const expiresAt = rawExpiry instanceof Date
+          ? rawExpiry
+          : typeof (rawExpiry as { toDate?: () => Date }).toDate === 'function'
+            ? (rawExpiry as { toDate: () => Date }).toDate()
+            : new Date(rawExpiry as string | number);
         if (expiresAt < new Date()) {
           setErrorMessage('This claim code has expired');
           triggerShake();
