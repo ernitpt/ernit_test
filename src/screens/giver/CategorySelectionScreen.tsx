@@ -98,7 +98,7 @@ const FeaturedHeroCard = ({
         accessibilityLabel={`${experience.title} cover image`}
       />
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.4)']}
+        colors={['transparent', Colors.overlayOnImageLight]}
         style={styles.heroGradient}
       />
       <BlurView intensity={25} tint="dark" style={styles.heroTextOverlay}>
