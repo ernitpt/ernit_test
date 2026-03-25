@@ -63,7 +63,7 @@ const AddFriendScreen: React.FC = () => {
     }
   }, [searchTerm]);
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!currentUserId || searchTerm.length < 2) return;
 
     try {
@@ -78,7 +78,7 @@ const AddFriendScreen: React.FC = () => {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [currentUserId, searchTerm]);
 
   const handleSendFriendRequest = useCallback(async (user: UserSearchResult) => {
     if (!currentUserId) return;

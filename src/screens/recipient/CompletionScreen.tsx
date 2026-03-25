@@ -430,7 +430,7 @@ const CompletionScreen = () => {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!shareCardRef.current) return;
     setIsSharing(true);
     try {
@@ -487,7 +487,7 @@ const CompletionScreen = () => {
     } finally {
       setIsSharing(false);
     }
-  };
+  }, []);
 
   if (!hasValidData || !goal) {
     return (

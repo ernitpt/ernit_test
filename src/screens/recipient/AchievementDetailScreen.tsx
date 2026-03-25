@@ -736,7 +736,7 @@ const AchievementDetailScreen = () => {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!shareCardRef.current) return;
     setIsSharing(true);
     try {
@@ -793,7 +793,7 @@ const AchievementDetailScreen = () => {
     } finally {
       setIsSharing(false);
     }
-  };
+  }, []);
 
   // ───── HintItem callback ─────
   const handleHintImagePress = useCallback((uri: string) => {

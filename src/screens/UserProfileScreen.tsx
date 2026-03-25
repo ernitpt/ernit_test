@@ -628,7 +628,7 @@ const UserProfileScreen: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = useCallback(async () => {
     if (isSaving) return;
     setIsSaving(true);
 
@@ -690,7 +690,7 @@ const UserProfileScreen: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [isSaving, editFormData, userProfile, userId, state.user, dispatch]);
 
   const handleRemoveFromWishlist = useCallback((experienceId: string) => {
     if (!state.user) {

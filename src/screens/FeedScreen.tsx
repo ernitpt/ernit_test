@@ -112,14 +112,7 @@ const FeedScreen: React.FC = () => {
         };
     }, [highlightedPostId, posts]);
 
-    useFocusEffect(
-        React.useCallback(() => {
-            analyticsService.trackScreenView('FeedScreen');
-            loadFeed();
-        }, [state.user?.id])
-    );
-
-    const loadFeed = async (loadMore = false) => {
+    const loadFeed = useCallback(async (loadMore = false) => {
         if (!state.user?.id) {
             setIsLoading(false);
             return;
@@ -157,16 +150,23 @@ const FeedScreen: React.FC = () => {
             setIsLoading(false);
             setIsLoadingMore(false);
         }
-    };
+    }, [state.user?.id, hasMore, isRefreshing]);
 
-    const handleRefresh = async () => {
+    useFocusEffect(
+        React.useCallback(() => {
+            analyticsService.trackScreenView('FeedScreen');
+            loadFeed();
+        }, [loadFeed])
+    );
+
+    const handleRefresh = useCallback(async () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setIsRefreshing(true);
         lastTimestampRef.current = undefined;
         setHasMore(true);
         await loadFeed();
         setIsRefreshing(false);
-    };
+    }, [loadFeed]);
 
     const handleLoadMore = useCallback(() => {
         if (isLoadingMore || !hasMore || isLoading) return;
