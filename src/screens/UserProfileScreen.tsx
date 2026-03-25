@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -404,14 +404,18 @@ type ExperienceCardProps = {
   onRemoveFromWishlist: (experienceId: string) => void;
 };
 
-const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFromWishlist }) => {
+const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, onRemoveFromWishlist }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     navigation.navigate('ExperienceDetails', { experience });
-  };
+  }, [navigation, experience]);
+
+  const handleRemove = useCallback(() => {
+    onRemoveFromWishlist(experience.id);
+  }, [onRemoveFromWishlist, experience.id]);
 
   const experienceImage = Array.isArray(experience.imageUrl)
     ? experience.imageUrl[0]
@@ -432,7 +436,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
           accessibilityLabel={`${experience.title} experience`}
         />
         <TouchableOpacity
-          onPress={() => onRemoveFromWishlist(experience.id)}
+          onPress={handleRemove}
           style={styles.wishlistHeartButton}
           activeOpacity={0.8}
           accessibilityRole="button"
@@ -454,7 +458,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onRemoveFro
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const UserProfileScreen: React.FC = () => {
   const colors = useColors();
@@ -688,14 +692,14 @@ const UserProfileScreen: React.FC = () => {
     }
   };
 
-  const handleRemoveFromWishlist = (experienceId: string) => {
+  const handleRemoveFromWishlist = useCallback((experienceId: string) => {
     if (!state.user) {
       showInfo('Please log in to manage wishlist.');
       return;
     }
 
     setWishlistRemoveId(experienceId);
-  };
+  }, [state.user, showInfo]);
 
   const confirmRemoveFromWishlist = async () => {
     const experienceId = wishlistRemoveId;

@@ -368,4 +368,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
 });
 
-export default StreakBanner;
+export default React.memo(StreakBanner);

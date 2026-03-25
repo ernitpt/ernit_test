@@ -204,4 +204,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
 });
 
-export default SessionMediaPrompt;
+export default React.memo(SessionMediaPrompt);
