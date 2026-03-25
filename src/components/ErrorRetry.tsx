@@ -33,7 +33,7 @@ const ErrorRetry: React.FC<ErrorRetryProps> = ({
   );
 };
 
-export default ErrorRetry;
+export default React.memo(ErrorRetry);
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
   container: {

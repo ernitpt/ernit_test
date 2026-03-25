@@ -342,4 +342,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default CompactReactionBar;
+export default React.memo(CompactReactionBar);

@@ -167,4 +167,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default EmpowerChoiceModal;
+export default React.memo(EmpowerChoiceModal);
