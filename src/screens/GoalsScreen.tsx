@@ -121,6 +121,12 @@ const GoalsScreen: React.FC = () => {
         const activeGoals = goals.filter((g) => {
           return !g.isCompleted && g.currentCount < g.targetCount;
         });
+        // Sort active goals by newest first
+        activeGoals.sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        });
         setCurrentGoals(activeGoals);
 
         // Collect completed goals

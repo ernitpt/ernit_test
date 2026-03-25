@@ -69,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sync createDeferredGift_Test with production — added stripeCustomer, input sanitization, experienceId length check, and goal parameter clamping
 - add confetti to giver ConfirmationScreen
 - add xl shadow token to Shadows config for high-prominence overlays
+- 2A sort goals by date (newest first)
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
