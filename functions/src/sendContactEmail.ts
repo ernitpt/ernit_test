@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
@@ -45,11 +46,11 @@ export const sendContactEmail = onCall(
         secrets: [EMAIL_USER, EMAIL_PASS],
     },
     async (request) => {
-        console.log('=== sendContactEmail function started ===');
+        logger.info('=== sendContactEmail function started ===');
 
         // Verify authentication
         if (!request.auth) {
-            console.log('ERROR: No authentication');
+            logger.info('ERROR: No authentication');
             throw new HttpsError(
                 'unauthenticated',
                 'User must be authenticated to submit contact form'
@@ -90,11 +91,11 @@ export const sendContactEmail = onCall(
         const verifiedEmail = request.auth!.token.email || userMetadata?.email || 'unknown';
         const verifiedDisplayName = userMetadata?.displayName || 'Unknown User';
 
-        console.log(`Request from user: ${verifiedUserId}, type: ${type}`);
+        logger.info(`Request from user: ${verifiedUserId}, type: ${type}`);
 
         // Validate input
         if (!type || !subject || !message) {
-            console.log('ERROR: Missing required fields');
+            logger.info('ERROR: Missing required fields');
             throw new HttpsError(
                 'invalid-argument',
                 'Missing required fields: type, subject, or message'
@@ -102,7 +103,7 @@ export const sendContactEmail = onCall(
         }
 
         if (type !== 'feedback' && type !== 'support') {
-            console.log('ERROR: Invalid type');
+            logger.info('ERROR: Invalid type');
             throw new HttpsError(
                 'invalid-argument',
                 'Invalid type. Must be "feedback" or "support"'
@@ -121,7 +122,7 @@ export const sendContactEmail = onCall(
         const emailPass = EMAIL_PASS.value();
 
         if (!emailUser || !emailPass) {
-            console.error('Email credentials not configured');
+            logger.error('Email credentials not configured');
             throw new HttpsError(
                 'failed-precondition',
                 'Email service not configured'
@@ -132,10 +133,10 @@ export const sendContactEmail = onCall(
             ? 'feedback@ernit.app'
             : 'support@ernit.app';
 
-        console.log(`Recipient: ${recipientEmail}`);
+        logger.info(`Recipient: ${recipientEmail}`);
 
         try {
-            console.log('Creating transporter...');
+            logger.info('Creating transporter...');
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
@@ -197,21 +198,21 @@ export const sendContactEmail = onCall(
                 html: emailHtml,
             };
 
-            console.log('Sending email...');
+            logger.info('Sending email...');
             const startTime = Date.now();
             const info = await transporter.sendMail(mailOptions);
             const duration = Date.now() - startTime;
 
-            console.log(`=== Email sent successfully in ${duration}ms ===`);
-            console.log(`Message ID: ${info.messageId}`);
+            logger.info(`=== Email sent successfully in ${duration}ms ===`);
+            logger.info(`Message ID: ${info.messageId}`);
 
             return {
                 success: true,
                 message: 'Email sent successfully',
             };
         } catch (error) {
-            console.error('=== ERROR in sendContactEmail ===');
-            console.error('Error details:', error);
+            logger.error('=== ERROR in sendContactEmail ===');
+            logger.error('Error details:', error);
             throw new HttpsError(
                 'internal',
                 'Failed to send email. Please try again later.'

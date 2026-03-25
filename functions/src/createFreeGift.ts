@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
@@ -118,7 +119,7 @@ export const createFreeGift = onRequest(
         if (rateLimitSnap.exists) {
             const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
             if (requests.length >= RATE_LIMIT) {
-                console.warn(`⚠️ createFreeGift rate limit exceeded for user ${userId}`);
+                logger.warn(`⚠️ createFreeGift rate limit exceeded for user ${userId}`);
                 res.status(429).json({ error: 'Too many gift creation requests. Please try again later.' });
                 return;
             }
@@ -253,12 +254,12 @@ export const createFreeGift = onRequest(
                 batch.set(giverGoalRef, { ...giverGoalData, experienceGiftId: giftDocRef.id });
                 await batch.commit();
 
-                console.log(`✅ [PROD] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
+                logger.info(`✅ [PROD] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
             } else {
                 await db.doc(`experienceGifts/${giftId}`).set(newGift);
             }
 
-            console.log(`✅ [PROD] Created free gift ${giftId} with claimCode ${claimCode}`);
+            logger.info(`✅ [PROD] Created free gift ${giftId} with claimCode ${claimCode}`);
 
             // Optionally send email to recipient
             if (recipientEmail && typeof recipientEmail === 'string' && recipientEmail.includes('@')) {
@@ -269,10 +270,10 @@ export const createFreeGift = onRequest(
                         `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
                         buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
-                    console.log(`✅ Gift email sent to ${recipientEmail}`);
+                    logger.info(`✅ Gift email sent to ${recipientEmail}`);
                 } catch (emailErr) {
                     // Don't fail the whole request if email fails
-                    console.error(`⚠️ Failed to send gift email:`, emailErr);
+                    logger.error(`⚠️ Failed to send gift email:`, emailErr);
                 }
             }
 
@@ -283,7 +284,7 @@ export const createFreeGift = onRequest(
                 claimUrl: `https://ernit.app/recipient/redeem/${claimCode}`,
             });
         } catch (err: any) {
-            console.error("❌ Error creating free gift:", err);
+            logger.error("❌ Error creating free gift:", err);
             res.status(500).json({ error: "Failed to create gift" });
         }
     }
@@ -312,7 +313,7 @@ async function generateUniqueClaimCode(db: FirebaseFirestore.Firestore): Promise
             .limit(1)
             .get();
         if (existing.empty) return code;
-        console.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
+        logger.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
     }
     throw new Error('Failed to generate unique claim code after 10 attempts');
 }

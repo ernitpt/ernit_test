@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { allowedOrigins } from "./cors";
 
 export const searchUsers = onCall(
@@ -7,7 +8,7 @@ export const searchUsers = onCall(
     cors: allowedOrigins,
   },
   async (requestData) => {
-    console.log("🔍 searchUsers called");
+    logger.info("🔍 searchUsers called");
 
     // ✅ SECURITY: Authentication check
     const auth = requestData.auth;
@@ -53,7 +54,7 @@ export const searchUsers = onCall(
       );
 
       if (recentRequests.length >= RATE_LIMIT) {
-        console.warn(`⚠️ Search rate limit exceeded for user ${userId}`);
+        logger.warn(`⚠️ Search rate limit exceeded for user ${userId}`);
         throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again in a minute.');
       }
 
@@ -154,14 +155,14 @@ export const searchUsers = onCall(
       // Limit to 20 results
       const limitedResults = results.slice(0, 20);
 
-      console.log(`✅ Found ${limitedResults.length} users for search: "${trimmedSearchTerm}"`);
+      logger.info(`✅ Found ${limitedResults.length} users for search: "${trimmedSearchTerm}"`);
 
       return {
         users: limitedResults,
         count: limitedResults.length,
       };
     } catch (err: any) {
-      console.error("searchUsers error:", err?.message || err);
+      logger.error("searchUsers error:", err?.message || err);
       throw new HttpsError('internal', 'Failed to search users');
     }
   }

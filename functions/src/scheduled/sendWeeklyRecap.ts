@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 /**
@@ -20,7 +21,7 @@ export const sendWeeklyRecap = functions.onSchedule(
     },
     async (event) => {
         try {
-            console.log("🔍 [PROD] Starting weekly recap generation...");
+            logger.info("🔍 [PROD] Starting weekly recap generation...");
 
             // Compute ISO week key for idempotency guard
             const now = new Date();
@@ -33,7 +34,7 @@ export const sendWeeklyRecap = functions.onSchedule(
             );
             const weekKey = `${now.getFullYear()}-W${weekNumber}`;
 
-            console.log(`📅 [PROD] Week key: ${weekKey}`);
+            logger.info(`📅 [PROD] Week key: ${weekKey}`);
 
             // Import db from index.ts (production database)
             const db = require("../index").dbProd;
@@ -44,7 +45,7 @@ export const sendWeeklyRecap = functions.onSchedule(
                 .where("isCompleted", "==", false)
                 .get();
 
-            console.log(`📊 [PROD] Found ${goalsSnap.size} active goals`);
+            logger.info(`📊 [PROD] Found ${goalsSnap.size} active goals`);
 
             // Group goals by userId
             const userGoalsMap = new Map<string, any[]>();
@@ -59,7 +60,7 @@ export const sendWeeklyRecap = functions.onSchedule(
                 userGoalsMap.get(userId)!.push(goal);
             }
 
-            console.log(`👥 [PROD] Processing recaps for ${userGoalsMap.size} users`);
+            logger.info(`👥 [PROD] Processing recaps for ${userGoalsMap.size} users`);
 
             let recapsSent = 0;
 
@@ -98,7 +99,7 @@ export const sendWeeklyRecap = functions.onSchedule(
                     // Idempotency guard: skip if this user already received a recap for this week.
                     // Must check primaryGoal (same doc that gets stamped below) to be consistent.
                     if (primaryGoal?.lastWeeklyRecapWeek === weekKey) {
-                        console.log(`⏭️ [PROD] Skipping user ${userId} — recap already sent for ${weekKey}`);
+                        logger.info(`⏭️ [PROD] Skipping user ${userId} — recap already sent for ${weekKey}`);
                         continue;
                     }
 
@@ -162,22 +163,22 @@ export const sendWeeklyRecap = functions.onSchedule(
                     await batch.commit();
 
                     recapsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [PROD] Sent weekly recap to user ${userId} (${totalSessionsDone}/${totalSessionsRequired} sessions, ${goalsOnTrack}/${totalGoals} goals on track)`
                     );
                 } catch (notifError) {
-                    console.error(
+                    logger.error(
                         `❌ [PROD] Failed to create recap notification for user ${userId}:`,
                         notifError
                     );
                 }
             }
 
-            console.log(
+            logger.info(
                 `✨ [PROD] Weekly recap generation complete. Sent ${recapsSent} recap(s).`
             );
         } catch (error) {
-            console.error("❌ [PROD] Error in sendWeeklyRecap:", error);
+            logger.error("❌ [PROD] Error in sendWeeklyRecap:", error);
         }
     }
 );

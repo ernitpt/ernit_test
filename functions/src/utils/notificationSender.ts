@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import { getMessaging } from 'firebase-admin/messaging';
+import { logger } from 'firebase-functions/v2';
 
 /**
  * Shared notification sender for onNotificationCreated functions
@@ -31,7 +32,7 @@ export async function sendPushNotification(
     const { notificationData, db, envLabel } = options;
     const { notificationId, userId, type, title, message, data } = notificationData;
 
-    console.log(
+    logger.info(
         `📬 [${envLabel}] Processing notification ${notificationId}`,
         { userId, type }
     );
@@ -39,7 +40,7 @@ export async function sendPushNotification(
     // Get user's FCM tokens
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-        console.warn(`⚠️ [${envLabel}] User ${userId} not found`);
+        logger.warn(`⚠️ [${envLabel}] User ${userId} not found`);
         return 0;
     }
 
@@ -47,11 +48,11 @@ export async function sendPushNotification(
     const fcmTokens = userData?.fcmTokens || [];
 
     if (fcmTokens.length === 0) {
-        console.log(`ℹ️ [${envLabel}] User ${userId} has no FCM tokens registered`);
+        logger.info(`ℹ️ [${envLabel}] User ${userId} has no FCM tokens registered`);
         return 0;
     }
 
-    console.log(
+    logger.info(
         `📲 [${envLabel}] Sending notification to ${fcmTokens.length} device(s)`
     );
 
@@ -127,11 +128,11 @@ export async function sendPushNotification(
     results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
             successCount++;
-            console.log(`✅ [${envLabel}] Message sent to token ${index + 1}`);
+            logger.info(`✅ [${envLabel}] Message sent to token ${index + 1}`);
         } else {
             failureCount++;
             const error = result.reason;
-            console.error(
+            logger.error(
                 `❌ [${envLabel}] Failed to send to token ${index + 1}:`,
                 error
             );
@@ -146,13 +147,13 @@ export async function sendPushNotification(
         }
     });
 
-    console.log(
+    logger.info(
         `📊 [${envLabel}] Push notification results: ${successCount} sent, ${failureCount} failed`
     );
 
     // Remove invalid tokens from Firestore
     if (invalidTokens.length > 0) {
-        console.log(`🧹 [${envLabel}] Removing ${invalidTokens.length} invalid token(s)`);
+        logger.info(`🧹 [${envLabel}] Removing ${invalidTokens.length} invalid token(s)`);
         try {
             await db
                 .collection('users')
@@ -161,7 +162,7 @@ export async function sendPushNotification(
                     fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
                 });
         } catch (cleanupError) {
-            console.warn(`⚠️ [${envLabel}] Failed to remove stale FCM tokens for user ${userId}:`, cleanupError);
+            logger.warn(`⚠️ [${envLabel}] Failed to remove stale FCM tokens for user ${userId}:`, cleanupError);
         }
     }
 

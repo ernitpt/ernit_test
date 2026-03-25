@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2";
+import { logger } from "firebase-functions/v2";
 import { sendPushNotification } from "../utils/notificationSender";
 
 /**
@@ -16,7 +17,7 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
         const notificationId = event.params.notificationId;
 
         if (!snapshot) {
-            console.warn("⚠️ [PROD] No snapshot data");
+            logger.warn("⚠️ [PROD] No snapshot data");
             return null;
         }
 
@@ -26,7 +27,7 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
             // Get the recipient user ID
             const userId = notificationData.userId;
             if (!userId) {
-                console.warn("⚠️ [PROD] No userId found in notification");
+                logger.warn("⚠️ [PROD] No userId found in notification");
                 return null;
             }
 
@@ -49,7 +50,7 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
 
             return null;
         } catch (error) {
-            console.error("❌ [PROD] Error sending push notification:", error);
+            logger.error("❌ [PROD] Error sending push notification:", error);
             return null;
         }
     });

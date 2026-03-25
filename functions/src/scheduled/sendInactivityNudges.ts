@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 /**
@@ -23,7 +24,7 @@ export const sendInactivityNudges = functions.onSchedule(
     },
     async (event) => {
         try {
-            console.log("🔍 [PROD] Starting inactivity nudges check...");
+            logger.info("🔍 [PROD] Starting inactivity nudges check...");
 
             // Import db from index.ts (production database)
             const db = require("../index").dbProd;
@@ -37,7 +38,7 @@ export const sendInactivityNudges = functions.onSchedule(
                 .where("weekStartAt", "!=", null)
                 .get();
 
-            console.log(`📊 [PROD] Found ${goalsSnap.size} active goals`);
+            logger.info(`📊 [PROD] Found ${goalsSnap.size} active goals`);
 
             let notificationsSent = 0;
 
@@ -47,7 +48,7 @@ export const sendInactivityNudges = functions.onSchedule(
                 const weekStartAt = goal.weekStartAt?.toDate();
 
                 if (!weekStartAt) {
-                    console.log(
+                    logger.info(
                         `⚠️ [PROD] Goal ${goalDoc.id} has no weekStartAt, skipping`
                     );
                     continue;
@@ -70,7 +71,7 @@ export const sendInactivityNudges = functions.onSchedule(
                 const timeDiff = now.getTime() - lastSessionDate.getTime();
                 const daysSinceLastSession = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
 
-                console.log(
+                logger.info(
                     `📅 [PROD] Goal ${goalDoc.id}: ${daysSinceLastSession} days since last session`
                 );
 
@@ -93,7 +94,7 @@ export const sendInactivityNudges = functions.onSchedule(
                     message = `One session is all it takes to get back on track with ${goal.title?.replace("Attend ", "").replace(" Sessions", "")}`;
                 } else {
                     // Not in nudge window
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] Goal ${goalDoc.id}: Not in nudge window (day ${daysSinceLastSession})`
                     );
                     continue;
@@ -102,7 +103,7 @@ export const sendInactivityNudges = functions.onSchedule(
                 // Check if already nudged at this level or higher
                 const lastNudgeLevel = goal.lastNudgeLevel || 0;
                 if (lastNudgeLevel >= currentLevel) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] Goal ${goalDoc.id}: Already nudged at level ${lastNudgeLevel} (current: ${currentLevel}), skipping`
                     );
                     continue;
@@ -113,13 +114,13 @@ export const sendInactivityNudges = functions.onSchedule(
                     const userDoc = await db.collection("users").doc(goal.userId).get();
                     const userData = userDoc.data();
                     if (userData?.lastReminderSentDate === todayISO) {
-                        console.log(
+                        logger.info(
                             `⏭️ [PROD] Goal ${goalDoc.id}: Daily reminder already sent today, skipping`
                         );
                         continue;
                     }
                 } catch (userError) {
-                    console.warn(
+                    logger.warn(
                         `⚠️ [PROD] Could not check lastReminderSentDate for user ${goal.userId}:`,
                         userError
                     );
@@ -151,22 +152,22 @@ export const sendInactivityNudges = functions.onSchedule(
                     await batch.commit();
 
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [PROD] Sent level-${currentLevel} nudge to user ${goal.userId} for goal ${goalDoc.id} (${daysSinceLastSession} days inactive)`
                     );
                 } catch (notifError) {
-                    console.error(
+                    logger.error(
                         `❌ [PROD] Failed to create notification for goal ${goalDoc.id}:`,
                         notifError
                     );
                 }
             }
 
-            console.log(
+            logger.info(
                 `✨ [PROD] Inactivity nudges check complete. Sent ${notificationsSent} notification(s).`
             );
         } catch (error) {
-            console.error("❌ [PROD] Error in sendInactivityNudges:", error);
+            logger.error("❌ [PROD] Error in sendInactivityNudges:", error);
         }
     }
 );

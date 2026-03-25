@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { getFirestore, DocumentData } from "firebase-admin/firestore";
 
@@ -49,13 +50,13 @@ export const getGiftsByPaymentIntent = onRequest(
             try {
                 decodedToken = await admin.auth().verifyIdToken(idToken);
             } catch (error) {
-                console.error("❌ Invalid token:", error);
+                logger.error("❌ Invalid token:", error);
                 res.status(401).json({ error: "Unauthorized: Invalid token" });
                 return;
             }
 
             const userId = decodedToken.uid;
-            console.log(`✅ [PROD] Authenticated user: ${userId}`);
+            logger.info(`✅ [PROD] Authenticated user: ${userId}`);
 
             // ✅ Validate payment intent ID
             const paymentIntentId = req.query.paymentIntentId as string;
@@ -86,15 +87,15 @@ export const getGiftsByPaymentIntent = onRequest(
                 .filter((gift: any) => gift.giverId === userId);
 
             if (gifts.length === 0) {
-                console.log(`No gifts found for user ${userId} with payment intent ${paymentIntentId}`);
+                logger.info(`No gifts found for user ${userId} with payment intent ${paymentIntentId}`);
                 res.status(404).json({ error: "No gifts found or access denied" });
                 return;
             }
 
-            console.log(`✅ [PROD] Returning ${gifts.length} gifts for user ${userId}`);
+            logger.info(`✅ [PROD] Returning ${gifts.length} gifts for user ${userId}`);
             res.status(200).json(gifts);
         } catch (err: any) {
-            console.error("❌ Error fetching gifts:", err);
+            logger.error("❌ Error fetching gifts:", err);
             res.status(500).json({ error: "Internal error" });
         }
     }

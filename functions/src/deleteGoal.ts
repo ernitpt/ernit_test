@@ -1,5 +1,6 @@
 // ========== DELETE GOAL (PRODUCTION) ==========
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { allowedOrigins } from "./cors";
@@ -27,7 +28,7 @@ export const deleteGoal = onRequest(
             return;
         }
 
-        console.log("[deleteGoal] Function called");
+        logger.info("[deleteGoal] Function called");
 
         // SECURITY: Verify Firebase Auth token
         const authHeader = req.headers.authorization;
@@ -43,12 +44,12 @@ export const deleteGoal = onRequest(
             const decodedToken = await getAuth().verifyIdToken(token);
             uid = decodedToken.uid;
         } catch (error) {
-            console.error('[deleteGoal] Token verification failed:', error);
+            logger.error('[deleteGoal] Token verification failed:', error);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
         }
 
-        console.log(`[deleteGoal] Authenticated user: ${uid}`);
+        logger.info(`[deleteGoal] Authenticated user: ${uid}`);
 
         // VALIDATION: goalId must be a non-empty string
         const { goalId } = req.body?.data || req.body || {};
@@ -65,7 +66,7 @@ export const deleteGoal = onRequest(
             const goalSnap = await goalRef.get();
 
             if (!goalSnap.exists) {
-                console.log(`[deleteGoal] Goal ${goalId} not found — returning success (idempotent)`);
+                logger.info(`[deleteGoal] Goal ${goalId} not found — returning success (idempotent)`);
                 res.status(200).json({ success: true });
                 return;
             }
@@ -74,7 +75,7 @@ export const deleteGoal = onRequest(
 
             // Step 4: Verify ownership
             if (goalData.userId !== uid) {
-                console.warn(`[deleteGoal] Permission denied: user ${uid} does not own goal ${goalId}`);
+                logger.warn(`[deleteGoal] Permission denied: user ${uid} does not own goal ${goalId}`);
                 res.status(403).json({ error: 'You do not have permission to delete this goal' });
                 return;
             }
@@ -89,7 +90,7 @@ export const deleteGoal = onRequest(
 
             // Step 6: Handle experienceGiftId
             if (goalData.experienceGiftId) {
-                console.log(`[deleteGoal] Goal has experienceGiftId: ${goalData.experienceGiftId}`);
+                logger.info(`[deleteGoal] Goal has experienceGiftId: ${goalData.experienceGiftId}`);
                 const giftRef = db.collection('experienceGifts').doc(goalData.experienceGiftId);
                 const giftSnap = await giftRef.get();
 
@@ -102,7 +103,7 @@ export const deleteGoal = onRequest(
                     }
 
                     if (giftData.payment === 'deferred') {
-                        console.log(`[deleteGoal] Cancelling deferred gift ${goalData.experienceGiftId}`);
+                        logger.info(`[deleteGoal] Cancelling deferred gift ${goalData.experienceGiftId}`);
                         await giftRef.update({
                             status: 'cancelled',
                             payment: 'cancelled',
@@ -118,7 +119,7 @@ export const deleteGoal = onRequest(
                                     userName = userSnap.data()?.displayName || 'Someone';
                                 }
                             } catch (userErr) {
-                                console.warn(`[deleteGoal] Could not fetch user displayName:`, userErr);
+                                logger.warn(`[deleteGoal] Could not fetch user displayName:`, userErr);
                             }
 
                             await db.collection('notifications').add({
@@ -130,12 +131,12 @@ export const deleteGoal = onRequest(
                                 read: false,
                                 createdAt: FieldValue.serverTimestamp(),
                             });
-                            console.log(`[deleteGoal] Sent payment_cancelled notification to giver ${giftData.giverId}`);
+                            logger.info(`[deleteGoal] Sent payment_cancelled notification to giver ${giftData.giverId}`);
                         }
                     }
 
                     if (goalData.isFreeGoal && giftData.redeemedGoalId === goalId) {
-                        console.log(`[deleteGoal] Restoring free gift ${goalData.experienceGiftId} to active`);
+                        logger.info(`[deleteGoal] Restoring free gift ${goalData.experienceGiftId} to active`);
                         await giftRef.update({
                             isRedeemed: false,
                             redeemedGoalId: null,
@@ -148,7 +149,7 @@ export const deleteGoal = onRequest(
 
             // Step 7: Handle shared goal (partnerGoalId)
             if (goalData.partnerGoalId) {
-                console.log(`[deleteGoal] Goal has partnerGoalId: ${goalData.partnerGoalId}`);
+                logger.info(`[deleteGoal] Goal has partnerGoalId: ${goalData.partnerGoalId}`);
                 const partnerGoalRef = db.collection('goals').doc(goalData.partnerGoalId);
                 const partnerGoalSnap = await partnerGoalRef.get();
 
@@ -167,7 +168,7 @@ export const deleteGoal = onRequest(
                     }
 
                     await partnerGoalRef.update(partnerUpdate);
-                    console.log(`[deleteGoal] Updated partner goal ${goalData.partnerGoalId}`);
+                    logger.info(`[deleteGoal] Updated partner goal ${goalData.partnerGoalId}`);
 
                     let userName = 'Someone';
                     try {
@@ -176,7 +177,7 @@ export const deleteGoal = onRequest(
                             userName = userSnap.data()?.displayName || 'Someone';
                         }
                     } catch (userErr) {
-                        console.warn(`[deleteGoal] Could not fetch user displayName for partner notification:`, userErr);
+                        logger.warn(`[deleteGoal] Could not fetch user displayName for partner notification:`, userErr);
                     }
 
                     await db.collection('notifications').add({
@@ -188,12 +189,12 @@ export const deleteGoal = onRequest(
                         read: false,
                         createdAt: FieldValue.serverTimestamp(),
                     });
-                    console.log(`[deleteGoal] Sent shared_partner_removed notification to user ${partnerGoalData.userId}`);
+                    logger.info(`[deleteGoal] Sent shared_partner_removed notification to user ${partnerGoalData.userId}`);
                 }
             }
 
             // Step 8: Archive goal to deletedGoals
-            console.log(`[deleteGoal] Archiving goal ${goalId} to deletedGoals`);
+            logger.info(`[deleteGoal] Archiving goal ${goalId} to deletedGoals`);
             await db.collection('deletedGoals').doc(goalId).set({
                 ...goalData,
                 deletedAt: FieldValue.serverTimestamp(),
@@ -215,11 +216,11 @@ export const deleteGoal = onRequest(
                         const batch = db.batch();
                         subSnap.docs.forEach((doc) => batch.delete(doc.ref));
                         await batch.commit();
-                        console.log(`[deleteGoal] Deleted ${subSnap.size} docs from ${subcollection}`);
+                        logger.info(`[deleteGoal] Deleted ${subSnap.size} docs from ${subcollection}`);
                         if (subSnap.size < 500) hasMore = false;
                     }
                 } catch (subErr) {
-                    console.error(`[deleteGoal] Error deleting subcollection ${subcollection}:`, subErr);
+                    logger.error(`[deleteGoal] Error deleting subcollection ${subcollection}:`, subErr);
                 }
             }
 
@@ -243,16 +244,16 @@ export const deleteGoal = onRequest(
                         });
                     });
                     await batch.commit();
-                    console.log(`[deleteGoal] Soft-deleted ${feedSnap.size} feed posts`);
+                    logger.info(`[deleteGoal] Soft-deleted ${feedSnap.size} feed posts`);
                     if (feedSnap.size < 500) hasMoreFeed = false;
                 }
             } catch (feedErr) {
-                console.error(`[deleteGoal] Error soft-deleting feed posts:`, feedErr);
+                logger.error(`[deleteGoal] Error soft-deleting feed posts:`, feedErr);
             }
 
             // Step 11: Delete goal document
             await goalRef.delete();
-            console.log(`[deleteGoal] Goal ${goalId} deleted successfully`);
+            logger.info(`[deleteGoal] Goal ${goalId} deleted successfully`);
 
             // Step 12: Return result
             res.status(200).json({
@@ -261,7 +262,7 @@ export const deleteGoal = onRequest(
                 archivedAt: new Date().toISOString(),
             });
         } catch (error: any) {
-            console.error(`[deleteGoal] Unexpected error:`, error);
+            logger.error(`[deleteGoal] Unexpected error:`, error);
             res.status(500).json({ error: 'Failed to delete goal' });
         }
     }

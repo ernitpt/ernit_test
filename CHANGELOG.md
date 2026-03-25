@@ -269,6 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace remaining hardcoded gradient colors in HeroPreviewScreen with design tokens
 - replace console.warn in DateHelper with logger and fix any type in AppNavigator
 - add explicit return types to service methods across AnalyticsService, FeedService, FriendService, NotificationService, and AIHintService
+- replace console.log/warn/error with Firebase Functions v2 structured logger across all Cloud Functions
+- replace console statements with Firebase structured logger in cloud functions
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -635,6 +637,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing useMemo imports to ReactionBar, ErrorRetry, and HintHistoryModal
 - resolve TypeScript errors in service layer - AIHintService callable typing, GoalService/GoalSessionService normalizeGoal casts, FriendService map typing, FeedService data spread, AnalyticsEvent optional screenName, add post_comment notification type
 - resolve TypeScript errors in components - HintPopup type narrowing, GoalProgressNotification Timestamp handling, PersonalizedHint backward compat fields, notification types, useRef initial values, SharedHeader color token, ProtectedRoute params cast
+- resolve all remaining TypeScript errors across app — zero tsc errors in src/
 
 ### Added
 - Automatic changelog system with `npm run log` script

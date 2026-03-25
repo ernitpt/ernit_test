@@ -1,5 +1,6 @@
 // ✅ Firebase Functions v2 version
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -20,7 +21,7 @@ export const updateExperience = onCall(
         cors: allowedOrigins,
     },
     async (request) => {
-        console.log("🚀 updateExperience called");
+        logger.info("🚀 updateExperience called");
 
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
@@ -29,7 +30,7 @@ export const updateExperience = onCall(
         }
 
         const userId = auth.uid;
-        console.log(`👤 Authenticated user: ${userId}`);
+        logger.info(`👤 Authenticated user: ${userId}`);
 
         // ✅ SECURITY: Verify admin status
         const db = admin.firestore();
@@ -37,17 +38,17 @@ export const updateExperience = onCall(
         const partnerUserSnap = await partnerUserRef.get();
 
         if (!partnerUserSnap.exists) {
-            console.warn(`❌ User ${userId} is not a partner user`);
+            logger.warn(`❌ User ${userId} is not a partner user`);
             throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
-            console.warn(`❌ User ${userId} is not an admin`);
+            logger.warn(`❌ User ${userId} is not an admin`);
             throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
-        console.log(`✅ Admin verified: ${userId}`);
+        logger.info(`✅ Admin verified: ${userId}`);
 
         // Extract data from request
         const data = request.data;
@@ -80,12 +81,12 @@ export const updateExperience = onCall(
         const experienceSnap = await experienceRef.get();
 
         if (!experienceSnap.exists) {
-            console.warn(`❌ Experience ${experienceId} not found`);
+            logger.warn(`❌ Experience ${experienceId} not found`);
             throw new HttpsError('not-found', 'Experience not found');
         }
 
         const currentExperience = experienceSnap.data();
-        console.log(`📦 Updating experience: ${currentExperience?.title}`);
+        logger.info(`📦 Updating experience: ${currentExperience?.title}`);
 
         const uploadedUrls: string[] = [];
 
@@ -134,7 +135,7 @@ export const updateExperience = onCall(
 
             // ✅ DELETE IMAGES from Storage (if provided)
             if (deleteImageUrls && Array.isArray(deleteImageUrls) && deleteImageUrls.length > 0) {
-                console.log(`🗑️ Deleting ${deleteImageUrls.length} images from Storage`);
+                logger.info(`🗑️ Deleting ${deleteImageUrls.length} images from Storage`);
 
                 for (const imageUrl of deleteImageUrls) {
                     try {
@@ -144,7 +145,7 @@ export const updateExperience = onCall(
                         const prefix = `https://storage.googleapis.com/${bucketName}/`;
 
                         if (!imageUrl.startsWith(prefix)) {
-                            console.warn(`⚠️ Invalid Storage URL format: ${imageUrl}`);
+                            logger.warn(`⚠️ Invalid Storage URL format: ${imageUrl}`);
                             continue;
                         }
 
@@ -152,7 +153,7 @@ export const updateExperience = onCall(
 
                         // Path traversal check
                         if (filePath.includes('..') || !filePath.startsWith('experiences/')) {
-                            console.warn(`Skipping suspicious path: ${filePath}`);
+                            logger.warn(`Skipping suspicious path: ${filePath}`);
                             continue;
                         }
 
@@ -162,12 +163,12 @@ export const updateExperience = onCall(
                         const [exists] = await file.exists();
                         if (exists) {
                             await file.delete();
-                            console.log(`✅ Deleted: ${filePath}`);
+                            logger.info(`✅ Deleted: ${filePath}`);
                         } else {
-                            console.warn(`⚠️ File not found in Storage: ${filePath}`);
+                            logger.warn(`⚠️ File not found in Storage: ${filePath}`);
                         }
                     } catch (error: any) {
-                        console.error(`❌ Error deleting image ${imageUrl}:`, error.message);
+                        logger.error(`❌ Error deleting image ${imageUrl}:`, error.message);
                         // Continue with other deletions even if one fails
                     }
                 }
@@ -176,7 +177,7 @@ export const updateExperience = onCall(
             // ✅ UPLOAD NEW IMAGES to Storage (if provided)
             const newImageUrls: string[] = [];
             if (newImages && Array.isArray(newImages) && newImages.length > 0) {
-                console.log(`📤 Uploading ${newImages.length} new images`);
+                logger.info(`📤 Uploading ${newImages.length} new images`);
 
                 // Determine category for image path
                 const categoryForPath = fields?.category || currentExperience?.category || "general";
@@ -238,7 +239,7 @@ export const updateExperience = onCall(
                     newImageUrls.push(publicUrl);
                     uploadedUrls.push(publicUrl);
 
-                    console.log(`✅ Uploaded image ${i + 1}/${newImages.length}: ${publicUrl}`);
+                    logger.info(`✅ Uploaded image ${i + 1}/${newImages.length}: ${publicUrl}`);
                 }
             }
 
@@ -271,7 +272,7 @@ export const updateExperience = onCall(
             // ✅ UPDATE EXPERIENCE DOCUMENT in Firestore
             await experienceRef.update(updateData);
 
-            console.log(`✅ Experience updated successfully: ${experienceId}`);
+            logger.info(`✅ Experience updated successfully: ${experienceId}`);
 
             return {
                 success: true,
@@ -285,11 +286,11 @@ export const updateExperience = onCall(
                 throw error;
             }
 
-            console.error("❌ Error updating experience:", error);
+            logger.error("❌ Error updating experience:", error);
 
             // Cleanup uploaded images on failure
             if (uploadedUrls.length > 0) {
-                console.log(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
+                logger.info(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
                 const bucket = getStorage().bucket();
                 for (const url of uploadedUrls) {
                     try {
@@ -298,10 +299,10 @@ export const updateExperience = onCall(
                         if (url.startsWith(prefix)) {
                             const filePath = url.substring(prefix.length);
                             await bucket.file(filePath).delete();
-                            console.log(`✅ Cleaned up: ${filePath}`);
+                            logger.info(`✅ Cleaned up: ${filePath}`);
                         }
                     } catch (cleanupError: any) {
-                        console.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                        logger.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
                     }
                 }
             }

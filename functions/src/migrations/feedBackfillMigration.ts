@@ -18,20 +18,21 @@
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as fs from 'fs';
+import { logger } from 'firebase-functions/v2';
 
 // Path is relative to functions/lib/migrations/ -> project root
 const serviceAccountPath = path.join(__dirname, '..', '..', '..', 'ernit-3fc0b-firebase-adminsdk.json');
 
-console.log(`\nLooking for service account at: ${serviceAccountPath}`);
+logger.info(`\nLooking for service account at: ${serviceAccountPath}`);
 
 if (!fs.existsSync(serviceAccountPath)) {
-    console.error(`\n❌ ERROR: Firebase Admin SDK credentials file not found!`);
-    console.error(`\nExpected path: ${serviceAccountPath}`);
-    console.error(`\nTo fix this:`);
-    console.error(`1. Go to Firebase Console -> Project Settings -> Service Accounts`);
-    console.error(`2. Click "Generate new private key"`);
-    console.error(`3. Save the file as "ernit-3fc0b-firebase-adminsdk.json" in the project root`);
-    console.error(`   (c:\\ErnitAppWeb_Test\\ernit-3fc0b-firebase-adminsdk.json)\n`);
+    logger.error(`\n❌ ERROR: Firebase Admin SDK credentials file not found!`);
+    logger.error(`\nExpected path: ${serviceAccountPath}`);
+    logger.error(`\nTo fix this:`);
+    logger.error(`1. Go to Firebase Console -> Project Settings -> Service Accounts`);
+    logger.error(`2. Click "Generate new private key"`);
+    logger.error(`3. Save the file as "ernit-3fc0b-firebase-adminsdk.json" in the project root`);
+    logger.error(`   (c:\\ErnitAppWeb_Test\\ernit-3fc0b-firebase-adminsdk.json)\n`);
     process.exit(1);
 }
 
@@ -48,7 +49,7 @@ if (!admin.apps.length) {
 import { getFirestore } from 'firebase-admin/firestore';
 const db = getFirestore(admin.app());
 
-console.log(`📦 Using database: (default)`);
+logger.info(`📦 Using database: (default)`);
 
 interface MigrationStats {
     goalsProcessed: number;
@@ -66,7 +67,7 @@ DAYS_AGO.setDate(DAYS_AGO.getDate() - 60);
  * Clean up old migration posts (for re-running the migration)
  */
 async function cleanupOldMigrationPosts(dryRun: boolean = true): Promise<number> {
-    console.log(`\n🧹 Cleaning up old migration posts (${dryRun ? 'DRY RUN' : 'LIVE'})...\n`);
+    logger.info(`\n🧹 Cleaning up old migration posts (${dryRun ? 'DRY RUN' : 'LIVE'})...\n`);
 
     // Find posts with type 'goal_progress' (the old incorrect type) or 'session_progress' with reactionCounts all 0
     // This targets posts created by migration, not user activity
@@ -94,7 +95,7 @@ async function cleanupOldMigrationPosts(dryRun: boolean = true): Promise<number>
 
                 if (batchCount >= BATCH_SIZE) {
                     await batch.commit();
-                    console.log(`🗑️  Deleted batch of ${batchCount} posts`);
+                    logger.info(`🗑️  Deleted batch of ${batchCount} posts`);
                     batch = db.batch();
                     batchCount = 0;
                 }
@@ -105,10 +106,10 @@ async function cleanupOldMigrationPosts(dryRun: boolean = true): Promise<number>
 
     if (batchCount > 0 && !dryRun) {
         await batch.commit();
-        console.log(`🗑️  Deleted final batch of ${batchCount} posts`);
+        logger.info(`🗑️  Deleted final batch of ${batchCount} posts`);
     }
 
-    console.log(`📊 ${dryRun ? 'Would delete' : 'Deleted'} ${deleteCount} old migration posts\n`);
+    logger.info(`📊 ${dryRun ? 'Would delete' : 'Deleted'} ${deleteCount} old migration posts\n`);
     return deleteCount;
 }
 
@@ -116,8 +117,8 @@ async function cleanupOldMigrationPosts(dryRun: boolean = true): Promise<number>
  * Main migration function
  */
 async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats> {
-    console.log(`\n🚀 Starting feed backfill migration (${dryRun ? 'DRY RUN' : 'LIVE'})\n`);
-    console.log(`📅 Scope: Last 60 days + All completions\n`);
+    logger.info(`\n🚀 Starting feed backfill migration (${dryRun ? 'DRY RUN' : 'LIVE'})\n`);
+    logger.info(`📅 Scope: Last 60 days + All completions\n`);
 
     const stats: MigrationStats = {
         goalsProcessed: 0,
@@ -130,7 +131,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
     try {
         // Get all goals
         const goalsSnapshot = await db.collection('goals').get();
-        console.log(`📊 Found ${goalsSnapshot.size} total goals\n`);
+        logger.info(`📊 Found ${goalsSnapshot.size} total goals\n`);
 
         // Process in batches of 500 (Firestore limit)
         let currentBatch = db.batch();
@@ -146,7 +147,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                 // Get user details
                 const userDoc = await db.collection('users').doc(goalData.userId).get();
                 if (!userDoc.exists) {
-                    console.log(`⚠️  Skipping goal ${goalId}: User not found`);
+                    logger.info(`⚠️  Skipping goal ${goalId}: User not found`);
                     stats.skipped++;
                     continue;
                 }
@@ -171,7 +172,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                 // Total sessions ever done = completed weeks * sessions/week + current week sessions
                 const totalSessionsDone = currentCount * sessionsPerWeek + weeklyLogDates.length;
 
-                console.log(`  Goal ${goalId}: ${currentCount} weeks completed, ${weeklyLogDates.length} sessions this week, ${totalSessionsDone} total sessions`);
+                logger.info(`  Goal ${goalId}: ${currentCount} weeks completed, ${weeklyLogDates.length} sessions this week, ${totalSessionsDone} total sessions`);
 
                 // Create feed posts for current week's sessions
                 for (let i = 0; i < weeklyLogDates.length; i++) {
@@ -225,7 +226,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                                 // Commit batch when it reaches limit
                                 if (batchCount >= BATCH_SIZE) {
                                     await currentBatch.commit();
-                                    console.log(`✅ Committed batch of ${batchCount} posts`);
+                                    logger.info(`✅ Committed batch of ${batchCount} posts`);
                                     currentBatch = db.batch();
                                     batchCount = 0;
                                 }
@@ -277,7 +278,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                                 }
                             }
                         } catch (err) {
-                            console.log(`⚠️  Could not fetch experience details for goal ${goalId}`);
+                            logger.info(`⚠️  Could not fetch experience details for goal ${goalId}`);
                         }
 
                         const feedPostRef = db.collection('feedPosts').doc();
@@ -307,7 +308,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
 
                             if (batchCount >= BATCH_SIZE) {
                                 await currentBatch.commit();
-                                console.log(`✅ Committed batch of ${batchCount} posts`);
+                                logger.info(`✅ Committed batch of ${batchCount} posts`);
                                 currentBatch = db.batch();
                                 batchCount = 0;
                             }
@@ -319,11 +320,11 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
 
                 // Progress logging
                 if (stats.goalsProcessed % 10 === 0) {
-                    console.log(`📈 Processed ${stats.goalsProcessed}/${goalsSnapshot.size} goals...`);
+                    logger.info(`📈 Processed ${stats.goalsProcessed}/${goalsSnapshot.size} goals...`);
                 }
 
             } catch (error) {
-                console.error(`❌ Error processing goal ${goalDoc.id}:`, error);
+                logger.error(`❌ Error processing goal ${goalDoc.id}:`, error);
                 stats.errors++;
             }
         }
@@ -331,11 +332,11 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
         // Commit any remaining posts in the batch
         if (batchCount > 0 && !dryRun) {
             await currentBatch.commit();
-            console.log(`✅ Committed final batch of ${batchCount} posts`);
+            logger.info(`✅ Committed final batch of ${batchCount} posts`);
         }
 
     } catch (error) {
-        console.error('❌ Migration failed:', error);
+        logger.error('❌ Migration failed:', error);
         throw error;
     }
 
@@ -346,9 +347,9 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
  * Run the migration
  */
 async function runMigration(dryRun: boolean = true) {
-    console.log('\n' + '='.repeat(60));
-    console.log('   FEED BACKFILL MIGRATION');
-    console.log('='.repeat(60));
+    logger.info('\n' + '='.repeat(60));
+    logger.info('   FEED BACKFILL MIGRATION');
+    logger.info('='.repeat(60));
 
     try {
         // First, clean up old migration posts
@@ -357,28 +358,28 @@ async function runMigration(dryRun: boolean = true) {
         // Then create new posts
         const stats = await backfillFeedPosts(dryRun);
 
-        console.log('\n' + '='.repeat(60));
-        console.log('   MIGRATION COMPLETE');
-        console.log('='.repeat(60));
-        console.log(`\n📊 Statistics:`);
-        console.log(`   Goals processed:        ${stats.goalsProcessed}`);
-        console.log(`   Progress posts created: ${stats.progressPostsCreated}`);
-        console.log(`   Completion posts:       ${stats.completionPostsCreated}`);
-        console.log(`   Skipped:                ${stats.skipped}`);
-        console.log(`   Errors:                 ${stats.errors}`);
-        console.log(`   TOTAL POSTS:            ${stats.progressPostsCreated + stats.completionPostsCreated}`);
-        console.log('\n' + '='.repeat(60) + '\n');
+        logger.info('\n' + '='.repeat(60));
+        logger.info('   MIGRATION COMPLETE');
+        logger.info('='.repeat(60));
+        logger.info(`\n📊 Statistics:`);
+        logger.info(`   Goals processed:        ${stats.goalsProcessed}`);
+        logger.info(`   Progress posts created: ${stats.progressPostsCreated}`);
+        logger.info(`   Completion posts:       ${stats.completionPostsCreated}`);
+        logger.info(`   Skipped:                ${stats.skipped}`);
+        logger.info(`   Errors:                 ${stats.errors}`);
+        logger.info(`   TOTAL POSTS:            ${stats.progressPostsCreated + stats.completionPostsCreated}`);
+        logger.info('\n' + '='.repeat(60) + '\n');
 
         if (dryRun) {
-            console.log('✅ Dry run complete - no data was written');
-            console.log('💡 Run with "npm run migrate:feed" to execute migration\n');
+            logger.info('✅ Dry run complete - no data was written');
+            logger.info('💡 Run with "npm run migrate:feed" to execute migration\n');
         } else {
-            console.log('✅ Migration executed successfully!');
-            console.log('🎉 Feed posts have been created\n');
+            logger.info('✅ Migration executed successfully!');
+            logger.info('🎉 Feed posts have been created\n');
         }
 
     } catch (error) {
-        console.error('\n❌ Migration failed:', error);
+        logger.error('\n❌ Migration failed:', error);
         process.exit(1);
     }
 

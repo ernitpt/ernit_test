@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -39,7 +40,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
         const afterData = event.data?.after?.data();
 
         if (!beforeData || !afterData) {
-            console.warn("⚠️ [PROD] No snapshot data for chargeDeferredGift");
+            logger.warn("⚠️ [PROD] No snapshot data for chargeDeferredGift");
             return null;
         }
 
@@ -49,11 +50,11 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
         }
 
         const goalId = event.params.goalId;
-        console.log(`🎯 [PROD] Goal ${goalId} completed — checking for deferred gift`);
+        logger.info(`🎯 [PROD] Goal ${goalId} completed — checking for deferred gift`);
 
         const experienceGiftId = afterData.experienceGiftId;
         if (!experienceGiftId) {
-            console.log(`ℹ️ [PROD] Goal ${goalId} has no linked experienceGift — skipping`);
+            logger.info(`ℹ️ [PROD] Goal ${goalId} has no linked experienceGift — skipping`);
             return null;
         }
 
@@ -68,13 +69,13 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 recipientName = userDoc.data()?.name || userDoc.data()?.displayName || 'They';
             }
         } catch (e) {
-            console.warn("⚠️ [PROD] Could not fetch recipient name:", e);
+            logger.warn("⚠️ [PROD] Could not fetch recipient name:", e);
         }
 
         try {
             const giftDoc = await db.collection("experienceGifts").doc(experienceGiftId).get();
             if (!giftDoc.exists) {
-                console.warn(`⚠️ [PROD] ExperienceGift ${experienceGiftId} not found`);
+                logger.warn(`⚠️ [PROD] ExperienceGift ${experienceGiftId} not found`);
                 return null;
             }
 
@@ -85,7 +86,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
             // Idempotency guard: skip if already charged / completed
             if (giftData.payment === 'paid') {
-                console.log(`ℹ️ [PROD] ExperienceGift ${giftId} already paid, skipping`);
+                logger.info(`ℹ️ [PROD] ExperienceGift ${giftId} already paid, skipping`);
                 return null;
             }
 
@@ -94,7 +95,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 // C2 companion: if this is a shared gift but partnerGoalId is absent,
                 // we cannot safely verify both partners — skip charge entirely.
                 if (!afterData.partnerGoalId) {
-                    console.warn(`⚠️ [PROD] Shared challenge gift ${giftId} but partnerGoalId is absent on goal ${goalId} — skipping charge`);
+                    logger.warn(`⚠️ [PROD] Shared challenge gift ${giftId} but partnerGoalId is absent on goal ${goalId} — skipping charge`);
                     return null;
                 }
 
@@ -107,16 +108,16 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     partnerGoalData = partnerGoalSnap.data();
                     partnerUserId = partnerGoalData?.userId;
                 } catch (readErr) {
-                    console.error(`❌ [PROD] Failed to read partner goal ${afterData.partnerGoalId}:`, readErr);
+                    logger.error(`❌ [PROD] Failed to read partner goal ${afterData.partnerGoalId}:`, readErr);
                     return null; // Don't charge if we can't verify partner completion
                 }
 
                 if (!partnerGoalSnap?.exists) {
-                    console.warn('Partner goal deleted, treating as completed for charge purposes');
+                    logger.warn('Partner goal deleted, treating as completed for charge purposes');
                     // Proceed with charge (fall through to charge logic)
                 } else if (!partnerGoalData?.isCompleted) {
                     // One partner done, waiting on the other — notify BOTH (H3)
-                    console.log(`ℹ️ [PROD] Shared challenge: partner has not completed yet, skipping charge for goal ${goalId}`);
+                    logger.info(`ℹ️ [PROD] Shared challenge: partner has not completed yet, skipping charge for goal ${goalId}`);
 
                     const notifPayload = {
                         type: 'shared_completion',
@@ -144,11 +145,11 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     return null;
                 }
 
-                console.log(`✅ [PROD] Shared challenge: both partners complete for goal ${goalId} — proceeding`);
+                logger.info(`✅ [PROD] Shared challenge: both partners complete for goal ${goalId} — proceeding`);
 
                 // ── C5: FREE shared gift — unlock both goals, notify, no charge ──
                 if (giftData.payment === 'free') {
-                    console.log(`ℹ️ [PROD] Free shared gift ${giftId} — unlocking both goals`);
+                    logger.info(`ℹ️ [PROD] Free shared gift ${giftId} — unlocking both goals`);
 
                     // Unlock both goals (C1 pattern, no charge needed)
                     const unlockBatch = db.batch();
@@ -169,7 +170,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
                     // Fix 8: Skip shared_unlock notifications if already sent
                     if (giftData.notificationSent) {
-                        console.log(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
+                        logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                         return null;
                     }
 
@@ -203,26 +204,26 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     // Fix 8: Mark notification as sent to prevent duplicate sends
                     await giftRef.update({ notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
 
-                    console.log(`✅ [PROD] Free shared gift ${giftId} — both goals unlocked and notifications sent`);
+                    logger.info(`✅ [PROD] Free shared gift ${giftId} — both goals unlocked and notifications sent`);
                     return null;
                 }
             } else {
                 // Solo free goal — no processing needed
                 if (giftData.payment === 'free') {
-                    console.log(`ℹ️ [PROD] Free solo gift ${giftId} — no processing needed`);
+                    logger.info(`ℹ️ [PROD] Free solo gift ${giftId} — no processing needed`);
                     return null;
                 }
             }
 
             // ── Deferred payment path ─────────────────────────────────────────
             if (giftData.payment !== 'deferred') {
-                console.log(`ℹ️ [PROD] ExperienceGift ${giftId} payment is '${giftData.payment}' — skipping`);
+                logger.info(`ℹ️ [PROD] ExperienceGift ${giftId} payment is '${giftData.payment}' — skipping`);
                 return null;
             }
 
             // Fix 9: Expiry check — skip charge if the gift has expired
             if (giftData.expiresAt && giftData.expiresAt.toDate() < new Date()) {
-                console.warn(`Gift ${giftId} has expired, skipping charge`);
+                logger.warn(`Gift ${giftId} has expired, skipping charge`);
                 // Notify both parties
                 const notifBatch = db.batch();
                 notifBatch.set(db.collection('notifications').doc(), {
@@ -253,7 +254,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             }
 
             if (!giftData.setupIntentId) {
-                console.error(`❌ [PROD] ExperienceGift ${giftId} has no setupIntentId`);
+                logger.error(`❌ [PROD] ExperienceGift ${giftId} has no setupIntentId`);
                 await db.collection("notifications").add({
                     userId: giftData.giverId,
                     type: 'payment_failed',
@@ -275,7 +276,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             const paymentMethodId = setupIntent.payment_method as string;
 
             if (!paymentMethodId) {
-                console.error(`❌ [PROD] SetupIntent ${giftData.setupIntentId} has no payment method`);
+                logger.error(`❌ [PROD] SetupIntent ${giftData.setupIntentId} has no payment method`);
                 await db.collection("notifications").add({
                     userId: giftData.giverId,
                     type: 'payment_failed',
@@ -292,7 +293,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             const currency = giftData.deferredCurrency || 'eur';
 
             if (amount <= 0) {
-                console.warn(`⚠️ [PROD] Deferred amount is 0 for gift ${giftId} — treating as free`);
+                logger.warn(`⚠️ [PROD] Deferred amount is 0 for gift ${giftId} — treating as free`);
                 await giftRef.update({
                     payment: 'paid',
                     status: 'completed',
@@ -329,7 +330,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 });
             } catch (txError: any) {
                 if (txError.message === 'ALREADY_PROCESSING') {
-                    console.log(`ℹ️ [PROD] ExperienceGift ${giftId} is already being processed — skipping`);
+                    logger.info(`ℹ️ [PROD] ExperienceGift ${giftId} is already being processed — skipping`);
                     return null;
                 }
                 throw txError;
@@ -355,7 +356,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 } catch (attachErr: any) {
                     // Stripe throws if PM is already attached to this or another customer.
                     // Log but don't block — the charge will still work if PM belongs to this customer.
-                    console.log(`ℹ️ PM attach skipped: ${attachErr.message}`);
+                    logger.info(`ℹ️ PM attach skipped: ${attachErr.message}`);
                 }
 
                 const paymentIntent = await stripe.paymentIntents.create(
@@ -397,9 +398,9 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         if (attempt === 3) {
                             // All retries failed — log critical error with PaymentIntent ID
                             // for manual reconciliation. Do NOT revert to 'deferred'.
-                            console.error(`🚨 [CRITICAL] Gift ${giftId} charged (PI: ${paymentIntent.id}) but Firestore update failed after 3 attempts:`, updateErr);
+                            logger.error(`🚨 [CRITICAL] Gift ${giftId} charged (PI: ${paymentIntent.id}) but Firestore update failed after 3 attempts:`, updateErr);
                         } else {
-                            console.warn(`⚠️ Firestore update attempt ${attempt}/3 failed for gift ${giftId}, retrying...`);
+                            logger.warn(`⚠️ Firestore update attempt ${attempt}/3 failed for gift ${giftId}, retrying...`);
                             await new Promise(r => setTimeout(r, 500 * attempt));
                         }
                     }
@@ -412,12 +413,12 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         updatedAt: FieldValue.serverTimestamp(),
                     });
                 } catch (revertError) {
-                    console.error(`❌ [PROD] Failed to revert gift ${giftId} to deferred after Stripe error:`, revertError);
+                    logger.error(`❌ [PROD] Failed to revert gift ${giftId} to deferred after Stripe error:`, revertError);
                 }
                 throw stripeError;
             }
 
-            console.log(`✅ [PROD] Charged deferred gift ${giftId}: PaymentIntent ${paymentIntentId!}, status ${paymentIntentStatus!}`);
+            logger.info(`✅ [PROD] Charged deferred gift ${giftId}: PaymentIntent ${paymentIntentId!}, status ${paymentIntentStatus!}`);
 
             // ── C1: Unlock both goals for shared challenges ───────────────────
             if (isShared && afterData.partnerGoalId) {
@@ -431,7 +432,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     unlockedAt: FieldValue.serverTimestamp(),
                 });
                 await goalUnlockBatch.commit();
-                console.log(`✅ [PROD] Unlocked both goals for shared challenge gift ${giftId}`);
+                logger.info(`✅ [PROD] Unlocked both goals for shared challenge gift ${giftId}`);
 
                 // Re-read partner goal to get userId for notifications (partnerGoalData was scoped to earlier block)
                 const partnerGoalForNotif = afterData.partnerGoalId
@@ -470,7 +471,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     // Fix 8: Mark notification as sent to prevent duplicate sends
                     await giftRef.update({ notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
                 } else {
-                    console.log(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
+                    logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                 }
             } else {
                 // Solo challenge — notify giver of successful charge
@@ -487,7 +488,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
             return null;
         } catch (error: any) {
-            console.error(`❌ [PROD] Error charging deferred gift for goal ${goalId}:`, error);
+            logger.error(`❌ [PROD] Error charging deferred gift for goal ${goalId}:`, error);
 
             // Notify giver of ANY charge failure so the gift doesn't silently stall
             const db2 = getDbProd();
@@ -521,7 +522,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     });
                 }
             } catch (notifError) {
-                console.error("❌ [PROD] Failed to send payment failure notification:", notifError);
+                logger.error("❌ [PROD] Failed to send payment failure notification:", notifError);
             }
 
             return null;

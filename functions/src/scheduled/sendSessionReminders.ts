@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 /**
@@ -21,7 +22,7 @@ export const sendSessionReminders = functions.onSchedule(
     },
     async (event) => {
         try {
-            console.log("🔔 [PROD] Starting session reminders check...");
+            logger.info("🔔 [PROD] Starting session reminders check...");
 
             // Import db from index.ts (production database)
             const db = require("../index").dbProd;
@@ -33,7 +34,7 @@ export const sendSessionReminders = functions.onSchedule(
                 .where("profile.reminderEnabled", "==", true)
                 .get();
 
-            console.log(`📊 [PROD] Found ${usersSnap.size} users with reminders enabled`);
+            logger.info(`📊 [PROD] Found ${usersSnap.size} users with reminders enabled`);
 
             let notificationsSent = 0;
 
@@ -54,7 +55,7 @@ export const sendSessionReminders = functions.onSchedule(
 
                 // Check if current hour matches user's reminder hour
                 if (currentHourInUserTz !== reminderHour) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] User ${userDoc.id}: Not their reminder hour (current: ${currentHourInUserTz}, reminder: ${reminderHour})`
                     );
                     continue;
@@ -66,7 +67,7 @@ export const sendSessionReminders = functions.onSchedule(
 
                 // Check if we already sent a reminder today
                 if (user.lastReminderSentDate === todayInUserTz) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] User ${userDoc.id}: Already sent reminder today`
                     );
                     continue;
@@ -80,7 +81,7 @@ export const sendSessionReminders = functions.onSchedule(
                     .get();
 
                 if (goalsSnap.empty) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] User ${userDoc.id}: No active goals`
                     );
                     continue;
@@ -133,14 +134,14 @@ export const sendSessionReminders = functions.onSchedule(
                 }
 
                 if (!needsReminder) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] User ${userDoc.id}: All sessions done today and weekly targets met`
                     );
                     continue;
                 }
 
                 if (!mostBehindGoal) {
-                    console.log(
+                    logger.info(
                         `⚠️ [PROD] User ${userDoc.id}: Needs reminder but no goal found`
                     );
                     continue;
@@ -209,22 +210,22 @@ export const sendSessionReminders = functions.onSchedule(
                     await batch.commit();
 
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [PROD] Sent reminder to user ${userDoc.id} for goal ${mostBehindGoal.id} (${mostBehindGoal.weeklyCount}/${mostBehindGoal.sessionsPerWeek})`
                     );
                 } catch (notifError) {
-                    console.error(
+                    logger.error(
                         `❌ [PROD] Failed to create notification for user ${userDoc.id}:`,
                         notifError
                     );
                 }
             }
 
-            console.log(
+            logger.info(
                 `✨ [PROD] Session reminders check complete. Sent ${notificationsSent} notification(s).`
             );
         } catch (error) {
-            console.error("❌ [PROD] Error in sendSessionReminders:", error);
+            logger.error("❌ [PROD] Error in sendSessionReminders:", error);
         }
     }
 );

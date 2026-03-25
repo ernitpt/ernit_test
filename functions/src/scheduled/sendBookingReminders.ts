@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 /**
@@ -52,7 +53,7 @@ export const sendBookingReminders = functions.onSchedule(
     },
     async () => {
         try {
-            console.log("🔔 [PROD] Starting booking reminders check...");
+            logger.info("🔔 [PROD] Starting booking reminders check...");
 
             const db = require("../index").dbProd;
             const now = new Date();
@@ -68,7 +69,7 @@ export const sendBookingReminders = functions.onSchedule(
                 .where("completedAt", ">=", thirtyDaysAgo)
                 .get();
 
-            console.log(`📊 [PROD] Found ${goalsSnap.size} recently completed goals`);
+            logger.info(`📊 [PROD] Found ${goalsSnap.size} recently completed goals`);
 
             // Pre-fetch all unique experienceGift docs to avoid N+1 sequential reads
             const giftIds = new Set<string>();
@@ -100,7 +101,7 @@ export const sendBookingReminders = functions.onSchedule(
                 })
             );
 
-            console.log(`📦 [PROD] Pre-fetched ${giftDocs.size} gift doc(s) and ${experienceDocs.size} experience doc(s)`);
+            logger.info(`📦 [PROD] Pre-fetched ${giftDocs.size} gift doc(s) and ${experienceDocs.size} experience doc(s)`);
 
             let notificationsSent = 0;
 
@@ -134,7 +135,7 @@ export const sendBookingReminders = functions.onSchedule(
                 // Check if this reminder was already sent
                 const sentReminders: number[] = goal.bookingReminderDays || [];
                 if (sentReminders.includes(daysSinceCompletion)) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] Goal ${goalDoc.id}: Day-${daysSinceCompletion} reminder already sent`
                     );
                     continue;
@@ -156,7 +157,7 @@ export const sendBookingReminders = functions.onSchedule(
                         }
                     }
                 } catch (expError) {
-                    console.error(
+                    logger.error(
                         `⚠️ [PROD] Could not resolve experience name for goal ${goalDoc.id}:`,
                         expError
                     );
@@ -172,7 +173,7 @@ export const sendBookingReminders = functions.onSchedule(
                         await batch.commit();
                         batch = db.batch();
                         batchCount = 0;
-                        console.log("🔄 [PROD] Committed intermediate batch, starting new batch");
+                        logger.info("🔄 [PROD] Committed intermediate batch, starting new batch");
                     }
 
                     const notifRef = db.collection("notifications").doc();
@@ -198,11 +199,11 @@ export const sendBookingReminders = functions.onSchedule(
 
                     batchCount += 2;
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [PROD] Staged day-${daysSinceCompletion} booking reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
                 } catch (notifError) {
-                    console.error(
+                    logger.error(
                         `❌ [PROD] Failed to stage booking reminder for goal ${goalDoc.id}:`,
                         notifError
                     );
@@ -212,14 +213,14 @@ export const sendBookingReminders = functions.onSchedule(
             // Commit any remaining batch operations
             if (batchCount > 0) {
                 await batch.commit();
-                console.log(`🔄 [PROD] Committed final batch (${batchCount} ops)`);
+                logger.info(`🔄 [PROD] Committed final batch (${batchCount} ops)`);
             }
 
-            console.log(
+            logger.info(
                 `✨ [PROD] Booking reminders check complete. Sent ${notificationsSent} notification(s).`
             );
         } catch (error) {
-            console.error("❌ [PROD] Error in sendBookingReminders:", error);
+            logger.error("❌ [PROD] Error in sendBookingReminders:", error);
         }
     }
 );

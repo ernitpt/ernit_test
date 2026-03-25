@@ -1,5 +1,6 @@
 // ✅ Firebase Functions v2 version
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -14,7 +15,7 @@ export const deleteExperience = onCall(
         cors: allowedOrigins,
     },
     async (request) => {
-        console.log("🚀 deleteExperience called");
+        logger.info("🚀 deleteExperience called");
 
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
@@ -23,7 +24,7 @@ export const deleteExperience = onCall(
         }
 
         const userId = auth.uid;
-        console.log(`👤 Authenticated user: ${userId}`);
+        logger.info(`👤 Authenticated user: ${userId}`);
 
         // ✅ SECURITY: Verify admin status
         const db = admin.firestore();
@@ -31,17 +32,17 @@ export const deleteExperience = onCall(
         const partnerUserSnap = await partnerUserRef.get();
 
         if (!partnerUserSnap.exists) {
-            console.warn(`❌ User ${userId} is not a partner user`);
+            logger.warn(`❌ User ${userId} is not a partner user`);
             throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
-            console.warn(`❌ User ${userId} is not an admin`);
+            logger.warn(`❌ User ${userId} is not an admin`);
             throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
-        console.log(`✅ Admin verified: ${userId}`);
+        logger.info(`✅ Admin verified: ${userId}`);
 
         // Extract data from request
         const { experienceId } = request.data;
@@ -51,7 +52,7 @@ export const deleteExperience = onCall(
             throw new HttpsError('invalid-argument', 'Missing or invalid experienceId');
         }
 
-        console.log(`🗑️ Deleting experience: ${experienceId}`);
+        logger.info(`🗑️ Deleting experience: ${experienceId}`);
 
         try {
             // ✅ FETCH EXPERIENCE DOCUMENT
@@ -65,7 +66,7 @@ export const deleteExperience = onCall(
             const experienceData = experienceSnap.data();
             const imageUrls = experienceData?.imageUrl || [];
 
-            console.log(`📸 Found ${imageUrls.length} images to delete`);
+            logger.info(`📸 Found ${imageUrls.length} images to delete`);
 
             // ✅ DELETE IMAGES from Firebase Storage
             const bucket = getStorage().bucket();
@@ -81,7 +82,7 @@ export const deleteExperience = onCall(
                     const matches = imageUrl.match(urlPattern);
 
                     if (!matches) {
-                        console.warn(`⚠️ Could not parse Storage path from URL: ${imageUrl}`);
+                        logger.warn(`⚠️ Could not parse Storage path from URL: ${imageUrl}`);
                         continue;
                     }
 
@@ -89,20 +90,20 @@ export const deleteExperience = onCall(
 
                     // Path traversal check
                     if (storagePath.includes('..') || !storagePath.startsWith('experiences/')) {
-                        console.warn(`Skipping suspicious path: ${storagePath}`);
+                        logger.warn(`Skipping suspicious path: ${storagePath}`);
                         continue;
                     }
 
-                    console.log(`🗑️ Deleting image ${i + 1}/${imageUrls.length}: ${storagePath}`);
+                    logger.info(`🗑️ Deleting image ${i + 1}/${imageUrls.length}: ${storagePath}`);
 
                     // Delete file from Storage
                     const file = bucket.file(storagePath);
                     await file.delete();
 
-                    console.log(`✅ Deleted image ${i + 1}/${imageUrls.length}`);
+                    logger.info(`✅ Deleted image ${i + 1}/${imageUrls.length}`);
                 } catch (imageError: any) {
                     // Don't fail the entire deletion if an image is already deleted or inaccessible
-                    console.warn(`⚠️ Failed to delete image ${i + 1}: ${imageError.message}`);
+                    logger.warn(`⚠️ Failed to delete image ${i + 1}: ${imageError.message}`);
                 }
             }
 
@@ -123,7 +124,7 @@ export const deleteExperience = onCall(
             // ✅ DELETE EXPERIENCE DOCUMENT from Firestore
             await experienceRef.delete();
 
-            console.log(`✅ Experience deleted successfully: ${experienceId}`);
+            logger.info(`✅ Experience deleted successfully: ${experienceId}`);
 
             return {
                 success: true,
@@ -136,7 +137,7 @@ export const deleteExperience = onCall(
                 throw error;
             }
 
-            console.error("❌ Error deleting experience:", error);
+            logger.error("❌ Error deleting experience:", error);
             throw new HttpsError('internal', 'Failed to delete experience');
         }
     }

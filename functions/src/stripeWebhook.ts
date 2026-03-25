@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
@@ -19,7 +20,7 @@ export const stripeWebhook = onRequest(
         secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
     },
     async (req, res) => {
-        console.log("🔔 [PROD] Webhook received");
+        logger.info("🔔 [PROD] Webhook received");
 
         if (req.method !== "POST") {
             res.status(405).send("Method Not Allowed");
@@ -32,7 +33,7 @@ export const stripeWebhook = onRequest(
 
         const sig = req.headers["stripe-signature"];
         if (!sig) {
-            console.error("❌ No Stripe signature");
+            logger.error("❌ No Stripe signature");
             res.status(400).send("No signature");
             return;
         }
@@ -47,23 +48,23 @@ export const stripeWebhook = onRequest(
                 STRIPE_WEBHOOK_SECRET.value()
             );
         } catch (err: any) {
-            console.error("❌ Webhook signature verification failed:", err.message);
+            logger.error("❌ Webhook signature verification failed:", err.message);
             res.status(400).send('Webhook signature verification failed');
             return;
         }
 
-        console.log("✅ [PROD] Webhook verified:", event.type);
+        logger.info("✅ [PROD] Webhook verified:", event.type);
 
         // Handle payment_intent.succeeded event
         if (event.type === "payment_intent.succeeded") {
             const paymentIntent = event.data.object as Stripe.PaymentIntent;
-            console.log("💰 [PROD] Payment succeeded:", paymentIntent.id);
+            logger.info("💰 [PROD] Payment succeeded:", paymentIntent.id);
 
             try {
                 await handleSuccessfulPayment(paymentIntent);
                 res.status(200).json({ received: true });
             } catch (err: any) {
-                console.error("❌ Error handling payment:", err);
+                logger.error("❌ Error handling payment:", err);
                 // T1-2: Return 500 so Stripe retries — gifts must be created
                 res.status(500).json({ error: "Payment processing failed" });
             }
@@ -73,7 +74,7 @@ export const stripeWebhook = onRequest(
         // Handle payment_intent.payment_failed event
         if (event.type === "payment_intent.payment_failed") {
             const paymentIntent = event.data.object as Stripe.PaymentIntent;
-            console.log("❌ [PROD] Payment failed:", paymentIntent.id);
+            logger.info("❌ [PROD] Payment failed:", paymentIntent.id);
             const metadata = paymentIntent.metadata;
             if (metadata?.giverId) {
                 try {
@@ -86,9 +87,9 @@ export const stripeWebhook = onRequest(
                         read: false,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
-                    console.log(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
+                    logger.info(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
                 } catch (notifError) {
-                    console.error("❌ [PROD] Failed to send payment failed notification:", notifError);
+                    logger.error("❌ [PROD] Failed to send payment failed notification:", notifError);
                 }
             }
         }
@@ -102,17 +103,17 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const metadata = paymentIntent.metadata;
     const paymentIntentId = paymentIntent.id;
 
-    console.log("📦 [PROD] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
+    logger.info("📦 [PROD] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
 
     // ✅ DEFERRED CHARGE — handled by chargeDeferredGift trigger, not here
     if (metadata?.type === 'deferred_charge') {
-        console.log('Deferred charge payment succeeded, handled by trigger');
+        logger.info('Deferred charge payment succeeded, handled by trigger');
         return;
     }
 
     // ✅ STANDARD GIFT PURCHASE FLOW
     if (!metadata.giverId || !metadata.cart) {
-        console.error("❌ Missing required metadata (giverId or cart)");
+        logger.error("❌ Missing required metadata (giverId or cart)");
         throw new Error("Missing required metadata");
     }
 
@@ -121,7 +122,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     try {
         cart = JSON.parse(metadata.cart);
     } catch (err) {
-        console.error("❌ Cannot parse cart metadata:", err);
+        logger.error("❌ Cannot parse cart metadata:", err);
         throw new Error("Invalid cart metadata");
     }
 
@@ -159,7 +160,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         const processedDoc = await transaction.get(processedRef);
 
         if (processedDoc.exists) {
-            console.log("⚠️ Payment already processed - verifying existing gifts");
+            logger.info("⚠️ Payment already processed - verifying existing gifts");
             const existingGiftIds = processedDoc.data()?.gifts || [];
 
             // Fetch and verify existing gifts still exist with valid status
@@ -167,12 +168,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
                 existingGiftIds.map(async (giftId: string) => {
                     const giftDoc = await db.collection("experienceGifts").doc(giftId).get();
                     if (!giftDoc.exists) {
-                        console.warn(`⚠️ Cached gift ${giftId} no longer exists`);
+                        logger.warn(`⚠️ Cached gift ${giftId} no longer exists`);
                         return null;
                     }
                     const giftData = giftDoc.data();
                     if (giftData?.status !== 'pending' && giftData?.status !== 'active' && giftData?.status !== 'claimed') {
-                        console.warn(`⚠️ Cached gift ${giftId} has unexpected status: ${giftData?.status}`);
+                        logger.warn(`⚠️ Cached gift ${giftId} has unexpected status: ${giftData?.status}`);
                     }
                     return giftData;
                 })
@@ -180,7 +181,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
 
             const validGifts = existingGifts.filter(Boolean);
             if (validGifts.length === 0) {
-                console.error(`❌ All cached gifts for ${paymentIntentId} are missing — this needs manual investigation`);
+                logger.error(`❌ All cached gifts for ${paymentIntentId} are missing — this needs manual investigation`);
             }
             return validGifts;
         }
@@ -230,7 +231,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
             gifts: createdGifts.map(g => g.id),
         });
 
-        console.log(`✅ [PROD] Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
+        logger.info(`✅ [PROD] Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
 
         return createdGifts;
     });
@@ -278,7 +279,7 @@ async function generateUniqueClaimCode(): Promise<string> {
             return code;
         }
 
-        console.warn(`⚠️ Claim code collision detected (attempt ${attempt + 1})`);
+        logger.warn(`⚠️ Claim code collision detected (attempt ${attempt + 1})`);
     }
 
     throw new Error('Failed to generate unique claim code after 10 attempts');

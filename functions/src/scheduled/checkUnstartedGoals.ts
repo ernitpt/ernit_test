@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 /**
@@ -19,7 +20,7 @@ export const checkUnstartedGoals = functions.onSchedule(
     },
     async (event) => {
         try {
-            console.log("🔍 [PROD] Starting unstarted goals check...");
+            logger.info("🔍 [PROD] Starting unstarted goals check...");
 
             // Import db from index.ts (production database)
             const db = require("../index").dbProd;
@@ -32,7 +33,7 @@ export const checkUnstartedGoals = functions.onSchedule(
                 .where("isCompleted", "==", false)
                 .get();
 
-            console.log(`📊 [PROD] Found ${goalsSnap.size} unstarted goals`);
+            logger.info(`📊 [PROD] Found ${goalsSnap.size} unstarted goals`);
 
             let notificationsSent = 0;
 
@@ -41,7 +42,7 @@ export const checkUnstartedGoals = functions.onSchedule(
                 const plannedStart = goal.plannedStartDate?.toDate();
 
                 if (!plannedStart) {
-                    console.log(
+                    logger.info(
                         `⚠️ [PROD] Goal ${goalDoc.id} has no plannedStartDate, skipping`
                     );
                     continue;
@@ -51,7 +52,7 @@ export const checkUnstartedGoals = functions.onSchedule(
                 const timeDiff = now.getTime() - plannedStart.getTime();
                 const daysSincePlanned = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
 
-                console.log(
+                logger.info(
                     `📅 [PROD] Goal ${goalDoc.id}: ${daysSincePlanned} days since planned start`
                 );
 
@@ -75,7 +76,7 @@ export const checkUnstartedGoals = functions.onSchedule(
                 }
                 // Skip if outside notification windows
                 else {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] Goal ${goalDoc.id}: Not in notification window (day ${daysSincePlanned})`
                     );
                     continue;
@@ -87,7 +88,7 @@ export const checkUnstartedGoals = functions.onSchedule(
                     : [];
 
                 if (sentDays.includes(daysSincePlanned)) {
-                    console.log(
+                    logger.info(
                         `⏭️ [PROD] Goal ${goalDoc.id}: already sent day-${daysSincePlanned} notification, skipping`
                     );
                     continue;
@@ -118,22 +119,22 @@ export const checkUnstartedGoals = functions.onSchedule(
                     await batch.commit();
 
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [PROD] Sent day-${daysSincePlanned} reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
                 } catch (notifError) {
-                    console.error(
+                    logger.error(
                         `❌ [PROD] Failed to create notification for goal ${goalDoc.id}:`,
                         notifError
                     );
                 }
             }
 
-            console.log(
+            logger.info(
                 `✨ [PROD] Unstarted goals check complete. Sent ${notificationsSent} notification(s).`
             );
         } catch (error) {
-            console.error("❌ [PROD] Error in checkUnstartedGoals:", error);
+            logger.error("❌ [PROD] Error in checkUnstartedGoals:", error);
         }
     }
 );

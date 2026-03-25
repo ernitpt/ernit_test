@@ -1,5 +1,6 @@
 // ✅ Firebase Functions v2 version
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { getStorage } from "firebase-admin/storage";
 import * as admin from "firebase-admin";
 import { allowedOrigins } from "./cors";
@@ -20,7 +21,7 @@ export const createExperience = onCall(
         cors: allowedOrigins,
     },
     async (request) => {
-        console.log("🚀 createExperience called");
+        logger.info("🚀 createExperience called");
 
         // ✅ SECURITY: Check authentication
         const auth = request.auth;
@@ -29,7 +30,7 @@ export const createExperience = onCall(
         }
 
         const userId = auth.uid;
-        console.log(`👤 Authenticated user: ${userId}`);
+        logger.info(`👤 Authenticated user: ${userId}`);
 
         // ✅ SECURITY: Verify admin status
         const db = admin.firestore();
@@ -37,17 +38,17 @@ export const createExperience = onCall(
         const partnerUserSnap = await partnerUserRef.get();
 
         if (!partnerUserSnap.exists) {
-            console.warn(`❌ User ${userId} is not a partner user`);
+            logger.warn(`❌ User ${userId} is not a partner user`);
             throw new HttpsError('permission-denied', 'User is not a partner');
         }
 
         const partnerUserData = partnerUserSnap.data();
         if (!partnerUserData?.isAdmin) {
-            console.warn(`❌ User ${userId} is not an admin`);
+            logger.warn(`❌ User ${userId} is not an admin`);
             throw new HttpsError('permission-denied', 'User is not an admin');
         }
 
-        console.log(`✅ Admin verified: ${userId}`);
+        logger.info(`✅ Admin verified: ${userId}`);
 
         // Extract data from request
         const data = request.data;
@@ -93,7 +94,7 @@ export const createExperience = onCall(
             throw new HttpsError('invalid-argument', 'Maximum 10 images allowed');
         }
 
-        console.log(`📦 Creating experience: ${title} (${category})`);
+        logger.info(`📦 Creating experience: ${title} (${category})`);
 
         const uploadedUrls: string[] = [];
 
@@ -157,7 +158,7 @@ export const createExperience = onCall(
                 imageUrls.push(publicUrl);
                 uploadedUrls.push(publicUrl);
 
-                console.log(`✅ Uploaded image ${i + 1}/${images.length}: ${publicUrl}`);
+                logger.info(`✅ Uploaded image ${i + 1}/${images.length}: ${publicUrl}`);
             }
 
             // ✅ CREATE EXPERIENCE DOCUMENT in Firestore
@@ -179,7 +180,7 @@ export const createExperience = onCall(
 
             await experienceRef.set(experienceData);
 
-            console.log(`✅ Experience created successfully: ${experienceRef.id}`);
+            logger.info(`✅ Experience created successfully: ${experienceRef.id}`);
 
             return {
                 success: true,
@@ -193,11 +194,11 @@ export const createExperience = onCall(
                 throw error;
             }
 
-            console.error("❌ Error creating experience:", error);
+            logger.error("❌ Error creating experience:", error);
 
             // Cleanup uploaded images on failure
             if (uploadedUrls.length > 0) {
-                console.log(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
+                logger.info(`🗑️ Cleaning up ${uploadedUrls.length} uploaded images due to error`);
                 const bucket = getStorage().bucket();
                 for (const url of uploadedUrls) {
                     try {
@@ -206,10 +207,10 @@ export const createExperience = onCall(
                         if (url.startsWith(prefix)) {
                             const filePath = url.substring(prefix.length);
                             await bucket.file(filePath).delete();
-                            console.log(`✅ Cleaned up: ${filePath}`);
+                            logger.info(`✅ Cleaned up: ${filePath}`);
                         }
                     } catch (cleanupError: any) {
-                        console.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
+                        logger.warn(`⚠️ Failed to cleanup ${url}: ${cleanupError.message}`);
                     }
                 }
             }

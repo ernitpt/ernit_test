@@ -1,4 +1,5 @@
 import * as nodemailer from 'nodemailer';
+import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 
 // Define secrets for general email credentials
@@ -17,7 +18,7 @@ export async function sendEmail(
     const emailPass = GENERAL_EMAIL_PASS.value();
 
     if (!emailUser || !emailPass) {
-        console.error('❌ General email credentials missing');
+        logger.error('❌ General email credentials missing');
         throw new Error('General email service not configured');
     }
 
@@ -38,9 +39,9 @@ export async function sendEmail(
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log(`✅ Email sent to ${to}, messageId: ${info.messageId}`);
+        logger.info(`✅ Email sent to ${to}, messageId: ${info.messageId}`);
     } catch (error) {
-        console.error(`❌ Failed to send email to ${to}:`, error);
+        logger.error(`❌ Failed to send email to ${to}:`, error);
         throw error;
     }
 }

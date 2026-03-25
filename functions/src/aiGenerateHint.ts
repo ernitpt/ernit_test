@@ -1,5 +1,6 @@
 // ✅ Firebase Functions v2 version
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import {
   selectHintCategory,
@@ -380,7 +381,7 @@ export const aiGenerateHint = onCall(
     ],
   },
   async (requestData) => {
-    console.log("🚀 aiGenerateHint called");
+    logger.info("🚀 aiGenerateHint called");
 
     // ✅ SECURITY: Rate limiting check
     const auth = requestData.auth;
@@ -399,7 +400,7 @@ export const aiGenerateHint = onCall(
       const indexModule = await import('./index.js');
       db = indexModule.dbProd;
     } catch (importError) {
-      console.error('Failed to import db from index.js:', importError);
+      logger.error('Failed to import db from index.js:', importError);
       throw new HttpsError('internal', 'Service initialization failed');
     }
 
@@ -415,7 +416,7 @@ export const aiGenerateHint = onCall(
         );
 
         if (recentRequests.length >= RATE_LIMIT) {
-          console.warn(`⚠️ Rate limit exceeded for user ${userId}`);
+          logger.warn(`⚠️ Rate limit exceeded for user ${userId}`);
           throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again later.');
         }
 
@@ -437,7 +438,7 @@ export const aiGenerateHint = onCall(
       if (rateLimitError instanceof HttpsError) {
         throw rateLimitError;
       }
-      console.warn('Rate limit check failed, proceeding without enforcement:', rateLimitError);
+      logger.warn('Rate limit check failed, proceeding without enforcement:', rateLimitError);
     }
 
     // `requestData.data` for Firebase SDK clients
@@ -458,7 +459,7 @@ export const aiGenerateHint = onCall(
 
     // ✅ Mystery gift mode: look up experience from goal → gift → experience server-side
     if (goalId && !experienceType) {
-      console.log(`🔍 Mystery hint: looking up experience for goalId=${goalId}`);
+      logger.info(`🔍 Mystery hint: looking up experience for goalId=${goalId}`);
       const goalDoc = await db.collection('goals').doc(goalId).get();
       if (!goalDoc.exists) throw new HttpsError('not-found', 'Goal not found');
 
@@ -509,11 +510,11 @@ export const aiGenerateHint = onCall(
         totalSessions = goalData.targetCount * goalData.sessionsPerWeek;
       }
 
-      console.log(`✅ Mystery experience resolved: "${experienceType}"`);
+      logger.info(`✅ Mystery experience resolved: "${experienceType}"`);
     }
 
     if (!experienceType || !sessionNumber || !totalSessions || !style) {
-      console.error("❌ Missing required fields", data);
+      logger.error("❌ Missing required fields", data);
       throw new HttpsError('invalid-argument', 'Missing required fields');
     }
 
@@ -562,9 +563,9 @@ export const aiGenerateHint = onCall(
     const assignedCategory = selectHintCategory(sessionNumber, previousCategories);
     const categoryDef = HINT_CATEGORIES[assignedCategory];
 
-    console.log(`📂 Session ${sessionNumber}: Assigned category "${assignedCategory}"`);
+    logger.info(`📂 Session ${sessionNumber}: Assigned category "${assignedCategory}"`);
 
-    console.log("📦 Received valid data:", {
+    logger.info("📦 Received valid data:", {
       experienceType,
       sessionNumber,
       totalSessions,
@@ -615,7 +616,7 @@ export const aiGenerateHint = onCall(
 
       return { hint: finalHint, style, category: assignedCategory };
     } catch (err: any) {
-      console.error("aiGenerateHint error:", err?.message || err);
+      logger.error("aiGenerateHint error:", err?.message || err);
       throw new HttpsError('internal', 'Failed to generate hint');
     }
   }

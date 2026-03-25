@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
@@ -50,13 +51,13 @@ export const updatePaymentIntentMetadata = onRequest(
             try {
                 decodedToken = await admin.auth().verifyIdToken(idToken);
             } catch (error) {
-                console.error("❌ Invalid token:", error);
+                logger.error("❌ Invalid token:", error);
                 res.status(401).json({ error: "Unauthorized: Invalid token" });
                 return;
             }
 
             const userId = decodedToken.uid;
-            console.log(`✅ [PROD] Authenticated user: ${userId}`);
+            logger.info(`✅ [PROD] Authenticated user: ${userId}`);
 
             // ✅ Extract and validate request data
             const { paymentIntentId, personalizedMessage } = req.body || {};
@@ -84,7 +85,7 @@ export const updatePaymentIntentMetadata = onRequest(
             // ✅ SECURITY: Verify ownership before updating
             const existingIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
             if (existingIntent.metadata?.giverId !== userId) {
-                console.error(`❌ Ownership mismatch: user ${userId} tried to update PI owned by ${existingIntent.metadata?.giverId}`);
+                logger.error(`❌ Ownership mismatch: user ${userId} tried to update PI owned by ${existingIntent.metadata?.giverId}`);
                 res.status(403).json({ error: "Forbidden: You do not own this payment intent" });
                 return;
             }
@@ -97,10 +98,10 @@ export const updatePaymentIntentMetadata = onRequest(
                 },
             });
 
-            console.log(`✅ [PROD] Payment intent ${paymentIntentId} updated by user ${userId}`);
+            logger.info(`✅ [PROD] Payment intent ${paymentIntentId} updated by user ${userId}`);
             res.status(200).json({ success: true });
         } catch (err: any) {
-            console.error("❌ Error updating metadata:", err);
+            logger.error("❌ Error updating metadata:", err);
             res.status(500).json({ error: "Failed to update payment metadata" });
         }
     }

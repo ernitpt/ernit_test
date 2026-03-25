@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
@@ -122,7 +123,7 @@ export const createDeferredGift = onRequest(
         if (rateLimitSnap.exists) {
             const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
             if (requests.length >= RATE_LIMIT) {
-                console.warn(`⚠️ createDeferredGift rate limit exceeded for user ${userId}`);
+                logger.warn(`⚠️ createDeferredGift rate limit exceeded for user ${userId}`);
                 res.status(429).json({ error: 'Too many gift creation requests. Please try again later.' });
                 return;
             }
@@ -280,12 +281,12 @@ export const createDeferredGift = onRequest(
                 batch.set(giverGoalRef, { ...giverGoalData, experienceGiftId: giftDocRef.id });
                 await batch.commit();
 
-                console.log(`✅ [PROD] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
+                logger.info(`✅ [PROD] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
             } else {
                 await db.doc(`experienceGifts/${giftId}`).set(newGift);
             }
 
-            console.log(`✅ [PROD] Created deferred gift ${giftId}, setupIntent ${setupIntent.id}`);
+            logger.info(`✅ [PROD] Created deferred gift ${giftId}, setupIntent ${setupIntent.id}`);
 
             // Optionally send email
             if (recipientEmail && typeof recipientEmail === 'string' && recipientEmail.includes('@')) {
@@ -297,7 +298,7 @@ export const createDeferredGift = onRequest(
                         buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
                 } catch (emailErr) {
-                    console.error(`⚠️ Failed to send gift email:`, emailErr);
+                    logger.error(`⚠️ Failed to send gift email:`, emailErr);
                 }
             }
 
@@ -309,7 +310,7 @@ export const createDeferredGift = onRequest(
                 setupIntentClientSecret: setupIntent.client_secret,
             });
         } catch (err: any) {
-            console.error("❌ Error creating deferred gift:", err);
+            logger.error("❌ Error creating deferred gift:", err);
             res.status(500).json({ error: "Failed to create deferred gift" });
         }
     }
@@ -337,7 +338,7 @@ async function generateUniqueClaimCode(db: FirebaseFirestore.Firestore): Promise
             .limit(1)
             .get();
         if (existing.empty) return code;
-        console.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
+        logger.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
     }
     throw new Error('Failed to generate unique claim code after 10 attempts');
 }

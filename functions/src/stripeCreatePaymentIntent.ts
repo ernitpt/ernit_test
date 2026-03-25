@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import { getFirestore } from "firebase-admin/firestore";
@@ -55,7 +56,7 @@ export const stripeCreatePaymentIntent = onRequest(
             const decodedToken = await getAuth().verifyIdToken(token);
             userId = decodedToken.uid;
         } catch (error) {
-            console.error('❌ Token verification failed:', error);
+            logger.error('❌ Token verification failed:', error);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
         }
@@ -79,7 +80,7 @@ export const stripeCreatePaymentIntent = onRequest(
         if (rateLimitSnap.exists) {
             const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
             if (requests.length >= RATE_LIMIT) {
-                console.warn(`⚠️ stripeCreatePaymentIntent rate limit exceeded for user ${userId}`);
+                logger.warn(`⚠️ stripeCreatePaymentIntent rate limit exceeded for user ${userId}`);
                 res.status(429).json({ error: 'Too many payment requests. Please try again later.' });
                 return;
             }
@@ -142,13 +143,13 @@ export const stripeCreatePaymentIntent = onRequest(
             for (const item of cart) {
                 const expDoc = await db.collection('experiences').doc(item.experienceId).get();
                 if (!expDoc.exists) {
-                    console.error(`❌ Experience not found: ${item.experienceId}`);
+                    logger.error(`❌ Experience not found: ${item.experienceId}`);
                     res.status(400).json({ error: "Experience not found in cart" });
                     return;
                 }
                 const expData = expDoc.data();
                 if (!expData || typeof expData.price !== 'number' || expData.price <= 0) {
-                    console.error(`❌ Invalid price for experience: ${item.experienceId}`);
+                    logger.error(`❌ Invalid price for experience: ${item.experienceId}`);
                     res.status(400).json({ error: "Invalid experience price" });
                     return;
                 }
@@ -158,7 +159,7 @@ export const stripeCreatePaymentIntent = onRequest(
             // T2-3: Compare in cents to avoid floating-point errors
             const clientCents = Math.round(amount * 100);
             if (Math.abs(serverTotal - clientCents) > 1) {
-                console.error(`❌ Price mismatch: client=${amount}, server=${serverTotal}`);
+                logger.error(`❌ Price mismatch: client=${amount}, server=${serverTotal}`);
                 res.status(400).json({ error: "Price mismatch — cart total does not match" });
                 return;
             }
@@ -167,7 +168,7 @@ export const stripeCreatePaymentIntent = onRequest(
                 apiVersion: "2024-06-20" as any,
             });
 
-            console.log("🛒 [PROD] Creating PaymentIntent for cart:", cart);
+            logger.info("🛒 [PROD] Creating PaymentIntent for cart:", cart);
 
             // Convert cart to metadata-safe format
             const cartJSON = JSON.stringify(cart);
@@ -197,7 +198,7 @@ export const stripeCreatePaymentIntent = onRequest(
                 paymentIntentId: intent.id,
             });
         } catch (err: any) {
-            console.error("❌ Stripe error:", err);
+            logger.error("❌ Stripe error:", err);
             // ✅ Generic error message to client
             res.status(500).json({
                 error: "Payment processing failed",
