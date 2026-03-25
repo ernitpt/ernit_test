@@ -695,4 +695,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default VenueSelectionModal;
+export default React.memo(VenueSelectionModal);

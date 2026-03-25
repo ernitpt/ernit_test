@@ -198,4 +198,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default ClaimExperienceModal;
+export default React.memo(ClaimExperienceModal);

@@ -342,7 +342,7 @@ const JourneyDemo: React.FC = React.memo(() => {
 });
 
 JourneyDemo.displayName = 'JourneyDemo';
-export default JourneyDemo;
+export default React.memo(JourneyDemo);
 
 // ─── Styles ─────────────────────────────────────────────────────────
 

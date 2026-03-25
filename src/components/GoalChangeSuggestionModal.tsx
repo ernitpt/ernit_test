@@ -466,4 +466,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default GoalChangeSuggestionModal;
+export default React.memo(GoalChangeSuggestionModal);

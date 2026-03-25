@@ -624,4 +624,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default MotivationModal;
+export default React.memo(MotivationModal);

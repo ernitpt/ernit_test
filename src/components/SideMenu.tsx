@@ -1018,4 +1018,4 @@ const createStyles = (colors: typeof Colors) =>
     },
   });
 
-export default SideMenu;
+export default React.memo(SideMenu);

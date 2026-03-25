@@ -281,4 +281,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
 });
 
-export default ImageViewer;
+export default React.memo(ImageViewer);
