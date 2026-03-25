@@ -15,10 +15,11 @@ import {
   Alert,
   Image,
   GestureResponderEvent,
+  DimensionValue,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../../components/TextInput';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -534,18 +535,16 @@ const GoalSettingScreen = () => {
           setHintPromise(null);
         } catch (hintError) {
           logger.error('Failed to get pre-generated hint:', hintError);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (navigation as any).reset({
+          navigation.dispatch(CommonActions.reset({
             index: 1,
             routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
-          });
+          }));
         }
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (navigation as any).reset({
+        navigation.dispatch(CommonActions.reset({
           index: 1,
           routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(goal) } }],
-        });
+        }));
       }
     } catch (error) {
       logger.error('Error creating goal:', error);
@@ -567,11 +566,10 @@ const GoalSettingScreen = () => {
   const handleHintPopupClose = () => {
     setShowHintPopup(false);
     if (createdGoal) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (navigation as any).reset({
+      navigation.dispatch(CommonActions.reset({
         index: 1,
         routes: [{ name: 'Goals' }, { name: 'Journey', params: { goal: serializeNav(createdGoal) } }],
-      });
+      }));
     }
   };
 
@@ -1663,7 +1661,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     flexWrap: 'wrap',
   },
   calDayCell: {
-    width: `${100 / 7}%` as any,
+    width: `${100 / 7}%` as DimensionValue,
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',

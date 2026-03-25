@@ -833,16 +833,16 @@ const FriendProfileScreen: React.FC = () => {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {[
-            { key: "goals", label: "Goals" },
-            { key: "achievements", label: "Achievements" },
-            { key: "wishlist", label: "Wishlist" },
-          ].map((tab) => (
+          {([
+            { key: "goals" as const, label: "Goals" },
+            { key: "achievements" as const, label: "Achievements" },
+            { key: "wishlist" as const, label: "Wishlist" },
+          ]).map((tab) => (
             <TouchableOpacity
               key={tab.key}
               onPress={() => {
-                const index = TAB_KEYS.indexOf(tab.key as any);
-                setActiveTab(tab.key as any);
+                const index = TAB_KEYS.indexOf(tab.key);
+                setActiveTab(tab.key);
                 tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
               }}
               style={[

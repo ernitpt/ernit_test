@@ -67,7 +67,7 @@ const FreeGoalCompletionScreen = () => {
   const sparkleAnim = useRef(new Animated.Value(0)).current;
   const floatAnim1 = useRef(new Animated.Value(0)).current;
   const floatAnim2 = useRef(new Animated.Value(0)).current;
-  const confettiRef = useRef<any>(null);
+  const confettiRef = useRef<InstanceType<typeof ConfettiCannon>>(null);
   const animTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const toDate = (value: unknown): Date | undefined => {

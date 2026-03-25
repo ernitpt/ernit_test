@@ -68,7 +68,7 @@ const CompletionScreen = () => {
   // Enhanced animation refs
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const confettiRef = useRef<any>(null);
+  const confettiRef = useRef<InstanceType<typeof ConfettiCannon>>(null);
   const couponRequestedRef = useRef(false);
   const animTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);

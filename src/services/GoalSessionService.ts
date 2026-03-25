@@ -102,7 +102,7 @@ export class GoalSessionService {
       g.weeklyCount = 0;
       g.weeklyLogDates = [];
       g.isWeekCompleted = false;
-      (g as any).lastNudgeLevel = 0;
+      g.lastNudgeLevel = 0;
     }
 
     // Only write to Firestore if weeks were actually swept

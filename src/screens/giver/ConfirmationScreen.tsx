@@ -80,7 +80,7 @@ const ConfirmationScreen = () => {
   // Success animation
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const confettiRef = useRef<any>(null);
+  const confettiRef = useRef<InstanceType<typeof ConfettiCannon>>(null);
 
   // Redirect if data is missing (e.g., after page refresh or SCA redirect)
   useEffect(() => {

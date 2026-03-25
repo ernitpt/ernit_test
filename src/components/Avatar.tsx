@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ViewStyle, StyleSheet } from 'react-native';
+import { View, Text, ViewStyle, ImageStyle, StyleProp, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
@@ -55,8 +55,7 @@ export const Avatar = React.memo<AvatarProps>(({
     return (
       <Image
         source={{ uri }}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        style={[styles.image, sizeStyle, style] as any}
+        style={[styles.image, sizeStyle, style] as StyleProp<ImageStyle>}
         contentFit="cover"
         transition={200}
         cachePolicy="memory-disk"

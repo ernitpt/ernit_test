@@ -87,7 +87,7 @@ export function sanitizeEmail(email: string): string {
  * Sanitize numeric inputs
  */
 export function sanitizeNumber(
-    value: any,
+    value: unknown,
     min?: number,
     max?: number
 ): number {
