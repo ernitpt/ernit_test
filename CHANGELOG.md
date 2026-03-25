@@ -281,6 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add React.memo to CompactReactionBar, EmpowerChoiceModal, and ErrorRetry components
 - overnight code quality pass - React.memo, DimensionValue types, memory leak fixes, design token enforcement, safe area insets, deprecated import cleanup
 - extract useBeforeRemove hook to eliminate beforeRemove-as-never cast in 4 wizard screens
+- replace manual Firestore Timestamp handling with toJSDate utility in GoalProgressNotification and FriendProfileScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

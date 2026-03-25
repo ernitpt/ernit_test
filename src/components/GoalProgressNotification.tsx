@@ -19,6 +19,7 @@ import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '.
 import { X } from 'lucide-react-native';
 import { useToast } from '../context/ToastContext';
 import { vh } from '../utils/responsive';
+import { toJSDate } from '../utils/GoalHelpers';
 
 interface GoalProgressNotificationProps {
     notification: Notification;
@@ -246,20 +247,9 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                             const hasImage = hint.imageUrl;
                             const text = hint.text || hint.hint;
 
-                            // Handle date
-                            let dateMs = 0;
-                            if (hint.createdAt) {
-                                const ts = hint.createdAt as unknown as { toMillis?: () => number };
-                                if (typeof ts.toMillis === 'function') {
-                                    dateMs = ts.toMillis();
-                                } else if (hint.createdAt instanceof Date) {
-                                    dateMs = hint.createdAt.getTime();
-                                } else {
-                                    dateMs = new Date(hint.createdAt as unknown as string).getTime();
-                                }
-                            } else if (hint.date) {
-                                dateMs = hint.date;
-                            }
+                            // Handle date — toJSDate handles Firestore Timestamps, Dates, and strings
+                            const parsedDate = hint.createdAt ? toJSDate(hint.createdAt) : null;
+                            const dateMs = parsedDate?.getTime() ?? hint.date ?? 0;
 
                             return (
                                 <View key={hint.id || index} style={styles.historyHintItem}>
