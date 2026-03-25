@@ -488,4 +488,4 @@ const createStyles = (colors: typeof Colors) =>
         },
     });
 
-export default DiscoveryQuizModal;
+export default React.memo(DiscoveryQuizModal);
