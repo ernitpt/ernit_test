@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 2B streak banner from day 0 with compact motivational variant
 - 1C motivational countdown in already-logged-today card
 - 1B haptic feedback when timer reaches target duration
+- add achievement deadline countdown and friends since date to FriendProfileScreen
+- 5B achievement deadline countdown badges on FriendProfileScreen
+- 5C friend since date on FriendProfileScreen
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge

@@ -18,7 +18,7 @@ import { ProfileSkeleton, SkeletonBox } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, UserPlus, UserMinus, Clock, Heart, Gift } from 'lucide-react-native';
-import { RootStackParamList, UserProfile, Goal, Experience } from '../types';
+import { RootStackParamList, UserProfile, Goal, Experience, Friend } from '../types';
 import EmpowerChoiceModal from '../components/EmpowerChoiceModal';
 import MotivationModal from '../components/MotivationModal';
 import { userService } from '../services/userService';
@@ -310,6 +310,41 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   const effectiveDeadline = getEffectiveDeadline();
   const withinDeadline = effectiveDeadline && effectiveDeadline > new Date();
 
+  // Compute days left for deadline countdown badge
+  const daysLeft = effectiveDeadline
+    ? Math.ceil((effectiveDeadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const renderDeadlineBadge = () => {
+    if (daysLeft === null) return null;
+    if (daysLeft <= 0) {
+      return (
+        <Text style={{ ...Typography.caption, color: colors.textMuted, marginTop: Spacing.xs }}>
+          Expired
+        </Text>
+      );
+    }
+    if (daysLeft <= 1) {
+      return (
+        <Text style={{ ...Typography.caption, color: colors.error, marginTop: Spacing.xs }}>
+          🔴 Expires tomorrow!
+        </Text>
+      );
+    }
+    if (daysLeft <= 7) {
+      return (
+        <Text style={{ ...Typography.caption, color: colors.warning, marginTop: Spacing.xs }}>
+          ⚠️ {daysLeft} days left!
+        </Text>
+      );
+    }
+    return (
+      <Text style={{ ...Typography.caption, color: colors.textSecondary, marginTop: Spacing.xs }}>
+        Expires in {daysLeft} days
+      </Text>
+    );
+  };
+
   const canEmpower = hasPledgedNotBought && withinDeadline;
   const canEmpowerSelf = isSelfAchievement && withinDeadline;
 
@@ -356,6 +391,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
           <Text style={styles.achievementMeta}>
             {sessions} sessions completed • {weeks} weeks
           </Text>
+          {renderDeadlineBadge()}
           {canEmpowerSelf && (
             <TouchableOpacity
               onPress={() => setShowEmpowerModal(true)}
@@ -401,6 +437,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
           <Text style={styles.achievementMeta}>
             {sessions} sessions completed • {weeks} weeks
           </Text>
+          {renderDeadlineBadge()}
           {canEmpower && (
             <TouchableOpacity
               onPress={() => setShowEmpowerModal(true)}
@@ -469,6 +506,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
             <Text style={styles.achievementMeta}>
               {sessions} sessions completed • {weeks} weeks
             </Text>
+            {renderDeadlineBadge()}
           </>
         )}
       </View>
@@ -542,6 +580,7 @@ const FriendProfileScreen: React.FC = () => {
   const [wishlist, setWishlist] = useState<Experience[]>([]);
   const [isFriend, setIsFriend] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [friendSince, setFriendSince] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -636,12 +675,15 @@ const FriendProfileScreen: React.FC = () => {
       setWishlist(wishlistData || []);
 
       if (currentUserId) {
-        const [friendshipStatus, pendingStatus] = await Promise.all([
+        const [friendshipStatus, pendingStatus, myFriends] = await Promise.all([
           friendService.areFriends(currentUserId, userId),
           friendService.hasPendingRequest(currentUserId, userId),
+          friendService.getFriends(currentUserId),
         ]);
         setIsFriend(friendshipStatus);
         setHasPendingRequest(pendingStatus);
+        const friendRecord = myFriends.find((f: Friend) => f.friendId === userId);
+        setFriendSince(friendRecord?.createdAt ?? null);
       }
     } catch (error: unknown) {
       logger.error('Error loading profile:', error);
@@ -751,6 +793,11 @@ const FriendProfileScreen: React.FC = () => {
           <Text style={styles.userName}>{userName}</Text>
           {userProfile?.description && (
             <Text style={styles.userDescription} numberOfLines={3}>{userProfile.description}</Text>
+          )}
+          {isFriend && friendSince && (
+            <Text style={{ ...Typography.caption, color: colors.textMuted, marginBottom: Spacing.xl }}>
+              {`Friends since ${friendSince.toLocaleString('default', { month: 'long', year: 'numeric' })}`}
+            </Text>
           )}
 
           {/* Stats */}
