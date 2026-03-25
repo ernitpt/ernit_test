@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { TextInput } from '../../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -441,7 +441,8 @@ Earn it. Unlock it. Enjoy it 🚀
             <Image
               source={{ uri: experienceImage }}
               style={styles.experienceImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               accessibilityLabel={`${experience.title} experience image`}
             />
             <View style={styles.experienceOverlay}>

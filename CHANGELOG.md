@@ -751,6 +751,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate JourneyDemo reward image from RN Image to expo-image
 - migrate MotivationModal and PersonalizedHintModal to expo-image
 - migrate remote URI images to expo-image in ChallengeLandingScreen, ChallengeSetupScreen, GiftFlowScreen, and GoalSettingScreen
+- migrate remaining screens to expo-image for remote URI images
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -6,13 +6,13 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   Dimensions,
   Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -489,7 +489,8 @@ const FreeGoalCompletionScreen = () => {
             <Image
               source={{ uri: experienceImage }}
               style={styles.experienceImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               accessibilityLabel={`${pledgedExperience.title} image`}
             />
           )}
