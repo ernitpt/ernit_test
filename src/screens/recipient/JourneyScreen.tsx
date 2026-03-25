@@ -1363,7 +1363,7 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
                           <Text style={cStyles.contactValue}>{partner.phone}</Text>
                         </View>
-                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
                           {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>
@@ -1375,7 +1375,7 @@ const JourneyScreen = () => {
                           <Text style={cStyles.contactLabel}>Email</Text>
                           <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                         </View>
-                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
+                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
                           {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                         </TouchableOpacity>
                       </View>

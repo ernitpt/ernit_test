@@ -331,6 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap all SkeletonLoader components in React.memo to prevent unnecessary re-renders
 - wrap handleMessageChange in useCallback in confirmation screens and handlePress in CompletedGoalCard
 - add tag typography token, fix remaining any types, and add image accessibility labels
+- add consistent activeOpacity to TouchableOpacity components missing it
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

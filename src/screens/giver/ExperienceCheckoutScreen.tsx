@@ -679,7 +679,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
       <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Checkout</Text>
@@ -755,7 +755,7 @@ const ExperienceCheckoutScreen: React.FC = () => {
             <TouchableOpacity onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();
               else navigation.navigate('CategorySelection');
-            }} style={[styles.retryButton, { backgroundColor: colors.backgroundLight }]}>
+            }} style={[styles.retryButton, { backgroundColor: colors.backgroundLight }]} activeOpacity={0.7}>
               <Text style={[styles.retryButtonText, { color: colors.textSecondary }]}>Go Back</Text>
             </TouchableOpacity>
           </View>

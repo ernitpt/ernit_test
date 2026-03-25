@@ -60,7 +60,7 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
               <Text style={styles.previewVideoIcon}>▶</Text>
             </View>
           )}
-          <TouchableOpacity style={styles.changeButton} onPress={onCamera}>
+          <TouchableOpacity style={styles.changeButton} onPress={onCamera} activeOpacity={0.7}>
             <Camera size={16} color={colors.white} />
             <Text style={styles.changeButtonText}>Change</Text>
           </TouchableOpacity>
@@ -96,7 +96,7 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
       </TouchableOpacity>
 
       {hasMedia && (
-        <TouchableOpacity style={styles.skipLink} onPress={onSkip}>
+        <TouchableOpacity style={styles.skipLink} onPress={onSkip} activeOpacity={0.7}>
           <Text style={styles.skipLinkText}>Skip without photo</Text>
         </TouchableOpacity>
       )}

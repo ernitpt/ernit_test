@@ -987,7 +987,7 @@ const AchievementDetailScreen = () => {
                                 <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
                                 <Text style={cStyles.contactValue}>{partner.phone}</Text>
                               </View>
-                              <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                              <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
                                 {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
@@ -998,7 +998,7 @@ const AchievementDetailScreen = () => {
                                 <Text style={cStyles.contactLabel}>Email</Text>
                                 <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                               </View>
-                              <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} accessibilityRole="button" accessibilityLabel="Copy email address">
+                              <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
                                 {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
@@ -1105,7 +1105,7 @@ const AchievementDetailScreen = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.shareButton} onPress={handleShare} disabled={isSharing}>
+              <TouchableOpacity style={styles.shareButton} onPress={handleShare} disabled={isSharing} activeOpacity={0.7}>
                 <ShareIcon color={colors.white} size={20} />
                 <Text style={styles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
               </TouchableOpacity>
