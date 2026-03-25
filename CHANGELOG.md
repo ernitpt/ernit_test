@@ -84,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 2C deadline warning
 - 2D dashboard summary
 - 3B milestone markers
+- 1E share social
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge

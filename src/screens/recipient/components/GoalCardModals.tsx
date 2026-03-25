@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Share,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
-import { Share2 } from 'lucide-react-native';
+import { Share2, ExternalLink } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -147,6 +149,25 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   const confettiCount = weekTier ? weekTier.confettiCount : 120;
   const confettiColors = weekTier?.confettiColors ?? [colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink];
 
+  const handleShareToSocial = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    const pct = progressPct != null ? `${progressPct}%` : '';
+    const sessionText = sessionNumber && totalSessions
+      ? `Session ${sessionNumber}/${totalSessions}`
+      : '';
+    const goalText = goalTitle ? `my ${goalTitle} challenge` : 'my challenge';
+    const message = `Just completed ${sessionText} of ${goalText} on Ernit! 💪${pct ? ` ${pct} done.` : ''} #Ernit #GoalProgress`;
+    try {
+      if (mediaUri) {
+        await Share.share({ url: mediaUri, message }, { dialogTitle: 'Share your session' });
+      } else {
+        await Share.share({ message }, { dialogTitle: 'Share your session' });
+      }
+    } catch {
+      // User cancelled or share not available — no-op
+    }
+  }, [mediaUri, sessionNumber, totalSessions, progressPct, goalTitle]);
+
   return (
     <>
       <BaseModal
@@ -278,6 +299,18 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
             >
               <Share2 size={16} color={colors.white} />
               <Text style={styles.shareButtonText}>Share to Feed</Text>
+            </TouchableOpacity>
+          )}
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity
+              style={styles.socialShareButton}
+              onPress={handleShareToSocial}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Share to social media"
+            >
+              <ExternalLink size={16} color={colors.primary} />
+              <Text style={styles.socialShareButtonText}>Share</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -472,6 +505,21 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   shareButtonText: {
     ...Typography.body,
     color: colors.white,
+    fontWeight: '700',
+  },
+  socialShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  socialShareButtonText: {
+    ...Typography.body,
+    color: colors.primary,
     fontWeight: '700',
   },
   celebrationCloseBtn: {
