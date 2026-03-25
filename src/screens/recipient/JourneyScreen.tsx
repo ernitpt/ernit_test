@@ -43,7 +43,7 @@ import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -60,6 +60,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { vh } from '../../utils/responsive';
 import { toJSDate } from '../../utils/GoalHelpers';
 import Button from '../../components/Button';
+
+// ─── Shared Helpers ──────────────────────────────────────────────────────────
+const fmtDurationShort = (secs: number): string => {
+  if (secs < 60) return `${secs}s`;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  return `${m}m`;
+};
+
+const fmtTimeAgo = (dateMs: number): string => {
+  const diffMs = Date.now() - dateMs;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return `${Math.floor(diffDays / 30)}mo ago`;
+};
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -560,6 +579,143 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 });
 
 // ─── Hint Item ───────────────────────────────────────────────────────────────
+// ─── Session Stats Bar ──────────────────────────────────────────────────────
+const formatTotalTime = (secs: number): string => {
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+};
+
+const formatAvgDuration = (secs: number): string => {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m === 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+};
+
+interface StatPillProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+const StatPill = React.memo(({ icon, label, value }: StatPillProps) => {
+  const colors = useColors();
+  return (
+    <View
+      style={{
+        alignItems: 'center',
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        backgroundColor: colors.backgroundLight,
+        borderRadius: BorderRadius.lg,
+        marginRight: Spacing.sm,
+        minWidth: 80,
+        gap: Spacing.xs,
+      }}
+    >
+      {icon}
+      <Text style={{ ...Typography.displayLg, fontWeight: '700', color: colors.textPrimary }}>
+        {value}
+      </Text>
+      <Text style={{ ...Typography.caption, color: colors.textSecondary, textAlign: 'center' }}>
+        {label}
+      </Text>
+    </View>
+  );
+});
+
+const SessionStatsBar = React.memo(({ sessions }: { sessions: SessionRecord[] }) => {
+  const colors = useColors();
+
+  const stats = useMemo(() => {
+    if (sessions.length === 0) return null;
+    const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+    const avgDuration = Math.round(totalTime / sessions.length);
+    const longest = Math.max(...sessions.map(s => s.duration || 0));
+    // Calculate current streak (consecutive days)
+    const sortedDates = sessions
+      .map(s => {
+        const d = s.timestamp ? toJSDate(s.timestamp) : (s.createdAt ? toJSDate(s.createdAt) : null);
+        return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() : 0;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b - a);
+
+    let streak = 0;
+    const DAY = 86400000;
+    const today = new Date();
+    const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const uniqueDays = [...new Set(sortedDates)];
+
+    if (uniqueDays.length > 0) {
+      // Start from today or yesterday
+      const firstDay = uniqueDays[0];
+      if (firstDay === todayMs || firstDay === todayMs - DAY) {
+        streak = 1;
+        for (let i = 1; i < uniqueDays.length; i++) {
+          if (uniqueDays[i - 1] - uniqueDays[i] === DAY) {
+            streak++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    return { totalTime, avgDuration, longest, streak };
+  }, [sessions]);
+
+  if (!stats || sessions.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: Spacing.md }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}
+      >
+        <StatPill
+          icon={<Activity size={16} color={colors.primary} />}
+          value={String(sessions.length)}
+          label="Sessions"
+        />
+        {stats.avgDuration > 0 && (
+          <StatPill
+            icon={<Timer size={16} color={colors.secondary} />}
+            value={formatAvgDuration(stats.avgDuration)}
+            label="Avg"
+          />
+        )}
+        {stats.longest > 0 && (
+          <StatPill
+            icon={<TrendingUp size={16} color={colors.warning} />}
+            value={formatAvgDuration(stats.longest)}
+            label="Longest"
+          />
+        )}
+        {stats.totalTime > 0 && (
+          <StatPill
+            icon={<Clock size={16} color={colors.categoryViolet} />}
+            value={formatTotalTime(stats.totalTime)}
+            label="Total"
+          />
+        )}
+        {stats.streak > 1 && (
+          <StatPill
+            icon={<Zap size={16} color={colors.celebrationGold} />}
+            value={`${stats.streak}🔥`}
+            label="Streak"
+          />
+        )}
+      </ScrollView>
+    </View>
+  );
+});
+
 const HintItem = React.memo(({
   hint,
   index,
@@ -592,6 +748,8 @@ const HintItem = React.memo(({
   const parsedDate = hint.createdAt ? toJSDate(hint.createdAt) : null;
   const dateMs = parsedDate?.getTime() ?? hint.date ?? 0;
 
+  const sessionNum = ('forSessionNumber' in hint ? hint.forSessionNumber : undefined) || ('session' in hint ? hint.session : 0) || 0;
+
   return (
     <Animated.View
       style={{
@@ -604,9 +762,24 @@ const HintItem = React.memo(({
         borderBottomColor: colors.border,
       }}
     >
-      <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
-        {fmt(dateMs)}
-      </Text>
+      {sessionNum > 0 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs }}>
+          <View style={{ backgroundColor: colors.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: 2 }}>
+            <Text style={{ ...Typography.caption, fontWeight: '700', color: colors.primary }}>
+              💡 Session {sessionNum}
+            </Text>
+          </View>
+          {dateMs > 0 && (
+            <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
+              sent {fmtTimeAgo(dateMs)}
+            </Text>
+          )}
+        </View>
+      ) : (
+        <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
+          {fmt(dateMs)}
+        </Text>
+      )}
 
       {hasImage && hint.imageUrl && (
         <TouchableOpacity
@@ -1081,6 +1254,7 @@ const JourneyScreen = () => {
 
     return (
       <View style={{ paddingHorizontal: Spacing.md, alignSelf: 'center', width: '100%', maxWidth: 380 }}>
+        <SessionStatsBar sessions={sessions} />
         {sessions.map((s, i) => (
           <SessionCard
             key={s.id}

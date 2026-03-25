@@ -83,6 +83,9 @@ interface CelebrationModalProps {
   sessionsPerWeek?: number;
   weeksCompleted?: number;
   totalWeeks?: number;
+  // Weekly celebration tiers
+  weekJustCompleted?: boolean;
+  completedWeekNumber?: number;
 }
 
 export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
@@ -100,6 +103,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   sessionsPerWeek,
   weeksCompleted,
   totalWeeks,
+  weekJustCompleted,
+  completedWeekNumber,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -128,12 +133,26 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
 
   const { width: screenWidth } = Dimensions.get('window');
 
+  // Weekly celebration tier config
+  const weekTier = useMemo(() => {
+    if (!weekJustCompleted || !completedWeekNumber) return null;
+    const n = completedWeekNumber;
+    if (n === 1) return { emoji: '🎉', title: 'First Week Done!', subtitle: 'Amazing start — keep it up!', confettiCount: 120, confettiColors: null as string[] | null };
+    if (n === 2) return { emoji: '🔥', title: 'Two Weeks Strong!', subtitle: 'You\'re building a real habit!', confettiCount: 180, confettiColors: null };
+    if (n === 3) return { emoji: '⭐', title: 'Three Weeks! Unstoppable!', subtitle: 'You\'re in the zone now!', confettiCount: 220, confettiColors: ['#FFD700', '#FFA500', '#FF6347', '#FFD700', '#FFFFFF'] };
+    return { emoji: '🏆', title: `Week ${n} Champion!`, subtitle: 'Your consistency is incredible!', confettiCount: 280, confettiColors: ['#FFD700', '#FFA500', '#FF6347', '#FFD700', '#FF1493', '#00CED1'] };
+  }, [weekJustCompleted, completedWeekNumber]);
+
+  const modalTitle = weekTier ? `${weekTier.emoji} Week Complete!` : 'Session Complete';
+  const confettiCount = weekTier ? weekTier.confettiCount : 120;
+  const confettiColors = weekTier?.confettiColors ?? [colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink];
+
   return (
     <>
       <BaseModal
         visible={visible}
         onClose={onClose}
-        title="Session Complete"
+        title={modalTitle}
         variant="center"
         noPadding={false}
         overlay={
@@ -141,16 +160,27 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
             <ConfettiCannon
               ref={confettiRef}
               autoStart={false}
-              count={120}
+              count={confettiCount}
               origin={{ x: screenWidth / 2, y: -20 }}
-              explosionSpeed={350}
+              explosionSpeed={weekTier ? 400 : 350}
               fallSpeed={3000}
               fadeOut
-              colors={[colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink]}
+              colors={confettiColors}
             />
           </View>
         }
       >
+        {/* Weekly milestone banner */}
+        {weekTier && (
+          <View style={styles.weekMilestoneBanner}>
+            <Text style={styles.weekMilestoneEmoji}>{weekTier.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.weekMilestoneTitle}>{weekTier.title}</Text>
+              <Text style={styles.weekMilestoneSubtitle}>{weekTier.subtitle}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Feed post preview card */}
         <View style={styles.feedPreviewCard}>
           {/* Media at top if present */}
@@ -321,6 +351,31 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.white,
   },
   // Feed post preview
+  weekMilestoneBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
+  },
+  weekMilestoneEmoji: {
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  weekMilestoneTitle: {
+    ...Typography.subheading,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  weekMilestoneSubtitle: {
+    ...Typography.body,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   feedPreviewCard: {
     backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,

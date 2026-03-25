@@ -71,6 +71,7 @@ import { PopupMenu, PopupMenuItem } from '../../components/PopupMenu';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { Trash2, Gift } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { toJSDate } from '../../utils/GoalHelpers';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -113,6 +114,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     sessionsPerWeek: number;
     weeksCompleted: number;
     totalWeeks: number;
+    weekJustCompleted: boolean;
+    completedWeekNumber: number;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
   const [cancelMessage] = useState(
@@ -832,6 +835,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     const celebTotalSessions = updated.targetCount * updated.sessionsPerWeek;
     const celebPct = Math.round((totalSessionsDone / celebTotalSessions) * 100);
 
+    // Compute week celebration: isWeekCompleted=true means the week just flipped
+    const weekJustCompleted = updated.isWeekCompleted === true;
+    // completedWeekNumber: when week just completed, currentCount reflects completed weeks
+    const completedWeekNumber = weekJustCompleted ? updated.currentCount : 0;
+
     // Always prepare celebration data (used after hint dismissal or directly)
     setCelebrationData({
       userName: celebUserName || 'You',
@@ -844,6 +852,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       sessionsPerWeek: updated.sessionsPerWeek,
       weeksCompleted: updated.currentCount,
       totalWeeks: updated.targetCount,
+      weekJustCompleted,
+      completedWeekNumber,
     });
 
     if (!isSelfGift) {
@@ -1168,6 +1178,45 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     return msg;
   }, [currentGoal.partnerGoalId, currentGoal.approvalStatus]);
 
+  // ─── Deadline urgency warning ──────────────────────────────────────
+  const deadlineWarning = useMemo(() => {
+    if (currentGoal.isCompleted) return null;
+    const sessionsRemaining = currentGoal.sessionsPerWeek - currentGoal.weeklyCount;
+    if (sessionsRemaining <= 0) return null; // week already done — no warning needed
+
+    let daysLeftInWeek = 7;
+    if (currentGoal.weekStartAt) {
+      const weekStart = toJSDate(currentGoal.weekStartAt);
+      if (weekStart) {
+        const now = new Date();
+        const startMs = weekStart.getTime();
+        const msElapsed = now.getTime() - startMs;
+        const daysElapsed = Math.floor(msElapsed / 86400000);
+        daysLeftInWeek = Math.max(0, 7 - daysElapsed);
+      }
+    }
+
+    if (daysLeftInWeek <= 0) {
+      // Week is over — this is a catch for edge cases; normally the week would have reset
+      return null;
+    }
+
+    if (sessionsRemaining > daysLeftInWeek) {
+      // Mathematically impossible to finish this week
+      return { level: 'error' as const, message: `Can't finish this week unless you go today! (${sessionsRemaining} left, ${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''} remaining)` };
+    }
+
+    if (daysLeftInWeek === 1 && sessionsRemaining > 0) {
+      return { level: 'warning' as const, message: `Last day — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} left to complete this week!` };
+    }
+
+    if (daysLeftInWeek <= 2 && sessionsRemaining >= 2) {
+      return { level: 'warning' as const, message: `${sessionsRemaining} sessions left, ${daysLeftInWeek} days remaining — you've got this!` };
+    }
+
+    return null;
+  }, [currentGoal.isCompleted, currentGoal.sessionsPerWeek, currentGoal.weeklyCount, currentGoal.weekStartAt]);
+
   const goalMenuItems: PopupMenuItem[] = useMemo(() => [
     {
       key: 'remove',
@@ -1262,6 +1311,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               overallTotal={progress.overallTotal}
             />
           </Animated.View>
+
+          {/* Deadline urgency warning */}
+          {deadlineWarning && (
+            <View style={[
+              styles.deadlineWarning,
+              deadlineWarning.level === 'error' ? styles.deadlineWarningError : styles.deadlineWarningYellow,
+            ]}>
+              <Text style={[
+                styles.deadlineWarningText,
+                deadlineWarning.level === 'error' ? { color: colors.error } : { color: colors.warningDark },
+              ]}>
+                {deadlineWarning.level === 'error' ? '🔴 ' : '🟡 '}
+                {deadlineWarning.message}
+              </Text>
+            </View>
+          )}
 
           {/* M4: "Waiting for partner to finish" — goal completed but partner hasn't unlocked yet */}
           {(currentGoal.isCompleted === true || currentGoal.isReadyToComplete === true) &&
@@ -1449,6 +1514,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         sessionsPerWeek={celebrationData?.sessionsPerWeek}
         weeksCompleted={celebrationData?.weeksCompleted}
         totalWeeks={celebrationData?.totalWeeks}
+        weekJustCompleted={celebrationData?.weekJustCompleted}
+        completedWeekNumber={celebrationData?.completedWeekNumber}
       />
 
       <SessionMediaPrompt
@@ -1756,6 +1823,26 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '700',
   },
   // M4: Waiting for partner banners
+  deadlineWarning: {
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderLeftWidth: 3,
+  },
+  deadlineWarningError: {
+    backgroundColor: colors.errorLight,
+    borderLeftColor: colors.error,
+  },
+  deadlineWarningYellow: {
+    backgroundColor: colors.warningLight,
+    borderLeftColor: colors.warning,
+  },
+  deadlineWarningText: {
+    ...Typography.small,
+    fontWeight: '600',
+  },
   waitingBanner: {
     marginTop: Spacing.md,
     marginBottom: Spacing.md,
