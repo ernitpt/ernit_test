@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import Button from '../components/Button';
@@ -30,13 +30,13 @@ const LandingScreen = () => {
     }
   }, [state.user?.id, navigation]);
 
-  const handleSignIn = () => {
+  const handleSignIn = useCallback(() => {
     navigation.navigate('Auth', { mode: 'signin' });
-  };
+  }, [navigation]);
 
-  const handleSignUp = () => {
+  const handleSignUp = useCallback(() => {
     navigation.navigate('Auth', { mode: 'signup' });
-  };
+  }, [navigation]);
 
   return (
     <ErrorBoundary screenName="LandingScreen">

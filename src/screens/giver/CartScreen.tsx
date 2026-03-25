@@ -1,5 +1,5 @@
 // screens/CartScreen.tsx
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
@@ -177,9 +177,9 @@ export default function CartScreen() {
     }
   };
 
-  const removeItem = (experienceId: string) => {
+  const removeItem = useCallback((experienceId: string) => {
     setRemoveConfirmId(experienceId);
-  };
+  }, []);
 
   const confirmRemoveItem = async () => {
     const experienceId = removeConfirmId;
@@ -246,13 +246,13 @@ export default function CartScreen() {
     });
   };
 
-  const handleKeepShopping = () => {
+  const handleKeepShopping = useCallback(() => {
     navigation.navigate("CategorySelection");
-  };
+  }, [navigation]);
 
-  const handleExperiencePress = (experience: Experience) => {
+  const handleExperiencePress = useCallback((experience: Experience) => {
     navigation.navigate("ExperienceDetails", { experience });
-  };
+  }, [navigation]);
 
   if (loading) {
     return (
