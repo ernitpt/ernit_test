@@ -1048,7 +1048,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
 
       try {
-        await goalService.appendHint(updated.id, hintObj as unknown as Record<string, unknown>);
+        await goalService.appendHint(updated.id, hintObj);
         setCurrentGoal((prev) => ({
           ...prev,
           hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
@@ -1081,7 +1081,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             date: Date.now(),
             text: cachedHint,
           };
-          await goalService.appendHint(updated.id, hintObj as unknown as Record<string, unknown>);
+          await goalService.appendHint(updated.id, hintObj);
           setCurrentGoal((prev) => ({
             ...prev,
             hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],

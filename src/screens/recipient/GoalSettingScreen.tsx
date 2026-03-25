@@ -527,7 +527,7 @@ const GoalSettingScreen = () => {
             createdAt: new Date(),
             type: 'text' as const,
           };
-          await goalService.appendHint(goal.id, hintObj as unknown as Record<string, unknown>);
+          await goalService.appendHint(goal.id, hintObj);
           setFirstHint(hint);
           setShowHintPopup(true);
           setHintPromise(null);

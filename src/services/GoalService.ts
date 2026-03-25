@@ -19,6 +19,21 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import type { Goal, PersonalizedHint } from '../types';
+
+/** Minimal shape accepted by appendHint — satisfied by both PersonalizedHint and HintObject */
+type AppendHintInput = {
+  id: string;
+  session: number;
+  giverName?: string;
+  date?: number;
+  createdAt?: Date;
+  text?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  type?: PersonalizedHint['type'];
+  duration?: number;
+  hint?: string;
+};
 import { feedService } from './FeedService';
 import { experienceGiftService } from './ExperienceGiftService';
 import { experienceService } from './ExperienceService';
@@ -315,29 +330,20 @@ export class GoalService {
     return await this.applyExpiredWeeksSweep(data);
   }
 
-  async appendHint(goalId: string, hintObj: Record<string, unknown>): Promise<void> {
+  async appendHint(goalId: string, hintObj: AppendHintInput): Promise<void> {
     // SECURITY: Validate hint structure
-    if (!hintObj || typeof hintObj !== 'object') {
-      throw new AppError('INVALID_HINT', 'Invalid hint object', 'validation');
-    }
-
     if (!hintObj.id || !hintObj.session || typeof hintObj.session !== 'number') {
       throw new AppError('INVALID_HINT', 'Hint must have id and session number', 'validation');
     }
 
     // SECURITY: Validate and sanitize text content
-    if (hintObj.text) {
-      if (typeof hintObj.text !== 'string') {
-        throw new AppError('INVALID_HINT', 'Hint text must be a string', 'validation');
-      }
-      hintObj.text = sanitizeText(hintObj.text as string, 100);
-    }
+    const sanitizedText = hintObj.text ? sanitizeText(hintObj.text, 100) : undefined;
 
     // SECURITY: Validate URLs if present
-    if (hintObj.audioUrl && typeof hintObj.audioUrl === 'string' && !this.isValidUrl(hintObj.audioUrl)) {
+    if (hintObj.audioUrl && !this.isValidUrl(hintObj.audioUrl)) {
       throw new AppError('INVALID_URL', 'Invalid audio URL', 'validation');
     }
-    if (hintObj.imageUrl && typeof hintObj.imageUrl === 'string' && !this.isValidUrl(hintObj.imageUrl)) {
+    if (hintObj.imageUrl && !this.isValidUrl(hintObj.imageUrl)) {
       throw new AppError('INVALID_URL', 'Invalid image URL', 'validation');
     }
 
@@ -361,7 +367,7 @@ export class GoalService {
     };
 
     // Add optional fields if present
-    if (hintObj.text) cleanHint.text = hintObj.text;
+    if (sanitizedText) cleanHint.text = sanitizedText;
     if (hintObj.audioUrl) cleanHint.audioUrl = hintObj.audioUrl;
     if (hintObj.imageUrl) cleanHint.imageUrl = hintObj.imageUrl;
     if (hintObj.type) cleanHint.type = hintObj.type;
