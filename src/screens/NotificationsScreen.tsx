@@ -348,7 +348,7 @@ const NotificationsScreen = () => {
     }
 
     if (n.type === 'goal_completed' && n.data?.goalId) {
-      navigation.navigate('Journey' as any, { goalId: n.data.goalId });
+      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
       return;
     }
 

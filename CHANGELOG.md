@@ -659,6 +659,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - eliminate remaining any casts with proper TypeScript types across Avatar, GoalSettingScreen, FriendProfileScreen, GoalSessionService, ConfettiRefs, and sanitization
 - replace remaining as-any casts in GoalService, CouponEntryScreen, MysteryChoiceScreen, and FeedPost with type-safe alternatives
 - remove unnecessary navigation type casts in AuthScreen and clean up as-any in GoalSessionService
+- navigate goal_completed notifications to GoalDetail screen for proper type-safety and correct UX
 
 ### Added
 - Automatic changelog system with `npm run log` script
