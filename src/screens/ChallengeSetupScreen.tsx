@@ -19,6 +19,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     GestureResponderEvent,
+    DimensionValue,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { TextInput } from '../components/TextInput';
@@ -2298,7 +2299,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         flexWrap: 'wrap',
     },
     calDayCell: {
-        width: `${100 / 7}%` as any,
+        width: `${100 / 7}%` as DimensionValue,
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',

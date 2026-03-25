@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent, LayoutChangeEvent, DimensionValue } from 'react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -55,8 +55,8 @@ const ModernSlider = ({
                 onResponderGrant={handlePress}
                 onResponderMove={handlePress}
             >
-                <View style={[styles.sliderProgress, { width: `${progress}%` as any }]} />
-                <View style={[styles.sliderThumb, { left: `${progress}%` as any }]}>
+                <View style={[styles.sliderProgress, { width: `${progress}%` as DimensionValue }]} />
+                <View style={[styles.sliderThumb, { left: `${progress}%` as DimensionValue }]}>
                     <View style={styles.sliderThumbInner} />
                 </View>
             </View>
@@ -113,7 +113,7 @@ const createStyles = (colors: typeof Colors) =>
             width: '100%',
         },
         sliderProgress: {
-            height: '100%' as any,
+            height: '100%' as DimensionValue,
             backgroundColor: colors.primary,
             borderRadius: BorderRadius.xs,
         },

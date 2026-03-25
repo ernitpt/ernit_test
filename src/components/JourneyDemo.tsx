@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, Platform, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, Platform, Dimensions, TouchableOpacity, DimensionValue } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -155,7 +155,7 @@ const JourneyDemo: React.FC = React.memo(() => {
         {/* Progress Bar inside card */}
         <View style={s.progressTrack}>
           <MotiView
-            animate={{ width: `${barProgress * 100}%` as any }}
+            animate={{ width: `${barProgress * 100}%` as DimensionValue }}
             transition={barProgress === 1
               ? { type: 'spring', damping: 100, stiffness: 320 }
               : { type: 'timing', duration: 80 }

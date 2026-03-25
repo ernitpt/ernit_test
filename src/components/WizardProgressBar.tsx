@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, DimensionValue } from 'react-native';
 import { MotiView } from 'moti';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -19,7 +19,7 @@ const WizardProgressBar = ({ currentStep, totalSteps }: WizardProgressBarProps) 
         <View style={styles.progressBar}>
             <View style={styles.progressTrack}>
                 <MotiView
-                    animate={{ width: `${progress}%` as any }}
+                    animate={{ width: `${progress}%` as DimensionValue }}
                     transition={{ type: 'spring', damping: 100, stiffness: 320 }}
                     style={styles.progressFill}
                 />
@@ -42,7 +42,7 @@ const createStyles = (colors: typeof Colors) =>
             overflow: 'hidden',
         },
         progressFill: {
-            height: '100%' as any,
+            height: '100%' as DimensionValue,
             borderRadius: BorderRadius.xs,
             backgroundColor: colors.secondary,
         },
