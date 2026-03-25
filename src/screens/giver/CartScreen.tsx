@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  ActivityIndicator,
 } from "react-native";
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { Plus, Minus, X, ArrowRight } from "lucide-react-native";

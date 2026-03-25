@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  StatusBar,
   Platform,
   Keyboard,
 } from 'react-native';

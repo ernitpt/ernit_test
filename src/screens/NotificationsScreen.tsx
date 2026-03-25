@@ -33,7 +33,7 @@ import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import { Bell, TrendingUp, Heart, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy } from 'lucide-react-native';
+import { Bell, TrendingUp, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy } from 'lucide-react-native';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';

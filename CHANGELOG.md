@@ -275,6 +275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing return type annotations to NotificationService methods
 - replace any types in catch blocks and json responses with unknown across Cloud Functions
 - add missing color tokens and replace remaining hardcoded rgba values with design tokens
+- remove unused imports (StatusBar, Alert, ActivityIndicator, Heart icon) across screen files
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
