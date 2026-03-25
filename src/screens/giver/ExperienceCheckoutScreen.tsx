@@ -8,7 +8,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ActivityIndicator,
   ScrollView,

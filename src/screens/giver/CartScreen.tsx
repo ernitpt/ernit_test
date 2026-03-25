@@ -19,7 +19,7 @@ import { cartService } from "../../services/CartService";
 import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { GiverStackParamList, Experience, CartItem } from "../../types";
+import { GiverStackParamList, Experience } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import MainScreen from "../MainScreen";
 import { CartItemSkeleton } from '../../components/SkeletonLoader';

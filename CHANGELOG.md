@@ -318,6 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove unused imports from Avatar, Chip, and EmpowerChoiceModal components
 - remove unused imports across GoalProgressNotification, ProgressBar, FeedPostContent, and ReactionPicker
 - remove unused imports across screen and component files
+- remove more unused imports from AuthScreen, ExperienceCheckoutScreen, CartScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
