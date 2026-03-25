@@ -199,11 +199,11 @@ const NotificationsScreen = () => {
     };
   }, [userId, refreshKey]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     isRefreshingRef.current = true;
     setRefreshKey(prev => prev + 1); // Force listener re-subscribe
-  };
+  }, []);
 
   useEffect(() => {
     return () => {

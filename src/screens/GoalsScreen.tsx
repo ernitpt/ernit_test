@@ -90,11 +90,11 @@ const GoalsScreen: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [isInitialLoading]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     isRefreshingRef.current = true;
     setRefreshKey(prev => prev + 1); // Force listener re-subscribe
-  };
+  }, []);
 
   const loadGoals = () => setRefreshKey(prev => prev + 1);
 

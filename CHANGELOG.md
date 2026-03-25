@@ -302,6 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wrap DiscoveryQuizModal with React.memo
 - wrap HowItWorksModal with React.memo
 - replace hardcoded pixel values with Spacing tokens across screens
+- add FlatList performance props to CategorySelectionScreen and VenueSelectionModal
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
