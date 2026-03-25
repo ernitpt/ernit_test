@@ -984,7 +984,7 @@ const JourneyScreen = () => {
     setShowCalendar(false);
   }, []);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!shareCardRef.current) return;
     setIsSharing(true);
     try {
@@ -1034,7 +1034,7 @@ const JourneyScreen = () => {
     } finally {
       setIsSharing(false);
     }
-  };
+  }, []);
 
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =

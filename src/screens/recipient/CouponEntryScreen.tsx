@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -110,7 +110,7 @@ const CouponEntryScreen = () => {
 
   const validateClaimCode = (code: string) => /^[A-Z0-9]{12}$/.test(code);
 
-  const handleClaimCode = async (codeOverride?: string) => {
+  const handleClaimCode = useCallback(async (codeOverride?: string) => {
     if (isLoading) return;
 
     const trimmedCode = sanitizeText((codeOverride || claimCode), 12).trim().toUpperCase();
@@ -224,7 +224,7 @@ const CouponEntryScreen = () => {
       setIsLoading(false);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [isLoading, claimCode, state.user, navigation, dispatch, triggerShake]);
 
   const handleContinueFromMessage = () => {
     setShowPersonalizedMessage(false);

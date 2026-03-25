@@ -54,13 +54,7 @@ const FriendsListScreen: React.FC = () => {
   const [displayCount, setDisplayCount] = useState(20);
   const currentUserId = state.user?.id;
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadFriends();
-    }, [currentUserId])
-  );
-
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!currentUserId) return;
 
     try {
@@ -95,13 +89,19 @@ const FriendsListScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUserId]);
 
-  const handleRefresh = async () => {
+  useFocusEffect(
+    React.useCallback(() => {
+      loadFriends();
+    }, [loadFriends])
+  );
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadFriends();
     setRefreshing(false);
-  };
+  }, [loadFriends]);
 
   const handleFriendPress = useCallback((friendId: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

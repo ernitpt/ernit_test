@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -294,13 +294,13 @@ const CompletionScreen = () => {
     setCouponCode(code);
   };
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (!couponCode) return;
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-  };
+  }, [couponCode]);
 
   const handleScheduleExperience = () => {
     if (!partner || !experience) return;
@@ -378,22 +378,22 @@ const CompletionScreen = () => {
     Linking.openURL(emailUrl);
   };
 
-  const handleCopyPhone = async () => {
+  const handleCopyPhone = useCallback(async () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
     if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
     phoneTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
-  };
+  }, [partner?.phone]);
 
-  const handleCopyEmail = async () => {
+  const handleCopyEmail = useCallback(async () => {
     const contactEmail = partner?.contactEmail || partner?.email;
     if (!contactEmail) return;
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
     if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
     emailTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
-  };
+  }, [partner?.contactEmail, partner?.email]);
 
   // New handlers for booking with date selection
   const handleBookNowWhatsApp = () => {

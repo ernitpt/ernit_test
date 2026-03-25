@@ -1,7 +1,7 @@
 ﻿// screens/ExperienceCheckoutScreen.tsx
 // ✅ Final version: supports multiple gifts via cartItems, with personal message
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
@@ -315,7 +315,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     };
   }, [stripe, clientSecret, navigation, dispatch, totalQuantity]);
 
-  const handlePurchase = async () => {
+  const handlePurchase = useCallback(async () => {
     // Prevent double-submit: synchronous ref check + async state check
     if (processingRef.current || isProcessing) return;
     processingRef.current = true;
@@ -394,7 +394,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       processingRef.current = false;
       setIsProcessing(false);
     }
-  };
+  }, [stripe, elements, isProcessing, clientSecret, totalAmount, totalQuantity, goalId, navigation, dispatch, state.user?.id, cartItems]);
 
   return (
     <MainScreen activeRoute="Home">

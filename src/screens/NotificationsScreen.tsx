@@ -211,7 +211,7 @@ const NotificationsScreen = () => {
     };
   }, []);
 
-  const handlePress = async (n: Notification) => {
+  const handlePress = useCallback(async (n: Notification) => {
     if (!userId) return;
     if (tappingRef.current) return;
     tappingRef.current = true;
@@ -358,7 +358,7 @@ const NotificationsScreen = () => {
     } finally {
       setTimeout(() => { tappingRef.current = false; }, 500);
     }
-  };
+  }, [userId, navigation, userGoals]);
 
 
   const handleFriendRequestHandled = useCallback(() => {

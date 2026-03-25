@@ -164,7 +164,7 @@ const PurchasedGiftsScreen = () => {
   const [displayCount, setDisplayCount] = useState(20);
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
 
-  const fetchGifts = async () => {
+  const fetchGifts = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     setError(false);
@@ -178,20 +178,20 @@ const PurchasedGiftsScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchGifts();
-  }, [userId]);
+  }, [fetchGifts]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await fetchGifts();
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [fetchGifts]);
 
   // Filter gifts based on selected filter
   const filteredGifts = gifts.filter(gift => {

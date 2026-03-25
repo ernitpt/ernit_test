@@ -615,30 +615,30 @@ const AchievementDetailScreen = () => {
   }, [goal?.id]);
 
   // ───── Handler functions ─────
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (!couponCode) return;
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-  };
+  }, [couponCode]);
 
-  const handleCopyPhone = async () => {
+  const handleCopyPhone = useCallback(async () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
-  };
+  }, [partner?.phone]);
 
-  const handleCopyEmail = async () => {
+  const handleCopyEmail = useCallback(async () => {
     const contactEmail = partner?.contactEmail || partner?.email;
     if (!contactEmail) return;
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
-  };
+  }, [partner?.contactEmail, partner?.email]);
 
   const handleEmailFallback = (url: string) => {
     Linking.canOpenURL(url).then(supported => {

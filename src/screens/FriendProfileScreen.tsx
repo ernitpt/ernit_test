@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import {
@@ -602,7 +602,7 @@ const FriendProfileScreen: React.FC = () => {
     ]).start(() => setShowRemovePopup(false));
   };
 
-  const loadFriendProfile = async () => {
+  const loadFriendProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       setImageLoadError(false);
@@ -651,13 +651,13 @@ const FriendProfileScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, currentUserId]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadFriendProfile();
     setRefreshing(false);
-  };
+  }, [loadFriendProfile]);
 
   const renderTabContent = (tab: 'goals' | 'achievements' | 'wishlist') => {
     if (isLoading)

@@ -1,6 +1,6 @@
 // screens/Recipient/FreeGoalCompletionScreen.tsx
 // Completion screen for Free Goals - celebration + pledged experience + empowerment CTA
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -192,7 +192,7 @@ const FreeGoalCompletionScreen = () => {
     };
   }, []);
 
-  const handleShareAchievement = async () => {
+  const handleShareAchievement = useCallback(async () => {
     try {
       await Share.share({
         message: `I just completed my goal "${goal?.title}"! ${pledgedExperience ? `Working towards: ${pledgedExperience.title}` : ''} #Ernit #GoalAchieved`,
@@ -200,7 +200,7 @@ const FreeGoalCompletionScreen = () => {
     } catch (error) {
       logger.error('Error sharing achievement:', error);
     }
-  };
+  }, [goal?.title, pledgedExperience]);
 
   const handleGoToGoals = () => {
     navigation.reset({

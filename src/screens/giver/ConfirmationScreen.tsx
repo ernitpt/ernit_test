@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -254,7 +254,7 @@ const ConfirmationScreen = () => {
     }
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!personalizedMessage.trim()) {
       showError('Please enter a message before sending.');
       return;
@@ -278,9 +278,9 @@ const ConfirmationScreen = () => {
     } finally {
       setIsSendingMessage(false);
     }
-  };
+  }, [personalizedMessage, experienceGift.id, state.user?.id]);
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = useCallback(async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Clipboard.setStringAsync(experienceGift.claimCode);
@@ -291,9 +291,9 @@ const ConfirmationScreen = () => {
       logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
-  };
+  }, [experienceGift.claimCode]);
 
-  const handleShareCode = async () => {
+  const handleShareCode = useCallback(async () => {
     try {
       const shareMessage = isTogether
         ? `Join my fitness challenge on Ernit! Use code ${experienceGift.claimCode} or sign up at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to get started together 💪`
@@ -323,7 +323,7 @@ Earn it. Unlock it. Enjoy it 🚀
       const message = error instanceof Error ? error.message : String(error);
       showError(message || 'Failed to share the code');
     }
-  };
+  }, [isTogether, experienceGift.claimCode]);
 
   const handleBackToHome = () => {
     navigation.reset({

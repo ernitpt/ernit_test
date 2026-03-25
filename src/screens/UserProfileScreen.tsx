@@ -491,24 +491,7 @@ const UserProfileScreen: React.FC = () => {
   const { width: screenWidth } = useWindowDimensions();
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadProfileAndGoals();
-    }, [userId])
-  );
-
-  useEffect(() => {
-    if (!userId) return;
-    const unsubscribe = notificationService.listenToUserNotifications(userId, (notifications) => {
-      const friendRequestNotifications = notifications.filter(
-        (n) => n.type === 'friend_request' && !n.read
-      );
-      setUnreadFriendRequests(friendRequestNotifications.length);
-    });
-    return unsubscribe;
-  }, [userId]);
-
-  const loadProfileAndGoals = async () => {
+  const loadProfileAndGoals = useCallback(async () => {
     if (!userId) return;
     try {
       setLoading(true);
@@ -541,13 +524,30 @@ const UserProfileScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadProfileAndGoals();
     setRefreshing(false);
-  };
+  }, [loadProfileAndGoals]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProfileAndGoals();
+    }, [loadProfileAndGoals])
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    const unsubscribe = notificationService.listenToUserNotifications(userId, (notifications) => {
+      const friendRequestNotifications = notifications.filter(
+        (n) => n.type === 'friend_request' && !n.read
+      );
+      setUnreadFriendRequests(friendRequestNotifications.length);
+    });
+    return unsubscribe;
+  }, [userId]);
 
   // ✅ Unified image picker and upload for all platforms
   const pickImage = async () => {

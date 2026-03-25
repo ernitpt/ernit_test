@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -147,7 +147,7 @@ const ConfirmationMultipleScreen = () => {
     }
   };
 
-  const handleSendMessage = async (giftId: string) => {
+  const handleSendMessage = useCallback(async (giftId: string) => {
     const message = personalizedMessages[giftId]?.trim() || '';
     if (!message) {
       showError('Please enter a message before sending.');
@@ -168,9 +168,9 @@ const ConfirmationMultipleScreen = () => {
     } finally {
       setSendingMessageId(null);
     }
-  };
+  }, [personalizedMessages]);
 
-  const handleCopyCode = async (code: string) => {
+  const handleCopyCode = useCallback(async (code: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Clipboard.setStringAsync(code);
@@ -179,9 +179,9 @@ const ConfirmationMultipleScreen = () => {
       logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
-  };
+  }, []);
 
-  const handleShareCode = async (code: string) => {
+  const handleShareCode = useCallback(async (code: string) => {
     try {
       const shareOptions = {
         title: 'Gift Code',
@@ -199,7 +199,7 @@ Earn it. Unlock it. Enjoy it 🚀
       const message = error instanceof Error ? error.message : String(error);
       showError(message || 'Failed to share the code');
     }
-  };
+  }, []);
 
   const handleBackToHome = () => {
     navigation.reset({
