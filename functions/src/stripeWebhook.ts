@@ -88,7 +88,7 @@ export const stripeWebhook = onRequest(
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
                     logger.info(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     logger.error("❌ [PROD] Failed to send payment failed notification:", notifError);
                 }
             }
@@ -121,7 +121,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     let cart: Array<{ experienceId: string; quantity: number }> = [];
     try {
         cart = JSON.parse(metadata.cart);
-    } catch (err) {
+    } catch (err: unknown) {
         logger.error("❌ Cannot parse cart metadata:", err);
         throw new Error("Invalid cart metadata");
     }

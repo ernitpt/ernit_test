@@ -48,7 +48,7 @@ export const getGiftsByPaymentIntent_Test = onRequest(
       let decodedToken;
       try {
         decodedToken = await admin.auth().verifyIdToken(idToken);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("❌ Invalid token:", error);
         res.status(401).json({ error: "Unauthorized: Invalid token" });
         return;

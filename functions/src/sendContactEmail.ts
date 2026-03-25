@@ -210,7 +210,7 @@ export const sendContactEmail = onCall(
                 success: true,
                 message: 'Email sent successfully',
             };
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('=== ERROR in sendContactEmail ===');
             logger.error('Error details:', error);
             throw new HttpsError(

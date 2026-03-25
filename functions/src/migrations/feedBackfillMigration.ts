@@ -277,7 +277,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                                     }
                                 }
                             }
-                        } catch (err) {
+                        } catch (err: unknown) {
                             logger.info(`⚠️  Could not fetch experience details for goal ${goalId}`);
                         }
 
@@ -323,7 +323,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
                     logger.info(`📈 Processed ${stats.goalsProcessed}/${goalsSnapshot.size} goals...`);
                 }
 
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error(`❌ Error processing goal ${goalDoc.id}:`, error);
                 stats.errors++;
             }
@@ -335,7 +335,7 @@ async function backfillFeedPosts(dryRun: boolean = true): Promise<MigrationStats
             logger.info(`✅ Committed final batch of ${batchCount} posts`);
         }
 
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error('❌ Migration failed:', error);
         throw error;
     }
@@ -378,7 +378,7 @@ async function runMigration(dryRun: boolean = true) {
             logger.info('🎉 Feed posts have been created\n');
         }
 
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error('\n❌ Migration failed:', error);
         process.exit(1);
     }

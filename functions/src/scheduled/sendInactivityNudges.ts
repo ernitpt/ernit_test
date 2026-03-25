@@ -119,7 +119,7 @@ export const sendInactivityNudges = functions.onSchedule(
                         );
                         continue;
                     }
-                } catch (userError) {
+                } catch (userError: unknown) {
                     logger.warn(
                         `⚠️ [PROD] Could not check lastReminderSentDate for user ${goal.userId}:`,
                         userError
@@ -155,7 +155,7 @@ export const sendInactivityNudges = functions.onSchedule(
                     logger.info(
                         `✅ [PROD] Sent level-${currentLevel} nudge to user ${goal.userId} for goal ${goalDoc.id} (${daysSinceLastSession} days inactive)`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     logger.error(
                         `❌ [PROD] Failed to create notification for goal ${goalDoc.id}:`,
                         notifError
@@ -166,7 +166,7 @@ export const sendInactivityNudges = functions.onSchedule(
             logger.info(
                 `✨ [PROD] Inactivity nudges check complete. Sent ${notificationsSent} notification(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error("❌ [PROD] Error in sendInactivityNudges:", error);
         }
     }

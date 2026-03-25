@@ -220,7 +220,7 @@ export const sendSessionReminders = functions.onSchedule(
                     logger.info(
                         `✅ [PROD] Sent reminder to user ${userDoc.id} for goal ${mostBehindGoal.id} (${mostBehindGoal.weeklyCount}/${mostBehindGoal.sessionsPerWeek})`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     logger.error(
                         `❌ [PROD] Failed to create notification for user ${userDoc.id}:`,
                         notifError
@@ -231,7 +231,7 @@ export const sendSessionReminders = functions.onSchedule(
             logger.info(
                 `✨ [PROD] Session reminders check complete. Sent ${notificationsSent} notification(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error("❌ [PROD] Error in sendSessionReminders:", error);
         }
     }

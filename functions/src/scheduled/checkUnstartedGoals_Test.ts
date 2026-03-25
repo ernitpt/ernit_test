@@ -118,7 +118,7 @@ export const checkUnstartedGoals_Test = functions.onSchedule(
                     console.log(
                         `✅ [TEST] Sent day-${daysSincePlanned} reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     console.error(
                         `❌ [TEST] Failed to create notification for goal ${goalDoc.id}:`,
                         notifError
@@ -129,7 +129,7 @@ export const checkUnstartedGoals_Test = functions.onSchedule(
             console.log(
                 `✨ [TEST] Unstarted goals check complete. Sent ${notificationsSent} notification(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("❌ [TEST] Error in checkUnstartedGoals:", error);
         }
     }

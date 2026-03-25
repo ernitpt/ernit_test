@@ -299,7 +299,7 @@ export const createFreeGift_Test = onRequest(
                         `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
                         buildGiftEmailHtml(safeGiverName || 'Someone', experienceTitle, claimUrl, revealMode || 'secret')
                     );
-                } catch (emailErr) {
+                } catch (emailErr: unknown) {
                     console.error(`⚠️ Failed to send gift email:`, emailErr);
                 }
             }

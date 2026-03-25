@@ -49,7 +49,7 @@ export const onNotificationCreated_Test = functions.firestore.onDocumentCreated(
             });
 
             return null;
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("❌ [TEST] Error sending push notification:", error);
             return null;
         }

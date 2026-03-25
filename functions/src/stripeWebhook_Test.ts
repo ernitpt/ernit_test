@@ -42,9 +42,10 @@ export const stripeWebhook_Test = onRequest(
         sig,
         STRIPE_WEBHOOK_SECRET.value()
       );
-    } catch (err: any) {
-      console.error("❌ Webhook signature verification failed:", err.message);
-      res.status(400).send(`Webhook Error: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("❌ Webhook signature verification failed:", errMsg);
+      res.status(400).send(`Webhook Error: ${errMsg}`);
       return;
     }
 
@@ -100,7 +101,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   let cart: Array<{ experienceId: string; quantity: number }> = [];
   try {
     cart = JSON.parse(metadata.cart);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("❌ Cannot parse cart metadata:", err);
     throw new Error("Invalid cart metadata");
   }

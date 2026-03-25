@@ -55,7 +55,7 @@ export const stripeCreatePaymentIntent = onRequest(
             const token = authHeader.split('Bearer ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
             userId = decodedToken.uid;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('❌ Token verification failed:', error);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;

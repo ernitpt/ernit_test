@@ -50,7 +50,7 @@ export const updatePaymentIntentMetadata = onRequest(
             let decodedToken;
             try {
                 decodedToken = await admin.auth().verifyIdToken(idToken);
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error("❌ Invalid token:", error);
                 res.status(401).json({ error: "Unauthorized: Invalid token" });
                 return;

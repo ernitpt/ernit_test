@@ -401,7 +401,7 @@ export const aiGenerateHint = onCall(
     try {
       const indexModule = await import('./index.js');
       db = indexModule.dbProd;
-    } catch (importError) {
+    } catch (importError: unknown) {
       logger.error('Failed to import db from index.js:', importError);
       throw new HttpsError('internal', 'Service initialization failed');
     }

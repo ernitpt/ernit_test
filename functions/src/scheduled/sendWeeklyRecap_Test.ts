@@ -165,7 +165,7 @@ export const sendWeeklyRecap_Test = functions.onSchedule(
                     console.log(
                         `✅ [TEST] Sent weekly recap to user ${userId} (${totalSessionsDone}/${totalSessionsRequired} sessions, ${goalsOnTrack}/${totalGoals} goals on track)`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     console.error(
                         `❌ [TEST] Failed to create recap notification for user ${userId}:`,
                         notifError
@@ -176,7 +176,7 @@ export const sendWeeklyRecap_Test = functions.onSchedule(
             console.log(
                 `✨ [TEST] Weekly recap generation complete. Sent ${recapsSent} recap(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("❌ [TEST] Error in sendWeeklyRecap:", error);
         }
     }

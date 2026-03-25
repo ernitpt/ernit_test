@@ -40,7 +40,7 @@ export async function sendEmail(
     try {
         const info = await transporter.sendMail(mailOptions);
         logger.info(`✅ Email sent to ${to}, messageId: ${info.messageId}`);
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error(`❌ Failed to send email to ${to}:`, error);
         throw error;
     }

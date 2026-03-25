@@ -156,7 +156,7 @@ export const sendBookingReminders = functions.onSchedule(
                             }
                         }
                     }
-                } catch (expError) {
+                } catch (expError: unknown) {
                     logger.error(
                         `⚠️ [PROD] Could not resolve experience name for goal ${goalDoc.id}:`,
                         expError
@@ -202,7 +202,7 @@ export const sendBookingReminders = functions.onSchedule(
                     logger.info(
                         `✅ [PROD] Staged day-${daysSinceCompletion} booking reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     logger.error(
                         `❌ [PROD] Failed to stage booking reminder for goal ${goalDoc.id}:`,
                         notifError
@@ -219,7 +219,7 @@ export const sendBookingReminders = functions.onSchedule(
             logger.info(
                 `✨ [PROD] Booking reminders check complete. Sent ${notificationsSent} notification(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error("❌ [PROD] Error in sendBookingReminders:", error);
         }
     }

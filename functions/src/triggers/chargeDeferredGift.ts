@@ -68,7 +68,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             if (userDoc.exists) {
                 recipientName = userDoc.data()?.name || userDoc.data()?.displayName || 'They';
             }
-        } catch (e) {
+        } catch (e: unknown) {
             logger.warn("⚠️ [PROD] Could not fetch recipient name:", e);
         }
 
@@ -107,7 +107,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     partnerGoalSnap = await db.collection('goals').doc(afterData.partnerGoalId).get();
                     partnerGoalData = partnerGoalSnap.data();
                     partnerUserId = partnerGoalData?.userId;
-                } catch (readErr) {
+                } catch (readErr: unknown) {
                     logger.error(`❌ [PROD] Failed to read partner goal ${afterData.partnerGoalId}:`, readErr);
                     return null; // Don't charge if we can't verify partner completion
                 }
@@ -394,7 +394,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     try {
                         await giftRef.update(paidUpdate);
                         break;
-                    } catch (updateErr) {
+                    } catch (updateErr: unknown) {
                         if (attempt === 3) {
                             // All retries failed — log critical error with PaymentIntent ID
                             // for manual reconciliation. Do NOT revert to 'deferred'.
@@ -412,7 +412,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         payment: 'deferred',
                         updatedAt: FieldValue.serverTimestamp(),
                     });
-                } catch (revertError) {
+                } catch (revertError: unknown) {
                     logger.error(`❌ [PROD] Failed to revert gift ${giftId} to deferred after Stripe error:`, revertError);
                 }
                 throw stripeError;
@@ -522,7 +522,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         createdAt: FieldValue.serverTimestamp(),
                     });
                 }
-            } catch (notifError) {
+            } catch (notifError: unknown) {
                 logger.error("❌ [PROD] Failed to send payment failure notification:", notifError);
             }
 

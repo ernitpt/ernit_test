@@ -43,7 +43,7 @@ export const deleteGoal = onRequest(
             const token = authHeader.split('Bearer ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
             uid = decodedToken.uid;
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error('[deleteGoal] Token verification failed:', error);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
@@ -118,7 +118,7 @@ export const deleteGoal = onRequest(
                                 if (userSnap.exists) {
                                     userName = userSnap.data()?.displayName || 'Someone';
                                 }
-                            } catch (userErr) {
+                            } catch (userErr: unknown) {
                                 logger.warn(`[deleteGoal] Could not fetch user displayName:`, userErr);
                             }
 
@@ -176,7 +176,7 @@ export const deleteGoal = onRequest(
                         if (userSnap.exists) {
                             userName = userSnap.data()?.displayName || 'Someone';
                         }
-                    } catch (userErr) {
+                    } catch (userErr: unknown) {
                         logger.warn(`[deleteGoal] Could not fetch user displayName for partner notification:`, userErr);
                     }
 
@@ -219,7 +219,7 @@ export const deleteGoal = onRequest(
                         logger.info(`[deleteGoal] Deleted ${subSnap.size} docs from ${subcollection}`);
                         if (subSnap.size < 500) hasMore = false;
                     }
-                } catch (subErr) {
+                } catch (subErr: unknown) {
                     logger.error(`[deleteGoal] Error deleting subcollection ${subcollection}:`, subErr);
                 }
             }
@@ -247,7 +247,7 @@ export const deleteGoal = onRequest(
                     logger.info(`[deleteGoal] Soft-deleted ${feedSnap.size} feed posts`);
                     if (feedSnap.size < 500) hasMoreFeed = false;
                 }
-            } catch (feedErr) {
+            } catch (feedErr: unknown) {
                 logger.error(`[deleteGoal] Error soft-deleting feed posts:`, feedErr);
             }
 

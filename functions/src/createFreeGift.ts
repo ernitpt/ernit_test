@@ -271,7 +271,7 @@ export const createFreeGift = onRequest(
                         buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
                     logger.info(`✅ Gift email sent to ${recipientEmail}`);
-                } catch (emailErr) {
+                } catch (emailErr: unknown) {
                     // Don't fail the whole request if email fails
                     logger.error(`⚠️ Failed to send gift email:`, emailErr);
                 }

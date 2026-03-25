@@ -166,7 +166,7 @@ export const sendWeeklyRecap = functions.onSchedule(
                     logger.info(
                         `✅ [PROD] Sent weekly recap to user ${userId} (${totalSessionsDone}/${totalSessionsRequired} sessions, ${goalsOnTrack}/${totalGoals} goals on track)`
                     );
-                } catch (notifError) {
+                } catch (notifError: unknown) {
                     logger.error(
                         `❌ [PROD] Failed to create recap notification for user ${userId}:`,
                         notifError
@@ -177,7 +177,7 @@ export const sendWeeklyRecap = functions.onSchedule(
             logger.info(
                 `✨ [PROD] Weekly recap generation complete. Sent ${recapsSent} recap(s).`
             );
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error("❌ [PROD] Error in sendWeeklyRecap:", error);
         }
     }

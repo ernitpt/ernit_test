@@ -285,7 +285,7 @@ export const createDeferredGift_Test = onRequest(
                         `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
                         buildGiftEmailHtml(safeGiverName || 'Someone', experienceData.title, claimUrl, revealMode)
                     );
-                } catch (emailErr) {
+                } catch (emailErr: unknown) {
                     console.error(`⚠️ Failed to send gift email:`, emailErr);
                 }
             }

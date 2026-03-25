@@ -161,7 +161,7 @@ export async function sendPushNotification(
                 .update({
                     fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
                 });
-        } catch (cleanupError) {
+        } catch (cleanupError: unknown) {
             logger.warn(`⚠️ [${envLabel}] Failed to remove stale FCM tokens for user ${userId}:`, cleanupError);
         }
     }
