@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
 import { Camera, ImageIcon } from 'lucide-react-native';
 import { Colors, useColors } from '../../../config';
@@ -54,7 +54,7 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
       {/* Preview or capture buttons */}
       {hasMedia ? (
         <View style={styles.previewContainer}>
-          <Image source={{ uri: capturedMediaUri! }} style={styles.previewImage} accessibilityLabel={capturedMediaType === 'video' ? 'Captured video preview' : 'Captured photo preview'} />
+          <Image source={{ uri: capturedMediaUri! }} style={styles.previewImage} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel={capturedMediaType === 'video' ? 'Captured video preview' : 'Captured photo preview'} />
           {capturedMediaType === 'video' && (
             <View style={styles.previewVideoOverlay}>
               <Text style={styles.previewVideoIcon}>▶</Text>

@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
 import { Share2 } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
@@ -163,7 +163,9 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
               <Image
                 source={{ uri: mediaUri }}
                 style={styles.feedMediaAdaptive}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                accessibilityLabel="Session media"
               />
             </TouchableOpacity>
           )}
@@ -274,7 +276,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
           <Image
             source={{ uri: mediaUri }}
             style={styles.fullscreenImage}
-            resizeMode="contain"
+            contentFit="contain"
+            cachePolicy="memory-disk"
           />
         </BaseModal>
       )}
