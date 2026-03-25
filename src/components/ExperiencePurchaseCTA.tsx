@@ -56,7 +56,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
             ]}
         >
             {/* Dismiss */}
-            <TouchableOpacity style={inlineStyles.dismiss} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity style={inlineStyles.dismiss} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Dismiss experience suggestion">
                 <X size={16} color={colors.textMuted} />
             </TouchableOpacity>
 

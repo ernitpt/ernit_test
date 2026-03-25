@@ -249,6 +249,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
               setError(null);
             }}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel goal approval"
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -256,6 +258,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleApprove}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm goal approval"
           >
             {loading ? (
               <ActivityIndicator color={colors.white} />
@@ -339,6 +343,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
               setSuggestError(null);
             }}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel change suggestion"
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -346,6 +352,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleSuggestChange}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Submit change suggestion"
           >
             {loading ? (
               <ActivityIndicator color={colors.white} />

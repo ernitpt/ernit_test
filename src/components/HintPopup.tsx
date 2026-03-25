@@ -375,6 +375,8 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                       pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
                     ]}
                     onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss hint"
                   >
                     <Text style={styles.btnText}>Awesome!</Text>
                   </Pressable>

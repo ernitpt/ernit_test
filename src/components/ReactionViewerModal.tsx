@@ -119,6 +119,9 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                         selectedTab === 'all' && styles.tabActive,
                     ]}
                     onPress={() => setSelectedTab('all')}
+                    accessibilityRole="tab"
+                    accessibilityLabel="All reactions"
+                    accessibilityState={{ selected: selectedTab === 'all' }}
                 >
                     <Text
                         style={[
@@ -138,6 +141,9 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                             selectedTab === type && styles.tabActive,
                         ]}
                         onPress={() => setSelectedTab(type)}
+                        accessibilityRole="tab"
+                        accessibilityLabel={`${REACTION_EMOJIS[type]} reactions`}
+                        accessibilityState={{ selected: selectedTab === type }}
                     >
                         <Text style={styles.tabEmoji}>{REACTION_EMOJIS[type]}</Text>
                         <Text

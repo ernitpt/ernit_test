@@ -108,6 +108,8 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     onPress={handleClear}
                     activeOpacity={0.7}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss notification"
                 >
                     <X color={colors.textMuted} size={14} />
                 </TouchableOpacity>

@@ -116,6 +116,8 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
                             style={styles.optionPrimary}
                             onPress={handleDirect}
                             activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Claim ${experienceTitle}`}
                         >
                             <ShoppingBag size={18} color={colors.white} />
                             <View style={{ flex: 1 }}>

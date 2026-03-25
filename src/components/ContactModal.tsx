@@ -122,6 +122,8 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                     style={styles.backdrop}
                     activeOpacity={1}
                     onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close contact form"
                 />
                 <Animated.View
                     style={[
@@ -140,7 +142,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 <Icon color={colors.secondary} size={24} />
                                 <Text style={styles.headerTitle}>{title}</Text>
                             </View>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close">
                                 <X color={colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
