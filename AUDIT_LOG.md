@@ -141,5 +141,39 @@
 
 ---
 
+## Post-Completion Quality Pass
+
+After all 20 tasks were committed, an automated audit found and fixed 5 additional issues:
+
+### 1. Dimensions.get → useWindowDimensions()
+**Files**: `GoalCardModals.tsx`, `JourneyScreen.tsx`
+**What**: Both files called `Dimensions.get('window')` inside component functions (non-reactive). Replaced with `useWindowDimensions()` hook so width updates on orientation/window resize.
+
+### 2. Hardcoded confetti hex colors
+**File**: `GoalCardModals.tsx`
+**What**: Week 3 and 4+ celebration tiers used hardcoded `#FFD700`, `#FFA500`, `#FF6347`, `#FF1493`, `#00CED1`. Replaced with design tokens: `colors.celebrationGold`, `colors.warning`, `colors.error`, `colors.categoryPink`, `colors.accent`. Added `colors` to `weekTier` useMemo dependency.
+
+### 3. Missing accessibility labels
+**File**: `JourneyScreen.tsx`
+**What**: Share format toggle buttons (Story/Square) and session media image preview TouchableOpacity had no `accessibilityRole`/`accessibilityLabel`. Added `accessibilityState={{ selected }}` to toggle buttons.
+
+### 4. GoalService analytics event names
+**Files**: `GoalService.ts`, `types/index.ts`
+**What**: `selfEditGoal` incorrectly tracked `goal_approved` (that's for giver approval). Changed to new `goal_edited` event. `requestGoalEdit` had no analytics call — added `goal_edit_requested` event. Both event names added to `AnalyticsEventName` union.
+
+### 5. Unused prop in ExperienceCard
+**File**: `FriendProfileScreen.tsx`
+**What**: `ExperienceCard` declared `friendUserId?: string` prop but never used it. Removed the prop declaration and call-site `friendUserId={userId}`.
+
+### 6. Double timer notification at t=0
+**File**: `TimerDisplay.tsx`
+**What**: `lastNotifMinute.current` initialized to -1 caused TimerDisplay to fire a notification at timeElapsed=0, duplicate of the one `startTimer` already sends. Changed initial value to 0.
+
+### 7. Misleading deadline warning message
+**File**: `DetailedGoalCard.tsx`
+**What**: Error level deadline warning said "Can't finish this week unless you go today!" even when multiple days remained (just not enough for the sessions needed). Changed to count-based message: "Not enough days left — N sessions needed in D days. Log now!"
+
+---
+
 ## Final Status
-All 20 planned tasks completed and committed. TypeScript clean throughout. Codebase ready for review and merge to main.
+All 20 planned tasks + 7 post-completion quality fixes committed. TypeScript clean throughout. Codebase ready for review and merge to main.
