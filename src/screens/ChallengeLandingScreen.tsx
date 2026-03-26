@@ -9,7 +9,9 @@ import {
     Dimensions,
     Linking,
     Animated as RNAnimated,
+    useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -32,17 +34,14 @@ import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
 
 // ─── Constants ────────────────────────────────────────────────────
-const SCREEN_W = Dimensions.get('window').width;
+// SCREEN_W is now resolved inside the component via useWindowDimensions()
 
 const WORD_SLOT_HEIGHT = vh(46);
 const CONTENT_FADE_MS = 250;
 
-// Dual carousel sizing — responsive to screen width AND height
+// Dual carousel sizing constants (CARD_W, CARD_H, CARD_SLIDE computed inside component)
 const CARDS_GAP = 10;
 const CARDS_PADDING = 16;
-const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2 - CARDS_GAP) / 2, 240);
-const CARD_H = CARD_W * (0.9 + 0.45 * VH);
-const CARD_SLIDE = CARD_W * 0.7;
 
 // ─── Mode configs ─────────────────────────────────────────────────
 type LandingMode = 'self' | 'gift';
@@ -229,12 +228,24 @@ type LandingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chal
 
 export default function ChallengeLandingScreen() {
     const colors = useColors();
+    const { width: screenWidth } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const SELF_CONFIG = useMemo(() => getSelfConfig(colors), [colors]);
     const GIFT_CONFIG = useMemo(() => getGiftConfig(colors), [colors]);
     const navigation = useNavigation<LandingNavigationProp>();
     const route = useRoute<RouteProp<RootStackParamList, 'ChallengeLanding'>>();
     const { state } = useApp();
+
+    // Responsive card sizing
+    const { CARD_W, CARD_H, CARD_SLIDE } = useMemo(() => {
+        const w = Math.min((screenWidth - CARDS_PADDING * 2 - CARDS_GAP) / 2, 240);
+        return {
+            CARD_W: w,
+            CARD_H: w * (0.9 + 0.45 * VH),
+            CARD_SLIDE: w * 0.7,
+        };
+    }, [screenWidth]);
     const isLoggedIn = !!state.user?.id;
 
     // Mode from route param (GiftLanding passes mode='gift')
@@ -393,7 +404,7 @@ export default function ChallengeLandingScreen() {
                     contentContainerStyle={styles.scrollContent}
                 >
                     {/* Hero Section — stacked gradients for smooth cross-fade */}
-                    <View style={styles.hero}>
+                    <View style={[styles.hero, { paddingTop: insets.top + Spacing.lg }]}>
                         <LinearGradient
                             colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
@@ -559,7 +570,7 @@ export default function ChallengeLandingScreen() {
                                 <View style={styles.cardsRowOuter}>
                                     <View style={styles.cardsRow}>
                                         {/* Left — Goal images (next peeks from left only, slides L→R) */}
-                                        <View style={styles.cardCarousel}>
+                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
                                             {GOAL_IMAGES.map((url, i) => {
                                                 const offset = wrapOffset(i, wordIndex % GOAL_IMAGES.length, GOAL_IMAGES.length);
                                                 const isCenter = offset === 0;
@@ -582,7 +593,7 @@ export default function ChallengeLandingScreen() {
                                                         }}
                                                         style={[
                                                             styles.cardImageCard,
-                                                            { zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
+                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
                                                         ]}
                                                     >
                                                         <Image
@@ -603,7 +614,7 @@ export default function ChallengeLandingScreen() {
                                         </View>
 
                                         {/* Right — Reward images (next peeks from right only, slides R→L) */}
-                                        <View style={styles.cardCarousel}>
+                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
                                             {REWARD_IMAGES.map((url, i) => {
                                                 const offset = wrapOffset(i, rewardIndex % REWARD_IMAGES.length, REWARD_IMAGES.length);
                                                 const isCenter = offset === 0;
@@ -626,7 +637,7 @@ export default function ChallengeLandingScreen() {
                                                         }}
                                                         style={[
                                                             styles.cardImageCard,
-                                                            { zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
+                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
                                                         ]}
                                                     >
                                                         <Image
@@ -945,7 +956,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.white,
     },
     hero: {
-        paddingTop: vh(Platform.OS === 'ios' ? 60 : 44),
         paddingHorizontal: Spacing.xxl,
         backgroundColor: colors.white,
         position: 'relative',
@@ -1091,7 +1101,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
     // ── Dual image carousels ──────────────────────
     cardsRowOuter: {
-        width: SCREEN_W,
+        width: '100%',
         alignSelf: 'center',
         marginHorizontal: -24,
         overflow: 'hidden',
@@ -1107,16 +1117,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         position: 'relative',
     },
     cardCarousel: {
-        width: CARD_W,
-        height: CARD_H,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
     },
     cardImageCard: {
         position: 'absolute',
-        width: CARD_W,
-        height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
         backgroundColor: colors.gray300,

@@ -778,6 +778,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate HeroPreviewScreen and ExperienceDetailsScreen.web to expo-image
 - replace raw error messages with getUserMessage() utility across giver and recipient screens
 - replace raw error messages with getUserMessage for user-friendly error toasts
+- Android layout compatibility - responsive dimensions and safe area insets across 7 files
+- A0-3 android layout compatibility fixes across 8 files
+- A0-2 separate Android OAuth client ID in AuthScreen
 
 ### Added
 - Automatic changelog system with `npm run log` script

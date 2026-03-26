@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FooterNavigation, { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
 import LoginPrompt from '../components/LoginPrompt';
@@ -26,6 +26,7 @@ type MainScreenProps = {
  */
 const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -62,7 +63,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
         )}
 
         {/* Main Content */}
-        <View style={styles.content}>{children}</View>
+        <View style={[styles.content, { paddingBottom: FOOTER_HEIGHT + Math.max(insets.bottom, Spacing.sm) }]}>{children}</View>
 
         {/* Login Prompt Popup - shown when protected route is accessed without auth */}
         <LoginPrompt

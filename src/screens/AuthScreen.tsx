@@ -16,7 +16,9 @@ import {
   Image,
   Animated,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -58,6 +60,8 @@ type AuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'A
 
 const AuthScreen = () => {
   const colors = useColors();
+  const { width: screenWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<AuthScreenNavigationProp>();
   const route = useRoute();
   const { state, dispatch } = useApp();
@@ -225,17 +229,23 @@ const AuthScreen = () => {
 
   // ? SECURITY FIX: No fallback - fail if env var missing
   const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
   // Log OAuth config for debugging
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
       logger.error('?? CRITICAL: Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID environment variable');
     }
+    if (Platform.OS === 'android' && !GOOGLE_ANDROID_CLIENT_ID) {
+      logger.warn('?? Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID — Android OAuth may fail');
+    }
   }, []);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED',
-    webClientId: GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED', // Fail gracefully instead of crashing
+    clientId: Platform.OS === 'android'
+      ? (GOOGLE_ANDROID_CLIENT_ID ?? GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED')
+      : (GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED'),
+    webClientId: GOOGLE_CLIENT_ID ?? 'NOT_CONFIGURED',
     redirectUri,
   });
 
@@ -821,6 +831,7 @@ const AuthScreen = () => {
         <StatusBar style="auto" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
           style={{ flex: 1 }}
         >
           <ScrollView
@@ -830,7 +841,7 @@ const AuthScreen = () => {
             keyboardDismissMode="on-drag"
           >
             {/* Back Button */}
-            <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? vh(50) : vh(20), left: 20, zIndex: 10 }}>
+            <View style={{ position: 'absolute', top: insets.top + Spacing.md, left: 20, zIndex: 10 }}>
               <TouchableOpacity
                 onPress={handleBack}
                 style={{
@@ -878,7 +889,7 @@ const AuthScreen = () => {
               </View>
 
               {/* Form Card */}
-              <View style={{ width: '100%', maxWidth: 400 }}>
+              <View style={{ width: '100%', maxWidth: Math.min(400, screenWidth - 40) }}>
                 <View style={{
                   backgroundColor: colors.surfaceFrosted,
                   borderRadius: BorderRadius.xxl,
