@@ -200,3 +200,28 @@ After all 20 tasks were complete, a second overnight session audited the codebas
 
 ## Final Status (Session 2)
 All 20 planned tasks + 7 post-completion quality fixes + goal edit approval system committed. TypeScript clean throughout. Codebase ready for review and merge to main.
+
+---
+
+## Phase 8: Notification Fixes + Design Token Polish (Session 3 — 2026-03-26)
+
+### Task: BATCH 1 Notification Navigation Fixes (deferred from original task list)
+
+**Fix 1 — post_comment handler**: Added handler for `post_comment` notifications in NotificationsScreen tap handler. Navigates to Feed with `highlightPostId` (same pattern as `post_reaction`).
+
+**Fix 2 — personalized_hint_left completed goal toast**: Changed silent `return` for completed goals to show `showInfo('This goal is already completed')` toast. Users now get feedback instead of nothing.
+
+**Fix 3 — Missing data fallbacks**: Added `showError('Could not open — data unavailable')` for all notification types when required data fields (giftId, goalId, postId) are missing. Covered: `gift_received`, `post_reaction`, `post_comment`, `personalized_hint_left`.
+
+### Design Token Fixes
+- Added `Spacing.jumbo = 60` to spacing config for share card canvas values
+- Replaced `fontSize: 18` with `Typography.heading3.fontSize` in MilestoneStatPill emoji
+- Replaced `fontSize: 20` with `Typography.large.fontSize/lineHeight` in GoalRetrospective stat emoji
+- Replaced `paddingVertical: 2` with `Spacing.xxs` in hint session badge
+- Replaced `marginBottom: 8` with `Spacing.sm` in hint text
+- Replaced `marginBottom: 60`, `gap: 60`, `marginTop: 40`, `marginBottom: 16` in share card with Spacing tokens
+
+**TypeScript**: Zero errors in `src/` throughout session 3.
+
+## Final Status (Session 3)
+All deferred BATCH 1 notification fixes applied. All remaining hardcoded spacing/typography values replaced with design tokens. Codebase is TypeScript-clean and ready for review.
