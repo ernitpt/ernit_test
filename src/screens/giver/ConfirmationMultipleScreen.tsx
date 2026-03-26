@@ -35,6 +35,7 @@ import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
+import { getUserMessage } from '../../utils/AppError';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -198,8 +199,7 @@ Earn it. Unlock it. Enjoy it 🚀
 
       await Share.share(shareOptions);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      showError(message || 'Failed to share the code');
+      showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
     }
   }, []);
 

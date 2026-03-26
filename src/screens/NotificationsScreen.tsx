@@ -26,6 +26,7 @@ import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
+import GoalEditApprovalNotification from '../components/GoalEditApprovalNotification';
 import { GoalProgressNotification } from '../components/GoalProgressNotification';
 import FreeGoalNotification from '../components/FreeGoalNotification';
 import { NotificationSkeleton } from '../components/SkeletonLoader';
@@ -221,20 +222,27 @@ const NotificationsScreen = () => {
     await notificationService.markAsRead(n.id!);
 
     if (n.type === 'gift_received') {
-      try {
-        const gift = await experienceGiftService.getExperienceGiftById(n.data.giftId);
-        if (gift && gift.experienceId) {
-          navigation.navigate('GoalSetting', { experienceGift: gift });
+      if (!n.data?.giftId) {
+        showError('Could not open — data unavailable');
+      } else {
+        try {
+          const gift = await experienceGiftService.getExperienceGiftById(n.data.giftId);
+          if (gift && gift.experienceId) {
+            navigation.navigate('GoalSetting', { experienceGift: gift });
+          } else {
+            showError('Could not open — data unavailable');
+          }
+        } catch (error: unknown) {
+          logger.error('Error fetching experience gift:', error);
+          showError('Could not open — data unavailable');
         }
-      } catch (error: unknown) {
-        logger.error('Error fetching experience gift:', error);
       }
     }
 
     if (n.type === 'personalized_hint_left' && n.data?.goalId) {
       // Check if goal is completed using our local state
       if (userGoals[n.data.goalId]) {
-        // Goal is completed, do not navigate
+        showInfo('This goal is already completed');
         return;
       }
 
@@ -242,14 +250,33 @@ const NotificationsScreen = () => {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
           navigation.navigate('Journey', { goal });
+        } else {
+          showError('Could not open — data unavailable');
         }
       } catch (error: unknown) {
         logger.error('Error fetching goal:', error);
+        showError('Could not open — data unavailable');
       }
+    }
+
+    if (n.type === 'personalized_hint_left' && !n.data?.goalId) {
+      showError('Could not open — data unavailable');
     }
 
     if (n.type === 'post_reaction' && n.data?.postId) {
       navigation.navigate('Feed', { highlightPostId: n.data.postId });
+    }
+
+    if (n.type === 'post_reaction' && !n.data?.postId) {
+      showError('Could not open — data unavailable');
+    }
+
+    if (n.type === 'post_comment' && n.data?.postId) {
+      navigation.navigate('Feed', { highlightPostId: n.data.postId });
+    }
+
+    if (n.type === 'post_comment' && !n.data?.postId) {
+      showError('Could not open — data unavailable');
     }
 
     if ((n.type === 'session_reminder' || n.type === 'weekly_recap') && n.data?.goalId) {
@@ -339,7 +366,7 @@ const NotificationsScreen = () => {
       }
     }
 
-    if (n.type === 'goal_approval_response' && n.data?.goalId) {
+    if ((n.type === 'goal_approval_response' || n.type === 'goal_edit_response') && n.data?.goalId) {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
     }
 
@@ -458,6 +485,18 @@ const NotificationsScreen = () => {
       );
     }
 
+    // Handle goal edit request notifications (for givers to approve or reject)
+    if (item.type === 'goal_edit_request') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <GoalEditApprovalNotification
+            notification={item}
+            onActionTaken={handleApprovalActionTaken}
+          />
+        </Animated.View>
+      );
+    }
+
     // Handle goal progress notifications (for givers to leave hints)
     if (item.type === 'goal_progress') {
       const isLatest = item.data?.goalId
@@ -488,8 +527,8 @@ const NotificationsScreen = () => {
       );
     }
 
-    // Handle goal approval response notifications (approved/rejected)
-    if (item.type === 'goal_approval_response') {
+    // Handle goal approval/edit response notifications (approved/rejected)
+    if (item.type === 'goal_approval_response' || item.type === 'goal_edit_response') {
       const isApproved = item.data?.approved !== false;
       const accentColor = isApproved ? colors.success : colors.error;
       const bgColor = isApproved ? colors.successLight : colors.errorLight;

@@ -196,7 +196,7 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   };
 
   const footerHeight = FOOTER_HEIGHT;
-  const safeAreaSpacer = Platform.OS === 'ios' ? insets.bottom : 0;
+  const safeAreaSpacer = Math.max(insets.bottom, Spacing.sm);
 
   return (
     <View style={styles.outerWrapper}>

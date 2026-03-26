@@ -36,6 +36,7 @@ import { Shadows } from '../../config/shadows';
 import MainScreen from '../MainScreen';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
+import { getUserMessage } from '../../utils/AppError';
 
 const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
 
@@ -85,7 +86,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       if (error) {
         // Validation or integration errors — stay on screen so user can retry
         if (error.type === 'validation_error' || error.type === 'invalid_request_error') {
-          showError(error.message || 'Please check your card details.');
+          showError(getUserMessage(error, 'Card validation failed. Please check your card details and try again.'));
           await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
           return;
         }
@@ -96,7 +97,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           feature: 'ConfirmSetupIntent',
           userId: state.user?.id,
         });
-        showError(error.message || 'Could not save your card. Please try again.');
+        showError(getUserMessage(error, 'Could not save your card. Please verify your details and try again.'));
         return;
       }
 

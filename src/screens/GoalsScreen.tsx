@@ -121,6 +121,12 @@ const GoalsScreen: React.FC = () => {
         const activeGoals = goals.filter((g) => {
           return !g.isCompleted && g.currentCount < g.targetCount;
         });
+        // Sort active goals by newest first
+        activeGoals.sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        });
         setCurrentGoals(activeGoals);
 
         // Collect completed goals
@@ -350,8 +356,12 @@ const GoalsScreen: React.FC = () => {
                 tintColor={colors.secondary}
               />
             }
-            ListHeaderComponent={sessionStreak >= 3 ? (
-              <StreakBanner streak={sessionStreak} />
+            ListHeaderComponent={currentGoals.length > 0 ? (
+              <StreakBanner
+                streak={sessionStreak}
+                weeklyDone={currentGoals.reduce((acc, g) => acc + (g.weeklyCount || 0), 0)}
+                weeklyTarget={currentGoals.reduce((acc, g) => acc + (g.sessionsPerWeek || 0), 0)}
+              />
             ) : null}
             ListEmptyComponent={
               <View style={{ flex: 1, justifyContent: 'center', minHeight: vh(50) }}>

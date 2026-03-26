@@ -15,6 +15,7 @@ export default {
     },
     android: {
       package: "com.ernit.ernit",
+      softwareKeyboardLayoutMode: "pan",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff",

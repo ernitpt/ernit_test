@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   StyleSheet,
   Animated,
   Platform,
   Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { TextInput } from '../../components/TextInput';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -44,6 +44,7 @@ import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
+import { getUserMessage } from '../../utils/AppError';
 
 const ConfirmationScreen = () => {
   const colors = useColors();
@@ -320,8 +321,7 @@ Earn it. Unlock it. Enjoy it 🚀
         logger.log('Share dismissed');
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      showError(message || 'Failed to share the code');
+      showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
     }
   }, [isTogether, experienceGift.claimCode]);
 
@@ -441,7 +441,8 @@ Earn it. Unlock it. Enjoy it 🚀
             <Image
               source={{ uri: experienceImage }}
               style={styles.experienceImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               accessibilityLabel={`${experience.title} experience image`}
             />
             <View style={styles.experienceOverlay}>

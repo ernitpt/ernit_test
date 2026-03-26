@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Animated,
+    useWindowDimensions,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, Bell, ShoppingCart, Bug } from 'lucide-react-native';
@@ -91,7 +92,9 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     unreadNotificationCount,
 }) => {
     const colors = useColors();
+    const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const headerPaddingHorizontal = screenWidth < 380 ? Spacing.lg : Spacing.xl;
 
     const navigation = useRootNavigation();
     const route = useRoute();
@@ -170,7 +173,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
 
     return (
         <View style={styles.headerWrapper}>
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingHorizontal: headerPaddingHorizontal }]}>
                 {/* Left: back + title */}
                 <View style={styles.headerLeft}>
                     {showBack && (
@@ -237,7 +240,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                     )}
                 </View>
             </View>
-            <View style={styles.separator} />
+            <View style={[styles.separator, { marginHorizontal: headerPaddingHorizontal }]} />
         </View>
     );
 };

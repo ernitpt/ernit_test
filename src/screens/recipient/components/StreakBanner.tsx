@@ -143,11 +143,59 @@ const SparkParticle: React.FC<{
 
 interface StreakBannerProps {
   streak: number;
+  weeklyDone?: number;
+  weeklyTarget?: number;
 }
 
-const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
+// ─── Compact Streak Banner (streaks 0-2) ────────────────────────────
+
+const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weeklyTarget?: number }> = ({ streak, weeklyDone, weeklyTarget }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const getMessage = () => {
+    if (streak === 0) return { title: 'Start your streak today!', emoji: '🔥', subtitle: 'Complete a session to light the flame' };
+    if (streak === 1) return { title: '1 day streak!', emoji: '🔥', subtitle: 'Keep it going — come back tomorrow!' };
+    return { title: '2 days strong!', emoji: '🔥🔥', subtitle: 'One more day and your streak is on fire!' };
+  };
+
+  const { title, emoji, subtitle } = getMessage();
+
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: -10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 400 }}
+    >
+      <View
+        style={styles.compactBanner}
+        accessibilityLabel={streak === 0 ? 'Start your streak' : `${streak} day streak`}
+        accessibilityRole="text"
+      >
+        <Text style={styles.compactEmoji}>{emoji}</Text>
+        <View style={styles.compactTextContainer}>
+          <Text style={[styles.compactTitle, { color: colors.warningMedium }]}>{title}</Text>
+          <Text style={styles.compactSubtitle}>{subtitle}</Text>
+          {weeklyTarget != null && weeklyTarget > 0 && (
+            <Text style={styles.weeklyRow}>
+              This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+            </Text>
+          )}
+        </View>
+      </View>
+    </MotiView>
+  );
+};
+
+// ─── Full Streak Banner (streaks 3+) ────────────────────────────────
+
+const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyTarget }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // For streaks 0-2, show compact motivational variant
+  if (streak < 3) return <CompactStreakBanner streak={streak} weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
+
   const config = useMemo(() => getStreakConfig(streak), [streak]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -315,6 +363,11 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak }) => {
             <Text style={styles.subtitle}>
               Keep it up! Your streak resets after 7 days of inactivity
             </Text>
+            {weeklyTarget != null && weeklyTarget > 0 && (
+              <Text style={styles.weeklyRow}>
+                This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -365,6 +418,38 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   spark: {
     position: 'absolute',
+  },
+  // ─── Compact variant (streaks 0-2) ──────────────────────────────
+  compactBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: colors.warningLighter,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.warningBorder,
+  },
+  compactEmoji: {
+    ...Typography.heading2,
+  },
+  compactTextContainer: {
+    flex: 1,
+  },
+  compactTitle: {
+    ...Typography.bodyBold,
+    marginBottom: Spacing.xxs,
+  },
+  compactSubtitle: {
+    ...Typography.caption,
+    color: colors.warningDark,
+  },
+  weeklyRow: {
+    ...Typography.caption,
+    color: colors.warningDark,
+    marginTop: Spacing.xxs,
+    fontWeight: '600',
   },
 });
 

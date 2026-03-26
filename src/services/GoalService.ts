@@ -796,6 +796,201 @@ export class GoalService {
 
     analyticsService.trackEvent('goal_deleted', 'engagement', { goalId });
   }
+
+  /**
+   * Self-edit a goal the user created themselves (no giver).
+   * Constraints: can't reduce below completed weeks or current week's logged sessions.
+   */
+  async selfEditGoal(
+    goalId: string,
+    newTargetCount: number,
+    newSessionsPerWeek: number
+  ): Promise<Goal> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal owner can edit this goal', 'auth');
+    }
+    if (goal.empoweredBy) {
+      throw new AppError('VALIDATION_ERROR', 'Use requestGoalEdit for gifted goals', 'validation');
+    }
+    if (newTargetCount < (goal.currentCount || 0)) {
+      throw new AppError('VALIDATION_ERROR', `Can't reduce below already-completed weeks (${goal.currentCount})`, 'validation');
+    }
+    if (newSessionsPerWeek < (goal.weeklyCount || 0)) {
+      throw new AppError('VALIDATION_ERROR', `Can't reduce sessions/week below already-logged this week (${goal.weeklyCount})`, 'validation');
+    }
+    if (newTargetCount < 1 || newTargetCount > 5) {
+      throw new AppError('VALIDATION_ERROR', 'Weeks must be between 1 and 5', 'validation');
+    }
+    if (newSessionsPerWeek < 1 || newSessionsPerWeek > 7) {
+      throw new AppError('VALIDATION_ERROR', 'Sessions per week must be between 1 and 7', 'validation');
+    }
+
+    const startDate = toJSDate(goal.startDate) || DateHelper.now();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + newTargetCount * 7);
+
+    await updateDoc(ref, {
+      targetCount: newTargetCount,
+      sessionsPerWeek: newSessionsPerWeek,
+      duration: newTargetCount * 7,
+      endDate,
+      totalSessions: newTargetCount * newSessionsPerWeek,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edited', 'conversion', { goalId, targetCount: newTargetCount, sessionsPerWeek: newSessionsPerWeek });
+
+    const updated = await getDoc(ref);
+    return normalizeGoal({ id: updated.id, ...updated.data() });
+  }
+
+  /**
+   * Request an edit on a gifted goal — sends a notification to the giver.
+   * Only one pending edit request allowed at a time.
+   */
+  async requestGoalEdit(
+    goalId: string,
+    requestedTargetCount: number,
+    requestedSessionsPerWeek: number,
+    message?: string
+  ): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal owner can request edits', 'auth');
+    }
+    if (!goal.empoweredBy) {
+      throw new AppError('VALIDATION_ERROR', 'Use selfEditGoal for self-created goals', 'validation');
+    }
+    if ((goal as unknown as Record<string, unknown>).pendingEditRequest) {
+      throw new AppError('VALIDATION_ERROR', 'A pending edit request already exists for this goal', 'validation');
+    }
+
+    await updateDoc(ref, {
+      pendingEditRequest: {
+        requestedTargetCount,
+        requestedSessionsPerWeek,
+        message: sanitizeText(message || '', 500),
+        requestedAt: new Date(),
+        requestedBy: auth.currentUser!.uid,
+      },
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edit_requested', 'engagement', { goalId, requestedTargetCount, requestedSessionsPerWeek });
+
+    // Notify the giver
+    const requesterName = await userService.getUserName(goal.userId);
+    await notificationService.createNotification(
+      goal.empoweredBy,
+      'goal_edit_request',
+      `${requesterName} requested a goal edit`,
+      `${requesterName} wants to change "${goal.title}" to ${requestedTargetCount} weeks, ${requestedSessionsPerWeek} sessions/week.${message ? ` Message: "${sanitizeText(message, 200)}"` : ''}`,
+      { goalId, recipientId: goal.userId, requestedTargetCount, requestedSessionsPerWeek, message: sanitizeText(message || '', 200) },
+      false
+    );
+  }
+
+  /**
+   * Approve a pending goal edit request (called by the giver).
+   * Applies the requested changes and notifies the recipient.
+   */
+  async approveGoalEditRequest(goalId: string): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the giver can approve edit requests', 'auth');
+    }
+
+    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest as {
+      requestedTargetCount: number;
+      requestedSessionsPerWeek: number;
+      requestedBy: string;
+    } | undefined;
+
+    if (!pending) {
+      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+    }
+
+    const { requestedTargetCount, requestedSessionsPerWeek } = pending;
+
+    // Apply the changes
+    const startDate = toJSDate(goal.startDate) || DateHelper.now();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + requestedTargetCount * 7);
+
+    await updateDoc(ref, {
+      targetCount: requestedTargetCount,
+      sessionsPerWeek: requestedSessionsPerWeek,
+      duration: requestedTargetCount * 7,
+      endDate,
+      totalSessions: requestedTargetCount * requestedSessionsPerWeek,
+      pendingEditRequest: null,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edit_approved', 'conversion', { goalId, requestedTargetCount, requestedSessionsPerWeek });
+
+    // Notify recipient
+    const giverName = await userService.getUserName(auth.currentUser!.uid);
+    await notificationService.createNotification(
+      goal.userId,
+      'goal_edit_response',
+      `${giverName} approved your edit request`,
+      `Your goal "${goal.title}" has been updated to ${requestedTargetCount} weeks, ${requestedSessionsPerWeek} sessions/week.`,
+      { goalId, approved: true },
+      false
+    );
+  }
+
+  /**
+   * Reject a pending goal edit request (called by the giver).
+   * Clears the pending request and notifies the recipient.
+   */
+  async rejectGoalEditRequest(goalId: string): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the giver can reject edit requests', 'auth');
+    }
+
+    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest;
+    if (!pending) {
+      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+    }
+
+    await updateDoc(ref, {
+      pendingEditRequest: null,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edit_rejected', 'conversion', { goalId });
+
+    // Notify recipient
+    const giverName = await userService.getUserName(auth.currentUser!.uid);
+    await notificationService.createNotification(
+      goal.userId,
+      'goal_edit_response',
+      `${giverName} declined your edit request`,
+      `Your edit request for "${goal.title}" was not approved. You can submit a new request if needed.`,
+      { goalId, approved: false },
+      false
+    );
+  }
 }
 
 // ✅ SECURITY: Build-time code elimination

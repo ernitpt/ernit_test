@@ -70,12 +70,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add confetti to giver ConfirmationScreen
 - add xl shadow token to Shadows config for high-prominence overlays
 - redesigned ChallengeLandingScreen hero — dark theme, 3D card flip, neon glow, merged footer
+- 2A sort goals by date (newest first)
+- 2B streak banner from day 0 with compact motivational variant
+- 1C motivational countdown in already-logged-today card
+- 1B haptic feedback when timer reaches target duration
+- add achievement deadline countdown and friends since date to FriendProfileScreen
+- 5B achievement deadline countdown badges on FriendProfileScreen
+- 5C friend since date on FriendProfileScreen
+- add post type filter pills to FeedScreen
+- 4A feed post type filtering with chip pills
+- 3A session stats
+- 3C hint timing
+- 1A weekly celebration
+- 2C deadline warning
+- 2D dashboard summary
+- 3B milestone markers
+- 1E share social
+- 3D goal retrospective
+- 3E journey sharing
+- 4B post creation
+- 5A gift wishlist
+- 1D goal editing — self-edit for own goals, request-edit flow for gifted goals with giver notification
+- 1B sticky timer notification — live progress notification on Android (sticky), updates every 60s, cancelled on session stop
+- goal edit approval — giver can approve/reject recipient edit requests via notification
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
 - update system-map, add deployment checklist, update CLAUDE.md with sanitizeText and vh patterns
 - document firebase-messaging-sw.js config sync requirement with firebaseConfig.ts
 - all 8 knowledge files updated — goals, notifications, analytics, payments, experiences/gifts, social/feed, auth/user, UI/UX systems
+- update knowledge base for goal edit flow and new notification types
+- update AUDIT_LOG with session 3 notification fixes and design token polish
+- update system-map with new components, features, notification types, and service methods
 
 ### Changed
 - replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen
@@ -337,6 +363,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add overlay and reveal gradient tokens, replace hardcoded rgba in ExperienceRevealModal and ExperienceDetailModal
 - replace hardcoded rgba gradient in CategorySelectionScreen with design token
 - update social proof stats on ChallengeLandingScreen
+- replace Dimensions.get with useWindowDimensions, fix hardcoded confetti colors, add accessibility labels
+- final verification pass — all 20 tasks confirmed complete, zero new issues found
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -759,6 +787,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tapping outside comment menu now dismisses it
 - sign-up no longer falsely reports every email as already in use (Firebase v10+ auth/invalid-credential change)
 - update social proof stats with verified peer-reviewed sources
+- migrate remaining screens to expo-image for remote URI images
+- migrate GoalCardModals and SessionMediaPrompt to expo-image
+- migrate HeroPreviewScreen and ExperienceDetailsScreen.web to expo-image
+- replace raw error messages with getUserMessage() utility across giver and recipient screens
+- replace raw error messages with getUserMessage for user-friendly error toasts
+- Android layout compatibility - responsive dimensions and safe area insets across 7 files
+- A0-3 android layout compatibility fixes across 8 files
+- A0-2 separate Android OAuth client ID in AuthScreen
+- remove unused ExperienceCard prop, correct analytics event names in GoalService
+- prevent double timer notification at t=0 in TimerDisplay
+- improve deadline warning message when sessions exceed remaining days
+- add missing post_comment notification handler
+- replace hardcoded spacing and font size values with design tokens in JourneyScreen
+- replace emoji hardcoded font size with Typography.large token
+- replace hardcoded emoji font sizes with Typography.emojiBase/emoji tokens; add haptic feedback to share format toggle and session share button; add useCallback to GoalEditModal handlers
+- add haptic feedback to goal edit approve/reject actions and Gift This button
 
 ### Added
 - Automatic changelog system with `npm run log` script

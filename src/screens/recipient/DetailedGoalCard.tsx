@@ -38,6 +38,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
+import { getUserMessage } from '../../utils/AppError';
 import { vh } from '../../utils/responsive';
 
 // Extracted utilities, hooks, and components
@@ -68,8 +69,10 @@ import ExperienceRevealModal from '../../components/ExperienceRevealModal';
 import VenueSelectionModal from '../../components/VenueSelectionModal';
 import { PopupMenu, PopupMenuItem } from '../../components/PopupMenu';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
-import { Trash2, Gift } from 'lucide-react-native';
+import GoalEditModal from '../../components/GoalEditModal';
+import { Trash2, Gift, Pencil } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { toJSDate } from '../../utils/GoalHelpers';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -99,6 +102,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showGoalEditModal, setShowGoalEditModal] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
   const [celebrationData, setCelebrationData] = useState<{
@@ -112,6 +116,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     sessionsPerWeek: number;
     weeksCompleted: number;
     totalWeeks: number;
+    weekJustCompleted: boolean;
+    completedWeekNumber: number;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
   const [cancelMessage] = useState(
@@ -530,8 +536,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const funcTotalSessionsDone = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       const funcTotalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
 
-      // Start timer
-      await startTimer(currentGoal.id, null);
+      // Start timer (pass title + target seconds for live notification)
+      const goalTargetSeconds = (currentGoal.targetHours || 0) * 3600 + (currentGoal.targetMinutes || 0) * 60;
+      await startTimer(currentGoal.id, null, currentGoal.title, goalTargetSeconds);
 
       // Background hint generation
       const nextSessionNumber = funcTotalSessionsDone + 2;
@@ -831,6 +838,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     const celebTotalSessions = updated.targetCount * updated.sessionsPerWeek;
     const celebPct = Math.round((totalSessionsDone / celebTotalSessions) * 100);
 
+    // Compute week celebration: isWeekCompleted=true means the week just flipped
+    const weekJustCompleted = updated.isWeekCompleted === true;
+    // completedWeekNumber: when week just completed, currentCount reflects completed weeks
+    const completedWeekNumber = weekJustCompleted ? updated.currentCount : 0;
+
     // Always prepare celebration data (used after hint dismissal or directly)
     setCelebrationData({
       userName: celebUserName || 'You',
@@ -843,6 +855,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       sessionsPerWeek: updated.sessionsPerWeek,
       weeksCompleted: updated.currentCount,
       totalWeeks: updated.targetCount,
+      weekJustCompleted,
+      completedWeekNumber,
     });
 
     if (!isSelfGift) {
@@ -1132,8 +1146,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showSuccess('Goal removed');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not remove goal. Please try again.';
-      showError(message);
+      showError(getUserMessage(err, 'Could not remove goal. Please try again.'));
       setIsRemoving(false);
     } finally {
       setShowRemoveDialog(false);
@@ -1168,7 +1181,53 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     return msg;
   }, [currentGoal.partnerGoalId, currentGoal.approvalStatus]);
 
+  // ─── Deadline urgency warning ──────────────────────────────────────
+  const deadlineWarning = useMemo(() => {
+    if (currentGoal.isCompleted) return null;
+    const sessionsRemaining = currentGoal.sessionsPerWeek - currentGoal.weeklyCount;
+    if (sessionsRemaining <= 0) return null; // week already done — no warning needed
+
+    let daysLeftInWeek = 7;
+    if (currentGoal.weekStartAt) {
+      const weekStart = toJSDate(currentGoal.weekStartAt);
+      if (weekStart) {
+        const now = new Date();
+        const startMs = weekStart.getTime();
+        const msElapsed = now.getTime() - startMs;
+        const daysElapsed = Math.floor(msElapsed / 86400000);
+        daysLeftInWeek = Math.max(0, 7 - daysElapsed);
+      }
+    }
+
+    if (daysLeftInWeek <= 0) {
+      // Week is over — this is a catch for edge cases; normally the week would have reset
+      return null;
+    }
+
+    if (sessionsRemaining > daysLeftInWeek) {
+      // Mathematically impossible to complete all sessions this week
+      return { level: 'error' as const, message: `Not enough days left — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} needed in ${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''}. Log now!` };
+    }
+
+    if (daysLeftInWeek === 1 && sessionsRemaining > 0) {
+      return { level: 'warning' as const, message: `Last day — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} left to complete this week!` };
+    }
+
+    if (daysLeftInWeek <= 2 && sessionsRemaining >= 2) {
+      return { level: 'warning' as const, message: `${sessionsRemaining} sessions left, ${daysLeftInWeek} days remaining — you've got this!` };
+    }
+
+    return null;
+  }, [currentGoal.isCompleted, currentGoal.sessionsPerWeek, currentGoal.weeklyCount, currentGoal.weekStartAt]);
+
   const goalMenuItems: PopupMenuItem[] = useMemo(() => [
+    {
+      key: 'edit',
+      label: currentGoal.empoweredBy ? 'Request Edit' : 'Edit Goal',
+      icon: <Pencil size={14} color={isTimerRunning ? colors.textMuted : colors.primary} />,
+      onPress: () => setShowGoalEditModal(true),
+      disabled: isTimerRunning || currentGoal.isCompleted,
+    },
     {
       key: 'remove',
       label: 'Remove Goal',
@@ -1177,7 +1236,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       variant: 'danger' as const,
       disabled: isTimerRunning,
     },
-  ], [isTimerRunning]);
+  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, colors.primary, colors.textMuted, colors.error]);
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -1269,6 +1328,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             />
           </Animated.View>
 
+          {/* Deadline urgency warning */}
+          {deadlineWarning && (
+            <View style={[
+              styles.deadlineWarning,
+              deadlineWarning.level === 'error' ? styles.deadlineWarningError : styles.deadlineWarningYellow,
+            ]}>
+              <Text style={[
+                styles.deadlineWarningText,
+                deadlineWarning.level === 'error' ? { color: colors.error } : { color: colors.warningDark },
+              ]}>
+                {deadlineWarning.level === 'error' ? '🔴 ' : '🟡 '}
+                {deadlineWarning.message}
+              </Text>
+            </View>
+          )}
+
           {/* M4: "Waiting for partner to finish" — goal completed but partner hasn't unlocked yet */}
           {(currentGoal.isCompleted === true || currentGoal.isReadyToComplete === true) &&
             !currentGoal.isUnlocked &&
@@ -1358,6 +1433,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 loading={loading}
                 targetHours={currentGoal.targetHours}
                 targetMinutes={currentGoal.targetMinutes}
+                goalId={currentGoal.id}
+                goalTitle={currentGoal.title}
                 onFinish={handleFinish}
                 onCancel={() => setShowCancelPopup(true)}
               />
@@ -1455,6 +1532,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         sessionsPerWeek={celebrationData?.sessionsPerWeek}
         weeksCompleted={celebrationData?.weeksCompleted}
         totalWeeks={celebrationData?.totalWeeks}
+        weekJustCompleted={celebrationData?.weekJustCompleted}
+        completedWeekNumber={celebrationData?.completedWeekNumber}
+        onSessionPrivacy={(visibility) => {
+          // Future: update last session visibility in Firestore
+          // For now, if private: don't post to feed (handled by not calling onPostToFeed)
+          logger.log('Session visibility set to:', visibility);
+        }}
       />
 
       <SessionMediaPrompt
@@ -1465,6 +1549,17 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onGallery={handleGalleryPick}
         onSkip={handleMediaPromptSkip}
         onContinue={handleMediaPromptContinue}
+      />
+
+      <GoalEditModal
+        visible={showGoalEditModal}
+        goal={currentGoal}
+        onClose={() => setShowGoalEditModal(false)}
+        onGoalUpdated={(updated) => {
+          setCurrentGoal(updated);
+          setShowGoalEditModal(false);
+          showSuccess('Goal updated!');
+        }}
       />
 
       <ConfirmationDialog
@@ -1762,6 +1857,26 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '700',
   },
   // M4: Waiting for partner banners
+  deadlineWarning: {
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderLeftWidth: 3,
+  },
+  deadlineWarningError: {
+    backgroundColor: colors.errorLight,
+    borderLeftColor: colors.error,
+  },
+  deadlineWarningYellow: {
+    backgroundColor: colors.warningLight,
+    borderLeftColor: colors.warning,
+  },
+  deadlineWarningText: {
+    ...Typography.small,
+    fontWeight: '600',
+  },
   waitingBanner: {
     marginTop: Spacing.md,
     marginBottom: Spacing.md,

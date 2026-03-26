@@ -395,6 +395,7 @@ export interface SessionRecord {
   thumbnailUrl?: string;
   notes?: string;
   createdAt: Date;
+  visibility?: 'friends' | 'private';  // Strava-style privacy: default 'friends'
 }
 
 // Feed Types
@@ -477,7 +478,7 @@ export interface Notification {
   userId: string; // The person who will see this notification
   title: string;
   message: string;
-  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'post_comment' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed'
+  type: 'gift_received' | 'goal_set' | 'goal_completed' | 'goal_progress' | 'friend_request' | 'goal_approval_request' | 'goal_change_suggested' | 'goal_approval_response' | 'personalized_hint_left' | 'post_reaction' | 'post_comment' | 'experience_empowered' | 'free_goal_milestone' | 'free_goal_completed' | 'goal_edit_request' | 'goal_edit_response'
     // Legacy Valentine notification types (kept for backward compat with existing data)
     | 'valentine_start' | 'valentine_unlock' | 'valentine_completion'
     // Together/Shared challenge notification types
@@ -543,6 +544,10 @@ export interface Notification {
     // Progress tracking
     totalSessionsDone?: number;
     totalSessionsRequired?: number;
+    // Goal edit request fields
+    requestedTargetCount?: number;
+    requestedSessionsPerWeek?: number;
+    message?: string;
   };
 }
 
@@ -758,6 +763,10 @@ export type AnalyticsEventName =
   | 'session_start'
   | 'weekly_goal_completed'
   | 'goal_deleted'
+  | 'goal_edited'
+  | 'goal_edit_requested'
+  | 'goal_edit_approved'
+  | 'goal_edit_rejected'
   // Feed & discovery
   | 'feed_viewed'
   | 'app_open'

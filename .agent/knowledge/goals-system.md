@@ -64,6 +64,18 @@ Friends leave encouragement messages for goal owners. Stored as subcollection: `
 - `tickWeeklySession`: The main "I did it" action. Handles day validation, week rollover, completion checks, and milestone feed posts.
 - `checkAndUnlockBothPartners`: Critical for Valentine flow. Atomic completion check.
 - `applyExpiredWeeksSweep` / `sweepExpiredWeeks`: Maintenance — resets counters if a week passes without completion. Runs midnight normalization on `weekStartAt`.
+- `selfEditGoal(goalId, weeks, sessionsPerWeek)`: Recipient edits a self-created goal directly. Validates can't reduce below already-completed weeks or already-logged sessions this week.
+- `requestGoalEdit(goalId, weeks, sessionsPerWeek, message?)`: Recipient requests a change to a gifted goal. Creates `pendingEditRequest` on the goal doc and sends `goal_edit_request` notification to giver. Only one pending request allowed at a time.
+- `approveGoalEditRequest(goalId)`: Giver approves. Applies the requested changes, clears `pendingEditRequest`, notifies recipient via `goal_edit_response` (approved).
+- `rejectGoalEditRequest(goalId)`: Giver rejects. Clears `pendingEditRequest`, notifies recipient via `goal_edit_response` (rejected).
+
+## Goal Edit Flow (gifted goals)
+1. Recipient opens 3-dot menu → "Request Edit" → `GoalEditModal` stepper
+2. Recipient picks new weeks/sessions + optional message → `requestGoalEdit()`
+3. Giver receives `goal_edit_request` notification → `GoalEditApprovalNotification` with Approve/Decline
+4. On approve: `approveGoalEditRequest()` — goal updated, recipient notified (green)
+5. On reject: `rejectGoalEditRequest()` — no changes, recipient notified (red)
+- **pendingEditRequest** field on goal doc: `{ requestedTargetCount, requestedSessionsPerWeek, message, requestedAt, requestedBy }`
 
 ## Security & Validation
 - **Input Sanitization**: `normalizeGoal` ensures all dates are valid JS Date objects.

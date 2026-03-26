@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
 } from "react-native";
+import { Image } from 'expo-image';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { Plus, Minus, X, ArrowRight } from "lucide-react-native";
 import { useApp } from "../../context/AppContext";
@@ -345,7 +345,8 @@ export default function CartScreen() {
                       <Image
                         source={{ uri: imageUrl }}
                         style={styles.cartItemImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                         accessibilityLabel={`${exp.title} image`}
                       />
                     </TouchableOpacity>

@@ -4,13 +4,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import * as Haptics from 'expo-haptics';
 import { TextInput } from '../components/TextInput';
@@ -307,7 +307,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
       <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
         {cover ? (
           <View>
-            <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${pledged.title} cover image`} />
+            <Image source={{ uri: cover }} style={styles.achievementImage} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel={`${pledged.title} cover image`} />
             <View style={styles.achCompletedBadge}>
               <Text style={styles.achCompletedBadgeText}>Completed</Text>
             </View>
@@ -359,7 +359,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
     <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.achievementCard}>
       {cover ? (
         <View>
-          <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${experience?.title || 'Experience'} cover image`} />
+          <Image source={{ uri: cover }} style={styles.achievementImage} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel={`${experience?.title || 'Experience'} cover image`} />
           <View style={styles.achCompletedBadge}>
             <Text style={styles.achCompletedBadgeText}>Completed</Text>
           </View>
@@ -429,7 +429,8 @@ const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, 
         <Image
           source={{ uri: experienceImage }}
           style={styles.experienceImage}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
           accessibilityLabel={`${experience.title} experience`}
         />
         <TouchableOpacity
@@ -966,6 +967,8 @@ const UserProfileScreen: React.FC = () => {
                     <Image
                       source={{ uri: editFormData.profileImageUrl }}
                       style={styles.editProfileImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
                     />
                   ) : (
                     <View style={styles.placeholderImage}>

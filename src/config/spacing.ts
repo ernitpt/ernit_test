@@ -19,6 +19,7 @@ export const Spacing = {
     xxl: 24,
     xxxl: 32,
     huge: 40,
+    jumbo: 60,
 
     // ─── Semantic aliases ─────────────────────────────────────────────
     /** Horizontal padding for full-width screens */

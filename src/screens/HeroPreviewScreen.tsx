@@ -40,9 +40,11 @@ const WORD_SLOT_HEIGHT = vh(58);
 const CONTENT_FADE_MS = 250;
 
 // Card sizing — responsive to screen width AND height
+const CARDS_GAP = 10;
 const CARDS_PADDING = 16;
-const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2) / 2, 260);
-const CARD_H = CARD_W * (0.9 + 0.75 * VH);
+const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2 - CARDS_GAP) / 2, 240);
+const CARD_H = CARD_W * (0.9 + 0.45 * VH);
+const CARD_SLIDE = CARD_W * 0.7;
 
 // ─── Mode configs ─────────────────────────────────────────────────
 type LandingMode = 'self' | 'gift';
@@ -748,35 +750,92 @@ export default function HeroPreviewScreen() {
                             >
                                 <View style={styles.cardsRowOuter}>
                                     <View style={styles.cardsRow}>
-                                        {/* Goal card — tilted left, flippable */}
-                                        <View style={[styles.cardPosition, styles.cardGoalPos]}>
-                                            <FlippableCard
-                                                images={GOAL_IMAGES}
-                                                currentIndex={wordIndex % GOAL_IMAGES.length}
-                                                style={styles.cardImageCard}
-                                                glowSelfStyle={styles.cardGlowSelf}
-                                                glowGiftStyle={styles.cardGlowGift}
-                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
-                                                glowGiftOpacity={sliderAnim}
-                                                label={mode === 'self' ? 'Your goal' : 'The goal'}
-                                                labelOpacity={contentOpacity}
-                                                flipIndices={[3]}
-                                            />
+                                        {/* Left — Goal images (next peeks from left only, slides L→R) */}
+                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
+                                            {GOAL_IMAGES.map((url, i) => {
+                                                const offset = wrapOffset(i, wordIndex % GOAL_IMAGES.length, GOAL_IMAGES.length);
+                                                const isCenter = offset === 0;
+                                                // Only show the image peeking on the LEFT (offset === -1)
+                                                const isPeekLeft = offset === -1;
+                                                const tx = offset * CARD_SLIDE;
+                                                return (
+                                                    <MotiView
+                                                        key={`goal-${i}`}
+                                                        animate={{
+                                                            translateX: tx,
+                                                            scale: isCenter ? 1 : 0.9,
+                                                            opacity: isCenter ? 1 : isPeekLeft ? 0.5 : 0,
+                                                        }}
+                                                        transition={{
+                                                            type: 'spring',
+                                                            damping: 20,
+                                                            stiffness: 90,
+                                                            mass: 0.9,
+                                                        }}
+                                                        style={[
+                                                            styles.cardImageCard,
+                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
+                                                        ]}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: url }}
+                                                            style={styles.cardImg}
+                                                            contentFit="cover"
+                                                            cachePolicy="memory-disk"
+                                                            accessibilityLabel={`Goal activity ${i + 1}`}
+                                                        />
+                                                    </MotiView>
+                                                );
+                                            })}
+                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
+                                                <Text style={styles.cardLabel}>
+                                                    {mode === 'self' ? 'Your goal' : 'The goal'}
+                                                </Text>
+                                            </RNAnimated.View>
                                         </View>
 
-                                        {/* Reward card — tilted right, flippable */}
-                                        <View style={[styles.cardPosition, styles.cardRewardPos]}>
-                                            <FlippableCard
-                                                images={rewardImages}
-                                                currentIndex={wordIndex % rewardImages.length}
-                                                style={styles.cardImageCard}
-                                                glowSelfStyle={styles.cardGlowSelf}
-                                                glowGiftStyle={styles.cardGlowGift}
-                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
-                                                glowGiftOpacity={sliderAnim}
-                                                label={mode === 'self' ? 'Your reward' : 'The reward'}
-                                                labelOpacity={contentOpacity}
-                                            />
+                                        {/* Right — Reward images (next peeks from right only, slides R→L) */}
+                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
+                                            {rewardImages.map((url, i) => {
+                                                const offset = wrapOffset(i, wordIndex % rewardImages.length, rewardImages.length);
+                                                const isCenter = offset === 0;
+                                                // Only show the image peeking on the RIGHT (offset -1 negated → positive tx)
+                                                const isPeekRight = offset === -1;
+                                                const tx = -offset * CARD_SLIDE;
+                                                return (
+                                                    <MotiView
+                                                        key={`reward-${i}`}
+                                                        animate={{
+                                                            translateX: tx,
+                                                            scale: isCenter ? 1 : 0.9,
+                                                            opacity: isCenter ? 1 : isPeekRight ? 0.5 : 0,
+                                                        }}
+                                                        transition={{
+                                                            type: 'spring',
+                                                            damping: 20,
+                                                            stiffness: 90,
+                                                            mass: 0.9,
+                                                        }}
+                                                        style={[
+                                                            styles.cardImageCard,
+                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
+                                                        ]}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: url }}
+                                                            style={styles.cardImg}
+                                                            contentFit="cover"
+                                                            cachePolicy="memory-disk"
+                                                            accessibilityLabel={`Reward experience ${i + 1}`}
+                                                        />
+                                                    </MotiView>
+                                                );
+                                            })}
+                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
+                                                <Text style={styles.cardLabel}>
+                                                    {mode === 'self' ? 'Your reward' : 'The reward'}
+                                                </Text>
+                                            </RNAnimated.View>
                                         </View>
                                     </View>
                                 </View>
@@ -1250,12 +1309,20 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     cardsRow: {
         alignItems: 'center',
         justifyContent: 'center',
+        gap: CARDS_GAP,
+        position: 'relative',
+    },
+    cardCarousel: {
+        justifyContent: 'center',
+        alignItems: 'center',
         position: 'relative',
         height: CARD_H + 40,
     },
     cardImageCard: {
-        width: CARD_W,
-        height: CARD_H,
+        position: 'absolute',
+        borderRadius: BorderRadius.xl,
+        overflow: 'hidden',
+        backgroundColor: colors.gray300,
     },
     cardPosition: {
         position: 'absolute',

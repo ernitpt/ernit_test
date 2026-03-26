@@ -19,6 +19,7 @@ import {
   LayoutAnimation,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,12 +50,9 @@ import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 
-const SCREEN_W = Dimensions.get('window').width;
+// SCREEN_W and derived card widths are computed inside the component via useWindowDimensions()
 const BENTO_HEIGHT = vh(200);
 const BENTO_GAP = Spacing.md;
-const BENTO_CARD_W = (SCREEN_W - Spacing.xxl * 2 - BENTO_GAP) / 2;
-const HERO_CARD_W = SCREEN_W - Spacing.xxl * 2;
-const HERO_SNAP_INTERVAL = HERO_CARD_W + Spacing.md;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -81,12 +79,14 @@ const FeaturedHeroCard = ({
   isWishlisted: boolean;
 }) => {
   const colors = useColors();
+  const { width: screenWidth } = useWindowDimensions();
+  const heroCardW = useMemo(() => screenWidth - Spacing.xxl * 2, [screenWidth]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.heroCard, pressed && { opacity: 0.95 }]}
+      style={({ pressed }) => [styles.heroCard, { width: heroCardW }, pressed && { opacity: 0.95 }]}
       accessibilityLabel={`Featured: ${experience.title}`}
     >
       <Image
@@ -194,6 +194,8 @@ const BentoCard = ({
   isWishlisted: boolean;
 }) => {
   const colors = useColors();
+  const { width: screenWidth } = useWindowDimensions();
+  const bentoCW = useMemo(() => (screenWidth - Spacing.xxl * 2 - BENTO_GAP) / 2, [screenWidth]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
@@ -201,7 +203,7 @@ const BentoCard = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.bentoCard,
-        { height, width: BENTO_CARD_W },
+        { height, width: bentoCW },
         pressed && { opacity: 0.92 },
       ]}
       accessibilityLabel={`View ${experience.title}`}
@@ -302,6 +304,16 @@ const CategoryCarousel = ({
 
 const CategorySelectionScreen = () => {
   const colors = useColors();
+  const { width: screenWidth } = useWindowDimensions();
+  const { BENTO_CARD_W, HERO_CARD_W, HERO_SNAP_INTERVAL } = useMemo(() => {
+    const bentoCardW = (screenWidth - Spacing.xxl * 2 - BENTO_GAP) / 2;
+    const heroCardW = screenWidth - Spacing.xxl * 2;
+    return {
+      BENTO_CARD_W: bentoCardW,
+      HERO_CARD_W: heroCardW,
+      HERO_SNAP_INTERVAL: heroCardW + Spacing.md,
+    };
+  }, [screenWidth]);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
   const rootNavigation = useRootNavigation();
@@ -863,7 +875,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   heroCard: {
-    width: HERO_CARD_W,
     height: vh(240),
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',

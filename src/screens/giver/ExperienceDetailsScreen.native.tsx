@@ -24,6 +24,7 @@ import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
+import { getUserMessage } from '../../utils/AppError';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
@@ -122,8 +123,7 @@ export default function ExperienceDetailsScreen() {
       } as never);
     } catch (err: unknown) {
       logger.error('❌ Payment error:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      showError(message || 'Please try again.');
+      showError(getUserMessage(err, 'Could not process your request. Please try again.'));
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);

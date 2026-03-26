@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
-  Platform, Linking, LayoutAnimation, RefreshControl, Dimensions,
+  Platform, Linking, LayoutAnimation, RefreshControl, Share, useWindowDimensions,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -43,7 +44,7 @@ import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock } from 'lucide-react-native';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -60,6 +61,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { vh } from '../../utils/responsive';
 import { toJSDate } from '../../utils/GoalHelpers';
 import Button from '../../components/Button';
+
+// ─── Shared Helpers ──────────────────────────────────────────────────────────
+const fmtDurationShort = (secs: number): string => {
+  if (secs < 60) return `${secs}s`;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  return `${m}m`;
+};
+
+const fmtTimeAgo = (dateMs: number): string => {
+  const diffMs = Date.now() - dateMs;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return `${Math.floor(diffDays / 30)}mo ago`;
+};
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -251,7 +271,10 @@ const SessionCard = React.memo(({
             </View>
           </View>
 
-          {/* Right: media thumbnail (if any) */}
+          {/* Right: privacy + media thumbnail */}
+          {session.visibility === 'private' && !session.mediaUrl && (
+            <Lock size={14} color={colors.textMuted} accessibilityLabel="Private session" />
+          )}
           {session.mediaUrl && (
             <View style={sessStyles.thumb}>
               <Image source={{ uri: session.mediaUrl }} style={sessStyles.thumbImg} accessibilityLabel={session.mediaType === 'video' ? 'Session video thumbnail' : 'Session photo'} cachePolicy="memory-disk" contentFit="cover" />
@@ -291,6 +314,8 @@ const SessionCard = React.memo(({
                   <TouchableOpacity
                     onPress={() => onImagePress(session.mediaUrl!)}
                     activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel="View session photo fullscreen"
                   >
                     <Image
                       source={{ uri: session.mediaUrl }}
@@ -311,6 +336,32 @@ const SessionCard = React.memo(({
                 <Text style={sessStyles.notesLabel}>Notes</Text>
                 <Text style={sessStyles.notesText}>{session.notes}</Text>
               </View>
+            </>
+          )}
+          {/* Per-session share button */}
+          {session.mediaUrl && session.mediaType === 'photo' && Platform.OS !== 'web' && (
+            <>
+              <View style={sessStyles.expandedDivider} />
+              <TouchableOpacity
+                style={sessStyles.sessionShareBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Share session ${session.sessionNumber} photo`}
+                onPress={async () => {
+                  Haptics.selectionAsync();
+                  try {
+                    await Share.share({
+                      url: session.mediaUrl!,
+                      message: `Session #${session.sessionNumber} 💪 #Ernit #GoalProgress`,
+                    });
+                  } catch {
+                    // User cancelled — no-op
+                  }
+                }}
+              >
+                <ShareIcon size={14} color={colors.textSecondary} />
+                <Text style={sessStyles.sessionShareText}>Share this session</Text>
+              </TouchableOpacity>
             </>
           )}
         </MotiView>
@@ -526,6 +577,18 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     marginTop: Spacing.sm,
     backgroundColor: colors.backgroundLight,
   },
+  sessionShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  sessionShareText: {
+    ...Typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
   expandedDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
@@ -560,6 +623,167 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 });
 
 // ─── Hint Item ───────────────────────────────────────────────────────────────
+// ─── Milestone Card ─────────────────────────────────────────────────────────
+const MilestoneCard = React.memo(({ emoji, label }: { emoji: string; label: string }) => {
+  const colors = useColors();
+  return (
+    <View style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
+      marginVertical: Spacing.sm,
+      backgroundColor: colors.backgroundLight,
+      borderRadius: BorderRadius.pill,
+      alignSelf: 'center',
+    }}>
+      <Text style={{ fontSize: Typography.heading3.fontSize, lineHeight: Typography.heading3.lineHeight }}>{emoji}</Text>
+      <Text style={{ ...Typography.caption, color: colors.textSecondary, fontWeight: '700' }}>
+        {label}
+      </Text>
+    </View>
+  );
+});
+
+// ─── Session Stats Bar ──────────────────────────────────────────────────────
+const formatTotalTime = (secs: number): string => {
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+};
+
+const formatAvgDuration = (secs: number): string => {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m === 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+};
+
+interface StatPillProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+const StatPill = React.memo(({ icon, label, value }: StatPillProps) => {
+  const colors = useColors();
+  return (
+    <View
+      style={{
+        alignItems: 'center',
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        backgroundColor: colors.backgroundLight,
+        borderRadius: BorderRadius.lg,
+        marginRight: Spacing.sm,
+        minWidth: 80,
+        gap: Spacing.xs,
+      }}
+    >
+      {icon}
+      <Text style={{ ...Typography.displayLg, fontWeight: '700', color: colors.textPrimary }}>
+        {value}
+      </Text>
+      <Text style={{ ...Typography.caption, color: colors.textSecondary, textAlign: 'center' }}>
+        {label}
+      </Text>
+    </View>
+  );
+});
+
+const SessionStatsBar = React.memo(({ sessions }: { sessions: SessionRecord[] }) => {
+  const colors = useColors();
+
+  const stats = useMemo(() => {
+    if (sessions.length === 0) return null;
+    const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+    const avgDuration = Math.round(totalTime / sessions.length);
+    const longest = Math.max(...sessions.map(s => s.duration || 0));
+    // Calculate current streak (consecutive days)
+    const sortedDates = sessions
+      .map(s => {
+        const d = s.timestamp ? toJSDate(s.timestamp) : (s.createdAt ? toJSDate(s.createdAt) : null);
+        return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() : 0;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b - a);
+
+    let streak = 0;
+    const DAY = 86400000;
+    const today = new Date();
+    const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const uniqueDays = [...new Set(sortedDates)];
+
+    if (uniqueDays.length > 0) {
+      // Start from today or yesterday
+      const firstDay = uniqueDays[0];
+      if (firstDay === todayMs || firstDay === todayMs - DAY) {
+        streak = 1;
+        for (let i = 1; i < uniqueDays.length; i++) {
+          if (uniqueDays[i - 1] - uniqueDays[i] === DAY) {
+            streak++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    return { totalTime, avgDuration, longest, streak };
+  }, [sessions]);
+
+  if (!stats || sessions.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: Spacing.md }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}
+      >
+        <StatPill
+          icon={<Activity size={16} color={colors.primary} />}
+          value={String(sessions.length)}
+          label="Sessions"
+        />
+        {stats.avgDuration > 0 && (
+          <StatPill
+            icon={<Timer size={16} color={colors.secondary} />}
+            value={formatAvgDuration(stats.avgDuration)}
+            label="Avg"
+          />
+        )}
+        {stats.longest > 0 && (
+          <StatPill
+            icon={<TrendingUp size={16} color={colors.warning} />}
+            value={formatAvgDuration(stats.longest)}
+            label="Longest"
+          />
+        )}
+        {stats.totalTime > 0 && (
+          <StatPill
+            icon={<Clock size={16} color={colors.categoryViolet} />}
+            value={formatTotalTime(stats.totalTime)}
+            label="Total"
+          />
+        )}
+        {stats.streak > 1 && (
+          <StatPill
+            icon={<Zap size={16} color={colors.celebrationGold} />}
+            value={`${stats.streak}🔥`}
+            label="Streak"
+          />
+        )}
+      </ScrollView>
+    </View>
+  );
+});
+
 const HintItem = React.memo(({
   hint,
   index,
@@ -592,6 +816,8 @@ const HintItem = React.memo(({
   const parsedDate = hint.createdAt ? toJSDate(hint.createdAt) : null;
   const dateMs = parsedDate?.getTime() ?? hint.date ?? 0;
 
+  const sessionNum = ('forSessionNumber' in hint ? hint.forSessionNumber : undefined) || ('session' in hint ? hint.session : 0) || 0;
+
   return (
     <Animated.View
       style={{
@@ -604,9 +830,24 @@ const HintItem = React.memo(({
         borderBottomColor: colors.border,
       }}
     >
-      <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
-        {fmt(dateMs)}
-      </Text>
+      {sessionNum > 0 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs }}>
+          <View style={{ backgroundColor: colors.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xxs }}>
+            <Text style={{ ...Typography.caption, fontWeight: '700', color: colors.primary }}>
+              💡 Session {sessionNum}
+            </Text>
+          </View>
+          {dateMs > 0 && (
+            <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
+              sent {fmtTimeAgo(dateMs)}
+            </Text>
+          )}
+        </View>
+      ) : (
+        <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
+          {fmt(dateMs)}
+        </Text>
+      )}
 
       {hasImage && hint.imageUrl && (
         <TouchableOpacity
@@ -624,7 +865,7 @@ const HintItem = React.memo(({
           style={{
             color: colors.gray700,
             ...Typography.body,
-            marginBottom: isAudio ? 8 : 0,
+            marginBottom: isAudio ? Spacing.sm : 0,
           }}
         >
           {text}
@@ -689,7 +930,7 @@ const JourneyScreen = () => {
   const bookingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const shareCardRef = useRef<View>(null);
   const tabScrollRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = Dimensions.get('window');
+  const { width: screenWidth } = useWindowDimensions();
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState(false);
@@ -1079,26 +1320,53 @@ const JourneyScreen = () => {
       );
     }
 
+    // Build milestone markers: inject between sessions at week boundaries and session count milestones
+    const SESSION_MILESTONES = new Set([10, 25, 50, 100]);
+    const sortedSessions = [...sessions].sort((a, b) => a.sessionNumber - b.sessionNumber);
+    const seenWeeks = new Set<number>();
+    const shownSessionMilestones = new Set<number>();
+
+    const items: React.ReactNode[] = [];
+    sortedSessions.forEach((s, i) => {
+      // Week completion marker: fires when weekNumber changes (after last session of prior week)
+      const prevWeek = i > 0 ? sortedSessions[i - 1].weekNumber : null;
+      if (prevWeek !== null && s.weekNumber !== prevWeek && !seenWeeks.has(prevWeek)) {
+        seenWeeks.add(prevWeek);
+        items.push(
+          <MilestoneCard key={`week-${prevWeek}`} emoji="📅" label={`Week ${prevWeek} Complete!`} />
+        );
+      }
+      // Session count milestone
+      if (SESSION_MILESTONES.has(s.sessionNumber) && !shownSessionMilestones.has(s.sessionNumber)) {
+        shownSessionMilestones.add(s.sessionNumber);
+        items.push(
+          <MilestoneCard key={`sess-${s.sessionNumber}`} emoji="🎯" label={`${s.sessionNumber} Sessions!`} />
+        );
+      }
+      items.push(
+        <SessionCard
+          key={s.id}
+          session={s}
+          index={i}
+          motivations={motivationsBySession[s.sessionNumber] || []}
+          isExpanded={expandedSessionId === s.id}
+          onToggleExpand={() => {
+            if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setExpandedSessionId(prev => prev === s.id ? null : s.id);
+          }}
+          onImagePress={(uri) => {
+            const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'photo').map(s => s.mediaUrl!);
+            setAllImageUris(sessionImages);
+            setSelectedImageUri(uri);
+          }}
+        />
+      );
+    });
+
     return (
       <View style={{ paddingHorizontal: Spacing.md, alignSelf: 'center', width: '100%', maxWidth: 380 }}>
-        {sessions.map((s, i) => (
-          <SessionCard
-            key={s.id}
-            session={s}
-            index={i}
-            motivations={motivationsBySession[s.sessionNumber] || []}
-            isExpanded={expandedSessionId === s.id}
-            onToggleExpand={() => {
-              if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setExpandedSessionId(prev => prev === s.id ? null : s.id);
-            }}
-            onImagePress={(uri) => {
-              const sessionImages = sessions.filter(s => s.mediaUrl && s.mediaType === 'photo').map(s => s.mediaUrl!);
-              setAllImageUris(sessionImages);
-              setSelectedImageUri(uri);
-            }}
-          />
-        ))}
+        <SessionStatsBar sessions={sessions} />
+        {items}
       </View>
     );
   };
@@ -1228,19 +1496,19 @@ const JourneyScreen = () => {
                     width: 600,
                     height: shareFormat === 'story' ? 400 : 300,
                     borderRadius: BorderRadius.pill,
-                    marginBottom: 60,
+                    marginBottom: Spacing.jumbo,
                   }}
                   contentFit="cover" cachePolicy="memory-disk"
                 />
               ) : null}
               <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
-              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
                 Goal Completed!
               </Text>
-              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: Spacing.jumbo }}>
                 {currentGoal.title || currentGoal.description || ''}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
+              <View style={{ flexDirection: 'row', gap: Spacing.jumbo, marginBottom: Spacing.jumbo }}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
                   <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
@@ -1249,6 +1517,18 @@ const JourneyScreen = () => {
                   <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{currentGoal.targetCount || 0}</Text>
                   <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
                 </View>
+                {sessions.length > 0 && (() => {
+                  const totalSecs = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+                  const h = Math.floor(totalSecs / 3600);
+                  const m = Math.floor((totalSecs % 3600) / 60);
+                  const label = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+                  return (
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{label}</Text>
+                      <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>TOTAL</Text>
+                    </View>
+                  );
+                })()}
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image
@@ -1442,6 +1722,62 @@ const JourneyScreen = () => {
           </View>
         )}
 
+        {/* ─── Goal Retrospective ─────────────────────────── */}
+        {sessions.length > 0 && (() => {
+          const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+          const longestSession = Math.max(...sessions.map(s => s.duration || 0));
+          const formatSecs = (secs: number) => {
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+            return `${m}m`;
+          };
+          const startDate = currentGoal.createdAt
+            ? toJSDate(currentGoal.createdAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            : null;
+          const endDate = currentGoal.completedAt
+            ? toJSDate(currentGoal.completedAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            : null;
+
+          return (
+            <View style={[cStyles.section, { paddingBottom: 0 }]}>
+              <Text style={cStyles.sectionTitle}>Your Journey</Text>
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: Spacing.sm,
+                marginBottom: Spacing.md,
+              }}>
+                {[
+                  { label: 'Sessions', value: String(sessions.length), emoji: '🏃' },
+                  { label: 'Total Time', value: formatSecs(totalTime), emoji: '⏱️' },
+                  { label: 'Longest', value: formatSecs(longestSession), emoji: '🔝' },
+                  { label: 'Motivations', value: String(motivations.length), emoji: '💌' },
+                ].map(item => (
+                  <View key={item.label} style={{
+                    flex: 1,
+                    minWidth: 100,
+                    backgroundColor: colors.backgroundLight,
+                    borderRadius: BorderRadius.lg,
+                    padding: Spacing.md,
+                    alignItems: 'center',
+                    gap: Spacing.xs,
+                  }}>
+                    <Text style={{ fontSize: Typography.large.fontSize, lineHeight: Typography.large.lineHeight }}>{item.emoji}</Text>
+                    <Text style={{ ...Typography.heading3, fontWeight: '800', color: colors.textPrimary }}>{item.value}</Text>
+                    <Text style={{ ...Typography.caption, color: colors.textSecondary }}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+              {startDate && endDate && (
+                <Text style={{ ...Typography.caption, color: colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }}>
+                  {startDate} → {endDate}
+                </Text>
+              )}
+            </View>
+          );
+        })()}
+
         {/* ─── Sessions History ───────────────────────────── */}
         <View style={cStyles.section}>
           <Text style={cStyles.sectionTitle}>
@@ -1470,7 +1806,10 @@ const JourneyScreen = () => {
           <View style={cStyles.shareFormatToggle}>
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'story' && cStyles.shareFormatActive]}
-              onPress={() => setShareFormat('story')}
+              onPress={() => { setShareFormat('story'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
+              accessibilityRole="button"
+              accessibilityLabel="Story format (9:16)"
+              accessibilityState={{ selected: shareFormat === 'story' }}
             >
               <Text style={[cStyles.shareFormatText, shareFormat === 'story' && cStyles.shareFormatTextActive]}>
                 Story (9:16)
@@ -1478,7 +1817,10 @@ const JourneyScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'square' && cStyles.shareFormatActive]}
-              onPress={() => setShareFormat('square')}
+              onPress={() => { setShareFormat('square'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
+              accessibilityRole="button"
+              accessibilityLabel="Square format (1:1)"
+              accessibilityState={{ selected: shareFormat === 'square' }}
             >
               <Text style={[cStyles.shareFormatText, shareFormat === 'square' && cStyles.shareFormatTextActive]}>
                 Square (1:1)
