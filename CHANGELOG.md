@@ -791,6 +791,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add missing post_comment notification handler
 - replace hardcoded spacing and font size values with design tokens in JourneyScreen
 - replace emoji hardcoded font size with Typography.large token
+- replace hardcoded emoji font sizes with Typography.emojiBase/emoji tokens; add haptic feedback to share format toggle and session share button; add useCallback to GoalEditModal handlers
 
 ### Added
 - Automatic changelog system with `npm run log` script
