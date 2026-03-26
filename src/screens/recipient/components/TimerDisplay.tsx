@@ -7,6 +7,7 @@ import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
 import { formatDurationDisplay } from '../goalCardUtils';
+import { pushNotificationService } from '../../../services/PushNotificationService';
 
 // ─── Timer Ring ─────────────────────────────────────────────────────
 
@@ -183,6 +184,8 @@ interface TimerDisplayProps {
   loading: boolean;
   targetHours: number;
   targetMinutes: number;
+  goalId?: string;
+  goalTitle?: string;
   onFinish: () => void;
   onCancel: () => void;
 }
@@ -194,6 +197,8 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   loading,
   targetHours,
   targetMinutes,
+  goalId,
+  goalTitle,
   onFinish,
   onCancel,
 }) => {
@@ -220,6 +225,22 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
       hasNotifiedTarget.current = false;
     }
   }, [timeElapsed]);
+
+  // Update live timer notification every 60 seconds on native
+  const lastNotifMinute = useRef(-1);
+  useEffect(() => {
+    if (Platform.OS === 'web' || !goalId) return;
+    const currentMinute = Math.floor(timeElapsed / 60);
+    if (currentMinute !== lastNotifMinute.current) {
+      lastNotifMinute.current = currentMinute;
+      pushNotificationService.showTimerProgressNotification(
+        goalId,
+        goalTitle || 'Session',
+        timeElapsed,
+        totalGoalSeconds
+      );
+    }
+  }, [goalId, goalTitle, timeElapsed, totalGoalSeconds]);
 
   // Pulse animation when almost done
   useEffect(() => {

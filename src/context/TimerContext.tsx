@@ -3,6 +3,7 @@ import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
+import { pushNotificationService } from '../services/PushNotificationService';
 
 const TIMER_STORAGE_KEY = 'global_timer_state';
 
@@ -19,7 +20,7 @@ interface TimersState {
 
 interface TimerContextValue {
     getTimerState: (goalId: string) => TimerState | null;
-    startTimer: (goalId: string, pendingHint?: string | null) => void;
+    startTimer: (goalId: string, pendingHint?: string | null, goalTitle?: string, targetSeconds?: number) => void;
     stopTimer: (goalId: string) => void;
     updateElapsed: (goalId: string, elapsed: number) => void;
 }
@@ -162,7 +163,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
         return timers[goalId] || null;
     }, [timers]);
 
-    const startTimer = useCallback((goalId: string, pendingHint: string | null = null) => {
+    const startTimer = useCallback((goalId: string, pendingHint: string | null = null, goalTitle?: string, targetSeconds?: number) => {
         analyticsService.trackEvent('session_start', 'engagement', { goalId });
         setTimers(prev => ({
             ...prev,
@@ -173,6 +174,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
                 pendingHint,
             },
         }));
+        if (Platform.OS !== 'web') {
+            pushNotificationService.showTimerProgressNotification(goalId, goalTitle || 'Session', 0, targetSeconds || 0);
+        }
     }, []);
 
     const stopTimer = useCallback((goalId: string) => {
@@ -181,6 +185,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
             delete updated[goalId];
             return updated;
         });
+        if (Platform.OS !== 'web') {
+            pushNotificationService.cancelTimerProgressNotification(goalId);
+        }
     }, []);
 
     const updateElapsed = useCallback((goalId: string, elapsed: number) => {

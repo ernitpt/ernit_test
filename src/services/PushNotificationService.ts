@@ -481,6 +481,66 @@ class PushNotificationService {
             logger.error('🔔 Error cancelling all notifications:', error);
         }
     }
+
+    /**
+     * Show (or update) an ongoing timer progress notification.
+     * Android: sticky = true keeps it visible until explicitly cancelled.
+     * iOS: regular immediate notification (iOS doesn't support sticky).
+     * Web: no-op.
+     */
+    async showTimerProgressNotification(
+        goalId: string,
+        goalTitle: string,
+        elapsedSeconds: number,
+        targetSeconds: number
+    ): Promise<void> {
+        if (Platform.OS === 'web') return;
+        try {
+            const hasPermission = await this.requestLocalNotificationPermissions();
+            if (!hasPermission) return;
+
+            // Cancel the previous one so we can "update" with fresh elapsed time
+            await this.cancelTimerProgressNotification(goalId);
+
+            const mins = Math.floor(elapsedSeconds / 60);
+            const secs = String(elapsedSeconds % 60).padStart(2, '0');
+            const elapsed = `${mins}:${secs}`;
+            const body = targetSeconds > 0
+                ? `${elapsed} / ${Math.floor(targetSeconds / 60)} min — keep going! 💪`
+                : `${elapsed} elapsed — keep going! 💪`;
+
+            const notifId = await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: `🏃 ${goalTitle}`,
+                    body,
+                    data: { goalId, type: 'timer_progress' },
+                    // sticky keeps the notification alive on Android until cancelled
+                    sticky: Platform.OS === 'android',
+                },
+                trigger: null, // show immediately
+            });
+
+            await AsyncStorage.setItem(`timer_notif_${goalId}`, notifId);
+        } catch (error: unknown) {
+            logger.error('🔔 Error showing timer progress notification:', error);
+        }
+    }
+
+    /**
+     * Cancel the ongoing timer progress notification for a goal.
+     */
+    async cancelTimerProgressNotification(goalId: string): Promise<void> {
+        if (Platform.OS === 'web') return;
+        try {
+            const storedId = await AsyncStorage.getItem(`timer_notif_${goalId}`);
+            if (storedId) {
+                await Notifications.dismissNotificationAsync(storedId);
+                await AsyncStorage.removeItem(`timer_notif_${goalId}`);
+            }
+        } catch (error: unknown) {
+            logger.error('🔔 Error cancelling timer progress notification:', error);
+        }
+    }
 }
 
 export const pushNotificationService = new PushNotificationService();

@@ -536,8 +536,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const funcTotalSessionsDone = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       const funcTotalSessions = currentGoal.targetCount * currentGoal.sessionsPerWeek;
 
-      // Start timer
-      await startTimer(currentGoal.id, null);
+      // Start timer (pass title + target seconds for live notification)
+      const goalTargetSeconds = (currentGoal.targetHours || 0) * 3600 + (currentGoal.targetMinutes || 0) * 60;
+      await startTimer(currentGoal.id, null, currentGoal.title, goalTargetSeconds);
 
       // Background hint generation
       const nextSessionNumber = funcTotalSessionsDone + 2;
@@ -1426,6 +1427,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 loading={loading}
                 targetHours={currentGoal.targetHours}
                 targetMinutes={currentGoal.targetMinutes}
+                goalId={currentGoal.id}
+                goalTitle={currentGoal.title}
                 onFinish={handleFinish}
                 onCancel={() => setShowCancelPopup(true)}
               />
