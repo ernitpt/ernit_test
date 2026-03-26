@@ -789,6 +789,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - improve deadline warning message when sessions exceed remaining days
 - add missing post_comment notification handler
 - replace hardcoded spacing and font size values with design tokens in JourneyScreen
+- replace emoji hardcoded font size with Typography.large token
 
 ### Added
 - Automatic changelog system with `npm run log` script

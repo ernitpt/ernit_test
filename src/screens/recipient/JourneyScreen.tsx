@@ -1761,7 +1761,7 @@ const JourneyScreen = () => {
                     alignItems: 'center',
                     gap: Spacing.xs,
                   }}>
-                    <Text style={{ fontSize: 20, lineHeight: 26 }}>{item.emoji}</Text>
+                    <Text style={{ fontSize: Typography.large.fontSize, lineHeight: Typography.large.lineHeight }}>{item.emoji}</Text>
                     <Text style={{ ...Typography.heading3, fontWeight: '800', color: colors.textPrimary }}>{item.value}</Text>
                     <Text style={{ ...Typography.caption, color: colors.textSecondary }}>{item.label}</Text>
                   </View>
