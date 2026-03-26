@@ -98,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update system-map, add deployment checklist, update CLAUDE.md with sanitizeText and vh patterns
 - document firebase-messaging-sw.js config sync requirement with firebaseConfig.ts
 - all 8 knowledge files updated — goals, notifications, analytics, payments, experiences/gifts, social/feed, auth/user, UI/UX systems
+- update knowledge base for goal edit flow and new notification types
 
 ### Changed
 - replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen

@@ -18,6 +18,9 @@ Manages in-app notifications and interacts with Firebase Cloud Messaging (FCM) f
     - `goal_completed`: Goal fully completed.
     - `gift_received`: User received a new gift.
     - `valentine_partner_progress`: Partner progress update in Valentine/Together challenge.
+    - `goal_edit_request`: Recipient requests a change to a gifted goal's duration/frequency. Rendered with `GoalEditApprovalNotification` (approve/decline). Sent to **giver**. Data: `goalId`, `requestedTargetCount`, `requestedSessionsPerWeek`, `message`.
+    - `goal_edit_response`: Giver's response to a `goal_edit_request`. Sent to **recipient**. Data: `goalId`, `approved: boolean`. Rendered with `goal_approval_response` styling (green/red accent). Taps navigate to `GoalDetail`.
+    - `goal_edit_requested` / `goal_edit_approved` / `goal_edit_rejected`: Analytics events tracked via `AnalyticsService`.
 - **Real-time**: Uses `onSnapshot` to push updates to the UI immediately.
 - **Rendering**: All types above are rendered in `NotificationsScreen` with dedicated icons and `handlePress` navigation logic.
 - **`senderId`**: Top-level field on notification document (used by `friend_request` type).

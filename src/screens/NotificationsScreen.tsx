@@ -340,7 +340,7 @@ const NotificationsScreen = () => {
       }
     }
 
-    if (n.type === 'goal_approval_response' && n.data?.goalId) {
+    if ((n.type === 'goal_approval_response' || n.type === 'goal_edit_response') && n.data?.goalId) {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
     }
 
@@ -501,8 +501,8 @@ const NotificationsScreen = () => {
       );
     }
 
-    // Handle goal approval response notifications (approved/rejected)
-    if (item.type === 'goal_approval_response') {
+    // Handle goal approval/edit response notifications (approved/rejected)
+    if (item.type === 'goal_approval_response' || item.type === 'goal_edit_response') {
       const isApproved = item.data?.approved !== false;
       const accentColor = isApproved ? colors.success : colors.error;
       const bgColor = isApproved ? colors.successLight : colors.errorLight;
