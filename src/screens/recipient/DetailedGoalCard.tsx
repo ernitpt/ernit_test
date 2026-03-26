@@ -69,7 +69,8 @@ import ExperienceRevealModal from '../../components/ExperienceRevealModal';
 import VenueSelectionModal from '../../components/VenueSelectionModal';
 import { PopupMenu, PopupMenuItem } from '../../components/PopupMenu';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
-import { Trash2, Gift } from 'lucide-react-native';
+import GoalEditModal from '../../components/GoalEditModal';
+import { Trash2, Gift, Pencil } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { toJSDate } from '../../utils/GoalHelpers';
 
@@ -101,6 +102,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showGoalEditModal, setShowGoalEditModal] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
   const [celebrationData, setCelebrationData] = useState<{
@@ -1219,6 +1221,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const goalMenuItems: PopupMenuItem[] = useMemo(() => [
     {
+      key: 'edit',
+      label: currentGoal.empoweredBy ? 'Request Edit' : 'Edit Goal',
+      icon: <Pencil size={14} color={isTimerRunning ? colors.textMuted : colors.primary} />,
+      onPress: () => setShowGoalEditModal(true),
+      disabled: isTimerRunning || currentGoal.isCompleted,
+    },
+    {
       key: 'remove',
       label: 'Remove Goal',
       icon: <Trash2 size={14} color={isTimerRunning ? colors.textMuted : colors.error} />,
@@ -1226,7 +1235,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       variant: 'danger' as const,
       disabled: isTimerRunning,
     },
-  ], [isTimerRunning]);
+  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, colors.primary, colors.textMuted, colors.error]);
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -1531,6 +1540,17 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onGallery={handleGalleryPick}
         onSkip={handleMediaPromptSkip}
         onContinue={handleMediaPromptContinue}
+      />
+
+      <GoalEditModal
+        visible={showGoalEditModal}
+        goal={currentGoal}
+        onClose={() => setShowGoalEditModal(false)}
+        onGoalUpdated={(updated) => {
+          setCurrentGoal(updated);
+          setShowGoalEditModal(false);
+          showSuccess('Goal updated!');
+        }}
       />
 
       <ConfirmationDialog

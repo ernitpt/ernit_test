@@ -796,6 +796,106 @@ export class GoalService {
 
     analyticsService.trackEvent('goal_deleted', 'engagement', { goalId });
   }
+
+  /**
+   * Self-edit a goal the user created themselves (no giver).
+   * Constraints: can't reduce below completed weeks or current week's logged sessions.
+   */
+  async selfEditGoal(
+    goalId: string,
+    newTargetCount: number,
+    newSessionsPerWeek: number
+  ): Promise<Goal> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal owner can edit this goal', 'auth');
+    }
+    if (goal.empoweredBy) {
+      throw new AppError('VALIDATION_ERROR', 'Use requestGoalEdit for gifted goals', 'validation');
+    }
+    if (newTargetCount < (goal.currentCount || 0)) {
+      throw new AppError('VALIDATION_ERROR', `Can't reduce below already-completed weeks (${goal.currentCount})`, 'validation');
+    }
+    if (newSessionsPerWeek < (goal.weeklyCount || 0)) {
+      throw new AppError('VALIDATION_ERROR', `Can't reduce sessions/week below already-logged this week (${goal.weeklyCount})`, 'validation');
+    }
+    if (newTargetCount < 1 || newTargetCount > 5) {
+      throw new AppError('VALIDATION_ERROR', 'Weeks must be between 1 and 5', 'validation');
+    }
+    if (newSessionsPerWeek < 1 || newSessionsPerWeek > 7) {
+      throw new AppError('VALIDATION_ERROR', 'Sessions per week must be between 1 and 7', 'validation');
+    }
+
+    const startDate = toJSDate(goal.startDate) || DateHelper.now();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + newTargetCount * 7);
+
+    await updateDoc(ref, {
+      targetCount: newTargetCount,
+      sessionsPerWeek: newSessionsPerWeek,
+      duration: newTargetCount * 7,
+      endDate,
+      totalSessions: newTargetCount * newSessionsPerWeek,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_approved', 'conversion', { goalId, targetCount: newTargetCount, sessionsPerWeek: newSessionsPerWeek });
+
+    const updated = await getDoc(ref);
+    return normalizeGoal({ id: updated.id, ...updated.data() });
+  }
+
+  /**
+   * Request an edit on a gifted goal — sends a notification to the giver.
+   * Only one pending edit request allowed at a time.
+   */
+  async requestGoalEdit(
+    goalId: string,
+    requestedTargetCount: number,
+    requestedSessionsPerWeek: number,
+    message?: string
+  ): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.userId !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the goal owner can request edits', 'auth');
+    }
+    if (!goal.empoweredBy) {
+      throw new AppError('VALIDATION_ERROR', 'Use selfEditGoal for self-created goals', 'validation');
+    }
+    if ((goal as unknown as Record<string, unknown>).pendingEditRequest) {
+      throw new AppError('VALIDATION_ERROR', 'A pending edit request already exists for this goal', 'validation');
+    }
+
+    await updateDoc(ref, {
+      pendingEditRequest: {
+        requestedTargetCount,
+        requestedSessionsPerWeek,
+        message: sanitizeText(message || '', 500),
+        requestedAt: new Date(),
+        requestedBy: auth.currentUser!.uid,
+      },
+      updatedAt: serverTimestamp(),
+    });
+
+    // Notify the giver
+    const requesterName = await userService.getUserName(goal.userId);
+    await notificationService.createNotification(
+      goal.empoweredBy,
+      'goal_edit_request',
+      `${requesterName} requested a goal edit`,
+      `${requesterName} wants to change "${goal.title}" to ${requestedTargetCount} weeks, ${requestedSessionsPerWeek} sessions/week.${message ? ` Message: "${sanitizeText(message, 200)}"` : ''}`,
+      { goalId, recipientId: goal.userId, requestedTargetCount, requestedSessionsPerWeek },
+      false
+    );
+  }
 }
 
 // ✅ SECURITY: Build-time code elimination
