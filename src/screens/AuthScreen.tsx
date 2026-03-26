@@ -79,7 +79,6 @@ const AuthScreen = () => {
 
   // Timer management for memory leak prevention
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -165,10 +164,6 @@ const AuthScreen = () => {
     };
   }, []);
 
-  // Cleanup email debounce timer on unmount
-  useEffect(() => {
-    return () => { clearTimeout(emailCheckTimer.current); };
-  }, []);
 
   // Button press animation handler
   const handleButtonPressIn = useCallback(() => {
@@ -213,7 +208,6 @@ const AuthScreen = () => {
 
   // Email validation state
   const [emailError, setEmailError] = useState('');
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   // Password error state for login
   const [passwordError, setPasswordError] = useState('');
@@ -454,53 +448,10 @@ const AuthScreen = () => {
     return Object.values(passwordChecks).every(check => check === true);
   };
 
-  const checkEmailExists = async (emailToCheck: string) => {
-    // fetchSignInMethodsForEmail is deprecated in Firebase Auth v10+.
-    // We probe email existence by attempting sign-in with a sentinel password.
-    // auth/wrong-password / auth/invalid-credential → account exists
-    // auth/user-not-found → no account
-    // auth/too-many-requests → rate limited (treat as unknown, don't block signup)
-    if (!validateEmail(emailToCheck)) {
-      setEmailError('');
-      return false;
-    }
-
-    setIsCheckingEmail(true);
-    try {
-      await signInWithEmailAndPassword(auth, emailToCheck, '\x00PROBE_ONLY');
-      // Unreachable — any valid sign-in would be unexpected during signup check
-      setEmailError('');
-      setIsCheckingEmail(false);
-      return false;
-    } catch (error: unknown) {
-      const firebaseError = error as { code?: string };
-      if (
-        firebaseError.code === 'auth/wrong-password' ||
-        firebaseError.code === 'auth/invalid-credential'
-      ) {
-        // Account exists with email/password
-        setEmailError('Email already in use');
-        setIsCheckingEmail(false);
-        return true;
-      }
-      if (firebaseError.code === 'auth/user-not-found') {
-        // No account — safe to sign up
-        setEmailError('');
-        setIsCheckingEmail(false);
-        return false;
-      }
-      if (firebaseError.code === 'auth/too-many-requests') {
-        // Rate limited — allow signup to proceed; duplicate will be caught by createUserWithEmailAndPassword
-        setEmailError('');
-        setIsCheckingEmail(false);
-        return false;
-      }
-      // Other errors (network, invalid-email, etc.) — don't block signup
-      setEmailError('');
-      setIsCheckingEmail(false);
-      return false;
-    }
-  };
+  // Email existence is checked by createUserWithEmailAndPassword at submit time.
+  // The old probe approach (signInWithEmailAndPassword with a dummy password) broke
+  // in Firebase Auth v10+ because auth/invalid-credential is now returned for ALL
+  // failed sign-ins, making every email appear "already in use."
 
   const handleEmailChange = useCallback(async (text: string) => {
     const sanitized = sanitizeText(text, 254);
@@ -510,13 +461,7 @@ const AuthScreen = () => {
       setEmailError('');
     }
 
-    if (sanitized && !isLogin) {
-      clearTimeout(emailCheckTimer.current);
-      emailCheckTimer.current = setTimeout(() => {
-        checkEmailExists(sanitized);
-      }, 600);
-    }
-  }, [emailError, isLogin, checkEmailExists]);
+  }, [emailError]);
 
   const handlePasswordChange = useCallback((text: string) => {
     // SECURITY: Never sanitize passwords — they must reach Firebase Auth unmodified
@@ -561,11 +506,6 @@ const AuthScreen = () => {
       }
       if (rawPassword !== rawConfirmPassword) {
         showError('Passwords do not match');
-        return;
-      }
-      const emailExists = await checkEmailExists(sanitizedEmail);
-      if (emailExists) {
-        showError('Email already in use');
         return;
       }
     }
@@ -956,11 +896,6 @@ const AuthScreen = () => {
                         {emailError}
                       </Text>
                     )}
-                    {isCheckingEmail && (
-                      <Text style={{ color: colors.textSecondary, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
-                        Checking email...
-                      </Text>
-                    )}
                   </View>
 
                   <View style={{ marginBottom: Spacing.lg }}>
@@ -1246,7 +1181,6 @@ const AuthScreen = () => {
                       setDisplayName('');
                       setEmailError('');
                       setPasswordError('');
-                      setIsCheckingEmail(false);
                       setPasswordChecks({
                         minLength: false,
                         hasUpperCase: false,

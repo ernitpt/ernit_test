@@ -204,7 +204,7 @@ export const DarkColors = {
     gradientAuth: ['#059669', '#0D9488', '#2DD4BF'] as [string, string, string],
 
     // ─── Semantic / neutral (inverted for dark) ───────────────────────
-    white: '#1A1A2E',
+    white: '#141414',
     black: '#FFFFFF',
     error: '#EF4444',
     errorLight: 'rgba(239, 68, 68, 0.15)',
@@ -212,12 +212,12 @@ export const DarkColors = {
     textPrimary: '#F9FAFB',
     textSecondary: '#9CA3AF',
     textMuted: '#8B95A3',          // brightened from #6B7280 for WCAG AA contrast (~5.2:1 on dark surfaces)
-    border: '#334155',
-    surface: '#242438',
-    backgroundLight: '#1E2A4A',
+    border: '#2E2E2E',
+    surface: '#1C1C1C',
+    backgroundLight: '#222222',
 
     // ─── Extended grays (role-swapped for dark) ─────────────────────
-    gray300: '#3D4556',
+    gray300: '#333333',
     gray600: '#9CA3AF',
     gray700: '#D1D5DB',
     gray800: '#E5E7EB',
@@ -264,14 +264,14 @@ export const DarkColors = {
     overlayLight: 'rgba(0, 0, 0, 0.4)',
     overlayDark: 'rgba(0, 0, 0, 0.95)',
     overlayHeavy: 'rgba(0, 0, 0, 0.8)',
-    surfaceFrosted: 'rgba(26, 26, 46, 0.95)',
-    surfaceFrosted92: 'rgba(36, 36, 56, 0.92)',
+    surfaceFrosted: 'rgba(20, 20, 20, 0.95)',
+    surfaceFrosted92: 'rgba(28, 28, 28, 0.92)',
     primaryTintAlpha40: 'rgba(52, 211, 153, 0.3)',
 
     // ─── Semi-transparent (dark equivalents) ────────────────────────
-    whiteAlpha90: 'rgba(26, 26, 46, 0.9)',
-    whiteAlpha88: 'rgba(26, 26, 46, 0.88)',
-    whiteAlpha80: 'rgba(26, 26, 46, 0.8)',
+    whiteAlpha90: 'rgba(20, 20, 20, 0.9)',
+    whiteAlpha88: 'rgba(20, 20, 20, 0.88)',
+    whiteAlpha80: 'rgba(20, 20, 20, 0.8)',
     whiteAlpha60: 'rgba(26, 26, 46, 0.6)',
     whiteAlpha40: 'rgba(26, 26, 46, 0.4)',
     whiteAlpha25: 'rgba(255, 255, 255, 0.15)',

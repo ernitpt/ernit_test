@@ -1,4 +1,4 @@
-﻿import { doc, getDoc } from "firebase/firestore";
+﻿import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from './firebase';
 import { Experience } from "../types";
 
@@ -35,6 +35,22 @@ export const experienceService = {
     } catch (error: unknown) {
       logger.error("Error fetching experience:", error);
       return null;
+    }
+  },
+
+  /**
+   * Get all experiences from the collection.
+   */
+  async getAllExperiences(): Promise<Experience[]> {
+    try {
+      const snapshot = await getDocs(collection(db, "experiences"));
+      const experiences = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Experience));
+      // Populate cache
+      experiences.forEach(e => _experienceCache.set(e.id, e));
+      return experiences;
+    } catch (error: unknown) {
+      logger.error("Error fetching experiences:", error);
+      return [];
     }
   },
 };

@@ -6,6 +6,7 @@ import {
     Modal,
     StyleSheet,
     TouchableOpacity,
+    Pressable,
     TextInput,
     ScrollView,
     Platform,
@@ -184,7 +185,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
         const likeCount = item.likedBy?.length || 0;
 
         return (
-            <View key={item.id} style={styles.commentBubble}>
+            <View key={item.id} style={[styles.commentBubble, menuVisibleId === item.id && { zIndex: 9999 }]}>
                 {/* Avatar + Name + menu */}
                 <View style={styles.bubbleHeader}>
                     <Avatar uri={item.userProfileImageUrl} name={item.userName} size="sm" />
@@ -283,6 +284,13 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 ]}
                 accessibilityViewIsModal={true}
             >
+                {/* Dismiss overlay when dropdown menu is open */}
+                {menuVisibleId && (
+                    <Pressable
+                        style={styles.menuDismissOverlay}
+                        onPress={() => setMenuVisibleId(null)}
+                    />
+                )}
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={0}>
                 {/* Header */}
                 <View style={styles.header}>
@@ -506,6 +514,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     moreButton: {
         padding: Spacing.sm,
+    },
+    menuDismissOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 9998,
     },
     menuDropdown: {
         position: 'absolute',

@@ -1211,6 +1211,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               <Text style={styles.mysteryBadgeText}>Mystery Gift</Text>
             </View>
           )}
+          {/* Extra spacing when no subtitle elements are shown */}
+          {!(currentGoal.challengeType === 'shared' && partnerProfile) &&
+           !(!!empoweredName && !isSelfGift && !currentGoal.isFreeGoal && currentGoal.challengeType !== 'shared') &&
+           !currentGoal.isMystery && (
+            <View style={{ height: Spacing.sm }} />
+          )}
 
           {/* Together mode: dual avatar toggle */}
           {currentGoal.challengeType === 'shared' && partnerGoalData && partnerProfile && (

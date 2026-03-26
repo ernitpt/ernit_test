@@ -52,9 +52,9 @@ import { analyticsService } from '../services/AnalyticsService';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
 
 const getGoalTypes = (colors: typeof Colors) => [
-    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: colors.secondary, tagline: 'Weights, cardio, machines' },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: colors.categoryPink, tagline: 'Flexibility, mindfulness' },
-    { icon: '\u{1F483}', name: 'Dance', color: colors.accent, tagline: 'Rhythm, movement, fun' },
+    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: colors.secondary, tagline: 'Hit the weights' },
+    { icon: '\u{1F9D8}', name: 'Yoga', color: colors.categoryPink, tagline: 'Find your flow' },
+    { icon: '\u{1F483}', name: 'Dance', color: colors.accent, tagline: 'Move to the beat' },
     { icon: '\u270F\uFE0F', name: 'Add your own', color: colors.textSecondary, tagline: 'Create a custom challenge' },
 ];
 
@@ -409,8 +409,8 @@ export default function ChallengeSetupScreen() {
                 // Fitness-first: store goal type for venue/GPS verification
                 goalType: selectedGoal === 'Gym' ? 'gym' as const
                     : selectedGoal === 'Yoga' ? 'yoga' as const
-                    : selectedGoal === 'Dance' ? 'dance' as const
-                    : 'custom' as const,
+                        : selectedGoal === 'Dance' ? 'dance' as const
+                            : 'custom' as const,
                 // Payment commitment: only set when user chose "Pay on success" with a specific experience
                 ...(paymentChoice === 'payLater' && selectedExperience ? { paymentCommitment: 'payOnCompletion' as const } : {}),
                 ...(paymentChoice === 'payNow' && selectedExperience ? { paymentCommitment: 'paidUpfront' as const } : {}),
@@ -1462,39 +1462,39 @@ export default function ChallengeSetupScreen() {
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={{ flex: 1 }}
                 >
-                <ScrollView
-                    ref={scrollViewRef}
-                    style={styles.scroll}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
-                    {/* Step Title & Subtitle */}
-                    <MotiView
-                        key={`title-${currentStep}`}
-                        from={{ opacity: 0, translateY: 10 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 300 }}
+                    <ScrollView
+                        ref={scrollViewRef}
+                        style={styles.scroll}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
                     >
-                        <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
-                        <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
-                    </MotiView>
-
-                    {/* Animated Step Content */}
-                    <AnimatePresence exitBeforeEnter>
+                        {/* Step Title & Subtitle */}
                         <MotiView
-                            key={`step-${currentStep}`}
-                            from={{ opacity: 0, translateX: 30 }}
-                            animate={{ opacity: 1, translateX: 0 }}
-                            exit={{ opacity: 0, translateX: -30 }}
-                            transition={{ type: 'timing', duration: 250 }}
+                            key={`title-${currentStep}`}
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ type: 'timing', duration: 300 }}
                         >
-                            {renderCurrentStep()}
+                            <Text style={styles.stepTitle}>{STEP_TITLES[currentStep - 1]}</Text>
+                            <Text style={styles.stepSubtitle}>{STEP_SUBTITLES[currentStep - 1]}</Text>
                         </MotiView>
-                    </AnimatePresence>
 
-                    <View style={{ height: vh(160) }} />
-                </ScrollView>
+                        {/* Animated Step Content */}
+                        <AnimatePresence exitBeforeEnter>
+                            <MotiView
+                                key={`step-${currentStep}`}
+                                from={{ opacity: 0, translateX: 30 }}
+                                animate={{ opacity: 1, translateX: 0 }}
+                                exit={{ opacity: 0, translateX: -30 }}
+                                transition={{ type: 'timing', duration: 250 }}
+                            >
+                                {renderCurrentStep()}
+                            </MotiView>
+                        </AnimatePresence>
+
+                        <View style={{ height: vh(160) }} />
+                    </ScrollView>
                 </KeyboardAvoidingView>
 
                 {/* Footer */}
@@ -1643,10 +1643,10 @@ export default function ChallengeSetupScreen() {
                             {selectedExperience && paymentChoice === 'payNow'
                                 ? 'You\'ll complete payment next to secure your reward.'
                                 : selectedExperience && paymentChoice === 'payLater'
-                                ? 'You\'ll save your payment method next. Only charged when you finish.'
-                                : preferredRewardCategory
-                                ? 'We\'ll find the perfect reward for you as you make progress!'
-                                : 'You can always add a reward later.'
+                                    ? 'You\'ll save your payment method next. Only charged when you finish.'
+                                    : preferredRewardCategory
+                                        ? 'We\'ll find the perfect reward for you as you make progress!'
+                                        : 'You can always add a reward later.'
                             }
                         </Text>
 

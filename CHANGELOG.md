@@ -69,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sync createDeferredGift_Test with production — added stripeCustomer, input sanitization, experienceId length check, and goal parameter clamping
 - add confetti to giver ConfirmationScreen
 - add xl shadow token to Shadows config for high-prominence overlays
+- redesigned ChallengeLandingScreen hero — dark theme, 3D card flip, neon glow, merged footer
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -335,6 +336,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add tinyGap spacing token and replace hardcoded gap values in feed and modal components
 - add overlay and reveal gradient tokens, replace hardcoded rgba in ExperienceRevealModal and ExperienceDetailModal
 - replace hardcoded rgba gradient in CategorySelectionScreen with design token
+- update social proof stats on ChallengeLandingScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -751,6 +753,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrate JourneyDemo reward image from RN Image to expo-image
 - migrate MotivationModal and PersonalizedHintModal to expo-image
 - migrate remote URI images to expo-image in ChallengeLandingScreen, ChallengeSetupScreen, GiftFlowScreen, and GoalSettingScreen
+- align UserProfileScreen tab switching with FriendProfileScreen (horizontal paging, swipe gestures, animated scroll sync)
+- comments no longer show 'edited' tag when they were never edited
+- comment three-dot menu no longer hides behind sibling comments
+- tapping outside comment menu now dismisses it
+- sign-up no longer falsely reports every email as already in use (Firebase v10+ auth/invalid-credential change)
+- update social proof stats with verified peer-reviewed sources
 
 ### Added
 - Automatic changelog system with `npm run log` script

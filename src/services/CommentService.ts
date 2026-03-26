@@ -133,7 +133,7 @@ class CommentService {
                     userProfileImageUrl: data.userProfileImageUrl,
                     text: data.text,
                     createdAt: toDateSafe(data.createdAt),
-                    updatedAt: toDateSafe(data.updatedAt),
+                    updatedAt: data.updatedAt ? toDateSafe(data.updatedAt) : undefined,
                     likedBy: data.likedBy || [],
                 } as Comment;
             });

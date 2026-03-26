@@ -465,6 +465,10 @@ const UserProfileScreen: React.FC = () => {
   const navigation = useRootNavigation();
   const { showSuccess, showError, showInfo } = useToast();
   const [activeTab, setActiveTab] = useState<'goals' | 'achievements' | 'wishlist'>('goals');
+  const tabScrollRef = useRef<ScrollView>(null);
+  const isTabPress = useRef(false);
+  const { width: screenWidth } = useWindowDimensions();
+  const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -484,9 +488,6 @@ const UserProfileScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const userId = state.user?.id || '';
-  const tabScrollRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = useWindowDimensions();
-  const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   const loadProfileAndGoals = useCallback(async () => {
     if (!userId) return;
@@ -871,7 +872,12 @@ const UserProfileScreen: React.FC = () => {
             ] as const).map((tab) => (
               <TouchableOpacity
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => {
+                  const index = TAB_KEYS.indexOf(tab.key);
+                  setActiveTab(tab.key);
+                  isTabPress.current = true;
+                  tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+                }}
                 style={[
                   styles.tabButton,
                   activeTab === tab.key && styles.tabButtonActive,
@@ -891,13 +897,34 @@ const UserProfileScreen: React.FC = () => {
             ))}
           </View>
 
-          <View style={{ paddingBottom: 80 + FOOTER_HEIGHT }}>
-            {(['goals', 'achievements', 'wishlist'] as const).map((tab) => (
-              <View key={tab} style={{ display: activeTab === tab ? 'flex' : 'none' }}>
-                {renderTabContent(tab)}
-              </View>
-            ))}
-          </View>
+          {/* Content */}
+          <ScrollView
+            ref={tabScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={100}
+            onScroll={(e) => {
+              if (isTabPress.current) return;
+              const x = e.nativeEvent.contentOffset.x;
+              const index = Math.round(x / screenWidth);
+              if (index >= 0 && index < TAB_KEYS.length && TAB_KEYS[index] !== activeTab) {
+                setActiveTab(TAB_KEYS[index]);
+              }
+            }}
+            onMomentumScrollEnd={() => { isTabPress.current = false; }}
+            style={{ flex: 1 }}
+          >
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+              {renderTabContent('goals')}
+            </View>
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+              {renderTabContent('achievements')}
+            </View>
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+              {renderTabContent('wishlist')}
+            </View>
+          </ScrollView>
         </ScrollView>
 
         {/* Edit Modal */}
@@ -1108,11 +1135,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.lg,
     gap: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   tabButton: {
     flex: 1,
@@ -1120,13 +1144,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     backgroundColor: colors.white,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  tabButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
+  tabButtonActive: { backgroundColor: colors.secondary },
   tabText: { ...Typography.smallBold, color: colors.textSecondary },
   tabTextActive: { color: colors.white },
 

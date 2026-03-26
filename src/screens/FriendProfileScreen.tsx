@@ -554,6 +554,7 @@ const FriendProfileScreen: React.FC = () => {
   const removeScale = useRef(new Animated.Value(0.9)).current;
 
   const tabScrollRef = useRef<ScrollView>(null);
+  const isTabPress = useRef(false);
   const { width: screenWidth } = useWindowDimensions();
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
@@ -836,6 +837,7 @@ const FriendProfileScreen: React.FC = () => {
               onPress={() => {
                 const index = TAB_KEYS.indexOf(tab.key);
                 setActiveTab(tab.key);
+                isTabPress.current = true;
                 tabScrollRef.current?.scrollTo({ x: index * screenWidth, animated: true });
               }}
               style={[
@@ -865,12 +867,14 @@ const FriendProfileScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={100}
           onScroll={(e) => {
+            if (isTabPress.current) return;
             const x = e.nativeEvent.contentOffset.x;
             const index = Math.round(x / screenWidth);
             if (index >= 0 && index < TAB_KEYS.length && TAB_KEYS[index] !== activeTab) {
               setActiveTab(TAB_KEYS[index]);
             }
           }}
+          onMomentumScrollEnd={() => { isTabPress.current = false; }}
           style={{ flex: 1 }}
         >
           <View style={{ width: screenWidth, paddingBottom: 80 }}>
