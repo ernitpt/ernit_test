@@ -788,6 +788,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - prevent double timer notification at t=0 in TimerDisplay
 - improve deadline warning message when sessions exceed remaining days
 - add missing post_comment notification handler
+- replace hardcoded spacing and font size values with design tokens in JourneyScreen
 
 ### Added
 - Automatic changelog system with `npm run log` script

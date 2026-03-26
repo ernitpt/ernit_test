@@ -637,7 +637,7 @@ const MilestoneCard = React.memo(({ emoji, label }: { emoji: string; label: stri
       borderRadius: BorderRadius.pill,
       alignSelf: 'center',
     }}>
-      <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text>
+      <Text style={{ fontSize: Typography.heading3.fontSize, lineHeight: Typography.heading3.lineHeight }}>{emoji}</Text>
       <Text style={{ ...Typography.caption, color: colors.textSecondary, fontWeight: '700' }}>
         {label}
       </Text>
@@ -830,7 +830,7 @@ const HintItem = React.memo(({
     >
       {sessionNum > 0 ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs }}>
-          <View style={{ backgroundColor: colors.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: 2 }}>
+          <View style={{ backgroundColor: colors.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xxs }}>
             <Text style={{ ...Typography.caption, fontWeight: '700', color: colors.primary }}>
               💡 Session {sessionNum}
             </Text>
@@ -863,7 +863,7 @@ const HintItem = React.memo(({
           style={{
             color: colors.gray700,
             ...Typography.body,
-            marginBottom: isAudio ? 8 : 0,
+            marginBottom: isAudio ? Spacing.sm : 0,
           }}
         >
           {text}
@@ -1494,19 +1494,19 @@ const JourneyScreen = () => {
                     width: 600,
                     height: shareFormat === 'story' ? 400 : 300,
                     borderRadius: BorderRadius.pill,
-                    marginBottom: 60,
+                    marginBottom: Spacing.jumbo,
                   }}
                   contentFit="cover" cachePolicy="memory-disk"
                 />
               ) : null}
               <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
-              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>
+              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
                 Goal Completed!
               </Text>
-              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: Spacing.jumbo }}>
                 {currentGoal.title || currentGoal.description || ''}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
+              <View style={{ flexDirection: 'row', gap: Spacing.jumbo, marginBottom: Spacing.jumbo }}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
                   <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
