@@ -222,20 +222,27 @@ const NotificationsScreen = () => {
     await notificationService.markAsRead(n.id!);
 
     if (n.type === 'gift_received') {
-      try {
-        const gift = await experienceGiftService.getExperienceGiftById(n.data.giftId);
-        if (gift && gift.experienceId) {
-          navigation.navigate('GoalSetting', { experienceGift: gift });
+      if (!n.data?.giftId) {
+        showError('Could not open — data unavailable');
+      } else {
+        try {
+          const gift = await experienceGiftService.getExperienceGiftById(n.data.giftId);
+          if (gift && gift.experienceId) {
+            navigation.navigate('GoalSetting', { experienceGift: gift });
+          } else {
+            showError('Could not open — data unavailable');
+          }
+        } catch (error: unknown) {
+          logger.error('Error fetching experience gift:', error);
+          showError('Could not open — data unavailable');
         }
-      } catch (error: unknown) {
-        logger.error('Error fetching experience gift:', error);
       }
     }
 
     if (n.type === 'personalized_hint_left' && n.data?.goalId) {
       // Check if goal is completed using our local state
       if (userGoals[n.data.goalId]) {
-        // Goal is completed, do not navigate
+        showInfo('This goal is already completed');
         return;
       }
 
@@ -243,14 +250,33 @@ const NotificationsScreen = () => {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
           navigation.navigate('Journey', { goal });
+        } else {
+          showError('Could not open — data unavailable');
         }
       } catch (error: unknown) {
         logger.error('Error fetching goal:', error);
+        showError('Could not open — data unavailable');
       }
+    }
+
+    if (n.type === 'personalized_hint_left' && !n.data?.goalId) {
+      showError('Could not open — data unavailable');
     }
 
     if (n.type === 'post_reaction' && n.data?.postId) {
       navigation.navigate('Feed', { highlightPostId: n.data.postId });
+    }
+
+    if (n.type === 'post_reaction' && !n.data?.postId) {
+      showError('Could not open — data unavailable');
+    }
+
+    if (n.type === 'post_comment' && n.data?.postId) {
+      navigation.navigate('Feed', { highlightPostId: n.data.postId });
+    }
+
+    if (n.type === 'post_comment' && !n.data?.postId) {
+      showError('Could not open — data unavailable');
     }
 
     if ((n.type === 'session_reminder' || n.type === 'weekly_recap') && n.data?.goalId) {
