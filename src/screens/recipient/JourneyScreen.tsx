@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
-  Platform, Linking, LayoutAnimation, RefreshControl, Dimensions, Share,
+  Platform, Linking, LayoutAnimation, RefreshControl, Share, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -313,6 +313,8 @@ const SessionCard = React.memo(({
                   <TouchableOpacity
                     onPress={() => onImagePress(session.mediaUrl!)}
                     activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel="View session photo fullscreen"
                   >
                     <Image
                       source={{ uri: session.mediaUrl }}
@@ -926,7 +928,7 @@ const JourneyScreen = () => {
   const bookingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const shareCardRef = useRef<View>(null);
   const tabScrollRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = Dimensions.get('window');
+  const { width: screenWidth } = useWindowDimensions();
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState(false);
@@ -1803,6 +1805,9 @@ const JourneyScreen = () => {
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'story' && cStyles.shareFormatActive]}
               onPress={() => setShareFormat('story')}
+              accessibilityRole="button"
+              accessibilityLabel="Story format (9:16)"
+              accessibilityState={{ selected: shareFormat === 'story' }}
             >
               <Text style={[cStyles.shareFormatText, shareFormat === 'story' && cStyles.shareFormatTextActive]}>
                 Story (9:16)
@@ -1811,6 +1816,9 @@ const JourneyScreen = () => {
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'square' && cStyles.shareFormatActive]}
               onPress={() => setShareFormat('square')}
+              accessibilityRole="button"
+              accessibilityLabel="Square format (1:1)"
+              accessibilityState={{ selected: shareFormat === 'square' }}
             >
               <Text style={[cStyles.shareFormatText, shareFormat === 'square' && cStyles.shareFormatTextActive]}>
                 Square (1:1)

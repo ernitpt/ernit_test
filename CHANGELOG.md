@@ -357,6 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add tinyGap spacing token and replace hardcoded gap values in feed and modal components
 - add overlay and reveal gradient tokens, replace hardcoded rgba in ExperienceRevealModal and ExperienceDetailModal
 - replace hardcoded rgba gradient in CategorySelectionScreen with design token
+- replace Dimensions.get with useWindowDimensions, fix hardcoded confetti colors, add accessibility labels
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService

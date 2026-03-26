@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Share,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
@@ -150,17 +150,17 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   }, [visible]);
 
 
-  const { width: screenWidth } = Dimensions.get('window');
+  const { width: screenWidth } = useWindowDimensions();
 
-  // Weekly celebration tier config
+  // Weekly celebration tier config — use design tokens, no hardcoded hex
   const weekTier = useMemo(() => {
     if (!weekJustCompleted || !completedWeekNumber) return null;
     const n = completedWeekNumber;
     if (n === 1) return { emoji: '🎉', title: 'First Week Done!', subtitle: 'Amazing start — keep it up!', confettiCount: 120, confettiColors: null as string[] | null };
     if (n === 2) return { emoji: '🔥', title: 'Two Weeks Strong!', subtitle: 'You\'re building a real habit!', confettiCount: 180, confettiColors: null };
-    if (n === 3) return { emoji: '⭐', title: 'Three Weeks! Unstoppable!', subtitle: 'You\'re in the zone now!', confettiCount: 220, confettiColors: ['#FFD700', '#FFA500', '#FF6347', '#FFD700', '#FFFFFF'] };
-    return { emoji: '🏆', title: `Week ${n} Champion!`, subtitle: 'Your consistency is incredible!', confettiCount: 280, confettiColors: ['#FFD700', '#FFA500', '#FF6347', '#FFD700', '#FF1493', '#00CED1'] };
-  }, [weekJustCompleted, completedWeekNumber]);
+    if (n === 3) return { emoji: '⭐', title: 'Three Weeks! Unstoppable!', subtitle: 'You\'re in the zone now!', confettiCount: 220, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
+    return { emoji: '🏆', title: `Week ${n} Champion!`, subtitle: 'Your consistency is incredible!', confettiCount: 280, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
+  }, [weekJustCompleted, completedWeekNumber, colors]);
 
   const modalTitle = weekTier ? `${weekTier.emoji} Week Complete!` : 'Session Complete';
   const confettiCount = weekTier ? weekTier.confettiCount : 120;
