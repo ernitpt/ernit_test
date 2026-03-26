@@ -1334,7 +1334,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
-        height: CARD_H + 40,
     },
     cardImageCard: {
         position: 'absolute',
@@ -1346,12 +1345,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         position: 'absolute',
     },
     cardGoalPos: {
-        left: SCREEN_W / 2 - CARD_W + 5 + vh(5),
         transform: [{ rotate: '-6deg' }],
         zIndex: 1,
     },
     cardRewardPos: {
-        left: SCREEN_W / 2 - 15 + vh(0),
         transform: [{ rotate: '6deg' }],
         zIndex: 2,
     },
