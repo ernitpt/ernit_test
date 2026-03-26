@@ -226,8 +226,9 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
     }
   }, [timeElapsed]);
 
-  // Update live timer notification every 60 seconds on native
-  const lastNotifMinute = useRef(-1);
+  // Update live timer notification every 60 seconds on native.
+  // Start at 0 (not -1) since startTimer already showed the t=0 notification.
+  const lastNotifMinute = useRef(0);
   useEffect(() => {
     if (Platform.OS === 'web' || !goalId) return;
     const currentMinute = Math.floor(timeElapsed / 60);
