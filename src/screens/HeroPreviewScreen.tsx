@@ -807,7 +807,7 @@ export default function HeroPreviewScreen() {
                                             source={{ uri: founder.image }}
                                             style={styles.founderPhoto}
                                             contentFit="cover"
-                                                            cachePolicy="memory-disk"
+                                            cachePolicy="memory-disk"
                                             accessibilityLabel={`${founder.name}, ${founder.role}`}
                                         />
                                         <Text style={styles.founderName}>{founder.name}</Text>

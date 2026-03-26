@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
   Platform, Linking, LayoutAnimation, RefreshControl, Share, useWindowDimensions,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -347,6 +348,7 @@ const SessionCard = React.memo(({
                 accessibilityRole="button"
                 accessibilityLabel={`Share session ${session.sessionNumber} photo`}
                 onPress={async () => {
+                  Haptics.selectionAsync();
                   try {
                     await Share.share({
                       url: session.mediaUrl!,
@@ -1804,7 +1806,7 @@ const JourneyScreen = () => {
           <View style={cStyles.shareFormatToggle}>
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'story' && cStyles.shareFormatActive]}
-              onPress={() => setShareFormat('story')}
+              onPress={() => { setShareFormat('story'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
               accessibilityRole="button"
               accessibilityLabel="Story format (9:16)"
               accessibilityState={{ selected: shareFormat === 'story' }}
@@ -1815,7 +1817,7 @@ const JourneyScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[cStyles.shareFormatOption, shareFormat === 'square' && cStyles.shareFormatActive]}
-              onPress={() => setShareFormat('square')}
+              onPress={() => { setShareFormat('square'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
               accessibilityRole="button"
               accessibilityLabel="Square format (1:1)"
               accessibilityState={{ selected: shareFormat === 'square' }}

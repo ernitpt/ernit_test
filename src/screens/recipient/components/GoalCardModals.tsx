@@ -448,8 +448,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderLeftColor: colors.warning,
   },
   weekMilestoneEmoji: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: Typography.emojiBase.fontSize,
+    lineHeight: Typography.emojiBase.lineHeight,
   },
   weekMilestoneTitle: {
     ...Typography.subheading,

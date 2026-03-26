@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -61,39 +61,39 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
     }
   }, [visible, goal]);
 
-  const adjustWeeks = (delta: number) => {
+  const adjustWeeks = useCallback((delta: number) => {
     if (loading) return;
     const newVal = Math.max(minWeeks, Math.min(maxWeeks, selectedWeeks + delta));
     setSelectedWeeks(newVal);
     setError(null);
-  };
+  }, [loading, minWeeks, maxWeeks, selectedWeeks]);
 
-  const adjustSessions = (delta: number) => {
+  const adjustSessions = useCallback((delta: number) => {
     if (loading) return;
     const newVal = Math.max(minSessions, Math.min(maxSessions, selectedSessions + delta));
     setSelectedSessions(newVal);
     setError(null);
-  };
+  }, [loading, minSessions, maxSessions, selectedSessions]);
 
-  const handleWeeksChange = (text: string) => {
+  const handleWeeksChange = useCallback((text: string) => {
     const num = parseInt(text.replace(/[^0-9]/g, ''), 10);
     if (!isNaN(num)) {
       setSelectedWeeks(Math.max(minWeeks, Math.min(maxWeeks, num)));
     } else if (text === '') {
       setSelectedWeeks(minWeeks);
     }
-  };
+  }, [minWeeks, maxWeeks]);
 
-  const handleSessionsChange = (text: string) => {
+  const handleSessionsChange = useCallback((text: string) => {
     const num = parseInt(text.replace(/[^0-9]/g, ''), 10);
     if (!isNaN(num)) {
       setSelectedSessions(Math.max(minSessions, Math.min(maxSessions, num)));
     } else if (text === '') {
       setSelectedSessions(minSessions);
     }
-  };
+  }, [minSessions, maxSessions]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!goal?.id) {
       setError('Goal information is missing.');
       return;
@@ -128,7 +128,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [goal, isGiftedGoal, selectedWeeks, selectedSessions, message, onGoalUpdated, onClose]);
 
   const title = isGiftedGoal ? 'Request Goal Edit' : 'Edit Goal';
 
@@ -431,7 +431,8 @@ const createStyles = (colors: typeof Colors) =>
       paddingVertical: Spacing.xl,
     },
     successEmoji: {
-      fontSize: 48,
+      fontSize: Typography.emoji.fontSize,
+      lineHeight: Typography.emoji.lineHeight,
       marginBottom: Spacing.md,
     },
     successTitle: {
