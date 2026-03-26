@@ -794,6 +794,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace hardcoded spacing and font size values with design tokens in JourneyScreen
 - replace emoji hardcoded font size with Typography.large token
 - replace hardcoded emoji font sizes with Typography.emojiBase/emoji tokens; add haptic feedback to share format toggle and session share button; add useCallback to GoalEditModal handlers
+- add haptic feedback to goal edit approve/reject actions and Gift This button
 
 ### Added
 - Automatic changelog system with `npm run log` script

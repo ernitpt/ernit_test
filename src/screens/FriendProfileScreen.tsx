@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton, SkeletonBox } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -523,6 +524,7 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
     navigation.navigate('ExperienceDetails', { experience }), [navigation, experience]);
 
   const handleGiftThis = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate('ExperienceCheckout', {
       cartItems: [{ experienceId: experience.id, quantity: 1 }],
     });

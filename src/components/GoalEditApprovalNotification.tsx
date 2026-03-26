@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
@@ -44,10 +45,12 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
     setLoading('approve');
     try {
       await goalService.approveGoalEditRequest(notification.data.goalId as string);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await clearNotification();
       onActionTaken();
     } catch (err: unknown) {
       logger.error('Error approving goal edit request:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(err instanceof Error ? err.message : 'Failed to approve. Please try again.');
     } finally {
       setLoading(null);
@@ -60,10 +63,12 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
     setLoading('reject');
     try {
       await goalService.rejectGoalEditRequest(notification.data.goalId as string);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await clearNotification();
       onActionTaken();
     } catch (err: unknown) {
       logger.error('Error rejecting goal edit request:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(err instanceof Error ? err.message : 'Failed to decline. Please try again.');
     } finally {
       setLoading(null);
