@@ -459,7 +459,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   weekMilestoneSubtitle: {
     ...Typography.body,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   feedPreviewCard: {
     backgroundColor: colors.surface,
