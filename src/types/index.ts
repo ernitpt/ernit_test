@@ -759,6 +759,8 @@ export type AnalyticsEventName =
   | 'session_start'
   | 'weekly_goal_completed'
   | 'goal_deleted'
+  | 'goal_edited'
+  | 'goal_edit_requested'
   // Feed & discovery
   | 'feed_viewed'
   | 'app_open'

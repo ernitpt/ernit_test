@@ -514,7 +514,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   );
 };
 
-const ExperienceCard = ({ experience, friendUserId }: { experience: Experience; friendUserId?: string }) => {
+const ExperienceCard = ({ experience }: { experience: Experience }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
@@ -748,7 +748,7 @@ const FriendProfileScreen: React.FC = () => {
         transition={{ type: 'timing', duration: 300, delay: index * 60 }}
       >
         {tab === 'wishlist' ? (
-          <ExperienceCard experience={item} friendUserId={userId} />
+          <ExperienceCard experience={item} />
         ) : tab === 'goals' ? (
           <GoalCard goal={item} currentUserId={currentUserId} userName={userName} />
         ) : (

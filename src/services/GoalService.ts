@@ -843,7 +843,7 @@ export class GoalService {
       updatedAt: serverTimestamp(),
     });
 
-    analyticsService.trackEvent('goal_approved', 'conversion', { goalId, targetCount: newTargetCount, sessionsPerWeek: newSessionsPerWeek });
+    analyticsService.trackEvent('goal_edited', 'conversion', { goalId, targetCount: newTargetCount, sessionsPerWeek: newSessionsPerWeek });
 
     const updated = await getDoc(ref);
     return normalizeGoal({ id: updated.id, ...updated.data() });
@@ -884,6 +884,8 @@ export class GoalService {
       },
       updatedAt: serverTimestamp(),
     });
+
+    analyticsService.trackEvent('goal_edit_requested', 'engagement', { goalId, requestedTargetCount, requestedSessionsPerWeek });
 
     // Notify the giver
     const requesterName = await userService.getUserName(goal.userId);

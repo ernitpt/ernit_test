@@ -782,6 +782,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Android layout compatibility - responsive dimensions and safe area insets across 7 files
 - A0-3 android layout compatibility fixes across 8 files
 - A0-2 separate Android OAuth client ID in AuthScreen
+- remove unused ExperienceCard prop, correct analytics event names in GoalService
 
 ### Added
 - Automatic changelog system with `npm run log` script
