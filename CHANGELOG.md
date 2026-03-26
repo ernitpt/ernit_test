@@ -91,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 5A gift wishlist
 - 1D goal editing — self-edit for own goals, request-edit flow for gifted goals with giver notification
 - 1B sticky timer notification — live progress notification on Android (sticky), updates every 60s, cancelled on session stop
+- goal edit approval — giver can approve/reject recipient edit requests via notification
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge

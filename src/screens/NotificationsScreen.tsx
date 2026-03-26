@@ -26,6 +26,7 @@ import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
+import GoalEditApprovalNotification from '../components/GoalEditApprovalNotification';
 import { GoalProgressNotification } from '../components/GoalProgressNotification';
 import FreeGoalNotification from '../components/FreeGoalNotification';
 import { NotificationSkeleton } from '../components/SkeletonLoader';
@@ -451,6 +452,18 @@ const NotificationsScreen = () => {
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
           <GoalChangeSuggestionNotification
+            notification={item}
+            onActionTaken={handleApprovalActionTaken}
+          />
+        </Animated.View>
+      );
+    }
+
+    // Handle goal edit request notifications (for givers to approve or reject)
+    if (item.type === 'goal_edit_request') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+          <GoalEditApprovalNotification
             notification={item}
             onActionTaken={handleApprovalActionTaken}
           />

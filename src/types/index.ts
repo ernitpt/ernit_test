@@ -544,6 +544,10 @@ export interface Notification {
     // Progress tracking
     totalSessionsDone?: number;
     totalSessionsRequired?: number;
+    // Goal edit request fields
+    requestedTargetCount?: number;
+    requestedSessionsPerWeek?: number;
+    message?: string;
   };
 }
 
@@ -761,6 +765,8 @@ export type AnalyticsEventName =
   | 'goal_deleted'
   | 'goal_edited'
   | 'goal_edit_requested'
+  | 'goal_edit_approved'
+  | 'goal_edit_rejected'
   // Feed & discovery
   | 'feed_viewed'
   | 'app_open'

@@ -894,7 +894,100 @@ export class GoalService {
       'goal_edit_request',
       `${requesterName} requested a goal edit`,
       `${requesterName} wants to change "${goal.title}" to ${requestedTargetCount} weeks, ${requestedSessionsPerWeek} sessions/week.${message ? ` Message: "${sanitizeText(message, 200)}"` : ''}`,
-      { goalId, recipientId: goal.userId, requestedTargetCount, requestedSessionsPerWeek },
+      { goalId, recipientId: goal.userId, requestedTargetCount, requestedSessionsPerWeek, message: sanitizeText(message || '', 200) },
+      false
+    );
+  }
+
+  /**
+   * Approve a pending goal edit request (called by the giver).
+   * Applies the requested changes and notifies the recipient.
+   */
+  async approveGoalEditRequest(goalId: string): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the giver can approve edit requests', 'auth');
+    }
+
+    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest as {
+      requestedTargetCount: number;
+      requestedSessionsPerWeek: number;
+      requestedBy: string;
+    } | undefined;
+
+    if (!pending) {
+      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+    }
+
+    const { requestedTargetCount, requestedSessionsPerWeek } = pending;
+
+    // Apply the changes
+    const startDate = toJSDate(goal.startDate) || DateHelper.now();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + requestedTargetCount * 7);
+
+    await updateDoc(ref, {
+      targetCount: requestedTargetCount,
+      sessionsPerWeek: requestedSessionsPerWeek,
+      duration: requestedTargetCount * 7,
+      endDate,
+      totalSessions: requestedTargetCount * requestedSessionsPerWeek,
+      pendingEditRequest: null,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edit_approved', 'conversion', { goalId, requestedTargetCount, requestedSessionsPerWeek });
+
+    // Notify recipient
+    const giverName = await userService.getUserName(auth.currentUser!.uid);
+    await notificationService.createNotification(
+      goal.userId,
+      'goal_edit_response',
+      `${giverName} approved your edit request`,
+      `Your goal "${goal.title}" has been updated to ${requestedTargetCount} weeks, ${requestedSessionsPerWeek} sessions/week.`,
+      { goalId, approved: true },
+      false
+    );
+  }
+
+  /**
+   * Reject a pending goal edit request (called by the giver).
+   * Clears the pending request and notifies the recipient.
+   */
+  async rejectGoalEditRequest(goalId: string): Promise<void> {
+    const ref = doc(db, 'goals', goalId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
+
+    if (goal.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('UNAUTHORIZED', 'Only the giver can reject edit requests', 'auth');
+    }
+
+    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest;
+    if (!pending) {
+      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+    }
+
+    await updateDoc(ref, {
+      pendingEditRequest: null,
+      updatedAt: serverTimestamp(),
+    });
+
+    analyticsService.trackEvent('goal_edit_rejected', 'conversion', { goalId });
+
+    // Notify recipient
+    const giverName = await userService.getUserName(auth.currentUser!.uid);
+    await notificationService.createNotification(
+      goal.userId,
+      'goal_edit_response',
+      `${giverName} declined your edit request`,
+      `Your edit request for "${goal.title}" was not approved. You can submit a new request if needed.`,
+      { goalId, approved: false },
       false
     );
   }
