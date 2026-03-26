@@ -784,6 +784,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A0-2 separate Android OAuth client ID in AuthScreen
 - remove unused ExperienceCard prop, correct analytics event names in GoalService
 - prevent double timer notification at t=0 in TimerDisplay
+- improve deadline warning message when sessions exceed remaining days
 
 ### Added
 - Automatic changelog system with `npm run log` script

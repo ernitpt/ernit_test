@@ -1205,8 +1205,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
 
     if (sessionsRemaining > daysLeftInWeek) {
-      // Mathematically impossible to finish this week
-      return { level: 'error' as const, message: `Can't finish this week unless you go today! (${sessionsRemaining} left, ${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''} remaining)` };
+      // Mathematically impossible to complete all sessions this week
+      return { level: 'error' as const, message: `Not enough days left — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} needed in ${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''}. Log now!` };
     }
 
     if (daysLeftInWeek === 1 && sessionsRemaining > 0) {
