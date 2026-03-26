@@ -63,3 +63,105 @@ The "Shared" challenge (`challengeType: 'shared'`) is a bidirectional goal where
 
 ### Firestore Offline Persistence
 Enabled in `src/services/firebase.ts` via `initializeFirestore` with `persistentLocalCache({ tabManager: persistentMultipleTabManager() })`. Active only in production environment (`EXPO_PUBLIC_APP_ENV === 'production'`). Uses IndexedDB on web (Firebase v10+). Falls back gracefully in non-production/test environments.
+
+---
+
+## Recent Architecture Changes (branch claude/eager-jones — 2026-03-26)
+
+### New Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| `GoalEditModal` | `src/components/GoalEditModal.tsx` | Bottom-sheet modal for editing goal parameters (weeks duration, sessions/week). Self-owned goals edit directly via `selfEditGoal`; gifted goals send a request via `requestGoalEdit`. Steppers with min/max guards, message field (sanitized), success/error feedback, haptic feedback. React.memo wrapped. |
+| `GoalEditApprovalNotification` | `src/components/GoalEditApprovalNotification.tsx` | Notification card rendered in NotificationsScreen for `goal_edit_request` type. Shows requested weeks/sessions + recipient's message. Approve/Decline buttons call `approveGoalEditRequest`/`rejectGoalEditRequest`. React.memo wrapped. |
+
+### New JourneyScreen Sub-components (all React.memo)
+
+All defined inline in `src/screens/recipient/JourneyScreen.tsx`:
+
+| Component | Description |
+|-----------|-------------|
+| `SegmentedControl` | Story/Square share format toggle with `accessibilityState={{ selected }}` and haptic feedback. |
+| `SessionCard` | Individual session item in the journey timeline. Shows date, duration, media thumbnail, share button. |
+| `MilestoneCard` | Badge between session cards for week-completion and session-count milestones (e.g. "Week 2 Complete!", "10 Sessions!"). |
+| `StatPill` | Single stat display (icon, label, value) used inside `SessionStatsBar`. |
+| `SessionStatsBar` | Aggregate stats bar shown on completed goals: total time, session count, avg duration, longest session, weekly streak. Uses `SessionCardSkeleton` while loading. |
+
+### New Features
+
+**Goal Editing (recipient/giver)**
+- Recipient can edit own goals directly (`selfEditGoal`) or request changes to gifted goals (`requestGoalEdit` — sends `goal_edit_request` notification to giver).
+- Giver sees `GoalEditApprovalNotification` in NotificationsScreen, approves or rejects. Approved edits apply to the goal and send `goal_edit_response` notification to recipient.
+- Entry point: edit icon button on `DetailedGoalCard` (shown for both owned and gifted goals).
+
+**Session Privacy**
+- `CelebrationModal` has a Friends/Private toggle. Default: Friends. Persisted via `AsyncStorage` key `sessionPrivacyPreference`. Private sessions show a lock icon. Implemented in `GoalCardModals.tsx`.
+
+**Journey Sharing (Strava-style)**
+- Per-session share button in `SessionCard`: captures the off-screen `shareCardRef` via `react-native-view-shot` and calls `Share.share` with the image URI.
+- Journey-level share button on completed goals for a full goal retrospective card.
+- Format toggle: Story (9:16) or Square (1:1), persisted in AsyncStorage (`shareFormatPreference`).
+
+**Goal Retrospective**
+- Completed goals in `JourneyScreen` show an aggregate summary: total sessions, total time, longest session, motivations summary. Powered by the `SessionStatsBar` component.
+
+**Weekly Celebration Tiers**
+- `GoalCardModals.tsx` `weekTier` useMemo computes tier (1/2/3/4+) based on `completedWeeks`.
+- Tier 1–2: standard confetti. Tier 3: gold colors. Tier 4+: rainbow fireworks palette using design tokens (`celebrationGold`, `warning`, `error`, `categoryPink`, `accent`).
+
+**Deadline Warning Banners**
+- `DetailedGoalCard` shows urgency banners when the remaining sessions can't fit in the remaining days of the week. Message counts needed sessions vs available days.
+
+**Dashboard Weekly Progress**
+- `StreakBanner` (all levels) shows `X/Y sessions this week` progress bar derived from sessions logged this calendar week.
+
+**Sticky Timer Notification (Android)**
+- `TimerContext` fires a sticky Android foreground notification when a session starts, updating every 60s with elapsed time. Cancelled when session stops. Uses `PushNotificationService`.
+
+**Gift from Wishlist**
+- `FriendProfileScreen` wishlist tab shows `ExperienceCard` components with a "🎁 Gift This" button. Navigates to `ExperienceCheckout` pre-populated with that experience.
+
+**Milestone Markers**
+- `JourneyScreen` timeline inserts `MilestoneCard` badges for: every completed week, every 5/10/25/50 session milestones.
+
+### New GoalService Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `selfEditGoal` | `(goalId, targetCount, sessionsPerWeek) → Promise<void>` | Direct edit for self-owned goals. Guards: targetCount ≥ currentCount (elapsed weeks), sessionsPerWeek ≥ weeklyCount (current week). Tracks `goal_edited` event. |
+| `requestGoalEdit` | `(goalId, targetCount, sessionsPerWeek, message?) → Promise<void>` | Sends edit request for gifted goals. Writes `pendingEditRequest` to goal doc and sends `goal_edit_request` notification to giver. Sanitizes message. Tracks `goal_edit_requested`. |
+| `approveGoalEditRequest` | `(goalId) → Promise<void>` | Giver approves: applies `requestedTargetCount`/`requestedSessionsPerWeek`, clears `pendingEditRequest`, sends `goal_edit_response` (approved) to recipient. Tracks `goal_edit_approved`. |
+| `rejectGoalEditRequest` | `(goalId) → Promise<void>` | Giver rejects: clears `pendingEditRequest`, sends `goal_edit_response` (rejected) to recipient. Tracks `goal_edit_rejected`. |
+
+### New Notification Types
+
+| Type | Direction | Handler |
+|------|-----------|---------|
+| `goal_edit_request` | → Giver | Renders `GoalEditApprovalNotification`. Tap navigates to GoalDetail. |
+| `goal_edit_response` | → Recipient | Rendered as a styled approval-response card (green=approved, red=rejected). Tap navigates to GoalDetail. |
+| `post_comment` | → Post author | Navigates to Feed with `highlightPostId`. Was previously unhandled (silent fail). |
+
+**Notification data fallbacks**: All tap handlers now show `showError('Could not open — data unavailable')` when required data fields (goalId, postId, giftId) are missing. Completed-goal hint tap shows `showInfo('This goal is already completed')`.
+
+### New Goal Firestore Fields
+
+`pendingEditRequest` sub-object on `goals/{goalId}`:
+- `requestedTargetCount: number`
+- `requestedSessionsPerWeek: number`
+- `message?: string`
+- `requestedAt: Timestamp`
+
+### New Design Tokens
+
+| Token | Location | Value |
+|-------|----------|-------|
+| `Spacing.jumbo` | `src/config/spacing.ts` | `60` — used for share card canvas offsets |
+| `Typography.emojiBase` | `src/config/typography.ts` | `{ fontSize: 28, lineHeight: 34 }` — fills gap between `emojiSmall` (24) and `emojiMedium` (36) |
+
+### New Analytics Events
+
+Added to `AnalyticsEventName` union in `src/types/index.ts`:
+- `goal_edited` — self-edit applied
+- `goal_edit_requested` — recipient sent edit request to giver
+- `goal_edit_approved` — giver approved edit
+- `goal_edit_rejected` — giver rejected edit

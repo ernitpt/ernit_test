@@ -100,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - all 8 knowledge files updated — goals, notifications, analytics, payments, experiences/gifts, social/feed, auth/user, UI/UX systems
 - update knowledge base for goal edit flow and new notification types
 - update AUDIT_LOG with session 3 notification fixes and design token polish
+- update system-map with new components, features, notification types, and service methods
 
 ### Changed
 - replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen
