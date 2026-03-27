@@ -832,6 +832,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace hardcoded fontSize/fontWeight with Typography presets in auth, landing, and social screens
 - UI/UX audit — auth, social, and sub-component screens
 - Android layout, UI/UX audit complete — production build submitted
+- remove duplicate screenWidth declaration in FriendProfileScreen
 
 ### Added
 - Automatic changelog system with `npm run log` script

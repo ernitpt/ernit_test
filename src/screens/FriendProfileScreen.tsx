@@ -617,7 +617,6 @@ const FriendProfileScreen: React.FC = () => {
 
   const tabScrollRef = useRef<ScrollView>(null);
   const isTabPress = useRef(false);
-  const { width: screenWidth } = useWindowDimensions();
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   // Redirect if userId is missing (e.g., after bad navigation)
