@@ -304,15 +304,17 @@ const GoalsScreen: React.FC = () => {
       from={{ opacity: 0, translateY: 16 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 400 }}
-      style={styles.cardWrapper}
+      style={[styles.cardWrapper, { backgroundColor: 'transparent' }]}
     >
-      <DetailedGoalCard
-        key={item.id}
-        goal={item}
-        onFinish={(updated) => handleFinishGoal(updated)}
-      />
+      <ErrorBoundary screenName={`GoalCard-${item.id}`} userId={userId}>
+        <DetailedGoalCard
+          key={item.id}
+          goal={item}
+          onFinish={(updated) => handleFinishGoal(updated)}
+        />
+      </ErrorBoundary>
     </MotiView>
-  ), [handleFinishGoal]);
+  ), [handleFinishGoal, userId]);
   return (
     <ErrorBoundary screenName="GoalsScreen" userId={userId}>
       <MainScreen activeRoute="Goals">

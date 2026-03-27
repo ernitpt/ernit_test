@@ -618,21 +618,10 @@ export default function ChallengeSetupScreen() {
     const DIAL_STROKE = 8;
     const HANDLE_RADIUS = 14;
 
-    // Animate displayMinutes toward sessionMinutes smoothly
+    // Direct set — MotiView spring on chips handles visual feedback
     const snapToPreset = (target: number) => {
         setSessionMinutes(target);
-        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        const start = displayMinutes;
-        const diff = target - start;
-        const duration = 350;
-        const startTime = performance.now();
-        const step = (now: number) => {
-            const t = Math.min((now - startTime) / duration, 1);
-            const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-            setDisplayMinutes(Math.round(start + diff * eased));
-            if (t < 1) animFrameRef.current = requestAnimationFrame(step);
-        };
-        animFrameRef.current = requestAnimationFrame(step);
+        setDisplayMinutes(target);
     };
 
     const renderTimeStep = () => {
@@ -1170,7 +1159,7 @@ export default function ChallengeSetupScreen() {
                                         from={{ opacity: 0, translateY: 12 }}
                                         animate={{ opacity: 1, translateY: 0 }}
                                         transition={{ type: 'timing', duration: 300 }}
-                                        style={styles.categorySection}
+                                        style={[styles.categorySection, { backgroundColor: 'transparent' }]}
                                     >
                                         <View style={styles.categorySectionHeader}>
                                             <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
@@ -1268,6 +1257,7 @@ export default function ChallengeSetupScreen() {
                     from={{ opacity: 0, translateY: 16 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 300 }}
+                    style={{ backgroundColor: 'transparent' }}
                 >
                     <TouchableOpacity
                         style={[
@@ -1315,6 +1305,7 @@ export default function ChallengeSetupScreen() {
                             from={{ opacity: 0, translateY: 16 }}
                             animate={{ opacity: 1, translateY: 0 }}
                             transition={{ type: 'timing', duration: 300, delay: (index + 1) * 80 }}
+                            style={{ backgroundColor: 'transparent' }}
                         >
                             <TouchableOpacity
                                 style={[
@@ -1480,6 +1471,7 @@ export default function ChallengeSetupScreen() {
                                 animate={{ opacity: 1, translateX: 0 }}
                                 exit={{ opacity: 0, translateX: -30 }}
                                 transition={{ type: 'timing', duration: 250 }}
+                                style={{ backgroundColor: 'transparent' }}
                             >
                                 {renderCurrentStep()}
                             </MotiView>

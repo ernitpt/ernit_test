@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, GestureResponderEvent, LayoutChangeEvent, DimensionValue } from 'react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -26,9 +26,13 @@ const ModernSlider = ({
     const { width } = useWindowDimensions();
     const [trackWidth, setTrackWidth] = useState(width - 96);
 
+    const trackRef = useRef<View>(null);
+    const trackPageX = useRef(0);
+
     const handlePress = (event: GestureResponderEvent) => {
-        const { locationX } = event.nativeEvent;
-        const percentage = Math.max(0, Math.min(1, locationX / trackWidth));
+        const { pageX } = event.nativeEvent;
+        const relativeX = pageX - trackPageX.current;
+        const percentage = Math.max(0, Math.min(1, relativeX / trackWidth));
         const newValue = Math.round(min + percentage * (max - min));
         onChange(newValue);
     };
@@ -49,14 +53,21 @@ const ModernSlider = ({
                 <Text style={styles.sliderLabelText}>{rightLabel}</Text>
             </View>
             <View
+                ref={trackRef}
                 style={styles.sliderTrack}
-                onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
+                onLayout={(e: LayoutChangeEvent) => {
+                    const w = e.nativeEvent.layout.width;
+                    setTrackWidth(w);
+                    trackRef.current?.measure((_fx, _fy, _width, _height, px) => {
+                        trackPageX.current = px;
+                    });
+                }}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={handlePress}
                 onResponderMove={handlePress}
             >
                 <View style={[styles.sliderProgress, { width: `${progress}%` as DimensionValue }]} />
-                <View style={[styles.sliderThumb, { left: `${progress}%` as DimensionValue }]}>
+                <View style={[styles.sliderThumb, { left: (progress / 100) * trackWidth - 12 }]}>
                     <View style={styles.sliderThumbInner} />
                 </View>
             </View>
@@ -120,7 +131,6 @@ const createStyles = (colors: typeof Colors) =>
         sliderThumb: {
             position: 'absolute',
             top: -8,
-            marginLeft: -12,
             width: 24,
             height: 24,
             borderRadius: BorderRadius.md,

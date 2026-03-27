@@ -19,6 +19,7 @@ import { Experience, PartnerUser } from '../types';
 import { partnerService } from '../services/PartnerService';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { vh } from '../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_IMAGE_HEIGHT = vh(260);
@@ -40,6 +41,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [partner, setPartner] = useState<PartnerUser | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -283,7 +285,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                         </ScrollView>
 
                         {/* Fixed bottom CTA */}
-                        <View style={styles.ctaContainer}>
+                        <View style={[styles.ctaContainer, { paddingBottom: Math.max(Spacing.lg, insets.bottom + Spacing.md) }]}>
                             <Button
                                 title={isSelected ? 'Selected' : 'Select this reward'}
                                 variant={isSelected ? 'secondary' : 'primary'}

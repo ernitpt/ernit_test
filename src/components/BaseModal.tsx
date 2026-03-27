@@ -20,6 +20,7 @@ import { Spacing } from '../config/spacing';
 import { Typography } from '../config/typography';
 import { Shadows } from '../config/shadows';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ModalVariant = 'center' | 'bottom';
 
@@ -59,6 +60,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
   });
 
   const isBottom = variant === 'bottom';
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal
@@ -105,6 +107,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
+              contentContainerStyle={isBottom ? { paddingBottom: insets.bottom } : undefined}
             >
               <View style={!noPadding && styles.content}>
                 {children}

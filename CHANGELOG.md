@@ -841,6 +841,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - exhaustive Android safe-area audit - added useSafeAreaInsets to 21 screens, fixed bottom nav bar coverage (P0: 8 absolute footers, P1: 14 scroll containers) and status bar coverage (P2: 6 screens) across root, giver/, and recipient/ flows
 - Android safe area coverage for hero layout, glow effects, and bottom nav on all screens
 - revert test blue CTA color before production build
+- use pageX + track ref to fix Android slider glitch in ModernSlider
+- add safe area insets to BaseModal and ExperienceDetailModal for Android navigation bar
+- remove clock snap rAF animation and add backgroundColor transparent to MotiView wrappers in ChallengeSetupScreen
+- remove clock snap animation and add transparent bg to MotiView wrappers in GiftFlowScreen
+- slider glitch (pageX tracking), clock FPS (remove rAF animation), MotiView white box (transparent bg), safe area in BaseModal and ExperienceDetailModal, goal card resilience (individual ErrorBoundary)
 
 ### Added
 - Automatic changelog system with `npm run log` script
