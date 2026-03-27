@@ -840,6 +840,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ChallengeLandingScreen hero section Android layout - insets.top for status bar, insets.bottom for gesture nav, stat subtitle numberOfLines=2
 - exhaustive Android safe-area audit - added useSafeAreaInsets to 21 screens, fixed bottom nav bar coverage (P0: 8 absolute footers, P1: 14 scroll containers) and status bar coverage (P2: 6 screens) across root, giver/, and recipient/ flows
 - Android safe area coverage for hero layout, glow effects, and bottom nav on all screens
+- revert test blue CTA color before production build
 
 ### Added
 - Automatic changelog system with `npm run log` script
