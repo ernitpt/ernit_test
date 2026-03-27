@@ -47,7 +47,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
     const isNowAuthenticated = isAuthenticated;
 
     // User just logged in
-    if (!wasAuthenticated && isNowAuthenticated && state.user && Platform.OS === 'web') {
+    if (!wasAuthenticated && isNowAuthenticated && state.user) {
       logger.log('🔔 User authenticated, setting up push notifications...');
 
       // Setup push notifications asynchronously

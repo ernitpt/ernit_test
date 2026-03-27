@@ -29,7 +29,7 @@ export const Colors = {
     primaryOverlay: 'rgba(5, 150, 105, 0.9)', // primary at 90% opacity
 
     // ─── Gradients (convenience arrays for LinearGradient) ──────────────
-    gradientPrimary: ['#059669', '#14B8A6'] as [string, string],     // was ['#7C3AED', '#3B82F6']
+    gradientPrimary: ['#059669', '#0D9488'] as [string, string],     // emerald-600 → teal-600 (3.5:1 → 3.8:1 vs white)
     gradientDark: ['#059669', '#065F46'] as [string, string],         // was ['#7C3AED', '#6D28D9']
     gradientTriple: ['#059669', '#047857', '#059669'] as [string, string, string], // was ['#7C3AED', '#9333EA', '#7C3AED']
     gradientOnboarding: ['#10B981', '#065F46', '#10B981'] as [string, string, string], // was ['#8B5CF6', '#6D28D9', '#5B21B6']
@@ -38,7 +38,7 @@ export const Colors = {
     // ─── Semantic / neutral (unchanged) ─────────────────────────────────
     white: '#FFFFFF',
     black: '#000000',
-    error: '#EF4444',
+    error: '#DC2626',         // red-600 (4.6:1 vs white — AA compliant)
     errorLight: '#FEE2E2',
     errorDark: '#991B1B',
     textPrimary: '#111827',
@@ -134,13 +134,13 @@ export const Colors = {
     // ─── Extended pink ──────────────────────────────────────────────
     pinkLighter: '#fce7f3',    // pink-100
 
-    // ─── Notification action colors ──────────────────────────────────
-    approveLight: '#abd8b2',
-    approveDark: '#3e802a',
-    declineLight: '#ddb1b1',
-    declineDark: '#9b2929',
-    actionGreen: '#70b373',
-    actionBlue: '#567cb1',
+    // ─── Notification action colors (derived from success/error scale) ─
+    approveLight: '#DCFCE7',       // successLight (green-100)
+    approveDark: '#16A34A',        // successMedium (green-600)
+    declineLight: '#FEE2E2',       // errorLight (red-100)
+    declineDark: '#DC2626',        // error (red-600)
+    actionGreen: '#22C55E',        // success (green-500)
+    actionBlue: '#3B82F6',         // info (blue-500)
 
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
     textOnImage: '#FFFFFF',
@@ -166,6 +166,16 @@ export const Colors = {
 
     // ─── Disabled gradients ───────────────────────────────────────────
     gradientDisabled: ['#9CA3AF', '#6B7280'] as [string, string],
+
+    // ─── Decorative / rotating word colors (ChallengeLanding, HeroPreview) ─
+    decorativeWarm: '#C4A882',     // warm tan
+    decorativeGold: '#D4A04A',     // golden-brown
+    decorativeRose: '#E08080',     // mauve/rose
+    decorativeYellow: '#D4C462',   // golden-yellow
+
+    // ─── Card dark surface ─────────────────────────────────────────────
+    cardDarkBg: '#1a1a2e',         // dark navy — card bg on dark marketing sections
+    cardDarkBorder: '#1C1C1C',     // near-black border for dark cards
 };
 
 export default Colors;
@@ -196,17 +206,18 @@ export const DarkColors = {
     primaryLight: 'rgba(16, 185, 129, 0.15)',
     primaryOverlay: 'rgba(16, 185, 129, 0.9)',
 
-    // ─── Gradients (unchanged — render on gradient backgrounds) ───────
-    gradientPrimary: ['#10B981', '#2DD4BF'] as [string, string],
+    // ─── Gradients (brightened for dark surface contrast) ──────────────
+    gradientPrimary: ['#10B981', '#14B8A6'] as [string, string],  // emerald-500 → teal-500 (lighter for dark bg)
     gradientDark: ['#10B981', '#047857'] as [string, string],
     gradientTriple: ['#10B981', '#059669', '#10B981'] as [string, string, string],
     gradientOnboarding: ['#34D399', '#047857', '#34D399'] as [string, string, string],
     gradientAuth: ['#059669', '#0D9488', '#2DD4BF'] as [string, string, string],
 
     // ─── Semantic / neutral (inverted for dark) ───────────────────────
+    // NOTE: `white` maps to near-black (#141414) — it represents the "base surface" role, not literal white
     white: '#141414',
     black: '#FFFFFF',
-    error: '#EF4444',
+    error: '#EF4444',         // kept brighter than light-mode #DC2626 for dark surface contrast
     errorLight: 'rgba(239, 68, 68, 0.15)',
     errorDark: '#FCA5A5',
     textPrimary: '#F9FAFB',
@@ -302,13 +313,13 @@ export const DarkColors = {
     // ─── Extended pink ──────────────────────────────────────────────
     pinkLighter: 'rgba(236, 72, 153, 0.12)',
 
-    // ─── Notification action colors ─────────────────────────────────
-    approveLight: 'rgba(112, 179, 115, 0.25)',
-    approveDark: '#86EFAC',
-    declineLight: 'rgba(155, 41, 41, 0.25)',
-    declineDark: '#FCA5A5',
-    actionGreen: '#86EFAC',
-    actionBlue: '#93C5FD',
+    // ─── Notification action colors (derived from success/error scale) ─
+    approveLight: 'rgba(34, 197, 94, 0.15)',  // successLight dark equiv
+    approveDark: '#86EFAC',                    // green-300 (bright on dark)
+    declineLight: 'rgba(239, 68, 68, 0.15)',   // errorLight dark equiv
+    declineDark: '#FCA5A5',                    // red-300 (bright on dark)
+    actionGreen: '#86EFAC',                    // green-300
+    actionBlue: '#93C5FD',                     // blue-300
 
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
     textOnImage: '#FFFFFF',
@@ -334,4 +345,14 @@ export const DarkColors = {
 
     // ─── Disabled gradients ─────────────────────────────────────────
     gradientDisabled: ['#3D4556', '#2A3042'] as [string, string],
+
+    // ─── Decorative / rotating word colors (same in dark — decorative intent) ─
+    decorativeWarm: '#D4B896',     // lightened for dark bg
+    decorativeGold: '#E4B05A',
+    decorativeRose: '#F09090',
+    decorativeYellow: '#E4D472',
+
+    // ─── Card dark surface ─────────────────────────────────────────────
+    cardDarkBg: '#1a1a2e',         // same — already dark
+    cardDarkBorder: '#2E2E2E',     // lighter border for visibility on dark
 } satisfies typeof Colors;

@@ -327,10 +327,19 @@ export class GoalSessionService {
         }
 
         const newLongest = Math.max(longestStreak, newStreak);
+
+        // If week is completed, set lastSessionDate to next week's start so the
+        // 7-day inactivity countdown begins when the user has sessions available again
+        let streakDate = todayIsoStreak;
+        if (g.isWeekCompleted && g.weekStartAt) {
+          const nextWeekStart = addDaysSafe(new Date(g.weekStartAt), 7);
+          streakDate = nextWeekStart.toISOString().split('T')[0];
+        }
+
         streakTx.update(userRef, {
           sessionStreak: newStreak,
           longestSessionStreak: newLongest,
-          lastSessionDate: todayIsoStreak,
+          lastSessionDate: streakDate,
         });
         logger.log(`🔥 Streak updated for user ${g.userId}: ${newStreak} (longest: ${newLongest})`);
       });

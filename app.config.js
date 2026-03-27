@@ -13,6 +13,11 @@ export default {
       resizeMode: "contain",
       backgroundColor: "#ffffff",
     },
+    androidStatusBar: {
+      barStyle: "light-content",
+      backgroundColor: "#00000000",
+      translucent: true,
+    },
     android: {
       package: "com.ernit.ernit",
       softwareKeyboardLayoutMode: "pan",
@@ -34,6 +39,12 @@ export default {
       "expo-av",
       ["@stripe/stripe-react-native", { merchantIdentifier: "merchant.app.ernit" }],
     ],
+    updates: {
+      url: "https://u.expo.dev/a17b540a-7edc-4ebc-b73c-c8d019738e0d",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     extra: {
       eas: {
         projectId: "a17b540a-7edc-4ebc-b73c-c8d019738e0d",

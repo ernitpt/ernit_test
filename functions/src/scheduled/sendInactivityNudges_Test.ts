@@ -53,6 +53,15 @@ export const sendInactivityNudges_Test = functions.onSchedule(
                     continue;
                 }
 
+                // If week is already completed, skip — user has no sessions available until next week
+                const isWeekCompleted = goal.isWeekCompleted || (goal.weeklyCount >= goal.sessionsPerWeek);
+                if (isWeekCompleted) {
+                    console.log(
+                        `⏭️ [TEST] Goal ${goalDoc.id}: Week completed, no sessions available yet — skipping nudge`
+                    );
+                    continue;
+                }
+
                 // Calculate last session date
                 let lastSessionDate: Date;
                 if (weeklyLogDates.length > 0) {

@@ -9,9 +9,11 @@ import {
     Dimensions,
     Linking,
     Animated as RNAnimated,
+    useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import Animated2, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
+import Animated2, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -40,11 +42,9 @@ const WORD_SLOT_HEIGHT = vh(58);
 const CONTENT_FADE_MS = 250;
 
 // Card sizing — responsive to screen width AND height
-const CARDS_GAP = 10;
 const CARDS_PADDING = 16;
-const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2 - CARDS_GAP) / 2, 240);
-const CARD_H = CARD_W * (0.9 + 0.45 * VH);
-const CARD_SLIDE = CARD_W * 0.7;
+const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2) / 2, 260);
+const CARD_H = CARD_W * (0.9 + 0.75 * VH);
 
 // ─── Mode configs ─────────────────────────────────────────────────
 type LandingMode = 'self' | 'gift';
@@ -72,6 +72,7 @@ interface ModeConfig {
     statSuffix: string;
     statHighlight: string;
     statColor: string;
+    statSource?: string;
     ctaText: string;
     ctaGradient: readonly [string, string];
     ctaShadowColor: string;
@@ -97,19 +98,20 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
     rotatingWords: [
         { word: 'workout', color: colors.secondary },
         { word: 'do yoga', color: colors.categoryAmber },
-        { word: 'dance', color: colors.pink },
+        { word: 'dance', color: colors.error },
         { word: 'run', color: colors.cyan },
     ],
     titlePrefix: 'I want to',
     titleSuffix: '',
-    subtitle: 'Set a challenge. Track your progress.\nFriends hold you accountable.',
-    stat: "You're ",
-    statSuffix: ' more likely to achieve a goal you share with friends.',
-    statHighlight: '42%',
+    subtitle: 'Set your goal. Commit to a reward.\nGo earn it.',
+    stat: 'People with a reward on the line are\n',
+    statHighlight: '2x more likely',
+    statSuffix: ' to build the habit.',
     statColor: colors.secondary,
+    statSource: '– University of California',
     ctaText: 'Start My Challenge',
-    ctaGradient: colors.gradientDark,
-    ctaShadowColor: colors.primary,
+    ctaGradient: [colors.primaryDark, colors.primaryDeeper] as const,
+    ctaShadowColor: colors.primaryDark,
     badgeText: '100% Free',
     badgeBg: colors.primarySurface,
     badgeBorder: colors.primaryLight,
@@ -149,18 +151,19 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.warning,
     gradient: [colors.warningLighter, colors.white, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: '#C4A882' },
-        { word: 'do yoga', color: '#D4A04A' },
-        { word: 'dance', color: '#E08080' },
-        { word: 'run', color: '#D4C462' },
+        { word: 'workout', color: colors.decorativeWarm },
+        { word: 'do yoga', color: colors.decorativeGold },
+        { word: 'dance', color: colors.decorativeRose },
+        { word: 'run', color: colors.decorativeYellow },
     ],
     titlePrefix: 'Help them',
     titleSuffix: '',
     subtitle: 'Empower someone you care about.\nYou only pay when they succeed.',
-    stat: 'A reward + someone backing them ',
-    statSuffix: ' their chance of success.',
-    statHighlight: 'doubles',
+    stat: 'A reward + someone backing them\nmakes them ',
+    statHighlight: '2x more likely',
+    statSuffix: ' to succeed.',
     statColor: colors.warning,
+    statSource: '– University of Pennsylvania',
     ctaText: 'Gift an Experience',
     ctaGradient: [colors.warning, colors.warningMedium] as const,
     ctaShadowColor: colors.warning,
@@ -290,16 +293,18 @@ function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftSty
 
     const frontAnimStyle = useAnimatedStyle(() => ({
         transform: [
-            { perspective: 1000 },
-            { rotateY: `${rotation.value}deg` },
+            { perspective: 3000 },
+            { rotateY: rotation.value + 'deg' },
         ],
+        opacity: Platform.OS === 'android' ? (rotation.value <= 90 || rotation.value > 270 ? 1 : 0) : 1,
     }));
 
     const backAnimStyle = useAnimatedStyle(() => ({
         transform: [
-            { perspective: 1000 },
-            { rotateY: `${rotation.value + 180}deg` },
+            { perspective: 3000 },
+            { rotateY: (rotation.value - 180) + 'deg' },
         ],
+        opacity: Platform.OS === 'android' ? (rotation.value > 90 && rotation.value <= 270 ? 1 : 0) : 1,
     }));
 
     return (
@@ -356,16 +361,22 @@ const flipStyles = StyleSheet.create({
         height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
-        backgroundColor: '#1a1a2e',
+        backgroundColor: Colors.cardDarkBg,
     },
     glow: {
-        position: 'absolute',
-        top: -1,
-        left: -1,
-        right: -1,
-        bottom: -1,
-        borderRadius: BorderRadius.xl + 1,
-        borderWidth: 1.5,
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: BorderRadius.xl,
+        ...Platform.select({
+            web: {
+                outlineWidth: 1.5,
+                outlineStyle: 'solid' as any,
+                outlineColor: 'transparent',
+            },
+            default: {
+                borderWidth: 1.5,
+                borderColor: 'transparent',
+            },
+        }),
     } as any,
     img: {
         width: '100%',
@@ -388,7 +399,7 @@ const flipStyles = StyleSheet.create({
     label: {
         ...Typography.caption,
         fontWeight: '600',
-        color: '#fff',
+        color: Colors.textOnImage,
     },
 });
 
@@ -403,6 +414,7 @@ export default function HeroPreviewScreen() {
     const navigation = useNavigation<LandingNavigationProp>();
     const route = useRoute<RouteProp<RootStackParamList, 'ChallengeLanding'>>();
     const { state } = useApp();
+    const insets = useSafeAreaInsets();
     const isLoggedIn = !!state.user?.id;
 
     // Mode from route param (GiftLanding passes mode='gift')
@@ -516,7 +528,7 @@ export default function HeroPreviewScreen() {
 
     const sliderBgColor = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.primary, colors.warning],
+        outputRange: [colors.primaryDark, colors.warning],
     });
     // Hero gradient cross-fade: gift overlay opacity
     const giftGradientOpacity = sliderAnim;
@@ -750,92 +762,35 @@ export default function HeroPreviewScreen() {
                             >
                                 <View style={styles.cardsRowOuter}>
                                     <View style={styles.cardsRow}>
-                                        {/* Left — Goal images (next peeks from left only, slides L→R) */}
-                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
-                                            {GOAL_IMAGES.map((url, i) => {
-                                                const offset = wrapOffset(i, wordIndex % GOAL_IMAGES.length, GOAL_IMAGES.length);
-                                                const isCenter = offset === 0;
-                                                // Only show the image peeking on the LEFT (offset === -1)
-                                                const isPeekLeft = offset === -1;
-                                                const tx = offset * CARD_SLIDE;
-                                                return (
-                                                    <MotiView
-                                                        key={`goal-${i}`}
-                                                        animate={{
-                                                            translateX: tx,
-                                                            scale: isCenter ? 1 : 0.9,
-                                                            opacity: isCenter ? 1 : isPeekLeft ? 0.5 : 0,
-                                                        }}
-                                                        transition={{
-                                                            type: 'spring',
-                                                            damping: 20,
-                                                            stiffness: 90,
-                                                            mass: 0.9,
-                                                        }}
-                                                        style={[
-                                                            styles.cardImageCard,
-                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekLeft ? 2 : 1 },
-                                                        ]}
-                                                    >
-                                                        <Image
-                                                            source={{ uri: url }}
-                                                            style={styles.cardImg}
-                                                            contentFit="cover"
-                                                            cachePolicy="memory-disk"
-                                                            accessibilityLabel={`Goal activity ${i + 1}`}
-                                                        />
-                                                    </MotiView>
-                                                );
-                                            })}
-                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
-                                                <Text style={styles.cardLabel}>
-                                                    {mode === 'self' ? 'Your goal' : 'The goal'}
-                                                </Text>
-                                            </RNAnimated.View>
+                                        {/* Goal card — tilted left, flippable */}
+                                        <View style={[styles.cardPosition, styles.cardGoalPos]}>
+                                            <FlippableCard
+                                                images={GOAL_IMAGES}
+                                                currentIndex={wordIndex % GOAL_IMAGES.length}
+                                                style={styles.cardImageCard}
+                                                glowSelfStyle={styles.cardGlowSelf}
+                                                glowGiftStyle={styles.cardGlowGift}
+                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
+                                                glowGiftOpacity={sliderAnim}
+                                                label={mode === 'self' ? 'Your goal' : 'The goal'}
+                                                labelOpacity={contentOpacity}
+                                                flipIndices={[3]}
+                                            />
                                         </View>
 
-                                        {/* Right — Reward images (next peeks from right only, slides R→L) */}
-                                        <View style={[styles.cardCarousel, { width: CARD_W, height: CARD_H }]}>
-                                            {rewardImages.map((url, i) => {
-                                                const offset = wrapOffset(i, wordIndex % rewardImages.length, rewardImages.length);
-                                                const isCenter = offset === 0;
-                                                // Only show the image peeking on the RIGHT (offset -1 negated → positive tx)
-                                                const isPeekRight = offset === -1;
-                                                const tx = -offset * CARD_SLIDE;
-                                                return (
-                                                    <MotiView
-                                                        key={`reward-${i}`}
-                                                        animate={{
-                                                            translateX: tx,
-                                                            scale: isCenter ? 1 : 0.9,
-                                                            opacity: isCenter ? 1 : isPeekRight ? 0.5 : 0,
-                                                        }}
-                                                        transition={{
-                                                            type: 'spring',
-                                                            damping: 20,
-                                                            stiffness: 90,
-                                                            mass: 0.9,
-                                                        }}
-                                                        style={[
-                                                            styles.cardImageCard,
-                                                            { width: CARD_W, height: CARD_H, zIndex: isCenter ? 3 : isPeekRight ? 2 : 1 },
-                                                        ]}
-                                                    >
-                                                        <Image
-                                                            source={{ uri: url }}
-                                                            style={styles.cardImg}
-                                                            contentFit="cover"
-                                                            cachePolicy="memory-disk"
-                                                            accessibilityLabel={`Reward experience ${i + 1}`}
-                                                        />
-                                                    </MotiView>
-                                                );
-                                            })}
-                                            <RNAnimated.View style={[styles.cardLabelWrap, { opacity: contentOpacity }]}>
-                                                <Text style={styles.cardLabel}>
-                                                    {mode === 'self' ? 'Your reward' : 'The reward'}
-                                                </Text>
-                                            </RNAnimated.View>
+                                        {/* Reward card — tilted right, flippable */}
+                                        <View style={[styles.cardPosition, styles.cardRewardPos]}>
+                                            <FlippableCard
+                                                images={rewardImages}
+                                                currentIndex={wordIndex % rewardImages.length}
+                                                style={styles.cardImageCard}
+                                                glowSelfStyle={styles.cardGlowSelf}
+                                                glowGiftStyle={styles.cardGlowGift}
+                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
+                                                glowGiftOpacity={sliderAnim}
+                                                label={mode === 'self' ? 'Your reward' : 'The reward'}
+                                                labelOpacity={contentOpacity}
+                                            />
                                         </View>
                                     </View>
                                 </View>
@@ -856,6 +811,9 @@ export default function HeroPreviewScreen() {
                                             </RNAnimated.Text>
                                             {config.statSuffix}
                                         </Text>
+                                        {config.statSource && (
+                                            <Text style={styles.statSource}>{config.statSource}</Text>
+                                        )}
                                     </View>
                                 </RNAnimated.View>
 
@@ -1133,7 +1091,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.white,
     },
     hero: {
-        paddingTop: vh(Platform.OS === 'ios' ? 110 : 90),
+        paddingTop: vh(Platform.OS === 'ios' ? 100 : 80),
         paddingHorizontal: Spacing.xxl,
         backgroundColor: colors.white,
         position: 'relative',
@@ -1193,7 +1151,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     // ── Toggle Bar ──────────────────────────────────
     toggleWrap: {
         alignItems: 'center',
-        marginBottom: vh(24),
+        marginBottom: vh(18),
         paddingHorizontal: Spacing.lg,
     },
     toggleBar: {
@@ -1203,7 +1161,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         padding: vh(4),
         position: 'relative',
         width: '100%',
-        maxWidth: vh(320),
+        maxWidth: 320,
         ...Shadows.sm,
     },
     toggleSlider: {
@@ -1246,10 +1204,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         bottom: '10%',
         borderRadius: 999,
         opacity: 0.15,
-        filter: 'blur(40px)',
+        ...Platform.select({
+            web: { filter: 'blur(40px)' },
+            default: {},
+        }),
     } as any,
     heroTitle: {
-        fontFamily: '"DM Serif Display", Georgia, serif',
+        fontFamily: Platform.select({ web: '"DM Serif Display", Georgia, serif', default: 'Outfit_700Bold' }),
         fontSize: vh(38),
         fontWeight: '400',
         color: colors.gray800,
@@ -1279,13 +1240,20 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     dialWord: {
         ...Typography.display,
-        fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+        fontFamily: Platform.select({ web: '"Plus Jakarta Sans", system-ui, sans-serif', default: 'Outfit_800ExtraBold' }),
         fontSize: vh(50),
         fontWeight: '800',
         textTransform: 'uppercase',
         lineHeight: WORD_SLOT_HEIGHT,
         letterSpacing: 2,
         textAlign: 'center',
+        ...Platform.select({
+            default: {
+                textShadowColor: 'rgba(16, 185, 129, 0.4)',
+                textShadowOffset: { width: 0, height: 0 },
+                textShadowRadius: 8,
+            },
+        }),
     } as any,
 
     heroSubtitle: {
@@ -1309,20 +1277,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     cardsRow: {
         alignItems: 'center',
         justifyContent: 'center',
-        gap: CARDS_GAP,
-        position: 'relative',
-    },
-    cardCarousel: {
-        justifyContent: 'center',
-        alignItems: 'center',
         position: 'relative',
         height: CARD_H + 40,
     },
     cardImageCard: {
-        position: 'absolute',
-        borderRadius: BorderRadius.xl,
-        overflow: 'hidden',
-        backgroundColor: colors.gray300,
+        width: CARD_W,
+        height: CARD_H,
     },
     cardPosition: {
         position: 'absolute',
@@ -1338,30 +1298,61 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         zIndex: 2,
     },
     cardGlowSelf: {
-        borderColor: colors.primary,
-        boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
+        ...Platform.select({
+            web: {
+                outlineColor: colors.primary,
+                boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
+            },
+            default: {
+                borderColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 12,
+                shadowOpacity: 0.6,
+                elevation: 8,
+            },
+        }),
     } as any,
     cardGlowGift: {
-        borderColor: colors.warning,
-        boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
+        ...Platform.select({
+            web: {
+                outlineColor: colors.warning,
+                boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
+            },
+            default: {
+                borderColor: colors.warning,
+                shadowColor: colors.warning,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 12,
+                shadowOpacity: 0.6,
+                elevation: 8,
+            },
+        }),
     } as any,
     // cardImg, cardLabelWrap, cardLabel moved to flipStyles
 
     statContainer: {
         alignItems: 'center',
         paddingHorizontal: Spacing.xxxl,
-        marginBottom: vh(0),
-        minHeight: 66,
+        marginBottom: Spacing.xxs,
+        minHeight: 86,
     },
     statText: {
         ...Typography.subheading,
         color: colors.gray800,
         textAlign: 'center',
     },
+    statSource: {
+        ...Typography.caption,
+        color: colors.textMuted,
+        textAlign: 'center' as const,
+        marginTop: Spacing.xs,
+        fontStyle: 'italic' as const,
+    },
 
     badgeWrapper: {
         alignItems: 'center',
-        marginTop: vh(14),
+        marginTop: vh(10),
     },
     badge: {
         flexDirection: 'row',
@@ -1461,7 +1452,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: '#1C1C1C',
+        borderColor: colors.cardDarkBorder,
     },
     stepNumberText: {
         color: colors.white,
@@ -1497,7 +1488,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         ...Typography.display,
         fontWeight: '800',
         color: colors.gray800,
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
         textAlign: 'center',
     },
     finalCtaSubtitle: {

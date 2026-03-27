@@ -333,8 +333,8 @@ const AuthScreen = () => {
               await removeStorageItem('pending_free_challenge').catch(() => {});
               showInfo('Your previous progress could not be restored. Please start again.');
             }
-            // Default: use auth guard to navigate
-            handleAuthSuccess();
+            // Navigate directly — bypasses navigationRef which can be null on Android
+            navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
           }, 1500);
 
         })
@@ -414,8 +414,8 @@ const AuthScreen = () => {
                       await removeStorageItem('pending_free_challenge').catch(() => {});
                       showInfo('Your previous progress could not be restored. Please start again.');
                     }
-                    // Default: use auth guard to navigate
-                    handleAuthSuccess();
+                    // Navigate directly — bypasses navigationRef which can be null on Android
+                    navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
                   }, 1500);
                   return;
                 }
@@ -637,8 +637,8 @@ const AuthScreen = () => {
           logger.error('Error handling pending claim code after auth:', error);
           await removeStorageItem('pending_claim_code').catch(() => {});
         }
-        // Default: use auth guard to navigate
-        handleAuthSuccess();
+        // Navigate directly — bypasses navigationRef which can be null on Android
+        navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
       }, 1500); // Show success for 1.5 seconds
 
     } catch (error: unknown) {

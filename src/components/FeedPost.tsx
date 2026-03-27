@@ -361,12 +361,17 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     outputRange: [2, 8],
                 }),
                 // Web shadow (boxShadow)
-                boxShadow: highlightAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [
-                        `0 2px 8px rgba(${shadowColor}, 0.05)`,
-                        `0 2px 20px rgba(${shadowColor}, 0.35)`,
-                    ],
+                ...Platform.select({
+                    web: {
+                        boxShadow: highlightAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [
+                                `0 2px 8px rgba(${shadowColor}, 0.05)`,
+                                `0 2px 20px rgba(${shadowColor}, 0.35)`,
+                            ],
+                        }),
+                    },
+                    default: {},
                 }),
             }
         ]}>

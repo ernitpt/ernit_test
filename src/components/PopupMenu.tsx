@@ -18,7 +18,7 @@ import { Shadows } from '../config/shadows';
 export interface PopupMenuItem {
   key: string;
   label: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   onPress: () => void;
   variant?: 'default' | 'danger';
   disabled?: boolean;
@@ -60,6 +60,12 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
   }, [closeMenu]);
 
   return (
+    <MotiView
+      from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+      animate={{ opacity: 1, scale: 1, translateY: 0 }}
+      exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+      transition={{ type: 'timing', duration: 150 }}
+    >
     <View ref={triggerRef} collapsable={false}>
       <TouchableOpacity
         onPress={openMenu}
@@ -104,7 +110,7 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
                       accessibilityLabel={item.label}
                       accessibilityRole="menuitem"
                     >
-                      {item.icon}
+                      {item.icon && item.icon}
                       <Text
                         style={[
                           styles.menuText,
@@ -123,6 +129,7 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
         </Pressable>
       </Modal>
     </View>
+    </MotiView>
   );
 });
 

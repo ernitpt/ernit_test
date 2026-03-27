@@ -11,7 +11,12 @@ import {
   Image,
   RefreshControl,
   Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MotiView } from 'moti';
@@ -27,6 +32,7 @@ import StreakBanner from './recipient/components/StreakBanner';
 import CompletedGoalCard from './recipient/CompletedGoalCard';
 import MainScreen from './MainScreen';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SharedHeader from '../components/SharedHeader';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -50,6 +56,7 @@ import * as Haptics from 'expo-haptics';
 const GoalsScreen: React.FC = () => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { state, dispatch } = useApp();
   const navigation = useRootNavigation();
   const { showError, showInfo } = useToast();
@@ -425,6 +432,7 @@ const GoalsScreen: React.FC = () => {
           style={[
             styles.fabMenuColumn,
             {
+              bottom: 100 + FOOTER_HEIGHT + insets.bottom,
               opacity: backdropOpacity,
               transform: [{ translateY: backdropOpacity.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
             },
@@ -477,6 +485,7 @@ const GoalsScreen: React.FC = () => {
           style={[
             styles.fabContainer,
             {
+              bottom: 30 + FOOTER_HEIGHT + insets.bottom,
               transform: [{ translateY: fabAnim }],
               opacity: fabOpacity,
             },

@@ -192,10 +192,6 @@ const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weekl
 const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyTarget }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
-  // For streaks 0-2, show compact motivational variant
-  if (streak < 3) return <CompactStreakBanner streak={streak} weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
-
   const config = useMemo(() => getStreakConfig(streak), [streak]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -206,6 +202,9 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
   ).current;
 
   useEffect(() => {
+    // Skip animations for compact variant (streak < 3)
+    if (streak < 3) return;
+
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Flame pulse loop (native driver — transforms only)
@@ -295,6 +294,9 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
       timeouts.forEach((t) => clearTimeout(t));
     };
   }, [streak, config, pulseAnim, glowAnim, numberScale, sparkAnims]);
+
+  // For streaks 0-2, show compact motivational variant (after all hooks)
+  if (streak < 3) return <CompactStreakBanner streak={streak} weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
 
   return (
     <MotiView

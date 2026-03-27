@@ -31,8 +31,10 @@ export interface BaseModalProps {
   children: React.ReactNode;
   noPadding?: boolean;
   style?: ViewStyle;
-  /** Optional overlay rendered fullscreen above the blur but below the content card. Useful for confetti etc. */
+  /** Optional overlay rendered fullscreen above the blur but below the content card. */
   overlay?: React.ReactNode;
+  /** Optional overlay rendered fullscreen ABOVE the content card. Useful for confetti etc. */
+  overlayAbove?: React.ReactNode;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -46,6 +48,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
   noPadding = false,
   style,
   overlay,
+  overlayAbove,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -68,7 +71,6 @@ export const BaseModal = React.memo<BaseModalProps>(({
         style={styles.overlay}
         onPress={onClose}
         accessibilityLabel="Dismiss modal"
-        accessibilityRole="button"
       >
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         {overlay}
@@ -110,6 +112,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
             </ScrollView>
           </Pressable>
         </Animated.View>
+        {overlayAbove}
       </Pressable>
     </Modal>
   );

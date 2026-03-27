@@ -22,6 +22,7 @@
 1.  **Skeleton Loaders**: MUST be used for all async/loading states. No spinning wheels.
 2.  **Typography**: Use system fonts (Inter/SF Pro) properly scaled.
 3.  **Feedback**: Actions (save, delete, update) must have haptic or visual feedback (toast/animation).
+6.  **Animated Entry for Action Buttons**: Floating action buttons, menu triggers (e.g., 3-dot menus), and overlay action buttons MUST appear with a smooth entrance/exit animation via `moti`. Standard pattern: `from={{ opacity: 0, scale: 0.85, translateY: -4 }}` / `animate={{ opacity: 1, scale: 1, translateY: 0 }}` / `exit={{ opacity: 0, scale: 0.85, translateY: -4 }}` with `duration: 150`.
 4.  Implement "Glassmorphism" or "Neumorphism" where appropriate.
 5.  Ensure all forms have inline validation.
 
@@ -38,6 +39,7 @@
 - Import pattern: `import Colors from '../config/colors';` (or `../../config/colors` from screens).
 
 ## 🛠️ Code Standards
+- **No Emojis or Icons on Buttons**: NEVER use emoji characters or icon components in button labels, titles, or menu items. Text-only buttons.
 - **Functional React**: Use Hooks (`useEffect`, `useCallback`) properly. Avoid Class components.
 - **Types**: Strict TypeScript. No `any` unless absolutely necessary (and commented why).
 - **Imports**: Use absolute paths or consistent relative paths. Avoid circular dependencies.

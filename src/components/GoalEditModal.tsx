@@ -18,6 +18,7 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { logger } from '../utils/logger';
 import { sanitizeText } from '../utils/sanitization';
+import { useApp } from '../context/AppContext';
 
 interface GoalEditModalProps {
   visible: boolean;
@@ -34,8 +35,9 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { state } = useApp();
 
-  const isGiftedGoal = !!goal?.empoweredBy;
+  const isGiftedGoal = !goal?.isFreeGoal && !!goal?.empoweredBy && goal.empoweredBy !== state.user?.id;
 
   // For self-goals: min = already-completed weeks / already-logged sessions this week
   // For gifted goals: these become the new request values sent to the giver
@@ -130,7 +132,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
     }
   }, [goal, isGiftedGoal, selectedWeeks, selectedSessions, message, onGoalUpdated, onClose]);
 
-  const title = isGiftedGoal ? 'Request Goal Edit' : 'Edit Goal';
+  const title = isGiftedGoal ? 'Request a Goal Change' : 'Edit Goal';
 
   if (success) {
     return (

@@ -73,8 +73,8 @@ const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: colors.secondary,
-          ...Shadows.colored(colors.secondary),
+          backgroundColor: colors.primary,
+          ...Shadows.colored(colors.primary),
         };
       case 'secondary':
         return {
@@ -84,9 +84,7 @@ const Button: React.FC<ButtonProps> = ({
         };
       case 'danger':
         return {
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: colors.error,
+          backgroundColor: colors.error,
         };
       case 'ghost':
         return {
@@ -94,7 +92,7 @@ const Button: React.FC<ButtonProps> = ({
         };
       case 'icon':
         return {
-          backgroundColor: colors.secondary,
+          backgroundColor: colors.primary,
           width: 44,
           height: 44,
           borderRadius: BorderRadius.circle,
@@ -150,10 +148,10 @@ const Button: React.FC<ButtonProps> = ({
         baseTextStyle.color = colors.white;
         break;
       case 'secondary':
-        baseTextStyle.color = colors.secondary;
+        baseTextStyle.color = colors.primaryDark;
         break;
       case 'danger':
-        baseTextStyle.color = colors.error;
+        baseTextStyle.color = colors.white;
         break;
       case 'ghost':
         baseTextStyle.color = colors.textSecondary;
@@ -172,9 +170,9 @@ const Button: React.FC<ButtonProps> = ({
       case 'icon':
         return colors.white;
       case 'secondary':
-        return colors.secondary;
+        return colors.primaryDark;
       case 'danger':
-        return colors.error;
+        return colors.white;
       case 'ghost':
         return colors.textSecondary;
       default:

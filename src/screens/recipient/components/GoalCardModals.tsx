@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Share,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MotiView } from 'moti';
 import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
-import { Share2, ExternalLink, Globe, Lock } from 'lucide-react-native';
+import Button from '../../../components/Button';
+import { Avatar } from '../../../components/Avatar';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -97,10 +96,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   visible,
   onClose,
   onPostToFeed,
-  goalTitle,
-  sessionNumber,
-  totalSessions,
-  progressPct,
   mediaUri,
   userName,
   userProfileImageUrl,
@@ -117,19 +112,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   const confettiRef = useRef<ConfettiCannon | null>(null);
   const confettiTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
-  const [sessionVisibility, setSessionVisibility] = useState<'friends' | 'private'>('friends');
-
-  // Load persisted visibility preference
-  useEffect(() => {
-    AsyncStorage.getItem('session_visibility_pref').then(v => {
-      if (v === 'private' || v === 'friends') setSessionVisibility(v);
-    }).catch(() => {});
-  }, []);
-
-  const handleVisibilityChange = useCallback((v: 'friends' | 'private') => {
-    setSessionVisibility(v);
-    AsyncStorage.setItem('session_visibility_pref', v).catch(() => {});
-  }, []);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -156,7 +138,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   const weekTier = useMemo(() => {
     if (!weekJustCompleted || !completedWeekNumber) return null;
     const n = completedWeekNumber;
-    if (n === 1) return { emoji: '🎉', title: 'First Week Done!', subtitle: 'Amazing start — keep it up!', confettiCount: 120, confettiColors: null as string[] | null };
+    if (n === 1) return { emoji: '🎉', title: 'First Week Done!', subtitle: 'Amazing start, keep it up!', confettiCount: 120, confettiColors: null as string[] | null };
     if (n === 2) return { emoji: '🔥', title: 'Two Weeks Strong!', subtitle: 'You\'re building a real habit!', confettiCount: 180, confettiColors: null };
     if (n === 3) return { emoji: '⭐', title: 'Three Weeks! Unstoppable!', subtitle: 'You\'re in the zone now!', confettiCount: 220, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
     return { emoji: '🏆', title: `Week ${n} Champion!`, subtitle: 'Your consistency is incredible!', confettiCount: 280, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
@@ -166,25 +148,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   const confettiCount = weekTier ? weekTier.confettiCount : 120;
   const confettiColors = weekTier?.confettiColors ?? [colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink];
 
-  const handleShareToSocial = useCallback(async () => {
-    if (Platform.OS === 'web') return;
-    const pct = progressPct != null ? `${progressPct}%` : '';
-    const sessionText = sessionNumber && totalSessions
-      ? `Session ${sessionNumber}/${totalSessions}`
-      : '';
-    const goalText = goalTitle ? `my ${goalTitle} challenge` : 'my challenge';
-    const message = `Just completed ${sessionText} of ${goalText} on Ernit! 💪${pct ? ` ${pct} done.` : ''} #Ernit #GoalProgress`;
-    try {
-      if (mediaUri) {
-        await Share.share({ url: mediaUri, message }, { dialogTitle: 'Share your session' });
-      } else {
-        await Share.share({ message }, { dialogTitle: 'Share your session' });
-      }
-    } catch {
-      // User cancelled or share not available — no-op
-    }
-  }, [mediaUri, sessionNumber, totalSessions, progressPct, goalTitle]);
-
   return (
     <>
       <BaseModal
@@ -193,7 +156,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
         title={modalTitle}
         variant="center"
         noPadding={false}
-        overlay={
+        overlayAbove={
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             <ConfettiCannon
               ref={confettiRef}
@@ -210,172 +173,143 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
       >
         {/* Weekly milestone banner */}
         {weekTier && (
-          <View style={styles.weekMilestoneBanner}>
-            <Text style={styles.weekMilestoneEmoji}>{weekTier.emoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.weekMilestoneTitle}>{weekTier.title}</Text>
-              <Text style={styles.weekMilestoneSubtitle}>{weekTier.subtitle}</Text>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 300 }}
+          >
+            <View style={styles.weekMilestoneBanner}>
+              <Text style={styles.weekMilestoneEmoji}>{weekTier.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weekMilestoneTitle}>{weekTier.title}</Text>
+                <Text style={styles.weekMilestoneSubtitle}>{weekTier.subtitle}</Text>
+              </View>
             </View>
-          </View>
+          </MotiView>
         )}
 
         {/* Feed post preview card */}
-        <View style={styles.feedPreviewCard}>
-          {/* Media at top if present */}
-          {mediaUri && (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setFullscreenMedia(true)}
-              style={styles.feedMediaWrapper}
-            >
-              <Image
-                source={{ uri: mediaUri }}
-                style={styles.feedMediaAdaptive}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                accessibilityLabel="Session media"
-              />
-            </TouchableOpacity>
-          )}
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: weekTier ? 400 : 200 }}
+        >
+          <View style={styles.feedPreviewCard}>
+            {/* Media at top if present */}
+            {mediaUri && (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setFullscreenMedia(true)}
+                style={styles.feedMediaWrapper}
+              >
+                <Image
+                  source={{ uri: mediaUri }}
+                  style={styles.feedMediaAdaptive}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  accessibilityLabel="Session media"
+                />
+              </TouchableOpacity>
+            )}
 
-          {/* Author row */}
-          <View style={styles.feedAuthorRow}>
-            {userProfileImageUrl ? (
-              <Image source={{ uri: userProfileImageUrl }} style={styles.feedAvatar} accessibilityLabel={`${userName || 'User'}'s profile photo`} />
-            ) : (
-              <View style={[styles.feedAvatar, styles.feedAvatarPlaceholder]}>
-                <Text style={styles.feedAvatarText}>
-                  {(userName?.[0] || 'U').toUpperCase()}
+            {/* Author row */}
+            <View style={styles.feedAuthorRow}>
+              <Avatar uri={userProfileImageUrl} name={userName || 'You'} size="sm" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.feedAuthorName} numberOfLines={1}>
+                  <Text style={{ fontWeight: '500' }}>{userName || 'You'}</Text> completed session
                 </Text>
+                <Text style={styles.feedTimestamp}>Just now</Text>
+              </View>
+            </View>
+
+            {/* Capsule progress: sessions this week */}
+            {sessionsPerWeek && sessionsPerWeek > 0 && (
+              <View style={styles.feedProgressBlock}>
+                <View style={styles.feedProgressHeader}>
+                  <Text style={styles.feedProgressBlockLabel}>Sessions this week</Text>
+                  <Text style={styles.feedProgressBlockCount}>{weeklyCount || 0}/{sessionsPerWeek}</Text>
+                </View>
+                <View style={styles.feedCapsuleRow}>
+                  {Array.from({ length: sessionsPerWeek }, (_, i) => (
+                    <MotiView
+                      key={i}
+                      from={{ opacity: 0, scaleX: 0 }}
+                      animate={{ opacity: 1, scaleX: 1 }}
+                      transition={{ type: 'spring', damping: 15, stiffness: 200, delay: (weekTier ? 500 : 300) + i * 50 }}
+                      style={{ flex: 1 }}
+                    >
+                      <View
+                        style={[
+                          styles.feedCapsule,
+                          i < (weeklyCount || 0)
+                            ? { backgroundColor: colors.primary }
+                            : { backgroundColor: colors.border },
+                        ]}
+                      />
+                    </MotiView>
+                  ))}
+                </View>
               </View>
             )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.feedAuthorName} numberOfLines={1}>
-                <Text style={{ fontWeight: '500' }}>{userName || 'You'}</Text> completed session
-              </Text>
-              <Text style={styles.feedTimestamp}>Just now</Text>
-            </View>
+
+            {/* Capsule progress: weeks completed */}
+            {totalWeeks && totalWeeks > 0 && (
+              <View style={styles.feedProgressBlock}>
+                <View style={styles.feedProgressHeader}>
+                  <Text style={styles.feedProgressBlockLabel}>Weeks completed</Text>
+                  <Text style={styles.feedProgressBlockCount}>{weeksCompleted || 0}/{totalWeeks}</Text>
+                </View>
+                <View style={styles.feedCapsuleRow}>
+                  {Array.from({ length: Math.min(totalWeeks, 20) }, (_, i) => (
+                    <MotiView
+                      key={i}
+                      from={{ opacity: 0, scaleX: 0 }}
+                      animate={{ opacity: 1, scaleX: 1 }}
+                      transition={{ type: 'spring', damping: 15, stiffness: 200, delay: (weekTier ? 600 : 400) + i * 50 }}
+                      style={{ flex: 1 }}
+                    >
+                      <View
+                        style={[
+                          styles.feedCapsule,
+                          i < (weeksCompleted || 0)
+                            ? { backgroundColor: colors.secondary }
+                            : { backgroundColor: colors.border },
+                        ]}
+                      />
+                    </MotiView>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
+        </MotiView>
 
-          {/* Capsule progress: sessions this week */}
-          {sessionsPerWeek && sessionsPerWeek > 0 && (
-            <View style={styles.feedProgressBlock}>
-              <View style={styles.feedProgressHeader}>
-                <Text style={styles.feedProgressBlockLabel}>Sessions this week</Text>
-                <Text style={styles.feedProgressBlockCount}>{weeklyCount || 0}/{sessionsPerWeek}</Text>
-              </View>
-              <View style={styles.feedCapsuleRow}>
-                {Array.from({ length: sessionsPerWeek }, (_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.feedCapsule,
-                      i < (weeklyCount || 0)
-                        ? { backgroundColor: colors.primary }
-                        : { backgroundColor: colors.border },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Capsule progress: weeks completed */}
-          {totalWeeks && totalWeeks > 0 && (
-            <View style={styles.feedProgressBlock}>
-              <View style={styles.feedProgressHeader}>
-                <Text style={styles.feedProgressBlockLabel}>Weeks completed</Text>
-                <Text style={styles.feedProgressBlockCount}>{weeksCompleted || 0}/{totalWeeks}</Text>
-              </View>
-              <View style={styles.feedCapsuleRow}>
-                {Array.from({ length: Math.min(totalWeeks, 20) }, (_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.feedCapsule,
-                      i < (weeksCompleted || 0)
-                        ? { backgroundColor: colors.secondary }
-                        : { backgroundColor: colors.border },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Privacy selector + Buttons */}
+        {/* Action buttons */}
         <View style={styles.celebrationButtons}>
-          {(onPostToFeed || onSessionPrivacy) && (
-            <View style={styles.privacySelector}>
-              <TouchableOpacity
-                style={[styles.privacyOption, sessionVisibility === 'friends' && styles.privacyOptionActive]}
-                onPress={() => handleVisibilityChange('friends')}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Share with friends"
-              >
-                <Globe size={14} color={sessionVisibility === 'friends' ? colors.white : colors.textSecondary} />
-                <Text style={[styles.privacyOptionText, sessionVisibility === 'friends' && styles.privacyOptionTextActive]}>
-                  Friends
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.privacyOption, sessionVisibility === 'private' && styles.privacyOptionActive]}
-                onPress={() => handleVisibilityChange('private')}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Keep private"
-              >
-                <Lock size={14} color={sessionVisibility === 'private' ? colors.white : colors.textSecondary} />
-                <Text style={[styles.privacyOptionText, sessionVisibility === 'private' && styles.privacyOptionTextActive]}>
-                  Private
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {onPostToFeed && sessionVisibility === 'friends' && (
-            <TouchableOpacity
-              style={styles.shareButton}
+          {onPostToFeed && (
+            <Button
+              variant="primary"
+              size="md"
               onPress={() => {
                 onSessionPrivacy?.('friends');
                 onPostToFeed();
                 onClose();
               }}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Share to Feed"
-            >
-              <Share2 size={16} color={colors.white} />
-              <Text style={styles.shareButtonText}>Share to Feed</Text>
-            </TouchableOpacity>
+              title="Share to Feed"
+              fullWidth
+            />
           )}
-          {Platform.OS !== 'web' && (
-            <TouchableOpacity
-              style={styles.socialShareButton}
-              onPress={handleShareToSocial}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Share to social media"
-            >
-              <ExternalLink size={16} color={colors.primary} />
-              <Text style={styles.socialShareButtonText}>Share</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.celebrationCloseBtn}
+          <Button
+            variant="ghost"
+            size="sm"
             onPress={() => {
-              onSessionPrivacy?.(sessionVisibility);
+              onSessionPrivacy?.('private');
               onClose();
             }}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={sessionVisibility === 'private' ? 'Save as Private' : 'Skip'}
-          >
-            <Text style={styles.celebrationCloseBtnText}>
-              {sessionVisibility === 'private' ? 'Save as Private' : (onPostToFeed ? 'Skip' : 'Close')}
-            </Text>
-          </TouchableOpacity>
+            title={onPostToFeed ? 'Skip' : 'Close'}
+            fullWidth
+          />
         </View>
       </BaseModal>
 
@@ -485,22 +419,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
   },
-  feedAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: colors.border,
-  },
-  feedAvatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.secondary,
-  },
-  feedAvatarText: {
-    ...Typography.caption,
-    color: colors.white,
-    fontWeight: '700',
-  },
   feedAuthorName: {
     ...Typography.caption,
     color: colors.textPrimary,
@@ -534,7 +452,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.xs,
   },
   feedCapsule: {
-    flex: 1,
     height: 7,
     borderRadius: BorderRadius.pill,
   },
@@ -544,20 +461,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   celebrationButtons: {
     gap: Spacing.sm,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-  },
-  shareButtonText: {
-    ...Typography.body,
-    color: colors.white,
-    fontWeight: '700',
   },
   privacySelector: {
     flexDirection: 'row',
@@ -586,30 +489,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   privacyOptionTextActive: {
     color: colors.white,
-  },
-  socialShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  socialShareButtonText: {
-    ...Typography.body,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  celebrationCloseBtn: {
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  celebrationCloseBtnText: {
-    ...Typography.small,
-    fontWeight: '600',
-    color: colors.textMuted,
   },
 });
 

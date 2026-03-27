@@ -93,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 1D goal editing — self-edit for own goals, request-edit flow for gifted goals with giver notification
 - 1B sticky timer notification — live progress notification on Android (sticky), updates every 60s, cancelled on session stop
 - goal edit approval — giver can approve/reject recipient edit requests via notification
+- created investor deck HTML for Fundação Ageas meeting
+- finish button progress fill animation with time-based fill and glow on completion
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -365,6 +367,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update social proof stats on ChallengeLandingScreen
 - replace Dimensions.get with useWindowDimensions, fix hardcoded confetti colors, add accessibility labels
 - final verification pass — all 20 tasks confirmed complete, zero new issues found
+- replace hardcoded hex colors with design tokens in ChallengeLandingScreen and HeroPreviewScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -803,6 +806,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace emoji hardcoded font size with Typography.large token
 - replace hardcoded emoji font sizes with Typography.emojiBase/emoji tokens; add haptic feedback to share format toggle and session share button; add useCallback to GoalEditModal handlers
 - add haptic feedback to goal edit approve/reject actions and Gift This button
+- self-created goals no longer treated as gifted in GoalEditModal
+- show 'Edit Goal' for self-goals, 'Request a Goal Change' only for gifted goals
+- native Android compatibility for ChallengeLandingScreen — backfaceVisibility workaround, Platform.select for glow/shadow, fixed toggle bar width
+- removed icons from celebration buttons, fixed danger button variant to filled red with white text
+- Android login navigation — bypass stale navigationRef, use direct navigation.reset after success
+- Android — disable font scaling, fade transitions, FAB insets, footer glow, transparent status bar
+- auth persistence on Android — use Platform.OS instead of typeof window to select native persistence
+- enable push notification registration on Android and use Platform.OS for Firestore dbOptions
+- guard Android-incompatible APIs in ChallengeLandingScreen, HeroPreviewScreen, FeedPost, GoalsScreen, AchievementDetailScreen, JourneyScreen
+- exhaustive Android compat — worklet template literals, CSS Platform.select, LayoutAnimation guards, push notif registration, Firestore dbOptions
+- WCAG contrast compliance — button colors, gradient endpoint, error token, centralized hardcoded colors
+- surfaceFrosted opacity in light mode — rgba(255,255,255,1) → 0.92 for proper frosted glass effect
 
 ### Added
 - Automatic changelog system with `npm run log` script

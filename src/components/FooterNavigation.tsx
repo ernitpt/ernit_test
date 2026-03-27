@@ -314,10 +314,15 @@ const createStyles = (colors: typeof Colors) =>
       width: 36,
       height: 36,
       borderRadius: 18,
-      ...(Platform.OS === 'web'
-        ? { filter: 'blur(6px)' }
-        : {}),
-    },
+      ...Platform.select({
+        web: { filter: 'blur(6px)' },
+        default: {
+          shadowOffset: { width: 0, height: 0 },
+          shadowRadius: 10,
+          shadowOpacity: 0.6,
+        },
+      }),
+    } as any,
 
     navLabel: {
       ...Typography.tiny,

@@ -63,7 +63,7 @@ const STEP_TITLES = [
     'Set your challenge intensity',
     'How long per session?',
     'When do you start?',
-    'Your reward',
+    'Choose your reward',
     'Secure your reward',
 ];
 
@@ -72,7 +72,7 @@ const STEP_SUBTITLES = [
     'It takes 21 days to build a habit. Start small, you can always do another challenge later!',
     'Set the duration for each time you show up',
     'We\'ll send you reminders so you never miss a session.',
-    'Pick a category. We\'ll recommend the perfect reward as you progress!',
+    'Pick a specific experience or let us surprise you with a recommendation.',
     'Choose how you want to back your challenge.',
 ];
 
@@ -273,7 +273,10 @@ export default function ChallengeSetupScreen() {
                 // Date always has default — always valid
                 return true;
             case 5: {
-                // Step 5 (reward): category, specific experience, or skip (null/null) are all valid
+                if (!selectedExperience && !preferredRewardCategory) {
+                    setValidationErrors(prev => ({ ...prev, experience: true }));
+                    return false;
+                }
                 setValidationErrors(prev => ({ ...prev, experience: false }));
                 return true;
             }
@@ -1278,9 +1281,9 @@ export default function ChallengeSetupScreen() {
                             <Text style={[
                                 styles.rewardCategoryLabel,
                                 selectedExperience && { color: colors.primary },
-                            ]}>{selectedExperience ? selectedExperience.title : 'Choose your experience'}</Text>
+                            ]}>{selectedExperience ? selectedExperience.title : 'Browse experiences'}</Text>
                             <Text style={styles.rewardCategoryTagline}>
-                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Browse and pick a specific reward'}
+                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Pick a reward to earn'}
                             </Text>
                         </View>
                         {selectedExperience ? (
@@ -1296,7 +1299,7 @@ export default function ChallengeSetupScreen() {
                 {/* Divider with "or" */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or surprise me</Text>
+                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or let us surprise you</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                 </View>
 
@@ -1342,20 +1345,6 @@ export default function ChallengeSetupScreen() {
                         </MotiView>
                     );
                 })}
-
-                <TouchableOpacity
-                    onPress={() => {
-                        setSelectedExperience(null);
-                        setPreferredRewardCategory(null);
-                        setPaymentChoice('payNow');
-                        setCurrentStep(prev => prev + 1);
-                    }}
-                    style={{ alignSelf: 'center', marginTop: Spacing.xl }}
-                >
-                    <Text style={{ ...Typography.small, color: colors.textMuted, textDecorationLine: 'underline' }}>
-                        Skip - no reward
-                    </Text>
-                </TouchableOpacity>
 
             </View>
         );

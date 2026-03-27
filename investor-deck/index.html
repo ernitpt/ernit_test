@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERNIT — Investor Deck 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════
+     RESET & BASE
+     ═══════════════════════════════════════════ */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: #1a1a2e;
+    --secondary: #16213e;
+    --accent: #e94560;
+    --accent-light: #ff6b81;
+    --accent-glow: rgba(233, 69, 96, 0.25);
+    --surface: #0f3460;
+    --surface-light: #1a4a7a;
+    --text: #ffffff;
+    --text-muted: rgba(255,255,255,0.7);
+    --text-dim: rgba(255,255,255,0.5);
+    --gold: #f4c542;
+    --green: #2ecc71;
+    --blue: #3498db;
+    --purple: #9b59b6;
+    --slide-w: 1280px;
+    --slide-h: 720px;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0d0d1a;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ═══════════════════════════════════════════
+     SLIDE CONTAINER (SCREEN)
+     ═══════════════════════════════════════════ */
+  .slide {
+    width: var(--slide-w);
+    height: var(--slide-h);
+    margin: 40px auto;
+    padding: 60px 80px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  }
+
+  .slide--dark {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  }
+
+  .slide--accent {
+    background: linear-gradient(135deg, var(--accent) 0%, #c0392b 100%);
+  }
+
+  .slide--deep {
+    background: linear-gradient(160deg, #0a0a1a 0%, var(--primary) 50%, var(--secondary) 100%);
+  }
+
+  .slide--surface {
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--surface) 100%);
+  }
+
+  /* Subtle grid pattern overlay */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* Accent line at top */
+  .slide--dark::after,
+  .slide--deep::after,
+  .slide--surface::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--accent));
+  }
+
+  /* ═══════════════════════════════════════════
+     TYPOGRAPHY
+     ═══════════════════════════════════════════ */
+  .slide-title {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+
+  .slide-subtitle {
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    line-height: 1.4;
+  }
+
+  .accent-text { color: var(--accent); }
+  .gold-text { color: var(--gold); }
+  .green-text { color: var(--green); }
+  .blue-text { color: var(--blue); }
+  .muted { color: var(--text-muted); }
+  .dim { color: var(--text-dim); }
+
+  .big-number {
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+
+  .metric-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ═══════════════════════════════════════════
+     LAYOUT HELPERS
+     ═══════════════════════════════════════════ */
+  .flex { display: flex; }
+  .flex-1 { flex: 1; }
+  .flex-col { flex-direction: column; }
+  .flex-center { align-items: center; justify-content: center; }
+  .flex-between { justify-content: space-between; }
+  .gap-16 { gap: 16px; }
+  .gap-24 { gap: 24px; }
+  .gap-32 { gap: 32px; }
+  .gap-40 { gap: 40px; }
+  .text-center { text-align: center; }
+  .mt-auto { margin-top: auto; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+  /* ═══════════════════════════════════════════
+     CARDS
+     ═══════════════════════════════════════════ */
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 32px;
+    backdrop-filter: blur(10px);
+  }
+
+  .card--accent {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.08);
+  }
+
+  .card--glow {
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+
+  .card--sm { padding: 20px 24px; }
+
+  .stat-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .stat-card--accent {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(233,69,96,0.12), rgba(233,69,96,0.04));
+  }
+
+  /* ═══════════════════════════════════════════
+     FOOTER / SLIDE NUMBER
+     ═══════════════════════════════════════════ */
+  .slide-footer {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .slide-footer--plain {
+    border-top: none;
+  }
+
+  /* ═══════════════════════════════════════════
+     COVER SPECIFIC
+     ═══════════════════════════════════════════ */
+  .cover-logo {
+    font-size: 96px;
+    font-weight: 900;
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #fff 30%, var(--accent-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover-tagline {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-top: 16px;
+    letter-spacing: 1px;
+  }
+
+  .cover-contact {
+    font-size: 18px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  /* ═══════════════════════════════════════════
+     CHART (CSS-only bar chart)
+     ═══════════════════════════════════════════ */
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    height: 260px;
+    padding: 0 20px;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar {
+    width: 100%;
+    max-width: 80px;
+    border-radius: 8px 8px 0 0;
+    position: relative;
+    transition: height 0.3s;
+  }
+
+  .bar-value {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .bar-label {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* ═══════════════════════════════════════════
+     CONCENTRIC CIRCLES (TAM/SAM/SOM)
+     ═══════════════════════════════════════════ */
+  .tam-circles {
+    position: relative;
+    width: 380px;
+    height: 380px;
+    margin: 0 auto;
+  }
+
+  .tam-circle {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .tam-circle--tam {
+    width: 380px; height: 380px;
+    background: rgba(233, 69, 96, 0.1);
+    border: 2px solid rgba(233, 69, 96, 0.3);
+    top: 0; left: 0;
+  }
+
+  .tam-circle--sam {
+    width: 260px; height: 260px;
+    background: rgba(233, 69, 96, 0.15);
+    border: 2px solid rgba(233, 69, 96, 0.5);
+    top: 60px; left: 60px;
+  }
+
+  .tam-circle--som {
+    width: 140px; height: 140px;
+    background: rgba(233, 69, 96, 0.25);
+    border: 2px solid var(--accent);
+    top: 120px; left: 120px;
+  }
+
+  .tam-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+
+  .tam-number {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 2px 0;
+  }
+
+  .tam-circle--tam .tam-number { font-size: 22px; }
+  .tam-circle--tam .tam-label { margin-top: 60px; }
+
+  /* ═══════════════════════════════════════════
+     2x2 MATRIX
+     ═══════════════════════════════════════════ */
+  .matrix {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr;
+    grid-template-rows: 1fr 1fr 30px;
+    gap: 0;
+    width: 100%;
+    max-width: 700px;
+    height: 360px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .matrix-ylabel {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 20px 0;
+  }
+
+  .matrix-cell {
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  .matrix-cell--ernit {
+    background: rgba(233,69,96,0.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(233,69,96,0.2);
+  }
+
+  .matrix-xlabel {
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ═══════════════════════════════════════════
+     TIMELINE
+     ═══════════════════════════════════════════ */
+  .timeline {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--gold));
+    border-radius: 2px;
+  }
+
+  .timeline-item {
+    flex: 1;
+    padding-top: 48px;
+    position: relative;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--primary);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .timeline-year {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .timeline-text {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════
+     IMAGE PLACEHOLDERS
+     ═══════════════════════════════════════════ */
+  .phone-mockup {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    max-height: 420px;
+    object-fit: contain;
+  }
+
+  .phone-mockup--sm {
+    max-height: 360px;
+  }
+
+  /* ═══════════════════════════════════════════
+     AVATAR
+     ═══════════════════════════════════════════ */
+  .avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .avatar--rm { background: linear-gradient(135deg, var(--accent), #c0392b); }
+  .avatar--nc { background: linear-gradient(135deg, var(--surface), var(--blue)); }
+
+  /* ═══════════════════════════════════════════
+     SDG
+     ═══════════════════════════════════════════ */
+  .sdg-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+
+  .sdg-3  { background: #4c9f38; }
+  .sdg-8  { background: #a21942; }
+  .sdg-9  { background: #fd6925; }
+
+  /* ═══════════════════════════════════════════
+     FLOW DIAGRAM
+     ═══════════════════════════════════════════ */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .flow-box {
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    text-align: center;
+  }
+
+  .flow-arrow {
+    font-size: 24px;
+    color: var(--text-dim);
+  }
+
+  /* ═══════════════════════════════════════════
+     PROJECTION TABLE
+     ═══════════════════════════════════════════ */
+  .proj-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    margin-top: 16px;
+  }
+
+  .proj-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--accent);
+    padding: 10px 16px;
+    border-bottom: 2px solid rgba(233,69,96,0.3);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .proj-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-muted);
+  }
+
+  .proj-table tr:last-child td { border-bottom: none; }
+  .proj-table td:first-child { font-weight: 600; color: var(--text); }
+
+  /* ═══════════════════════════════════════════
+     PILLAR (3-col)
+     ═══════════════════════════════════════════ */
+  .pillar {
+    text-align: center;
+    padding: 24px;
+  }
+
+  .pillar-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .pillar-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .pillar-desc {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════
+     PRINT STYLES
+     ═══════════════════════════════════════════ */
+  @media print {
+    body {
+      background: white;
+      margin: 0;
+      padding: 0;
+    }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      border-radius: 0;
+      box-shadow: none;
+      page-break-after: always;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .slide:last-child {
+      page-break-after: auto;
+    }
+
+    @page {
+      size: 16in 9in landscape;
+      margin: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 1 — COVER
+     ████████████████████████████████████████████ -->
+<section class="slide slide--deep flex flex-col flex-center text-center">
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+    <div class="cover-logo">ERNIT</div>
+    <p class="cover-tagline">The World's First Goal-Driven Gifting Platform</p>
+    <div style="width:80px; height:4px; background:var(--accent); border-radius:2px; margin:32px auto;"></div>
+  </div>
+  <div class="cover-contact" style="padding-bottom:8px;">
+    ernit.app&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;raul@ernit.app
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 2 — THE PROBLEM
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Fitness Goals Have a <span class="accent-text">90% Failure Rate</span></h1>
+  <p class="slide-subtitle">The New Year's Resolution dropout curve is brutal — and predictable.</p>
+
+  <div style="flex:1; display:flex; align-items:flex-end; padding-bottom:16px;">
+    <div class="bar-chart" style="width:100%;">
+      <div class="bar-group">
+        <div class="bar" style="height:100%; background: linear-gradient(180deg, var(--green), #27ae60);">
+          <span class="bar-value">100%</span>
+        </div>
+        <span class="bar-label">Jan 1</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar" style="height:65%; background: linear-gradient(180deg, var(--gold), #e67e22);">
+          <span class="bar-value" style="color:var(--gold);">65%</span>
+        </div>
+        <span class="bar-label">Mid-January</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar" style="height:35%; background: linear-gradient(180deg, #e67e22, var(--accent));">
+          <span class="bar-value" style="color:var(--accent);">35%</span>
+        </div>
+        <span class="bar-label">February</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar" style="height:14%; background: linear-gradient(180deg, var(--accent), #c0392b);">
+          <span class="bar-value" style="color:var(--accent);">14%</span>
+        </div>
+        <span class="bar-label">Mid-March</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar" style="height:8%; background: linear-gradient(180deg, #c0392b, #7f1d1d);">
+          <span class="bar-value" style="color:#c0392b;">8%</span>
+        </div>
+        <span class="bar-label">June</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar" style="height:5%; background: #7f1d1d;">
+          <span class="bar-value" style="color:#7f1d1d;">~5%</span>
+        </div>
+        <span class="bar-label">December</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="slide-footer">Year after year, millions of people are trapped in this cycle. The industry profits from their failure.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 3 — THE HEALTH COST
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">This Isn't Just a Motivation Problem.<br><span class="accent-text">It's a Health Crisis.</span></h1>
+  <p class="slide-subtitle" style="margin-bottom:24px;">The economic and human cost of physical inactivity is staggering.</p>
+
+  <div class="grid-3" style="flex:1; align-items:stretch;">
+    <div class="card card--accent" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+      <div class="big-number accent-text">€80B</div>
+      <div style="font-size:18px; font-weight:600; margin:8px 0 4px;">/year</div>
+      <div class="metric-label" style="font-size:14px;">Cost of sedentarism<br>to EU healthcare</div>
+      <div style="font-size:12px; color:var(--text-dim); margin-top:12px;">WHO Europe</div>
+    </div>
+    <div class="card card--accent" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+      <div class="big-number accent-text">43%</div>
+      <div style="font-size:18px; font-weight:600; margin:8px 0 4px;">of Portuguese</div>
+      <div class="metric-label" style="font-size:14px;">population insufficiently<br>active</div>
+      <div style="font-size:12px; color:var(--text-dim); margin-top:12px;">Eurobarometer 2022</div>
+    </div>
+    <div class="card card--accent" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+      <div class="big-number accent-text">5.3M</div>
+      <div style="font-size:18px; font-weight:600; margin:8px 0 4px;">deaths/year</div>
+      <div class="metric-label" style="font-size:14px;">Attributed to physical<br>inactivity globally</div>
+      <div style="font-size:12px; color:var(--text-dim); margin-top:12px;">WHO</div>
+    </div>
+  </div>
+
+  <p class="slide-footer">Chronic disease, depression, cardiovascular risk — prevention starts with sustainable motivation.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 4 — ROOT CAUSES
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Why Do People <span class="accent-text">Fail?</span></h1>
+  <p class="slide-subtitle">Two fundamental barriers that fitness apps ignore.</p>
+
+  <div class="grid-2" style="flex:1; align-items:center;">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:64px; margin-bottom:16px;">🏃</div>
+      <h2 style="font-size:28px; font-weight:700; margin-bottom:12px;">Doing It Alone</h2>
+      <p style="font-size:18px; color:var(--text-muted); line-height:1.6;">No accountability. No support.<br>No one notices when you skip a day.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:64px; margin-bottom:16px;">⏳</div>
+      <h2 style="font-size:28px; font-weight:700; margin-bottom:12px;">Reward Takes Too Long</h2>
+      <p style="font-size:18px; color:var(--text-muted); line-height:1.6;">Weeks of effort with nothing to show.<br>The payoff is invisible.</p>
+    </div>
+  </div>
+
+  <p class="slide-footer">Fitness apps solve neither. They give you data — not motivation.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 5 — THE SOLUTION
+     ████████████████████████████████████████████ -->
+<section class="slide slide--deep flex flex-col">
+  <h1 class="slide-title" style="font-size:36px;">What If Someone You Care About<br><span class="accent-text">Invested In Your Success?</span></h1>
+  <p style="font-size:20px; color:var(--text-muted); line-height:1.6; margin-bottom:28px; max-width:900px;">
+    Ernit turns fitness into a social commitment. Someone gifts you an experience —<br>redeemable <strong style="color:var(--text);">only</strong> when you complete your fitness goal.
+  </p>
+
+  <div class="grid-3" style="flex:1; align-items:stretch;">
+    <div class="pillar">
+      <div class="pillar-icon">🎁</div>
+      <div class="pillar-title accent-text">Gift</div>
+      <div class="pillar-desc">A friend chooses a curated experience for you — spa, workshop, adventure.</div>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">💪</div>
+      <div class="pillar-title gold-text">Earn</div>
+      <div class="pillar-desc">You set your fitness goal and complete it, week by week. Mystery hints keep you motivated.</div>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">🎉</div>
+      <div class="pillar-title green-text">Celebrate</div>
+      <div class="pillar-desc">Complete the goal, unlock the experience, celebrate together.</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding:16px 0; border-top:1px solid rgba(255,255,255,0.08);">
+    <span style="font-size:20px; font-weight:600; color:var(--text-muted); font-style:italic;">"We don't track fitness. We make quitting socially costly."</span>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 6 — HOW IT WORKS: GIVER
+     ████████████████████████████████████████████ -->
+<section class="slide slide--surface flex flex-col">
+  <h1 class="slide-title" style="font-size:36px;"><span class="dim">Step 1:</span> The Giver Chooses an Experience</h1>
+  <p class="slide-subtitle">Browse curated local experiences — spa treatments, ceramics workshops, adventure activities.</p>
+
+  <div style="flex:1; display:flex; align-items:center; gap:48px;">
+    <div style="flex:0 0 auto; display:flex; justify-content:center;">
+      <img src="assets/demo_giver.png" alt="Giver Flow" class="phone-mockup" style="max-height:400px;">
+    </div>
+    <div style="flex:1;">
+      <div class="card" style="margin-bottom:20px;">
+        <h3 style="font-size:20px; font-weight:700; margin-bottom:8px;">Choose an Experience</h3>
+        <p style="color:var(--text-muted); line-height:1.6;">Browse a marketplace of curated local experiences — unique, meaningful, and motivating.</p>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <h3 style="font-size:20px; font-weight:700; margin-bottom:8px;">Set the Challenge</h3>
+        <p style="color:var(--text-muted); line-height:1.6;">Define the fitness parameters. How many weeks? How many sessions? The giver sets the bar.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:20px; font-weight:700; margin-bottom:8px;">Send It With Love</h3>
+        <p style="color:var(--text-muted); line-height:1.6;">A personal message accompanies the gift. The receiver is notified — the journey begins.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 7 — HOW IT WORKS: RECEIVER
+     ████████████████████████████████████████████ -->
+<section class="slide slide--surface flex flex-col">
+  <h1 class="slide-title" style="font-size:36px;"><span class="dim">Step 2:</span> The Receiver Earns It</h1>
+  <p class="slide-subtitle">Define a fitness goal, track progress, and uncover mystery hints along the way.</p>
+
+  <div style="flex:1; display:flex; align-items:center; gap:40px;">
+    <div style="flex:1;">
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">🎯 Set Your Goal</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Define your fitness commitment — weekly sessions, target weeks, activity type.</p>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">🔍 Discover Hints</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Each completed week reveals a mystery hint about your experience. Curiosity sustains motivation.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">🏆 Unlock the Reveal</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Complete all weeks — unlock the full experience reveal. Book it. Celebrate.</p>
+      </div>
+    </div>
+    <div style="flex:0 0 auto; display:flex; gap:20px; align-items:center;">
+      <img src="assets/demo_goal.png" alt="Goal Tracking" class="phone-mockup phone-mockup--sm" style="max-height:370px;">
+      <img src="assets/demo_hints.png" alt="Mystery Hints" class="phone-mockup phone-mockup--sm" style="max-height:370px;">
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 8 — HOW IT WORKS: SOCIAL
+     ████████████████████████████████████████████ -->
+<section class="slide slide--surface flex flex-col">
+  <h1 class="slide-title" style="font-size:36px;"><span class="dim">Step 3:</span> Stay Connected, Stay Motivated</h1>
+  <p class="slide-subtitle">Givers follow progress on a social feed. The receiver knows someone is watching — and invested.</p>
+
+  <div style="flex:1; display:flex; align-items:center; gap:48px;">
+    <div style="flex:0 0 auto;">
+      <img src="assets/demo_feed.png" alt="Social Feed" class="phone-mockup" style="max-height:400px;">
+    </div>
+    <div style="flex:1;">
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">📣 Social Feed</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Givers see weekly progress updates, session completions, and milestone celebrations in real time.</p>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">💬 Send Motivations</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">A simple message or reaction at the right moment can be the difference between quitting and pushing through.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">👀 Accountability Effect</h3>
+        <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Knowing someone invested real money — and is watching — transforms personal discipline into social commitment.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 9 — BEHAVIORAL MECHANISM
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Why <span class="accent-text">85%</span> Succeed With Ernit</h1>
+  <p class="slide-subtitle">(vs. ~10% Industry Average)</p>
+
+  <div class="grid-3" style="flex:1; align-items:stretch;">
+    <div class="card card--accent card--glow" style="text-align:center; display:flex; flex-direction:column; justify-content:center;">
+      <div style="font-size:48px; margin-bottom:12px;">💰</div>
+      <h3 style="font-size:20px; font-weight:700; margin-bottom:10px;">Financial Commitment Device</h3>
+      <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Real money (€30–70) is on the line. The giver has skin in the game. Walking away means wasting their gift.</p>
+    </div>
+    <div class="card card--accent card--glow" style="text-align:center; display:flex; flex-direction:column; justify-content:center;">
+      <div style="font-size:48px; margin-bottom:12px;">👥</div>
+      <h3 style="font-size:20px; font-weight:700; margin-bottom:10px;">Social Loss Aversion</h3>
+      <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Quitting means failing someone who invested in you. Social stakes are higher than personal ones.</p>
+    </div>
+    <div class="card card--accent card--glow" style="text-align:center; display:flex; flex-direction:column; justify-content:center;">
+      <div style="font-size:48px; margin-bottom:12px;">🎁</div>
+      <h3 style="font-size:20px; font-weight:700; margin-bottom:10px;">Progressive Reward</h3>
+      <p style="color:var(--text-muted); font-size:15px; line-height:1.5;">Mystery hints sustain curiosity week after week. The experience reveal keeps them coming back.</p>
+    </div>
+  </div>
+
+  <p class="slide-footer">Grounded in behavioral economics (Thaler, Ariely). Ernit is not just an app — it's a <strong>behavior change intervention</strong>.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 10 — TRACTION
+     ████████████████████████████████████████████ -->
+<section class="slide slide--deep flex flex-col">
+  <h1 class="slide-title">Early <span class="accent-text">Momentum</span></h1>
+  <p class="slide-subtitle">Beta launched in Portugal — 3 months ago, zero paid marketing.</p>
+
+  <div class="grid-4" style="flex:1; align-items:stretch;">
+    <div class="stat-card stat-card--accent">
+      <div class="big-number" style="color:var(--text);">50</div>
+      <div class="metric-label">Active Users</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-top:8px;">Acquired organically</p>
+    </div>
+    <div class="stat-card stat-card--accent">
+      <div class="big-number gold-text">€1.2K</div>
+      <div class="metric-label">Early Revenue</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-top:8px;">Real transactions</p>
+    </div>
+    <div class="stat-card stat-card--accent">
+      <div class="big-number green-text">85%</div>
+      <div class="metric-label">Goal Success Rate</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-top:8px;">vs ~10% industry</p>
+    </div>
+    <div class="stat-card stat-card--accent">
+      <div class="big-number blue-text" style="font-size:56px;">↑</div>
+      <div class="metric-label">Partner Network</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-top:8px;">Local providers joining</p>
+    </div>
+  </div>
+
+  <p class="slide-footer slide-footer--plain" style="text-align:center; font-size:18px; font-weight:600; color:var(--text-muted);">All organic. All real. All in 3 months.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 11 — HEALTH IMPACT
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Measurable <span class="green-text">Health Impact</span></h1>
+  <p class="slide-subtitle">Every completed goal = weeks of consistent exercise. This is measurable preventive health.</p>
+
+  <div style="display:flex; gap:32px; flex:1;">
+    <!-- Left: Impact metrics -->
+    <div style="flex:1;">
+      <div class="grid-2" style="gap:16px;">
+        <div class="stat-card">
+          <div class="big-number" style="font-size:56px; color:var(--green);">48+</div>
+          <div class="metric-label" style="font-size:12px;">Weeks of Consistent<br>Physical Activity</div>
+        </div>
+        <div class="stat-card">
+          <div class="big-number" style="font-size:56px; color:var(--gold);">73</div>
+          <div class="metric-label" style="font-size:12px;">Verified Exercise<br>Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="big-number" style="font-size:56px; color:var(--blue);">23</div>
+          <div class="metric-label" style="font-size:12px;">Social Accountability<br>Relationships</div>
+        </div>
+        <div class="stat-card">
+          <div class="big-number" style="font-size:56px; color:var(--accent);">6</div>
+          <div class="metric-label" style="font-size:12px;">Receivers Who Became<br>Givers (Virtuous Cycle)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Projection table -->
+    <div style="flex:1;">
+      <div class="card" style="height:100%; display:flex; flex-direction:column; justify-content:center;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:4px;">Growth Projection</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">Based on current 85% success rate</p>
+        <table class="proj-table">
+          <thead>
+            <tr><th>Scale</th><th>Goals Completed</th><th>Weeks of Fitness</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>50 users <span style="font-size:11px; color:var(--accent);">● NOW</span></td>
+              <td>16</td>
+              <td>48 weeks</td>
+            </tr>
+            <tr><td>1,000 users</td><td>~700</td><td>~4,200 weeks</td></tr>
+            <tr><td>10,000 users</td><td>~7,000</td><td>~42,000 weeks</td></tr>
+            <tr><td style="color:var(--accent);">100,000 users</td><td style="color:var(--accent);">~70,000</td><td style="color:var(--accent);">~420,000 weeks</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 12 — BUSINESS MODEL
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Commission-Based <span class="gold-text">Marketplace</span></h1>
+  <p class="slide-subtitle">Simple, proven model. Revenue positive since beta.</p>
+
+  <!-- Flow diagram -->
+  <div class="flow" style="margin-bottom:32px;">
+    <div class="flow-box" style="background:var(--surface); border:1px solid rgba(255,255,255,0.15);">🎁 Giver Pays<br><span style="font-size:13px; color:var(--text-muted);">€30–70 avg</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="background:var(--accent); border:1px solid var(--accent);">ERNIT<br><span style="font-size:13px;">Takes 25%</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="background:var(--surface); border:1px solid rgba(255,255,255,0.15);">📍 Provider Delivers<br><span style="font-size:13px; color:var(--text-muted);">Receives 75%</span></div>
+  </div>
+
+  <div class="grid-2" style="flex:1;">
+    <div class="card">
+      <h3 style="font-size:22px; font-weight:700; margin-bottom:12px;">
+        <span class="accent-text">01</span>&nbsp; Experience Purchases
+      </h3>
+      <p style="font-size:17px; color:var(--text-muted); line-height:1.6; margin-bottom:12px;">25% commission on every experience sold through the marketplace.</p>
+      <div style="display:flex; gap:24px;">
+        <div><span style="font-size:28px; font-weight:800;">€30–70</span><br><span style="font-size:13px; color:var(--text-dim);">Avg ticket</span></div>
+        <div><span style="font-size:28px; font-weight:800;">25%</span><br><span style="font-size:13px; color:var(--text-dim);">Take rate</span></div>
+        <div><span style="font-size:28px; font-weight:800;">€7.50–17.50</span><br><span style="font-size:13px; color:var(--text-dim);">Revenue / sale</span></div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(244,197,66,0.3); background:rgba(244,197,66,0.05);">
+      <h3 style="font-size:22px; font-weight:700; margin-bottom:12px;">
+        <span class="gold-text">02</span>&nbsp; Gym Partnerships <span style="font-size:13px; color:var(--text-dim); font-weight:400;">(Future)</span>
+      </h3>
+      <p style="font-size:17px; color:var(--text-muted); line-height:1.6; margin-bottom:12px;">GPS-verified gym sessions generate recurring commissions from partner gyms.</p>
+      <p style="font-size:14px; color:var(--text-dim); line-height:1.5;">Gyms pay per verified visit. Ernit drives qualified, committed foot traffic — not tire-kickers.</p>
+    </div>
+  </div>
+
+  <p class="slide-footer" style="text-align:center; font-weight:600;">Revenue positive since beta. Unit economics work from day one.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 13 — MARKET
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Market <span class="accent-text">Opportunity</span></h1>
+  <p class="slide-subtitle">Intersection of three massive, growing markets.</p>
+
+  <div style="flex:1; display:flex; align-items:center; gap:48px;">
+    <!-- Concentric circles -->
+    <div style="flex:0 0 400px;">
+      <div class="tam-circles">
+        <div class="tam-circle tam-circle--tam">
+          <span class="tam-label" style="margin-top:30px;">TAM</span>
+          <span class="tam-number">147M</span>
+          <span style="font-size:11px; color:var(--text-dim);">Fitness + E-learning<br>procrastinators</span>
+        </div>
+        <div class="tam-circle tam-circle--sam">
+          <span class="tam-label">SAM</span>
+          <span class="tam-number">58.8M</span>
+          <span style="font-size:11px; color:var(--text-dim);">EU exercise<br>procrastinators</span>
+        </div>
+        <div class="tam-circle tam-circle--som">
+          <span class="tam-label">SOM</span>
+          <span class="tam-number" style="font-size:22px;">6M</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Market details -->
+    <div style="flex:1;">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+          <span style="font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Fitness</span>
+          <span style="font-size:28px; font-weight:800;">$96B</span>
+        </div>
+        <p style="color:var(--text-muted); font-size:15px;">Global fitness industry, growing 8% YoY. Retention is the #1 challenge.</p>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+          <span style="font-size:14px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:1px;">Gifting</span>
+          <span style="font-size:28px; font-weight:800;">$300B+</span>
+        </div>
+        <p style="color:var(--text-muted); font-size:15px;">Global gifting market. Experience gifts are the fastest-growing segment.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+          <span style="font-size:14px; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:1px;">Experience Economy</span>
+          <span style="font-size:28px; font-weight:800;">$12B+</span>
+        </div>
+        <p style="color:var(--text-muted); font-size:15px;">Millennials and Gen Z prefer experiences over things. This market is accelerating.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 14 — COMPETITION
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">A Category of <span class="accent-text">One</span></h1>
+  <p class="slide-subtitle">No existing platform combines goal-driven fitness with social gifting.</p>
+
+  <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+    <div class="matrix">
+      <!-- Y-axis label -->
+      <div class="matrix-ylabel">
+        <span>Community-driven</span>
+        <span>Individualistic</span>
+      </div>
+
+      <!-- Top-left: Community + Token -->
+      <div class="matrix-cell">
+        <div style="font-size:13px; color:var(--text-dim); margin-bottom:4px;">Community Fitness</div>
+        <div style="font-size:15px; font-weight:600; color:var(--text-muted);">Strava, Peloton</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">Social but no real stakes</div>
+      </div>
+
+      <!-- Top-right: Community + Gifting = ERNIT -->
+      <div class="matrix-cell matrix-cell--ernit">
+        <div style="font-size:14px; font-weight:800; color:var(--accent); letter-spacing:2px; margin-bottom:4px;">ERNIT</div>
+        <div style="font-size:13px; font-weight:600;">Community-driven</div>
+        <div style="font-size:13px; font-weight:600;">Goal-driven Gifting</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Real money + social stakes</div>
+      </div>
+
+      <!-- Bottom-left: Individual + Token -->
+      <div class="matrix-cell">
+        <div style="font-size:13px; color:var(--text-dim); margin-bottom:4px;">Fitness Apps</div>
+        <div style="font-size:15px; font-weight:600; color:var(--text-muted);">Fitbit, MyFitnessPal</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">Data tracking, no motivation</div>
+      </div>
+
+      <!-- Bottom-right: Individual + Gifting -->
+      <div class="matrix-cell">
+        <div style="font-size:13px; color:var(--text-dim); margin-bottom:4px;">Generic Gifting</div>
+        <div style="font-size:15px; font-weight:600; color:var(--text-muted);">Odisseias, Smartbox</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">No goals, no accountability</div>
+      </div>
+
+      <!-- X-axis labels -->
+      <div class="matrix-xlabel" style="grid-column:2;">Token / Gamification</div>
+      <div class="matrix-xlabel" style="grid-column:3;">Real Gifting</div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 15 — TEAM
+     ████████████████████████████████████████████ -->
+<section class="slide slide--deep flex flex-col">
+  <h1 class="slide-title">The <span class="accent-text">Team</span></h1>
+  <p class="slide-subtitle">Complementary founders. Product-obsessed. Mission-driven.</p>
+
+  <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+    <div class="grid-2" style="max-width:900px; width:100%;">
+      <div class="card" style="text-align:center; padding:40px 32px;">
+        <div class="avatar avatar--rm" style="margin:0 auto 16px;">RM</div>
+        <h2 style="font-size:24px; font-weight:800; margin-bottom:4px;">Raul Márquez</h2>
+        <div style="font-size:16px; color:var(--accent); font-weight:600; margin-bottom:16px;">CEO</div>
+        <div style="display:flex; flex-direction:column; gap:8px; text-align:left;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--accent);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">MSc Applied Management</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--accent);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">4+ years in Finance</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--accent);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">Business strategy & operations</span>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="text-align:center; padding:40px 32px;">
+        <div class="avatar avatar--nc" style="margin:0 auto 16px;">NC</div>
+        <h2 style="font-size:24px; font-weight:800; margin-bottom:4px;">Nuno Castilho</h2>
+        <div style="font-size:16px; color:var(--blue); font-weight:600; margin-bottom:16px;">CTO</div>
+        <div style="display:flex; flex-direction:column; gap:8px; text-align:left;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--blue);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">BSc Computer Engineering</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--blue);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">4+ years in Programming & 3D</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--blue);">●</span>
+            <span style="color:var(--text-muted); font-size:15px;">Full-stack & product development</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 16 — SDG & IMPACT ALIGNMENT
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">Impact <span class="green-text">Alignment</span></h1>
+  <p class="slide-subtitle">Ernit is a business built on measurable social impact.</p>
+
+  <div class="grid-3" style="flex:1; align-items:stretch;">
+    <div class="card" style="display:flex; flex-direction:column;">
+      <div class="sdg-badge sdg-3">3</div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:8px;">Good Health &<br>Well-Being</h3>
+      <p style="font-size:15px; color:var(--text-muted); line-height:1.6; flex:1;">Combating sedentarism through sustained motivation and social accountability. Every completed goal represents weeks of verified physical activity.</p>
+    </div>
+    <div class="card" style="display:flex; flex-direction:column;">
+      <div class="sdg-badge sdg-8">8</div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:8px;">Decent Work &<br>Economic Growth</h3>
+      <p style="font-size:15px; color:var(--text-muted); line-height:1.6; flex:1;">Creating qualified jobs and dynamizing local economies through our partner network of experience providers — small businesses that benefit from new, committed customers.</p>
+    </div>
+    <div class="card" style="display:flex; flex-direction:column;">
+      <div class="sdg-badge sdg-9">9</div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:8px;">Industry, Innovation<br>& Infrastructure</h3>
+      <p style="font-size:15px; color:var(--text-muted); line-height:1.6; flex:1;">Strengthening digital infrastructure and Portugal's startup ecosystem. Building novel behavioral technology that can scale across Europe.</p>
+    </div>
+  </div>
+
+  <div class="slide-footer" style="text-align:center; padding-top:20px; border-top:2px solid rgba(46,204,113,0.3);">
+    <p style="font-size:17px; font-weight:600; color:var(--text-muted); line-height:1.5;">
+      Aligned with <strong style="color:var(--text);">Funda&ccedil;&atilde;o Ageas's mission</strong> of building healthy, resilient, and inclusive communities.
+    </p>
+  </div>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 17 — ROADMAP & ASK
+     ████████████████████████████████████████████ -->
+<section class="slide slide--dark flex flex-col">
+  <h1 class="slide-title">The Path <span class="accent-text">Forward</span></h1>
+
+  <!-- Timeline -->
+  <div class="timeline" style="margin-bottom:32px; padding:0 8px;">
+    <div class="timeline-item">
+      <div class="timeline-year">2026</div>
+      <div class="timeline-text">
+        <strong>R&D + Growth</strong><br>
+        Launch MVP in Portugal's major cities.<br>Select European city pilots.
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2027</div>
+      <div class="timeline-text">
+        <strong>Launch "Ernit Yourself!"</strong><br>
+        Self-gifting mode. Continue<br>European expansion.
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2028</div>
+      <div class="timeline-text">
+        <strong>Global Expansion</strong><br>
+        USA + Brazil. E-learning integration.<br>Target break-even.
+      </div>
+    </div>
+  </div>
+
+  <!-- The Ask -->
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+    <div class="card card--accent card--glow" style="text-align:center; max-width:800px; width:100%; padding:32px 48px;">
+      <div style="font-size:14px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:3px; margin-bottom:8px;">The Ask</div>
+      <div style="font-size:56px; font-weight:900; letter-spacing:-2px; margin-bottom:20px;">Pre-Seed: €500K</div>
+
+      <div class="grid-3" style="gap:16px;">
+        <div style="background:rgba(255,255,255,0.06); border-radius:12px; padding:20px 16px;">
+          <div style="font-size:28px; font-weight:800; color:var(--accent);">€100K</div>
+          <div style="font-size:14px; color:var(--text-muted); margin-top:4px;">Product<br>Development</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.06); border-radius:12px; padding:20px 16px;">
+          <div style="font-size:28px; font-weight:800; color:var(--gold);">€200K</div>
+          <div style="font-size:14px; color:var(--text-muted); margin-top:4px;">Marketing &<br>Growth</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.06); border-radius:12px; padding:20px 16px;">
+          <div style="font-size:28px; font-weight:800; color:var(--blue);">€200K</div>
+          <div style="font-size:14px; color:var(--text-muted); margin-top:4px;">Hiring<br>Top Talent</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="text-align:center; font-size:16px; color:var(--text-muted); font-weight:500;">Seeking impact-aligned investors who share our vision.</p>
+</section>
+
+<!-- ████████████████████████████████████████████
+     SLIDE 18 — CLOSING
+     ████████████████████████████████████████████ -->
+<section class="slide slide--deep flex flex-col flex-center text-center" style="justify-content:center;">
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; max-width:900px; margin:0 auto;">
+    <div style="width:60px; height:3px; background:var(--accent); border-radius:2px; margin-bottom:40px;"></div>
+    <p style="font-size:32px; font-weight:300; line-height:1.5; color:var(--text-muted); font-style:italic; margin-bottom:48px;">
+      "The best gift you can give someone...<br>
+      <span style="color:var(--text); font-weight:600;">is the version of themselves they've been trying to become.</span>"
+    </p>
+
+    <div class="cover-logo" style="font-size:64px; letter-spacing:8px; margin-bottom:16px;">ERNIT</div>
+
+    <div style="display:flex; gap:32px; margin-top:24px; margin-bottom:48px;">
+      <a href="https://ernit.app" style="color:var(--accent); text-decoration:none; font-size:20px; font-weight:600; letter-spacing:1px;">ERNIT.APP</a>
+      <a href="mailto:raul@ernit.app" style="color:var(--accent); text-decoration:none; font-size:20px; font-weight:600; letter-spacing:1px;">RAUL@ERNIT.APP</a>
+    </div>
+  </div>
+
+  <p style="font-size:15px; color:var(--text-dim); letter-spacing:2px; padding-bottom:8px;">Empowering people, one goal at a time.</p>
+</section>
+
+</body>
+</html>

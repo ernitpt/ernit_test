@@ -70,7 +70,7 @@ import VenueSelectionModal from '../../components/VenueSelectionModal';
 import { PopupMenu, PopupMenuItem } from '../../components/PopupMenu';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import GoalEditModal from '../../components/GoalEditModal';
-import { Trash2, Gift, Pencil } from 'lucide-react-native';
+import { Gift } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { toJSDate } from '../../utils/GoalHelpers';
 
@@ -1223,20 +1223,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const goalMenuItems: PopupMenuItem[] = useMemo(() => [
     {
       key: 'edit',
-      label: currentGoal.empoweredBy ? 'Request Edit' : 'Edit Goal',
-      icon: <Pencil size={14} color={isTimerRunning ? colors.textMuted : colors.primary} />,
+      label: (currentGoal.empoweredBy && currentGoal.empoweredBy !== appState.user?.id) ? 'Request a Goal Change' : 'Edit Goal',
       onPress: () => setShowGoalEditModal(true),
       disabled: isTimerRunning || currentGoal.isCompleted,
     },
     {
       key: 'remove',
       label: 'Remove Goal',
-      icon: <Trash2 size={14} color={isTimerRunning ? colors.textMuted : colors.error} />,
       onPress: () => setShowRemoveDialog(true),
       variant: 'danger' as const,
       disabled: isTimerRunning,
     },
-  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, colors.primary, colors.textMuted, colors.error]);
+  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id, colors.primary, colors.textMuted, colors.error]);
 
   // ─── Render ───────────────────────────────────────────────────────
 

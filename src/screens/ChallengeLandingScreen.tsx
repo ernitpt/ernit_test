@@ -9,7 +9,9 @@ import {
     Dimensions,
     Linking,
     Animated as RNAnimated,
+    useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated2, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -149,10 +151,10 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     accentColor: colors.warning,
     gradient: [colors.warningLighter, colors.white, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: '#C4A882' },
-        { word: 'do yoga', color: '#D4A04A' },
-        { word: 'dance', color: '#E08080' },
-        { word: 'run', color: '#D4C462' },
+        { word: 'workout', color: colors.decorativeWarm },
+        { word: 'do yoga', color: colors.decorativeGold },
+        { word: 'dance', color: colors.decorativeRose },
+        { word: 'run', color: colors.decorativeYellow },
     ],
     titlePrefix: 'Help them',
     titleSuffix: '',
@@ -292,15 +294,17 @@ function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftSty
     const frontAnimStyle = useAnimatedStyle(() => ({
         transform: [
             { perspective: 3000 },
-            { rotateY: `${rotation.value}deg` },
+            { rotateY: rotation.value + 'deg' },
         ],
+        opacity: Platform.OS === 'android' ? (rotation.value <= 90 || rotation.value > 270 ? 1 : 0) : 1,
     }));
 
     const backAnimStyle = useAnimatedStyle(() => ({
         transform: [
             { perspective: 3000 },
-            { rotateY: `${rotation.value + 180}deg` },
+            { rotateY: (rotation.value - 180) + 'deg' },
         ],
+        opacity: Platform.OS === 'android' ? (rotation.value > 90 && rotation.value <= 270 ? 1 : 0) : 1,
     }));
 
     return (
@@ -357,17 +361,22 @@ const flipStyles = StyleSheet.create({
         height: CARD_H,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
-        backgroundColor: '#1a1a2e',
+        backgroundColor: Colors.cardDarkBg,
     },
     glow: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        ...StyleSheet.absoluteFillObject,
         borderRadius: BorderRadius.xl,
-        outlineWidth: 1.5,
-        outlineStyle: 'solid',
+        ...Platform.select({
+            web: {
+                outlineWidth: 1.5,
+                outlineStyle: 'solid' as any,
+                outlineColor: 'transparent',
+            },
+            default: {
+                borderWidth: 1.5,
+                borderColor: 'transparent',
+            },
+        }),
     } as any,
     img: {
         width: '100%',
@@ -390,7 +399,7 @@ const flipStyles = StyleSheet.create({
     label: {
         ...Typography.caption,
         fontWeight: '600',
-        color: '#fff',
+        color: Colors.textOnImage,
     },
 });
 
@@ -405,6 +414,7 @@ export default function ChallengeLandingScreen() {
     const navigation = useNavigation<LandingNavigationProp>();
     const route = useRoute<RouteProp<RootStackParamList, 'ChallengeLanding'>>();
     const { state } = useApp();
+    const insets = useSafeAreaInsets();
     const isLoggedIn = !!state.user?.id;
 
     // Mode from route param (GiftLanding passes mode='gift')
@@ -1151,7 +1161,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         padding: vh(4),
         position: 'relative',
         width: '100%',
-        maxWidth: vh(320),
+        maxWidth: 320,
         ...Shadows.sm,
     },
     toggleSlider: {
@@ -1194,10 +1204,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         bottom: '10%',
         borderRadius: 999,
         opacity: 0.15,
-        filter: 'blur(40px)',
+        ...Platform.select({
+            web: { filter: 'blur(40px)' },
+            default: {},
+        }),
     } as any,
     heroTitle: {
-        fontFamily: '"DM Serif Display", Georgia, serif',
+        fontFamily: Platform.select({ web: '"DM Serif Display", Georgia, serif', default: 'Outfit_700Bold' }),
         fontSize: vh(38),
         fontWeight: '400',
         color: colors.gray800,
@@ -1227,13 +1240,20 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     dialWord: {
         ...Typography.display,
-        fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+        fontFamily: Platform.select({ web: '"Plus Jakarta Sans", system-ui, sans-serif', default: 'Outfit_800ExtraBold' }),
         fontSize: vh(50),
         fontWeight: '800',
         textTransform: 'uppercase',
         lineHeight: WORD_SLOT_HEIGHT,
         letterSpacing: 2,
         textAlign: 'center',
+        ...Platform.select({
+            default: {
+                textShadowColor: 'rgba(16, 185, 129, 0.4)',
+                textShadowOffset: { width: 0, height: 0 },
+                textShadowRadius: 8,
+            },
+        }),
     } as any,
 
     heroSubtitle: {
@@ -1278,12 +1298,36 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         zIndex: 2,
     },
     cardGlowSelf: {
-        outlineColor: colors.primary,
-        boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
+        ...Platform.select({
+            web: {
+                outlineColor: colors.primary,
+                boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
+            },
+            default: {
+                borderColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 12,
+                shadowOpacity: 0.6,
+                elevation: 8,
+            },
+        }),
     } as any,
     cardGlowGift: {
-        outlineColor: colors.warning,
-        boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
+        ...Platform.select({
+            web: {
+                outlineColor: colors.warning,
+                boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
+            },
+            default: {
+                borderColor: colors.warning,
+                shadowColor: colors.warning,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 12,
+                shadowOpacity: 0.6,
+                elevation: 8,
+            },
+        }),
     } as any,
     // cardImg, cardLabelWrap, cardLabel moved to flipStyles
 
@@ -1408,7 +1452,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: '#1C1C1C',
+        borderColor: colors.cardDarkBorder,
     },
     stepNumberText: {
         color: colors.white,

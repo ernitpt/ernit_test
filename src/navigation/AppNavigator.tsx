@@ -94,7 +94,7 @@ const isIncognitoMode = () => {
 
 // Giver
 const GiverNavigator = () => (
-  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}>
+  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade' }}>
     <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
     <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
     <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
@@ -105,7 +105,7 @@ const GiverNavigator = () => (
 
 // Recipient
 const RecipientNavigator = () => (
-  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}>
+  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade' }}>
     <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
     <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
     <RecipientStack.Screen name="Journey" component={JourneyScreen} />
@@ -287,7 +287,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       <RootStack.Navigator
         id={undefined}
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false, animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right' }}
+        screenOptions={{ headerShown: false, animation: 'fade' }}
       >
 
         {/* PUBLIC ROUTES */}

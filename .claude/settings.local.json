@@ -21,7 +21,14 @@
       "Bash(echo:*)",
       "Bash(rm:*)",
       "Bash(test:*)",
-      "WebFetch(domain:gulbenkian.pt)"
+      "WebFetch(domain:gulbenkian.pt)",
+      "WebFetch(domain:drive.google.com)",
+      "Bash(curl -L -o /tmp/pitch-deck.pdf \"https://drive.google.com/uc?export=download&id=1-h22HzQ1C1cGT4FNJv8qU-s8r6hwV79x\")",
+      "Read(//tmp/**)",
+      "Bash(pip install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(curl -L -o \"D:/ErnitAppWeb_Test/team-deck.pptx\" \"https://docs.google.com/presentation/d/1wtYXsLIBiN8IdYT3Yz9COTCdOhPfjm5s/export/pptx\")",
+      "Bash(python -c \":*)"
     ]
   },
   "disabledMcpjsonServers": [

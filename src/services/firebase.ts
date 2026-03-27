@@ -12,6 +12,7 @@ import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFunctions } from 'firebase/functions';
 import { config } from '../config/environment';
+import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
 
 
@@ -24,7 +25,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 // ✅ Initialize Auth with correct persistence
 let auth: Auth;
 
-if (typeof window !== 'undefined') {
+if (Platform.OS === 'web') {
   // 🌐 Web
   auth = getAuth(app);
   setPersistence(auth, browserLocalPersistence).catch(e => logger.warn('Failed to set auth persistence:', e));
@@ -41,7 +42,7 @@ if (typeof window !== 'undefined') {
 // persistentLocalCache + persistentMultipleTabManager enables IndexedDB-backed
 // offline caching for web (Firebase v10+). Falls back gracefully in environments
 // that do not support it (e.g., private browsing, very old browsers).
-const dbOptions = (typeof window !== 'undefined')
+const dbOptions = (Platform.OS === 'web')
   ? { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }
   : {};
 

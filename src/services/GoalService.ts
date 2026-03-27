@@ -814,8 +814,8 @@ export class GoalService {
     if (goal.userId !== auth.currentUser?.uid) {
       throw new AppError('UNAUTHORIZED', 'Only the goal owner can edit this goal', 'auth');
     }
-    if (goal.empoweredBy) {
-      throw new AppError('VALIDATION_ERROR', 'Use requestGoalEdit for gifted goals', 'validation');
+    if (!goal.isFreeGoal && goal.empoweredBy && goal.empoweredBy !== auth.currentUser?.uid) {
+      throw new AppError('VALIDATION_ERROR', 'This goal was gifted to you — please request changes from your supporter instead.', 'validation');
     }
     if (newTargetCount < (goal.currentCount || 0)) {
       throw new AppError('VALIDATION_ERROR', `Can't reduce below already-completed weeks (${goal.currentCount})`, 'validation');
@@ -867,8 +867,8 @@ export class GoalService {
     if (goal.userId !== auth.currentUser?.uid) {
       throw new AppError('UNAUTHORIZED', 'Only the goal owner can request edits', 'auth');
     }
-    if (!goal.empoweredBy) {
-      throw new AppError('VALIDATION_ERROR', 'Use selfEditGoal for self-created goals', 'validation');
+    if (!goal.empoweredBy || goal.isFreeGoal || goal.empoweredBy === auth.currentUser?.uid) {
+      throw new AppError('VALIDATION_ERROR', 'You can edit this goal directly — no request needed.', 'validation');
     }
     if ((goal as unknown as Record<string, unknown>).pendingEditRequest) {
       throw new AppError('VALIDATION_ERROR', 'A pending edit request already exists for this goal', 'validation');
