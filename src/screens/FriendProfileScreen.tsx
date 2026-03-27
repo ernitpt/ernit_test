@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 import { BaseModal } from '../components/BaseModal';
 import { ProfileSkeleton, SkeletonBox } from '../components/SkeletonLoader';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -71,7 +72,8 @@ const CapsuleMini = ({ filled }: { filled: boolean }) => {
 
 const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId: string | undefined; userName: string | null }) => {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
   const historyModalStyles = useMemo(() => createHistoryModalStyles(colors), [colors]);
   const [giverName, setGiverName] = useState<string | null>(null);
   const [showHintHistory, setShowHintHistory] = useState(false);
@@ -289,7 +291,8 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
 
 const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ goal, userName }) => {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
   const [experience, setExperience] = useState<Experience | null>(null);
   const [partnerName, setPartnerName] = useState<string>("Partner");
   const [loadingCard, setLoadingCard] = useState<boolean>(true);
@@ -577,7 +580,8 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
 
 const FriendProfileScreen: React.FC = () => {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
   const route = useRoute<FriendProfileRouteProp>();
   const { state } = useApp();
@@ -773,6 +777,7 @@ const FriendProfileScreen: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
+      <StatusBar style="auto" />
     <MainScreen activeRoute="Profile">
       <ScrollView
         style={styles.container}
@@ -1011,7 +1016,7 @@ const FriendProfileScreen: React.FC = () => {
   );
 };
 
-const createStyles = (colors: typeof Colors) => StyleSheet.create({
+const createStyles = (colors: typeof Colors, screenWidth: number = 375) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
 
   // HEADER
@@ -1310,7 +1315,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: BorderRadius.xl,
     width: '85%',
-    maxWidth: 360,
+    maxWidth: Math.min(360, screenWidth - 40),
     paddingVertical: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
     shadowColor: colors.textPrimary,

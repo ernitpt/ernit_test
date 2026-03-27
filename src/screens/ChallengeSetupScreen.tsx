@@ -20,6 +20,7 @@ import {
     KeyboardAvoidingView,
     GestureResponderEvent,
     DimensionValue,
+    useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -86,7 +87,8 @@ export default function ChallengeSetupScreen() {
     const { state, dispatch } = useApp();
     const { showError, showSuccess } = useToast();
     const colors = useColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const { width: screenWidth } = useWindowDimensions();
+    const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
     const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
 
     // Wizard step
@@ -1680,7 +1682,7 @@ export default function ChallengeSetupScreen() {
 }
 
 
-const createStyles = (colors: typeof Colors) => StyleSheet.create({
+const createStyles = (colors: typeof Colors, screenWidth: number = 375) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.surface,
@@ -2093,7 +2095,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         width: '90%',
-        maxWidth: 360,
+        maxWidth: Math.min(360, screenWidth - 40),
         paddingVertical: Spacing.xxl,
         paddingHorizontal: Spacing.xl,
         ...Shadows.md,

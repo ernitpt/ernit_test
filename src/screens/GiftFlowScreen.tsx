@@ -20,6 +20,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     GestureResponderEvent,
+    useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { TextInput } from '../components/TextInput';
@@ -147,7 +148,8 @@ const ProgressBar = WizardProgressBar;
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function GiftFlowScreen() {
     const colors = useColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const { width: screenWidth } = useWindowDimensions();
+    const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
     const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors), [colors]);
     const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
     const goalTypes = useMemo(() => getGoalTypes(colors), [colors]);
@@ -1931,7 +1933,7 @@ export default function GiftFlowScreen() {
 }
 
 
-const createStyles = (colors: typeof Colors) => StyleSheet.create({
+const createStyles = (colors: typeof Colors, screenWidth: number = 375) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.surface,
@@ -2352,7 +2354,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.white,
         borderRadius: BorderRadius.xl,
         width: '90%',
-        maxWidth: 360,
+        maxWidth: Math.min(360, screenWidth - 40),
         paddingVertical: Spacing.xxl,
         paddingHorizontal: Spacing.xl,
         ...Shadows.md,

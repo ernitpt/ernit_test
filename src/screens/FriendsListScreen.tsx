@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 import { Avatar } from '../components/Avatar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -145,6 +146,7 @@ const FriendsListScreen: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="FriendsListScreen" userId={state.user?.id}>
+      <StatusBar style="auto" />
     <MainScreen activeRoute="Profile">
       <SharedHeader
         title="Your Friends"

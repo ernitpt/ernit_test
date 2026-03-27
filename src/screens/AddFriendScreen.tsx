@@ -32,6 +32,7 @@ import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
@@ -167,6 +168,7 @@ const AddFriendScreen: React.FC = () => {
   ), [handleViewProfile, handleSendFriendRequest]);
   return (
     <ErrorBoundary screenName="AddFriendScreen" userId={state.user?.id}>
+      <StatusBar style="auto" />
     <MainScreen activeRoute="Profile">
       <SharedHeader
         title="Add Friend"

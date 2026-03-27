@@ -17,6 +17,7 @@ import { TextInput } from '../components/TextInput';
 import { BaseModal } from '../components/BaseModal';
 import { Edit2, Users, Award, Heart, Target } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { StatusBar } from 'expo-status-bar';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { Goal, UserProfile, Experience, User, ExperienceGift } from '../types';
@@ -793,6 +794,7 @@ const UserProfileScreen: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
+      <StatusBar style="auto" />
       <MainScreen activeRoute="Profile">
         <ScrollView
           style={styles.container}

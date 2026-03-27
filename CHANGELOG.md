@@ -819,6 +819,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WCAG contrast compliance — button colors, gradient endpoint, error token, centralized hardcoded colors
 - surfaceFrosted opacity in light mode — rgba(255,255,255,1) → 0.92 for proper frosted glass effect
 - gift claim permissions, nested buttons, duplicate claim prevention
+- Android layout — responsive dimensions, safe maxWidth, StatusBar
 
 ### Added
 - Automatic changelog system with `npm run log` script
