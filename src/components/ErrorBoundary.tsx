@@ -75,6 +75,7 @@ class ErrorBoundaryClass extends Component<Props, State> {
                         title="Try Again"
                         variant="primary"
                         onPress={this.handleReset}
+                        style={{ backgroundColor: this.props.colors.actionBlue }}
                     />
                 </View>
             );

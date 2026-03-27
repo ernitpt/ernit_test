@@ -27,7 +27,7 @@ const ErrorRetry: React.FC<ErrorRetryProps> = ({
         variant="primary"
         size="sm"
         icon={<RefreshCw size={16} color={colors.white} />}
-        style={{ marginTop: Spacing.xs }}
+        style={{ marginTop: Spacing.xs, backgroundColor: colors.actionBlue }}
       />
     </View>
   );
