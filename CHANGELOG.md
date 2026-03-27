@@ -831,6 +831,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UI/UX audit — recipient flow screens
 - replace hardcoded fontSize/fontWeight with Typography presets in auth, landing, and social screens
 - UI/UX audit — auth, social, and sub-component screens
+- Android layout, UI/UX audit complete — production build submitted
 
 ### Added
 - Automatic changelog system with `npm run log` script
