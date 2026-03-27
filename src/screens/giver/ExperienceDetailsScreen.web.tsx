@@ -47,11 +47,13 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import ImageViewer from '../../components/ImageViewer';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get("window");
 
 
 function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }) {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
@@ -450,7 +452,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
       </ScrollView>
 
       {/* Fixed Bottom CTA */}
-      <View style={styles.bottomCTA}>
+      <View style={[styles.bottomCTA, { paddingBottom: insets.bottom + Spacing.lg }]}>
         {/* Quantity Selector */}
         <View style={styles.quantityContainer}>
           <Text style={styles.quantityLabel}>Quantity:</Text>

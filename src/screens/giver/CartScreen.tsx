@@ -37,10 +37,12 @@ import { MotiView } from 'moti';
 import { Card } from '../../components/Card';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
 export default function CartScreen() {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { state, dispatch } = useApp();
@@ -421,7 +423,7 @@ export default function CartScreen() {
               })}
             </ScrollView>
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { marginBottom: FOOTER_HEIGHT + insets.bottom }]}>
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalAmount}>€{total.toFixed(2)}</Text>

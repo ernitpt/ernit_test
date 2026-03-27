@@ -49,6 +49,7 @@ import { useToast } from '../../context/ToastContext';
 import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // SCREEN_W and derived card widths are computed inside the component via useWindowDimensions()
 const BENTO_HEIGHT = vh(200);
@@ -303,6 +304,7 @@ const CategoryCarousel = ({
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 const CategorySelectionScreen = () => {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const { BENTO_CARD_W, HERO_CARD_W, HERO_SNAP_INTERVAL } = useMemo(() => {
@@ -751,7 +753,7 @@ const CategorySelectionScreen = () => {
         </View>
 
         {isLoading ? (
-          <ScrollView contentContainerStyle={styles.loadingContent} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.loadingContent, { paddingBottom: vh(80) + FOOTER_HEIGHT + insets.bottom }]} showsVerticalScrollIndicator={false}>
             <FeaturedHeroSkeleton />
             <View style={styles.chipRowSkeleton}>
               {[80, 90, 70, 80].map((w, i) => (
@@ -773,7 +775,7 @@ const CategorySelectionScreen = () => {
         ) : (
           <ScrollView
             style={styles.listContainer}
-            contentContainerStyle={styles.bentoListContent}
+            contentContainerStyle={[styles.bentoListContent, { paddingBottom: vh(80) + FOOTER_HEIGHT + insets.bottom }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >

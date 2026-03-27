@@ -50,6 +50,7 @@ import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
 
@@ -192,6 +193,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   totalQuantity,
   goalId,
 }) => {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NavigationProp>();
@@ -485,7 +487,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           </ScrollView>
 
           {/* Bottom CTA */}
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
             <View style={styles.totalSection}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalAmount}>€{totalAmount.toFixed(2)}</Text>

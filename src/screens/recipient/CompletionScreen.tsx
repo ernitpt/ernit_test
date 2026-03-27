@@ -44,6 +44,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { ExperienceCardSkeleton, SkeletonBox } from '../../components/SkeletonLoader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { useToast } from '../../context/ToastContext';
 import { captureRef } from 'react-native-view-shot';
@@ -52,6 +53,7 @@ import * as Sharing from 'expo-sharing';
 const CompletionScreen = () => {
   const navigation = useRecipientNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { state, dispatch } = useApp();
   const { showError, showInfo } = useToast();
   const colors = useColors();
@@ -630,7 +632,7 @@ const CompletionScreen = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom }}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <Animated.View

@@ -37,6 +37,7 @@ import MainScreen from '../MainScreen';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
 
@@ -50,6 +51,7 @@ type SetupInnerProps = {
 };
 
 const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NavigationProp>();
@@ -206,7 +208,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           </ScrollView>
 
           {/* Bottom CTA */}
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
             <Button
               variant="primary"
               title="Save Card & Continue"

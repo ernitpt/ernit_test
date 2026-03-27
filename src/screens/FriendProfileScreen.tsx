@@ -44,6 +44,7 @@ import { Spacing } from '../config/spacing';
 import { EmptyState } from '../components/EmptyState';
 import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -580,6 +581,7 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
 
 const FriendProfileScreen: React.FC = () => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
@@ -791,7 +793,7 @@ const FriendProfileScreen: React.FC = () => {
         }
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { top: insets.top + Spacing.md }]}>
           <TouchableOpacity
             onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();

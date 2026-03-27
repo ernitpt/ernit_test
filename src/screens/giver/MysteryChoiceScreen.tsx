@@ -23,6 +23,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
 import { vh } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryChoice'>;
 
@@ -47,6 +48,7 @@ const getRevealOptions = (colors: typeof Colors): { key: RevealMode; emoji: stri
 ];
 
 const MysteryChoiceScreen = () => {
+    const insets = useSafeAreaInsets();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
@@ -133,7 +135,7 @@ const MysteryChoiceScreen = () => {
 
                     <ScrollView
                         style={styles.scroll}
-                        contentContainerStyle={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContent, { paddingBottom: vh(120) + insets.bottom }]}
                         showsVerticalScrollIndicator={false}
                     >
                         {/* Title */}
@@ -193,7 +195,7 @@ const MysteryChoiceScreen = () => {
                     </ScrollView>
 
                     {/* Footer CTA */}
-                    <View style={styles.footer}>
+                    <View style={[styles.footer, { paddingBottom: insets.bottom + vh(18) }]}>
                         <Button
                             title="Continue"
                             variant="primary"

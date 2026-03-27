@@ -45,8 +45,10 @@ import * as Haptics from 'expo-haptics';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ConfirmationScreen = () => {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useGiverNavigation();
@@ -618,7 +620,7 @@ Earn it. Unlock it. Enjoy it 🚀
       </ScrollView>
 
       {/* Fixed Bottom Button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="primary"
           title={isTogether ? 'Start Your Challenge' : isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}

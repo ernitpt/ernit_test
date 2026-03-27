@@ -36,6 +36,7 @@ import * as Haptics from 'expo-haptics';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
 import { getUserMessage } from '../../utils/AppError';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -48,6 +49,7 @@ interface GiftWithExperience {
 }
 
 const ConfirmationMultipleScreen = () => {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<ConfirmationMultipleNavigationProp>();
@@ -473,7 +475,7 @@ Earn it. Unlock it. Enjoy it 🚀
       </ScrollView>
 
       {/* Fixed Bottom Button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <TouchableOpacity
           style={styles.homeButton}
           onPress={handleBackToHome}

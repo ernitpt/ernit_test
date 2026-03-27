@@ -54,6 +54,7 @@ import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
 import { sanitizeText } from '../utils/sanitization';
 import { vh } from '../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Path } from 'react-native-svg';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
@@ -63,7 +64,7 @@ const getGoalTypes = (colors: typeof Colors) => [
     { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
     { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info },
     { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
-    { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
+    { icon: '✏️', name: 'Add your own', tagline: 'Custom Challenge', color: colors.textMuted },
 ];
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
@@ -148,6 +149,7 @@ const ProgressBar = WizardProgressBar;
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function GiftFlowScreen() {
     const colors = useColors();
+    const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
     const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors), [colors]);
@@ -1668,7 +1670,7 @@ export default function GiftFlowScreen() {
                     <StatusBar style="auto" />
 
                     {/* Header */}
-                    <View style={styles.header}>
+                    <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
                         <TouchableOpacity
                             style={styles.backButton}
                             onPress={handleBack}
@@ -1691,7 +1693,7 @@ export default function GiftFlowScreen() {
                     <ScrollView
                         ref={scrollViewRef}
                         style={styles.scroll}
-                        contentContainerStyle={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + vh(16) }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
@@ -1723,7 +1725,7 @@ export default function GiftFlowScreen() {
                     </ScrollView>
 
                     {/* Footer */}
-                    <View style={styles.footer}>
+                    <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
                         {/* Preview card when experience is selected */}
                         {currentStep >= getExperienceStep() && selectedExperience && (
                             <MotiView

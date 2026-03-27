@@ -47,6 +47,7 @@ import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
@@ -433,6 +434,7 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 const AchievementDetailScreen = () => {
   const navigation = useRootNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { state } = useApp();
   const { showError, showInfo } = useToast();
   const colors = useColors();
@@ -882,7 +884,7 @@ const AchievementDetailScreen = () => {
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: Spacing.xl, paddingBottom: Spacing.huge, alignItems: 'center' }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: Spacing.xl, paddingBottom: Spacing.huge + insets.bottom, alignItems: 'center' }}>
           <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: Spacing.lg }}>
 
             {/* ─── 1. Completion Header ─── */}

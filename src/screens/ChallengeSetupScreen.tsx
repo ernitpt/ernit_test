@@ -48,6 +48,7 @@ import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
 import { sanitizeText } from '../utils/sanitization';
 import { vh } from '../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
@@ -56,7 +57,7 @@ const getGoalTypes = (colors: typeof Colors) => [
     { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: colors.secondary, tagline: 'Hit the weights' },
     { icon: '\u{1F9D8}', name: 'Yoga', color: colors.categoryPink, tagline: 'Find your flow' },
     { icon: '\u{1F483}', name: 'Dance', color: colors.accent, tagline: 'Move to the beat' },
-    { icon: '\u270F\uFE0F', name: 'Add your own', color: colors.textSecondary, tagline: 'Create a custom challenge' },
+    { icon: '\u270F\uFE0F', name: 'Add your own', color: colors.textSecondary, tagline: 'Custom Challenge' },
 ];
 
 const STEP_TITLES = [
@@ -87,6 +88,7 @@ export default function ChallengeSetupScreen() {
     const { state, dispatch } = useApp();
     const { showError, showSuccess } = useToast();
     const colors = useColors();
+    const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
     const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
@@ -1428,7 +1430,7 @@ export default function ChallengeSetupScreen() {
                 <StatusBar style="auto" />
 
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={handleBack}
@@ -1455,7 +1457,7 @@ export default function ChallengeSetupScreen() {
                     <ScrollView
                         ref={scrollViewRef}
                         style={styles.scroll}
-                        contentContainerStyle={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + vh(16) }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
@@ -1488,7 +1490,7 @@ export default function ChallengeSetupScreen() {
                 </KeyboardAvoidingView>
 
                 {/* Footer */}
-                <View style={styles.footer}>
+                <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
                     {/* Preview card on final step */}
                     {currentStep >= 5 && selectedExperience && (
                         <MotiView

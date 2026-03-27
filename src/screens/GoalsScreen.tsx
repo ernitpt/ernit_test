@@ -323,7 +323,7 @@ const GoalsScreen: React.FC = () => {
         />
         <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
         {isInitialLoading ? (
-          <ScrollView contentContainerStyle={styles.listContainer}>
+          <ScrollView contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}>
             <GoalCardSkeleton />
             <GoalCardSkeleton />
           </ScrollView>
@@ -349,7 +349,7 @@ const GoalsScreen: React.FC = () => {
             data={currentGoals}
             renderItem={renderGoal}
             keyExtractor={(item) => item.id!}
-            contentContainerStyle={styles.listContainer}
+            contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={Platform.OS !== 'web'}
             initialNumToRender={5}

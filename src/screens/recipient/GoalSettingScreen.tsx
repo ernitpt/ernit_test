@@ -48,6 +48,7 @@ import { serializeNav } from '../../utils/serializeNav';
 import HintPopup from '../../components/HintPopup';
 import { aiHintService } from '../../services/AIHintService';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
 import { Colors, useColors } from '../../config';
@@ -93,6 +94,7 @@ const STEP_SUBTITLES = [
 const GoalSettingScreen = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
@@ -1299,7 +1301,7 @@ const GoalSettingScreen = () => {
             <ScrollView
               ref={scrollViewRef}
               style={styles.scroll}
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + vh(16) }]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
@@ -1330,7 +1332,7 @@ const GoalSettingScreen = () => {
             </ScrollView>
 
             {/* Footer CTA */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
               {currentStep === TOTAL_STEPS ? (
                 <TouchableOpacity
                   style={styles.ctaButton}

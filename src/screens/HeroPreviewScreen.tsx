@@ -588,10 +588,10 @@ export default function HeroPreviewScreen() {
                 <ScrollView
                     bounces={false}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}
                 >
                     {/* Hero Section — stacked gradients for smooth cross-fade */}
-                    <View style={styles.hero}>
+                    <View style={[styles.hero, { paddingTop: insets.top + vh(60) }]}>
                         <LinearGradient
                             colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
@@ -610,7 +610,7 @@ export default function HeroPreviewScreen() {
                         {/* Top bar */}
                         {navigation.canGoBack() && (
                             <TouchableOpacity
-                                style={styles.backButton}
+                                style={[styles.backButton, { top: insets.top + 8 }]}
                                 onPress={() => navigation.goBack()}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
@@ -621,7 +621,7 @@ export default function HeroPreviewScreen() {
                         )}
 
                         <TouchableOpacity
-                            style={styles.loginButton}
+                            style={[styles.loginButton, { top: insets.top + 10 }]}
                             onPress={() => isLoggedIn
                                 ? navigation.navigate('Goals')
                                 : navigation.navigate('Auth', { mode: 'signin' })
@@ -637,7 +637,7 @@ export default function HeroPreviewScreen() {
                         </TouchableOpacity>
 
                         {/* Brand — centered, aligned with login button */}
-                        <View style={styles.brandSection}>
+                        <View style={[styles.brandSection, { top: Math.max(insets.top, 16) }]}>
                             <Text style={styles.brandTitle}>
                                 ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
                             </Text>
@@ -806,7 +806,7 @@ export default function HeroPreviewScreen() {
                             >
                                 <RNAnimated.View style={{ opacity: contentOpacity }}>
                                     <View style={styles.statContainer}>
-                                        <Text style={styles.statText}>
+                                        <Text style={styles.statText} numberOfLines={2}>
                                             {config.stat}
                                             <RNAnimated.Text style={{ color: animStatColor, ...Typography.subheading }}>
                                                 {config.statHighlight}
@@ -1303,13 +1303,16 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 outlineColor: colors.primary,
                 boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
             },
-            default: {
+            ios: {
                 borderColor: colors.primary,
                 shadowColor: colors.primary,
                 shadowOffset: { width: 0, height: 0 },
                 shadowRadius: 12,
                 shadowOpacity: 0.6,
-                elevation: 8,
+            },
+            android: {
+                // elevation creates gray shadow on Android — border-only glow instead
+                borderColor: colors.primary,
             },
         }),
     } as any,
@@ -1319,13 +1322,16 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 outlineColor: colors.warning,
                 boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
             },
-            default: {
+            ios: {
                 borderColor: colors.warning,
                 shadowColor: colors.warning,
                 shadowOffset: { width: 0, height: 0 },
                 shadowRadius: 12,
                 shadowOpacity: 0.6,
-                elevation: 8,
+            },
+            android: {
+                // elevation creates gray shadow on Android — border-only glow instead
+                borderColor: colors.warning,
             },
         }),
     } as any,

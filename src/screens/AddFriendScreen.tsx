@@ -33,11 +33,13 @@ import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
 const AddFriendScreen: React.FC = () => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<AddFriendNavigationProp>();
   const { state } = useApp();
@@ -229,7 +231,7 @@ const AddFriendScreen: React.FC = () => {
               keyExtractor={(item) => item.id}
               initialNumToRender={10}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.resultsList}
+              contentContainerStyle={[styles.resultsList, { paddingBottom: insets.bottom }]}
               keyboardShouldPersistTaps="handled"
               removeClippedSubviews={Platform.OS !== 'web'}
               maxToRenderPerBatch={10}

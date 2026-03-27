@@ -63,6 +63,7 @@ import { MotiView } from 'moti';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { toJSDate } from '../../utils/GoalHelpers';
 import Button from '../../components/Button';
@@ -890,6 +891,7 @@ const createHintStyles = (colors: typeof Colors) => StyleSheet.create({
 const JourneyScreen = () => {
   const navigation = useRecipientNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const routeParams = route.params as { goal?: Goal } | undefined;
   const passedGoal = routeParams?.goal;
   const colors = useColors();
@@ -1869,7 +1871,7 @@ const JourneyScreen = () => {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: Spacing.xl,
-          paddingBottom: currentGoal.isCompleted ? Spacing.sm : FOOTER_HEIGHT + Spacing.xl,
+          paddingBottom: currentGoal.isCompleted ? Spacing.sm : FOOTER_HEIGHT + Spacing.xl + insets.bottom,
           alignItems: 'center',
         }}
         refreshControl={

@@ -32,6 +32,7 @@ import { MotiView } from 'moti';
 import { EmptyState } from '../components/EmptyState';
 import { Card } from '../components/Card';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toJSDate } from '../utils/GoalHelpers';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
@@ -153,6 +154,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
 
 const PurchasedGiftsScreen = () => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { state } = useApp();
   const userId = state.user?.id;
@@ -287,7 +289,7 @@ const PurchasedGiftsScreen = () => {
           renderItem={renderGiftItem}
           keyExtractor={(item) => item.id!}
           initialNumToRender={6}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}
           removeClippedSubviews={Platform.OS !== 'web'}
           maxToRenderPerBatch={10}
           windowSize={5}

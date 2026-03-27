@@ -97,7 +97,7 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
     titlePrefix: 'I want to',
     titleSuffix: '',
     subtitle: 'Set your goal. Commit to a reward.\nGo earn it.',
-    stat: 'People with a reward on the line are\n',
+    stat: 'People with a reward on the line are ',
     statHighlight: '2x more likely',
     statSuffix: ' to build the habit.',
     statColor: colors.secondary,
@@ -152,7 +152,7 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
     titlePrefix: 'Help them',
     titleSuffix: '',
     subtitle: 'Empower someone you care about.\nYou only pay when they succeed.',
-    stat: 'A reward + someone backing them\nmakes them ',
+    stat: 'A reward + someone backing them makes them ',
     statHighlight: '2x more likely',
     statSuffix: ' to succeed.',
     statColor: colors.warning,
@@ -588,10 +588,10 @@ export default function ChallengeLandingScreen() {
                 <ScrollView
                     bounces={false}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}
                 >
                     {/* Hero Section — stacked gradients for smooth cross-fade */}
-                    <View style={styles.hero}>
+                    <View style={[styles.hero, { paddingTop: insets.top + vh(60) }]}>
                         <LinearGradient
                             colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
@@ -610,7 +610,7 @@ export default function ChallengeLandingScreen() {
                         {/* Top bar */}
                         {navigation.canGoBack() && (
                             <TouchableOpacity
-                                style={styles.backButton}
+                                style={[styles.backButton, { top: insets.top + 8 }]}
                                 onPress={() => navigation.goBack()}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
@@ -621,7 +621,7 @@ export default function ChallengeLandingScreen() {
                         )}
 
                         <TouchableOpacity
-                            style={styles.loginButton}
+                            style={[styles.loginButton, { top: insets.top + 10 }]}
                             onPress={() => isLoggedIn
                                 ? navigation.navigate('Goals')
                                 : navigation.navigate('Auth', { mode: 'signin' })
@@ -637,7 +637,7 @@ export default function ChallengeLandingScreen() {
                         </TouchableOpacity>
 
                         {/* Brand — centered, aligned with login button */}
-                        <View style={styles.brandSection}>
+                        <View style={[styles.brandSection, { top: Math.max(insets.top, 16) }]}>
                             <Text style={styles.brandTitle}>
                                 ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
                             </Text>
@@ -806,7 +806,7 @@ export default function ChallengeLandingScreen() {
                             >
                                 <RNAnimated.View style={{ opacity: contentOpacity }}>
                                     <View style={styles.statContainer}>
-                                        <Text style={styles.statText}>
+                                        <Text style={styles.statText} numberOfLines={2}>
                                             {config.stat}
                                             <RNAnimated.Text style={{ color: animStatColor, ...Typography.subheading }}>
                                                 {config.statHighlight}
@@ -1303,13 +1303,16 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 outlineColor: colors.primary,
                 boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
             },
-            default: {
+            ios: {
                 borderColor: colors.primary,
                 shadowColor: colors.primary,
                 shadowOffset: { width: 0, height: 0 },
                 shadowRadius: 12,
                 shadowOpacity: 0.6,
-                elevation: 8,
+            },
+            android: {
+                // elevation creates ugly gray shadow on Android — use border-only glow
+                borderColor: colors.primary,
             },
         }),
     } as any,
@@ -1319,13 +1322,15 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 outlineColor: colors.warning,
                 boxShadow: `0 0 8px ${colors.warning}80, 0 0 20px ${colors.warning}40, 0 0 40px ${colors.warning}20`,
             },
-            default: {
+            ios: {
                 borderColor: colors.warning,
                 shadowColor: colors.warning,
                 shadowOffset: { width: 0, height: 0 },
                 shadowRadius: 12,
                 shadowOpacity: 0.6,
-                elevation: 8,
+            },
+            android: {
+                borderColor: colors.warning,
             },
         }),
     } as any,

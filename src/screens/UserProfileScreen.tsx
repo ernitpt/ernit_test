@@ -918,13 +918,13 @@ const UserProfileScreen: React.FC = () => {
             onMomentumScrollEnd={() => { isTabPress.current = false; }}
             style={{ flex: 1 }}
           >
-            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT + insets.bottom }}>
               {renderTabContent('goals')}
             </View>
-            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT + insets.bottom }}>
               {renderTabContent('achievements')}
             </View>
-            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT }}>
+            <View style={{ width: screenWidth, paddingBottom: 80 + FOOTER_HEIGHT + insets.bottom }}>
               {renderTabContent('wishlist')}
             </View>
           </ScrollView>

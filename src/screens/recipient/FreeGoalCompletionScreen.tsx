@@ -29,6 +29,7 @@ import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'FreeGoalCompletion'>;
@@ -36,6 +37,7 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, 'FreeGoalCompletion
 const FreeGoalCompletionScreen = () => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
   const { state } = useApp();
@@ -242,12 +244,12 @@ const FreeGoalCompletionScreen = () => {
           fallSpeed={3000}
           colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
         />
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom }}>
           <LinearGradient
             colors={[colors.secondary, colors.cyan, colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.heroSection}
+            style={[styles.heroSection, { paddingTop: insets.top + Spacing.xl }]}
           >
             <Animated.View
               style={[styles.trophyContainer, { transform: [{ scale: Animated.multiply(scaleAnim, trophyPulse) }], opacity: fadeAnim }]}
@@ -355,13 +357,13 @@ const FreeGoalCompletionScreen = () => {
         colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
       />
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom }}>
         {/* Hero Section */}
         <LinearGradient
           colors={[colors.secondary, colors.cyan, colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.heroSection}
+          style={[styles.heroSection, { paddingTop: insets.top + Spacing.xl }]}
         >
           <Animated.View
             style={[

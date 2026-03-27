@@ -32,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
@@ -44,6 +45,7 @@ const FILTER_OPTIONS = [
 
 const FeedScreen: React.FC = () => {
     const colors = useColors();
+    const insets = useSafeAreaInsets();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { state } = useApp();
     const route = useRoute<FeedScreenRouteProp>();
@@ -303,7 +305,7 @@ const FeedScreen: React.FC = () => {
                         keyExtractor={(item) => item.id}
                         ListHeaderComponent={renderFilterRow}
                         renderItem={renderPost}
-                        contentContainerStyle={styles.list}
+                        contentContainerStyle={[styles.list, { paddingBottom: Spacing.lg + FOOTER_HEIGHT + insets.bottom }]}
                         accessibilityRole="list"
                         accessibilityLabel="Activity feed"
                         ListEmptyComponent={renderEmpty}

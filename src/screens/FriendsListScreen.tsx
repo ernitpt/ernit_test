@@ -33,6 +33,7 @@ import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -43,6 +44,7 @@ interface EnrichedFriend extends Friend {
 
 const FriendsListScreen: React.FC = () => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendsListNavigationProp>();
   const { state } = useApp();
@@ -182,7 +184,7 @@ const FriendsListScreen: React.FC = () => {
             renderItem={renderFriendItem}
             keyExtractor={(item) => item.id}
             initialNumToRender={10}
-            contentContainerStyle={styles.friendsList}
+            contentContainerStyle={[styles.friendsList, { paddingBottom: Spacing.sm + FOOTER_HEIGHT + insets.bottom }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={Platform.OS !== 'web'}

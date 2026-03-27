@@ -43,6 +43,7 @@ import * as Haptics from 'expo-haptics';
 import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 type NotificationNavigationProp = NativeStackNavigationProp<
@@ -88,6 +89,7 @@ const formatNotificationDate = (createdAt: Date | { toDate(): Date } | number | 
 
 const NotificationsScreen = () => {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { state } = useApp();
   const { showSuccess, showError, showInfo } = useToast();
@@ -1119,7 +1121,7 @@ const NotificationsScreen = () => {
 
         <View accessibilityLiveRegion="polite">
         {loading ? (
-          <ScrollView contentContainerStyle={styles.listContainer}>
+          <ScrollView contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}>
             <NotificationSkeleton />
             <NotificationSkeleton />
             <NotificationSkeleton />
@@ -1145,7 +1147,7 @@ const NotificationsScreen = () => {
             data={notifications.slice(0, displayCount)}
             renderItem={renderItem}
             keyExtractor={(item, index) => item.id || index.toString()}
-            contentContainerStyle={styles.listContainer}
+            contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={Platform.OS !== 'web'}
             initialNumToRender={8}
