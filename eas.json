@@ -13,6 +13,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "test"
       }
@@ -23,7 +24,7 @@
       "android": {
         "serviceAccountKeyPath": "./play-store-service-account.json",
         "track": "internal",
-        "releaseStatus": "completed"
+        "releaseStatus": "draft"
       }
     }
   }
