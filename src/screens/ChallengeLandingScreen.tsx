@@ -6,7 +6,6 @@ import {
     ScrollView,
     StyleSheet,
     Platform,
-    Dimensions,
     Linking,
     Animated as RNAnimated,
     useWindowDimensions,
@@ -36,15 +35,9 @@ import { analyticsService } from '../services/AnalyticsService';
 import { experienceService } from '../services/ExperienceService';
 
 // ─── Constants ────────────────────────────────────────────────────
-const SCREEN_W = Dimensions.get('window').width;
-
 const WORD_SLOT_HEIGHT = vh(58);
 const CONTENT_FADE_MS = 250;
-
-// Card sizing — responsive to screen width AND height
 const CARDS_PADDING = 16;
-const CARD_W = Math.min((SCREEN_W - CARDS_PADDING * 2) / 2, 260);
-const CARD_H = CARD_W * (0.9 + 0.75 * VH);
 
 // ─── Mode configs ─────────────────────────────────────────────────
 type LandingMode = 'self' | 'gift';
@@ -252,9 +245,12 @@ interface FlippableCardProps {
     label: string;
     labelOpacity: RNAnimated.Value;
     flipIndices?: number[];
+    cardW: number;
+    cardH: number;
 }
 
-function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftStyle, glowSelfOpacity, glowGiftOpacity, label, labelOpacity, flipIndices = [] }: FlippableCardProps) {
+function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftStyle, glowSelfOpacity, glowGiftOpacity, label, labelOpacity, flipIndices = [], cardW, cardH }: FlippableCardProps) {
+    const fStyles = useMemo(() => createFlipStyles(cardW, cardH), [cardW, cardH]);
     const rotation = useSharedValue(0);
     const [frontIndex, setFrontIndex] = useState(currentIndex);
     const [backIndex, setBackIndex] = useState(currentIndex);
@@ -310,37 +306,37 @@ function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftSty
     return (
         <View style={style}>
             {/* Back face (sits behind, pre-rotated 180) */}
-            <Animated2.View style={[flipStyles.faceOuter, backAnimStyle]}>
-                <RNAnimated.View style={[flipStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
-                <RNAnimated.View style={[flipStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
-                <View style={flipStyles.face}>
+            <Animated2.View style={[fStyles.faceOuter, backAnimStyle]}>
+                <RNAnimated.View style={[fStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
+                <RNAnimated.View style={[fStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
+                <View style={fStyles.face}>
                     <Image
                         source={{ uri: images[backIndex] }}
-                        style={[flipStyles.img, flipIndices.includes(backIndex) && { transform: [{ scaleX: -1 }] }]}
+                        style={[fStyles.img, flipIndices.includes(backIndex) && { transform: [{ scaleX: -1 }] }]}
                         contentFit="cover"
                         cachePolicy="memory-disk"
                     />
-                    <View style={flipStyles.labelWrap}>
-                        <View style={flipStyles.labelPill}>
-                            <Text style={flipStyles.label}>{label}</Text>
+                    <View style={fStyles.labelWrap}>
+                        <View style={fStyles.labelPill}>
+                            <Text style={fStyles.label}>{label}</Text>
                         </View>
                     </View>
                 </View>
             </Animated2.View>
             {/* Front face */}
-            <Animated2.View style={[flipStyles.faceOuter, frontAnimStyle]}>
-                <RNAnimated.View style={[flipStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
-                <RNAnimated.View style={[flipStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
-                <View style={flipStyles.face}>
+            <Animated2.View style={[fStyles.faceOuter, frontAnimStyle]}>
+                <RNAnimated.View style={[fStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
+                <RNAnimated.View style={[fStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
+                <View style={fStyles.face}>
                     <Image
                         source={{ uri: images[frontIndex] }}
-                        style={[flipStyles.img, flipIndices.includes(frontIndex) && { transform: [{ scaleX: -1 }] }]}
+                        style={[fStyles.img, flipIndices.includes(frontIndex) && { transform: [{ scaleX: -1 }] }]}
                         contentFit="cover"
                         cachePolicy="memory-disk"
                     />
-                    <View style={flipStyles.labelWrap}>
-                        <View style={flipStyles.labelPill}>
-                            <Text style={flipStyles.label}>{label}</Text>
+                    <View style={fStyles.labelWrap}>
+                        <View style={fStyles.labelPill}>
+                            <Text style={fStyles.label}>{label}</Text>
                         </View>
                     </View>
                 </View>
@@ -349,16 +345,16 @@ function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftSty
     );
 }
 
-const flipStyles = StyleSheet.create({
+const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
     faceOuter: {
         position: 'absolute',
-        width: CARD_W,
-        height: CARD_H,
+        width: cardW,
+        height: cardH,
         backfaceVisibility: 'hidden',
     } as any,
     face: {
-        width: CARD_W,
-        height: CARD_H,
+        width: cardW,
+        height: cardH,
         borderRadius: BorderRadius.xl,
         overflow: 'hidden',
         backgroundColor: Colors.cardDarkBg,
@@ -407,7 +403,10 @@ type LandingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chal
 
 export default function ChallengeLandingScreen() {
     const colors = useColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const { width: screenW } = useWindowDimensions();
+    const cardW = Math.min((screenW - CARDS_PADDING * 2) / 2, 260);
+    const cardH = cardW * (0.9 + 0.75 * VH);
+    const styles = useMemo(() => createStyles(colors, screenW, cardW, cardH), [colors, screenW, cardW, cardH]);
     const SELF_CONFIG = useMemo(() => getSelfConfig(colors), [colors]);
     const GIFT_CONFIG = useMemo(() => getGiftConfig(colors), [colors]);
     const navigation = useNavigation<LandingNavigationProp>();
@@ -774,6 +773,8 @@ export default function ChallengeLandingScreen() {
                                                 label={mode === 'self' ? 'Your goal' : 'The goal'}
                                                 labelOpacity={contentOpacity}
                                                 flipIndices={[3]}
+                                                cardW={cardW}
+                                                cardH={cardH}
                                             />
                                         </View>
 
@@ -789,6 +790,8 @@ export default function ChallengeLandingScreen() {
                                                 glowGiftOpacity={sliderAnim}
                                                 label={mode === 'self' ? 'Your reward' : 'The reward'}
                                                 labelOpacity={contentOpacity}
+                                                cardW={cardW}
+                                                cardH={cardH}
                                             />
                                         </View>
                                     </View>
@@ -1080,7 +1083,7 @@ export default function ChallengeLandingScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────
-const createStyles = (colors: typeof Colors) => StyleSheet.create({
+const createStyles = (colors: typeof Colors, screenW: number, cardW: number, cardH: number) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.surface,
@@ -1264,7 +1267,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
     // ── Dual image carousels ──────────────────────
     cardsRowOuter: {
-        width: SCREEN_W,
+        width: screenW,
         alignSelf: 'center',
         marginHorizontal: -24,
         marginTop: vh(-3),
@@ -1275,22 +1278,22 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
-        height: CARD_H + 40,
+        height: cardH + 40,
     },
     cardImageCard: {
-        width: CARD_W,
-        height: CARD_H,
+        width: cardW,
+        height: cardH,
     },
     cardPosition: {
         position: 'absolute',
     },
     cardGoalPos: {
-        left: SCREEN_W / 2 - CARD_W + 5 + vh(5),
+        left: screenW / 2 - cardW + 5 + vh(5),
         transform: [{ rotate: '-6deg' }],
         zIndex: 1,
     },
     cardRewardPos: {
-        left: SCREEN_W / 2 - 15 + vh(0),
+        left: screenW / 2 - 15 + vh(0),
         transform: [{ rotate: '6deg' }],
         zIndex: 2,
     },
