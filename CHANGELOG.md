@@ -368,6 +368,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace Dimensions.get with useWindowDimensions, fix hardcoded confetti colors, add accessibility labels
 - final verification pass — all 20 tasks confirmed complete, zero new issues found
 - replace hardcoded hex colors with design tokens in ChallengeLandingScreen and HeroPreviewScreen
+- fix inline fontWeight override in GoalsScreen completedHeaderText
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -820,6 +821,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - surfaceFrosted opacity in light mode — rgba(255,255,255,1) → 0.92 for proper frosted glass effect
 - gift claim permissions, nested buttons, duplicate claim prevention
 - Android layout — responsive dimensions, safe maxWidth, StatusBar
+- replace remaining ActivityIndicator spinners with skeleton loaders
+- ui/ux audit — replace inline fontWeight/fontSize with Typography presets and magic numbers with Spacing tokens in NotificationsScreen and UserProfileScreen
+- UI/UX audit — core navigation screens
 
 ### Added
 - Automatic changelog system with `npm run log` script

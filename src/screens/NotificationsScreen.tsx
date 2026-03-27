@@ -980,7 +980,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={[styles.reminderMessage, { color: colors.warning, fontWeight: '600', marginTop: Spacing.xs }]}>
+                <Text style={[styles.reminderMessage, { ...Typography.smallBold, color: colors.warning, marginTop: Spacing.xs }]}>
                   Set up your goal →
                 </Text>
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
@@ -1212,8 +1212,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   markAllReadButtonText: {
     color: colors.success,
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   clearAllButton: {
     backgroundColor: colors.primarySurface,
@@ -1225,8 +1224,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   clearAllButtonText: {
     color: colors.primary,
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   listContainer: {
     padding: Spacing.xl,

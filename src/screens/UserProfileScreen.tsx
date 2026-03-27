@@ -1074,7 +1074,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: Typography.displayLarge.fontSize, fontWeight: '700', color: colors.white },
+  placeholderText: { ...Typography.displayLarge, color: colors.white },
   editIconButton: {
     position: 'absolute',
     bottom: 0,
@@ -1181,8 +1181,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   experienceImage: { width: '100%', height: vh(140), backgroundColor: colors.border },
   wishlistHeartButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: Spacing.sm,
+    right: Spacing.sm,
     backgroundColor: colors.overlay,
     padding: Spacing.xs,
     borderRadius: BorderRadius.xl,
@@ -1278,8 +1278,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   // Completed badge overlay
   achCompletedBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: Spacing.md,
+    right: Spacing.md,
     backgroundColor: colors.primaryOverlay,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,

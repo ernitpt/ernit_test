@@ -623,8 +623,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.sm,
   },
   completedHeaderText: {
-    ...Typography.subheading,
-    fontWeight: '700',
+    ...Typography.heading3,
     color: colors.gray700,
   },
 });
