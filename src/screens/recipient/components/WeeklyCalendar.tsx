@@ -157,8 +157,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  dayTextEmpty: { color: colors.textSecondary, fontWeight: '600' },
-  dayTextFilled: { color: colors.white, fontWeight: '700' },
+  dayTextEmpty: { ...Typography.captionBold, color: colors.textSecondary },
+  dayTextFilled: { ...Typography.captionBold, fontWeight: '700', color: colors.white },
   dateLabel: {
     ...Typography.caption,
     color: colors.textMuted,
@@ -166,16 +166,17 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     textAlign: 'center',
   },
   todayDateLabel: {
+    ...Typography.captionBold,
     color: colors.secondary,
-    fontWeight: '700',
   },
   todayCircleBorder: {
     borderColor: colors.secondary,
     borderWidth: 3,
   },
   todayText: {
-    color: colors.secondary,
+    ...Typography.captionBold,
     fontWeight: '700',
+    color: colors.secondary,
   },
 });
 

@@ -386,8 +386,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.secondary,
   },
   filterText: {
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
     color: colors.textSecondary,
   },
   filterTextActive: {

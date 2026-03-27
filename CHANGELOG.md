@@ -369,6 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - final verification pass — all 20 tasks confirmed complete, zero new issues found
 - replace hardcoded hex colors with design tokens in ChallengeLandingScreen and HeroPreviewScreen
 - fix inline fontWeight override in GoalsScreen completedHeaderText
+- P2 typography audit — replace standalone fontWeight with Typography presets across StreakBanner, SessionActionArea, TimerDisplay, WeeklyCalendar, ProgressBars sub-components
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -828,6 +829,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - P2 typography audit — replace standalone fontWeight and vh() font sizes with Typography presets across 8 recipient screens and GiftFlowScreen
 - UI/UX audit — giver flow screens
 - UI/UX audit — recipient flow screens
+- replace hardcoded fontSize/fontWeight with Typography presets in auth, landing, and social screens
+- UI/UX audit — auth, social, and sub-component screens
 
 ### Added
 - Automatic changelog system with `npm run log` script

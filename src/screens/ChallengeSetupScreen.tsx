@@ -751,7 +751,7 @@ export default function ChallengeSetupScreen() {
                             alignItems: 'center',
                         }}>
                             <Text style={{
-                                fontSize: vh(48),
+                                ...Typography.display,
                                 fontWeight: '800',
                                 color: colors.secondary,
                                 letterSpacing: -2,
@@ -825,9 +825,8 @@ export default function ChallengeSetupScreen() {
                     activeOpacity={0.7}
                 >
                     <Text style={{
-                        ...Typography.body,
+                        ...Typography.bodyBold,
                         color: colors.primary,
-                        fontWeight: '600',
                     }}>
                         {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
                     </Text>
@@ -1732,8 +1731,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingBottom: vh(16),
     },
     stepTitle: {
-        ...Typography.heading1,
-        fontWeight: '800',
+        ...Typography.heading1Bold,
         color: colors.gray800,
         marginBottom: vh(8),
     },
@@ -1867,7 +1865,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
         ...Typography.heading3,
-        fontWeight: '700',
         textAlign: 'center',
         backgroundColor: colors.white,
         color: colors.gray800,

@@ -406,12 +406,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xxs,
   },
   streakNumber: {
-    ...Typography.heading1,
-    fontWeight: '800',
+    ...Typography.heading1Bold,
   },
   titleText: {
     ...Typography.heading3,
-    fontWeight: '700',
   },
   subtitle: {
     ...Typography.caption,
@@ -448,10 +446,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.warningDark,
   },
   weeklyRow: {
-    ...Typography.caption,
+    ...Typography.captionBold,
     color: colors.warningDark,
     marginTop: Spacing.xxs,
-    fontWeight: '600',
   },
 });
 

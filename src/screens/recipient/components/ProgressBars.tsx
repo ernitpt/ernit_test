@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { createCardColors } from '../goalCardUtils';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
+import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
 
 // ─── Capsule ────────────────────────────────────────────────────────
@@ -136,7 +137,7 @@ const AnimatedCount: React.FC<{ value: number; total: number }> = React.memo(({ 
   }, [value, scaleAnim]);
 
   return (
-    <Animated.Text style={[{ color: colors.textPrimary, fontWeight: '600' }, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.Text style={[Typography.smallBold, { color: colors.textPrimary }, { transform: [{ scale: scaleAnim }] }]}>
       {value}/{total}
     </Animated.Text>
   );

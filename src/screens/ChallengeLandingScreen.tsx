@@ -397,8 +397,7 @@ const flipStyles = StyleSheet.create({
         paddingVertical: Spacing.xxs,
     },
     label: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: Colors.textOnImage,
     },
 });
@@ -806,7 +805,7 @@ export default function ChallengeLandingScreen() {
                                     <View style={styles.statContainer}>
                                         <Text style={styles.statText}>
                                             {config.stat}
-                                            <RNAnimated.Text style={{ color: animStatColor, fontWeight: '700' }}>
+                                            <RNAnimated.Text style={{ color: animStatColor, ...Typography.subheading }}>
                                                 {config.statHighlight}
                                             </RNAnimated.Text>
                                             {config.statSuffix}
@@ -1141,7 +1140,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         zIndex: 10,
     },
     brandTitle: {
-        fontSize: 40,
+        ...Typography.displayLarge,
         fontWeight: '900',
         fontStyle: 'italic',
         color: colors.gray800,
@@ -1210,8 +1209,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         }),
     } as any,
     heroTitle: {
+        ...Typography.heading1,
         fontFamily: Platform.select({ web: '"DM Serif Display", Georgia, serif', default: 'Outfit_700Bold' }),
-        fontSize: vh(38),
         fontWeight: '400',
         color: colors.gray800,
         lineHeight: vh(42),
@@ -1241,7 +1240,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     dialWord: {
         ...Typography.display,
         fontFamily: Platform.select({ web: '"Plus Jakarta Sans", system-ui, sans-serif', default: 'Outfit_800ExtraBold' }),
-        fontSize: vh(50),
         fontWeight: '800',
         textTransform: 'uppercase',
         lineHeight: WORD_SLOT_HEIGHT,
@@ -1261,7 +1259,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         color: colors.gray800,
         lineHeight: vh(30),
         marginBottom: vh(2),
-        fontSize: vh(18),
         textAlign: 'center',
     },
 
@@ -1413,8 +1410,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         textAlign: 'center',
     },
     sectionTitle: {
-        ...Typography.display,
-        fontWeight: '800',
+        ...Typography.displayBold,
         color: colors.gray800,
         marginBottom: Spacing.huge,
         textAlign: 'center',
@@ -1485,8 +1481,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         alignItems: 'center',
     },
     finalCtaTitle: {
-        ...Typography.display,
-        fontWeight: '800',
+        ...Typography.displayBold,
         color: colors.gray800,
         marginBottom: Spacing.sm,
         textAlign: 'center',
@@ -1546,8 +1541,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         textAlign: 'center',
     },
     founderRole: {
-        ...Typography.small,
-        fontWeight: '600',
+        ...Typography.smallBold,
         marginBottom: Spacing.sm,
         textAlign: 'center',
     },
@@ -1564,8 +1558,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         shadowOpacity: 0.04,
     },
     incubatorText: {
-        ...Typography.small,
-        fontWeight: '500',
+        ...Typography.smallMedium,
         color: colors.gray800,
     },
     incubatorLogo: {
@@ -1581,7 +1574,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         backgroundColor: colors.landingSectionBg,
     },
     footerBrand: {
-        fontSize: 48,
+        ...Typography.display,
         fontWeight: '900',
         fontStyle: 'italic',
         color: colors.gray800,

@@ -1136,7 +1136,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     marginBottom: Spacing.xs,
   },
   progressHeaderLabel: { ...Typography.caption, color: colors.textSecondary },
-  progressHeaderValue: { ...Typography.caption, fontWeight: "600", color: colors.textPrimary },
+  progressHeaderValue: { ...Typography.captionBold, color: colors.textPrimary },
 
   // Wishlist card
   experienceCard: {

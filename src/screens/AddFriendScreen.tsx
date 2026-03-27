@@ -321,8 +321,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   addButtonText: {
     color: colors.white,
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   friendButton: {
     backgroundColor: colors.secondary,
@@ -332,8 +331,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   friendButtonText: {
     color: colors.white,
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   pendingButton: {
     backgroundColor: colors.warning,
@@ -343,8 +341,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   pendingButtonText: {
     color: colors.white,
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   backButtonHero: {
     width: 40,

@@ -202,7 +202,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerTitle: { ...Typography.heading1, fontWeight: '700', color: colors.textPrimary, marginTop: Spacing.xs },
+  headerTitle: { ...Typography.heading1, color: colors.textPrimary, marginTop: Spacing.xs },
 
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -212,12 +212,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     padding: Spacing.xl,
     ...Shadows.sm,
   },
-  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.sm },
+  title: { ...Typography.large, color: colors.textPrimary, marginBottom: Spacing.sm },
   desc: { ...Typography.subheading, color: colors.textSecondary, marginBottom: Spacing.lg },
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  label: { ...Typography.small, color: colors.gray600, fontWeight: '600' },
-  value: { ...Typography.small, color: colors.textPrimary, fontWeight: '600' },
+  label: { ...Typography.smallBold, color: colors.gray600 },
+  value: { ...Typography.smallBold, color: colors.textPrimary },
 
   progressBg: { backgroundColor: colors.border, borderRadius: BorderRadius.sm, height: 12 },
   progressFill: { backgroundColor: colors.secondary, height: 12, borderRadius: BorderRadius.sm },

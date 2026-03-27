@@ -820,7 +820,7 @@ const AuthScreen = () => {
                   resizeMode="contain"
                   accessibilityLabel="Ernit app logo"
                 />
-                <Text style={{ fontSize: Typography.emoji.fontSize, fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg }}>
+                <Text style={{ ...Typography.displayLarge, color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg }}>
                   {isLogin ? 'Welcome Back' : 'Join Ernit'}
                 </Text>
                 <Text style={{ ...Typography.heading3, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 }}>
@@ -847,7 +847,7 @@ const AuthScreen = () => {
                     disabled={isLoading || !request}
                     fullWidth
                     title="Continue with Google"
-                    icon={<Text style={{ ...Typography.subheading, fontWeight: '700', color: colors.googleBlue }}>G</Text>}
+                    icon={<Text style={{ ...Typography.heading3, color: colors.googleBlue }}>G</Text>}
                     style={{ marginBottom: Spacing.xl }}
                   />
 
@@ -858,7 +858,7 @@ const AuthScreen = () => {
                     marginBottom: Spacing.xl,
                   }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                    <Text style={{ marginHorizontal: Spacing.lg, color: colors.textSecondary, ...Typography.small, fontWeight: '500' }}>or</Text>
+                    <Text style={{ marginHorizontal: Spacing.lg, color: colors.textSecondary, ...Typography.smallMedium }}>or</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                   </View>
 
@@ -955,7 +955,7 @@ const AuthScreen = () => {
 
                     {!isLogin && password.length > 0 && (
                       <View style={{ marginTop: Spacing.md, padding: Spacing.md, backgroundColor: colors.backgroundLight, borderRadius: BorderRadius.sm }}>
-                        <Text style={{ ...Typography.caption, fontWeight: '600', color: colors.gray700, marginBottom: Spacing.sm }}>
+                        <Text style={{ ...Typography.captionBold, color: colors.gray700, marginBottom: Spacing.sm }}>
                           Password Requirements:
                         </Text>
                         <View style={{ gap: Spacing.xs }}>
@@ -1019,7 +1019,7 @@ const AuthScreen = () => {
                         onPress={handlePasswordReset}
                         title="Forgot password?"
                         style={{ alignSelf: 'flex-end', marginTop: Spacing.sm }}
-                        textStyle={{ color: colors.primary, ...Typography.small, fontWeight: '500' }}
+                        textStyle={{ color: colors.primary, ...Typography.smallMedium }}
                       />
                     )}
                   </View>
@@ -1149,7 +1149,6 @@ const AuthScreen = () => {
                               <Text
                                 style={{
                                   ...Typography.heading3,
-                                  fontWeight: '700',
                                   color: colors.white,
                                   textAlign: 'center',
                                   letterSpacing: 0.5,
@@ -1166,7 +1165,6 @@ const AuthScreen = () => {
                             <Text
                               style={{
                                 ...Typography.heading3,
-                                fontWeight: '700',
                                 color: isButtonDisabled ? colors.textSecondary : colors.white,
                                 textAlign: 'center',
                                 letterSpacing: 0.5,
@@ -1202,7 +1200,7 @@ const AuthScreen = () => {
                     }}
                     title={isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
                     style={{ alignSelf: 'center' }}
-                    textStyle={{ ...Typography.subheading, color: colors.primary, fontWeight: '600' }}
+                    textStyle={{ ...Typography.subheading, color: colors.primary }}
                   />
                 </View>
               </View>

@@ -208,15 +208,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'center',
   },
   weekCompleteText: {
-    ...Typography.body,
+    ...Typography.bodyBold,
     color: colors.primaryDeep,
-    fontWeight: '700',
     marginBottom: Spacing.xs,
   },
   weekCompleteSub: {
     ...Typography.caption,
     color: colors.primaryDark,
-    fontWeight: '500',
   },
   approvalMessageBox: {
     padding: Spacing.md,
@@ -238,9 +236,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'center',
   },
   disabledStartText: {
-    ...Typography.small,
+    ...Typography.smallBold,
     color: colors.textSecondary,
-    fontWeight: '600',
     textAlign: 'center',
   },
   startButton: { backgroundColor: colors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
@@ -284,18 +281,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   loggedTodayCheckText: {
     ...Typography.large,
     color: colors.white,
-    fontWeight: '800',
   },
   loggedTodayTitle: {
     ...Typography.subheading,
     color: colors.primaryDark,
-    fontWeight: '700',
     marginBottom: Spacing.xs,
   },
   loggedTodaySub: {
     ...Typography.caption,
     color: colors.textSecondary,
-    fontWeight: '500',
   },
 });
 

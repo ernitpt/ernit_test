@@ -444,7 +444,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerText: { ...Typography.display, fontWeight: 'bold', color: colors.textPrimary },
+  timerText: { ...Typography.display, color: colors.textPrimary },
   almostDoneText: {
     ...Typography.caption,
     fontWeight: '600',
