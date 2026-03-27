@@ -827,6 +827,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - P1/P4 violations in giver flow screens — replace raw TextInput with shared component, add categoryAmberSurface token, remove hex-opacity concatenation
 - P2 typography audit — replace standalone fontWeight and vh() font sizes with Typography presets across 8 recipient screens and GiftFlowScreen
 - UI/UX audit — giver flow screens
+- UI/UX audit — recipient flow screens
 
 ### Added
 - Automatic changelog system with `npm run log` script
