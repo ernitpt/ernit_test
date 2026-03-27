@@ -1767,15 +1767,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     right: Spacing.sm,
     zIndex: 10,
   },
-  title: { ...Typography.large, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs, textAlign: 'center' },
-  titlePartnerSuffix: { ...Typography.small, fontWeight: '400', color: colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
+  title: { ...Typography.large, color: colors.textPrimary, marginBottom: Spacing.xs, textAlign: 'center' },
+  titlePartnerSuffix: { ...Typography.small, color: colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
   empoweredText: { ...Typography.small, color: colors.textSecondary, marginBottom: Spacing.md, textAlign: 'center' },
   mysteryBadge: {
     alignSelf: 'center', backgroundColor: colors.warningLight, paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, marginBottom: Spacing.md,
     borderWidth: 1, borderColor: colors.warningBorder,
   },
-  mysteryBadgeText: { ...Typography.caption, fontWeight: '700', color: colors.warningDark },
+  mysteryBadgeText: { ...Typography.captionBold, color: colors.warningDark },
   experienceBadge: {
     flexDirection: 'row',
     alignSelf: 'center',
@@ -1788,17 +1788,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.xs,
   },
   experienceBadgeText: {
-    ...Typography.caption,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: colors.primary,
     flexShrink: 1,
   },
-  selfChallengeText: { ...Typography.small, color: colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
-  startDateText: { ...Typography.caption, color: colors.primary, marginBottom: Spacing.md, fontWeight: '600', textAlign: 'center' },
+  selfChallengeText: { ...Typography.smallBold, color: colors.primary, marginBottom: Spacing.md, textAlign: 'center' },
+  startDateText: { ...Typography.captionBold, color: colors.primary, marginBottom: Spacing.md, textAlign: 'center' },
   projectedFinish: {
     ...Typography.caption,
     color: colors.primary,
-    fontWeight: '500',
     textAlign: 'center',
     marginTop: Spacing.xs,
     marginBottom: Spacing.xxs,
@@ -1811,7 +1809,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
   },
   debugTitle: {
-    ...Typography.caption, fontWeight: '700', color: colors.textSecondary,
+    ...Typography.captionBold, color: colors.textSecondary,
     marginBottom: Spacing.md, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   debugButtonsRow: { flexDirection: 'row', gap: Spacing.sm },
@@ -1820,7 +1818,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm,
     alignItems: 'center', borderWidth: 1, borderColor: colors.gray300,
   },
-  debugButtonText: { ...Typography.caption, fontWeight: '600', color: colors.gray700 },
+  debugButtonText: { ...Typography.captionBold, color: colors.gray700 },
 
   // Together mode: avatar toggle row
   avatarToggleRow: {
@@ -1846,13 +1844,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.primaryBorder,
   },
   avatarToggleText: {
-    ...Typography.caption,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: colors.textMuted,
   },
   avatarToggleTextActive: {
     color: colors.primary,
-    fontWeight: '700',
+    ...Typography.captionBold,
   },
   // M4: Waiting for partner banners
   deadlineWarning: {
@@ -1872,8 +1869,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderLeftColor: colors.warning,
   },
   deadlineWarningText: {
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
   },
   waitingBanner: {
     marginTop: Spacing.md,
@@ -1889,9 +1885,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   waitingBannerText: {
-    ...Typography.small,
+    ...Typography.smallBold,
     color: colors.warningDark,
-    fontWeight: '600',
     flex: 1,
   },
   resendInviteButton: {

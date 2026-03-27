@@ -606,8 +606,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     elevation: 15,
   },
   heroTitle: {
-    fontSize: Typography.heroSub.fontSize,
-    fontWeight: '900',
+    ...Typography.heroSub,
     color: colors.white,
     textAlign: 'center',
     marginBottom: Spacing.md,
@@ -616,8 +615,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     textShadowRadius: 8,
   },
   celebrationMessage: {
-    ...Typography.display,
-    fontWeight: '800',
+    ...Typography.displayBold,
     marginTop: Spacing.sm,
     marginBottom: Spacing.md,
     textAlign: 'center',
@@ -648,20 +646,18 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    ...Typography.display,
-    fontWeight: '900',
+    ...Typography.displayBold,
     color: colors.white,
     textShadowColor: colors.blackAlpha20,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   statLabel: {
-    ...Typography.caption,
+    ...Typography.captionBold,
     color: colors.whiteAlpha90,
     marginTop: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
-    fontWeight: '600',
   },
   statDivider: {
     width: 2,
@@ -690,7 +686,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   achievementTitle: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   goalTitle: {
@@ -714,13 +709,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.md,
   },
   statsNumber: {
-    ...Typography.display,
-    fontWeight: '800',
+    ...Typography.displayBold,
     color: colors.warning,
   },
   statsLabel: {
     ...Typography.subheading,
-    fontWeight: '600',
     color: colors.warningDark,
   },
   // Pledged experience card
@@ -745,7 +738,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   experienceHeaderText: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   experienceImage: {
@@ -776,7 +768,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   priceText: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.successMedium,
   },
   // Empowerment card
@@ -797,7 +788,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   empowerTitle: {
     ...Typography.large,
-    fontWeight: '800',
     color: colors.primaryDark,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
@@ -820,8 +810,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   deadlineText: {
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
     color: colors.primaryDark,
   },
   // Action buttons
@@ -850,7 +839,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   shareButtonText: {
     color: colors.white,
     ...Typography.heading3,
-    fontWeight: '700',
   },
   goalsButton: {
     backgroundColor: colors.backgroundLight,
@@ -861,7 +849,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   goalsButtonText: {
     color: colors.gray700,
     ...Typography.subheading,
-    fontWeight: '600',
   },
 });
 

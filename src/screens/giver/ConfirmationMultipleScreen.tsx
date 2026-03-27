@@ -8,8 +8,8 @@ import {
   Animated,
   Platform,
   Share,
-  TextInput,
 } from 'react-native';
+import { TextInput } from '../../components/TextInput';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
@@ -354,16 +354,17 @@ Earn it. Unlock it. Enjoy it 🚀
                       It will show up when they redeem the gift.
                     </Text>
                     <TextInput
-                      style={styles.messageInput}
                       placeholder="Your message here..."
-                      placeholderTextColor={colors.textMuted}
                       multiline
                       value={personalizedMessages[item.gift.id || ''] || ''}
                       onChangeText={(text) => handleMessageChange(item.gift.id || '', text)}
                       textAlignVertical="top"
                       maxLength={500}
                       editable={!messageSentStatus[item.gift.id || '']}
+                      disabled={messageSentStatus[item.gift.id || '']}
                       accessibilityLabel={`Personal message for ${item.experience.title}`}
+                      inputStyle={styles.messageInputInner}
+                      containerStyle={styles.messageInputContainer}
                     />
                     {!messageSentStatus[item.gift.id || ''] && (
                       <Button
@@ -607,16 +608,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
-  messageInput: {
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    ...Typography.small,
-    color: colors.textPrimary,
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: colors.border,
+  messageInputContainer: {
     marginBottom: Spacing.sm,
+  },
+  messageInputInner: {
+    minHeight: 80,
   },
   sendMessageButton: {
     backgroundColor: colors.secondary,

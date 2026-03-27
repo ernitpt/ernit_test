@@ -416,15 +416,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'center',
   },
   headingLine1: {
-    fontSize: Typography.displayLarge.fontSize,
-    fontWeight: '700',
+    ...Typography.displayLarge,
     color: colors.primary,
     textAlign: 'center',
     marginBottom: Spacing.xl,
   },
   headingLine2: {
-    fontSize: Typography.displayLarge.fontSize,
-    fontWeight: '700',
+    ...Typography.displayLarge,
     color: colors.primary,
     textAlign: 'center',
     marginTop: -28,
@@ -483,9 +481,8 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    ...Typography.small,
+    ...Typography.smallBold,
     textAlign: 'center',
-    fontWeight: '600',
   },
 
   // ── Info box ────────────────────────────────────────────────
@@ -502,7 +499,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   infoTitle: {
     color: colors.textPrimary,
     ...Typography.heading3,
-    fontWeight: '700',
     marginBottom: Spacing.lg,
     textAlign: 'center',
   },
@@ -552,7 +548,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   continueButtonText: {
     color: colors.white,
-    fontWeight: '700',
     ...Typography.heading3,
     letterSpacing: 0.3,
   },

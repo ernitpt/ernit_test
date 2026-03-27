@@ -944,10 +944,10 @@ export default function GiftFlowScreen() {
                             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                             justifyContent: 'center', alignItems: 'center',
                         }}>
-                            <Text style={{ fontSize: vh(48), fontWeight: '800', color: colors.secondary, letterSpacing: -2 }}>
+                            <Text style={{ ...Typography.displayBold, color: colors.secondary, letterSpacing: -2 }}>
                                 {visMinutes}
                             </Text>
-                            <Text style={{ ...Typography.caption, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 2 }}>
+                            <Text style={{ ...Typography.captionBold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 2 }}>
                                 MINUTES
                             </Text>
                         </View>
@@ -961,7 +961,7 @@ export default function GiftFlowScreen() {
                             return (
                                 <Text key={m} style={{
                                     position: 'absolute', left: mx - 10, top: my - 8,
-                                    ...Typography.caption, fontWeight: '700', color: colors.textMuted,
+                                    ...Typography.captionBold, color: colors.textMuted,
                                     width: 20, textAlign: 'center',
                                 }}>{m}</Text>
                             );
@@ -996,7 +996,7 @@ export default function GiftFlowScreen() {
                     onPress={() => setShowCustomTime(!showCustomTime)}
                     activeOpacity={0.7}
                 >
-                    <Text style={{ ...Typography.body, color: colors.primary, fontWeight: '600' }}>
+                    <Text style={{ ...Typography.bodyBold, color: colors.primary }}>
                         {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
                     </Text>
                 </TouchableOpacity>
@@ -1045,7 +1045,7 @@ export default function GiftFlowScreen() {
                 )}
 
                 {validationErrors.time && (
-                    <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
+                    <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, textAlign: 'center' }}>
                         Please set a time per session (at least 5 minutes)
                     </Text>
                 )}
@@ -1968,8 +1968,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         borderRadius: BorderRadius.md,
     },
     stepIndicatorText: {
-        ...Typography.caption,
-        fontWeight: '700',
+        ...Typography.captionBold,
         color: colors.primary,
     },
 
@@ -1983,8 +1982,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingBottom: vh(16),
     },
     stepTitle: {
-        ...Typography.heading1,
-        fontWeight: '800',
+        ...Typography.heading1Bold,
         color: colors.gray800,
         marginBottom: vh(8),
     },
@@ -2095,8 +2093,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         gap: Spacing.sm,
     },
     sliderValue: {
-        ...Typography.display,
-        fontWeight: '900',
+        ...Typography.displayBold,
         color: colors.gray800,
     },
     sliderUnit: {
@@ -2109,8 +2106,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         marginBottom: Spacing.md,
     },
     sliderLabelText: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.textMuted,
     },
     sliderThumbInner: {
@@ -2138,7 +2134,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
         ...Typography.heading3,
-        fontWeight: '700',
         textAlign: 'center',
         backgroundColor: colors.white,
         color: colors.gray800,
@@ -2195,8 +2190,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         width: '100%',
     },
     expTitle: {
-        ...Typography.caption,
-        fontWeight: '700',
+        ...Typography.captionBold,
         color: colors.textSecondary,
         textAlign: 'center',
     },
@@ -2264,7 +2258,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     },
     createButtonText: {
         ...Typography.subheading,
-        fontWeight: '700',
         color: colors.white,
     },
 
@@ -2306,13 +2299,11 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingVertical: Spacing.xs,
     },
     heroDetailsText: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.primary,
     },
     footerHeroTitle: {
         ...Typography.subheading,
-        fontWeight: '800',
         color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
@@ -2334,8 +2325,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         ...Typography.small,
     },
     contextText: {
-        ...Typography.caption,
-        fontWeight: '700',
+        ...Typography.captionBold,
         color: colors.gray600,
     },
     contextDivider: {
@@ -2344,8 +2334,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         backgroundColor: colors.border,
     },
     contextLabel: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.textSecondary,
     },
 
@@ -2389,7 +2378,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         marginBottom: Spacing.xs,
     },
     modalLabel: {
-        fontWeight: '600',
+        ...Typography.bodyBold,
         color: colors.primaryDeep,
     },
     pledgeNote: {
@@ -2532,7 +2521,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     },
     rewardCategoryLabel: {
         ...Typography.subheading,
-        fontWeight: '700',
         color: colors.gray800,
         marginBottom: Spacing.xxs,
     },
@@ -2561,7 +2549,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     revealBadgeText: {
         ...Typography.tiny,
         color: colors.categoryAmber,
-        fontWeight: '700',
     },
 
     browseLink: {
@@ -2675,7 +2662,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         marginBottom: Spacing.xs,
     },
     confirmSummaryLabel: {
-        fontWeight: '600',
+        ...Typography.bodyBold,
         color: colors.primaryDeep,
     },
 
@@ -2692,7 +2679,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     },
     statNumber: {
         ...Typography.heading2,
-        fontWeight: '800',
         color: colors.primary,
         marginBottom: Spacing.xxs,
     },

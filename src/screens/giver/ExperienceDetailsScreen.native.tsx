@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput,
+  View, Text, TouchableOpacity, ScrollView,
   StyleSheet,
 } from 'react-native';
+import { TextInput } from '../../components/TextInput';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -173,13 +174,13 @@ export default function ExperienceDetailsScreen() {
           <Text style={styles.price}>€{experience.price}</Text>
 
           <TextInput
-            style={styles.textInput}
             placeholder="Write a personal message..."
-            placeholderTextColor={colors.gray300}
             value={personalizedMessage}
             onChangeText={setPersonalizedMessage}
             multiline
             accessibilityLabel="Personal message"
+            inputStyle={styles.textInputInner}
+            containerStyle={styles.textInputContainer}
           />
 
           <TouchableOpacity
@@ -236,12 +237,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginLeft: Spacing.xs,
   },
   price: { color: colors.white, ...Typography.large, fontWeight: '700', marginBottom: Spacing.lg },
-  textInput: {
-    backgroundColor: colors.whiteAlpha25,
-    color: colors.white,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+  textInputContainer: {
     marginBottom: Spacing.lg,
+  },
+  textInputInner: {
+    color: colors.white,
   },
   purchaseButton: { backgroundColor: colors.white, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   purchaseText: { textAlign: 'center', color: colors.primary, ...Typography.heading3, fontWeight: '700' },

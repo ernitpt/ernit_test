@@ -713,7 +713,7 @@ const GoalSettingScreen = () => {
               <Text style={{ ...Typography.smallBold, color: colors.primary, marginBottom: Spacing.xs }}>
                 YOUR REWARD
               </Text>
-              <Text style={{ ...Typography.heading3, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
+              <Text style={{ ...Typography.heading3, color: colors.textPrimary, marginBottom: Spacing.xs }}>
                 {experience.title}
               </Text>
               <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
@@ -843,7 +843,7 @@ const GoalSettingScreen = () => {
       </View>
 
       {validationErrors.category && (
-        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
+        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md }}>
           Please select a goal type
         </Text>
       )}
@@ -866,7 +866,7 @@ const GoalSettingScreen = () => {
             containerStyle={{ marginBottom: 0 }}
           />
           {validationErrors.category && customCategory.trim() === '' && (
-            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
+            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs }}>
               Please enter a custom goal
             </Text>
           )}
@@ -1021,16 +1021,14 @@ const GoalSettingScreen = () => {
               alignItems: 'center',
             }}>
               <Text style={{
-                fontSize: vh(48),
-                fontWeight: '800',
+                ...Typography.displayBold,
                 color: colors.secondary,
                 letterSpacing: -2,
               }}>
                 {visMinutes}
               </Text>
               <Text style={{
-                ...Typography.caption,
-                fontWeight: '700',
+                ...Typography.captionBold,
                 color: colors.textMuted,
                 textTransform: 'uppercase',
                 letterSpacing: 2,
@@ -1050,8 +1048,7 @@ const GoalSettingScreen = () => {
                   position: 'absolute',
                   left: mx - 10,
                   top: my - 8,
-                  ...Typography.caption,
-                  fontWeight: '700',
+                  ...Typography.captionBold,
                   color: colors.textMuted,
                   width: 20,
                   textAlign: 'center',
@@ -1100,9 +1097,8 @@ const GoalSettingScreen = () => {
           accessibilityLabel={showCustomTime ? 'Use the time dial' : 'Enter a custom session time'}
         >
           <Text style={{
-            ...Typography.body,
+            ...Typography.bodyBold,
             color: colors.primary,
-            fontWeight: '600',
           }}>
             {showCustomTime ? 'Use the dial' : 'Or enter a custom time ›'}
           </Text>
@@ -1159,7 +1155,7 @@ const GoalSettingScreen = () => {
         )}
 
         {validationErrors.time && (
-          <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
+          <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, textAlign: 'center' }}>
             Please set a time per session (at least 5 minutes)
           </Text>
         )}
@@ -1482,7 +1478,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   headerTitle: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   stepIndicator: {
@@ -1492,8 +1487,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   stepIndicatorText: {
-    ...Typography.caption,
-    fontWeight: '700',
+    ...Typography.captionBold,
     color: colors.primary,
   },
   // Scroll
@@ -1506,8 +1500,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingBottom: vh(16),
   },
   stepTitle: {
-    ...Typography.heading1,
-    fontWeight: '800',
+    ...Typography.heading1Bold,
     color: colors.textPrimary,
     marginBottom: vh(8),
   },
@@ -1619,7 +1612,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     ...Typography.heading3,
-    fontWeight: '700',
     textAlign: 'center',
     backgroundColor: colors.white,
     color: colors.textPrimary,
@@ -1650,7 +1642,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   calMonthYear: {
     ...Typography.subheading,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   calWeekRow: {
@@ -1683,20 +1674,19 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.secondary,
   },
   calDayText: {
-    ...Typography.small,
+    ...Typography.smallMedium,
     color: colors.textPrimary,
-    fontWeight: '500',
   },
   calDisabledText: {
     color: colors.disabled,
   },
   calSelectedText: {
     color: colors.white,
-    fontWeight: '700',
+    ...Typography.smallBold,
   },
   calTodayText: {
     color: colors.secondary,
-    fontWeight: '700',
+    ...Typography.smallBold,
   },
   // End date info
   endDateContainer: {
@@ -1712,12 +1702,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   endDateLabel: {
     ...Typography.caption,
     color: colors.textSecondary,
-    fontWeight: '500',
     marginBottom: Spacing.xs,
   },
   endDateValue: {
     ...Typography.subheading,
-    fontWeight: '700',
     color: colors.primary,
     textAlign: 'center',
   },
@@ -1761,7 +1749,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   ctaText: {
     color: colors.white,
     ...Typography.subheading,
-    fontWeight: '700',
   },
   // Modal
   modalSubtitle: {
@@ -1786,7 +1773,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   modalLabel: {
-    fontWeight: '600',
+    ...Typography.bodyBold,
     color: colors.primaryDeep,
   },
   pledgeNote: {

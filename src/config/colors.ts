@@ -122,6 +122,7 @@ export const Colors = {
     // ─── Category colors (for goal/experience type chips) ───────────
     categoryPink: '#EC4899',
     categoryAmber: '#F59E0B',
+    categoryAmberSurface: 'rgba(245, 158, 11, 0.12)',
     categoryViolet: '#8B5CF6',
     categoryBlue: '#3B82F6',
     categoryIndigo: '#6366F1',
@@ -301,6 +302,7 @@ export const DarkColors = {
     // ─── Category colors (vivid, work on dark) ─────────────────────
     categoryPink: '#F472B6',
     categoryAmber: '#FBBF24',
+    categoryAmberSurface: 'rgba(251, 191, 36, 0.12)',
     categoryViolet: '#A78BFA',
     categoryBlue: '#60A5FA',
     categoryIndigo: '#818CF8',

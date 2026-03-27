@@ -103,7 +103,7 @@ const HintItem = React.memo(({ hint, index, onImagePress }: HintItemProps) => {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     }}>
-      <Text style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs }}>
+      <Text style={{ ...Typography.bodyBold, color: colors.textPrimary, marginBottom: Spacing.xs }}>
         {fmtDateTime(dateMs)}
       </Text>
       {hasImage && hint.imageUrl && (
@@ -309,14 +309,12 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     marginRight: Spacing.md,
   },
   badgeText: {
-    ...Typography.small,
-    fontWeight: '800',
+    ...Typography.smallBold,
     color: colors.primary,
   },
   details: { flex: 1 },
   date: {
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
     color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
@@ -367,8 +365,7 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopColor: colors.border,
   },
   motivationToggleText: {
-    ...Typography.caption,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: colors.primary,
   },
   motivationList: {
@@ -396,8 +393,7 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
   },
   motivationAvatarText: {
-    ...Typography.caption,
-    fontWeight: '700',
+    ...Typography.captionBold,
     color: colors.primary,
   },
   motivationContent: {
@@ -410,8 +406,7 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xxs,
   },
   motivationAuthor: {
-    ...Typography.caption,
-    fontWeight: '700',
+    ...Typography.captionBold,
     color: colors.textPrimary,
   },
   motivationDate: {
@@ -867,21 +862,21 @@ const AchievementDetailScreen = () => {
                 <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: BorderRadius.pill, marginBottom: 60 }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
               ) : null}
               <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
-              <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
-              <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>{goal.title || goal.description || ''}</Text>
+              <Text style={{ ...Typography.hero, color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
+              <Text style={{ ...Typography.heroSub, color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>{goal.title || goal.description || ''}</Text>
               <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
+                  <Text style={{ ...Typography.hero, color: colors.white }}>{totalSessions}</Text>
+                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>SESSIONS</Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{goal.targetCount || 0}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
+                  <Text style={{ ...Typography.hero, color: colors.white }}>{goal.targetCount || 0}</Text>
+                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>WEEKS</Text>
                 </View>
               </View>
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image source={require('../../assets/favicon.png')} style={{ width: 60, height: 60, marginBottom: 12 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
-                <Text style={{ ...Typography.display, fontWeight: '600', color: colors.whiteAlpha40 }}>Earned with Ernit</Text>
+                <Text style={{ ...Typography.display, color: colors.whiteAlpha40 }}>Earned with Ernit</Text>
               </View>
             </LinearGradient>
           </View>
@@ -918,8 +913,8 @@ const AchievementDetailScreen = () => {
               ) : null}
               <View style={{ backgroundColor: colors.warningLight, borderRadius: BorderRadius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm }}>
                 <Sparkles color={colors.celebrationGold} size={18} />
-                <Text style={{ ...Typography.heading1, fontWeight: '800', color: colors.warning }}>{totalSessions}</Text>
-                <Text style={{ ...Typography.small, fontWeight: '600', color: colors.warningDark }}>Sessions Completed</Text>
+                <Text style={{ ...Typography.heading1Bold, color: colors.warning }}>{totalSessions}</Text>
+                <Text style={{ ...Typography.smallBold, color: colors.warningDark }}>Sessions Completed</Text>
               </View>
             </View>
 
@@ -1163,14 +1158,14 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  headerTitle: { ...Typography.heading2, fontWeight: '800', color: colors.textPrimary, marginBottom: Spacing.sm },
+  headerTitle: { ...Typography.heading2, color: colors.textPrimary, marginBottom: Spacing.sm },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
-  statText: { ...Typography.small, fontWeight: '600', color: colors.textSecondary },
+  statText: { ...Typography.smallBold, color: colors.textSecondary },
   statDot: { width: 4, height: 4, borderRadius: BorderRadius.xs, backgroundColor: colors.textMuted },
-  completedDate: { ...Typography.caption, color: colors.textMuted, fontWeight: '500', marginTop: Spacing.xxs },
+  completedDate: { ...Typography.caption, color: colors.textMuted, marginTop: Spacing.xxs },
   section: { marginBottom: Spacing.lg },
-  sectionTitle: { ...Typography.subheading, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.sm },
-  countBadge: { ...Typography.caption, fontWeight: '700', color: colors.primary },
+  sectionTitle: { ...Typography.subheading, color: colors.textPrimary, marginBottom: Spacing.sm },
+  countBadge: { ...Typography.captionBold, color: colors.primary },
   experienceBody: {
     backgroundColor: colors.white,
     padding: Spacing.md,
@@ -1180,8 +1175,8 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopWidth: 0,
     borderColor: colors.border,
   },
-  experienceName: { ...Typography.subheading, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.xs },
-  experienceSubtitle: { ...Typography.small, color: colors.textSecondary, fontWeight: '500' },
+  experienceName: { ...Typography.subheading, color: colors.textPrimary, marginBottom: Spacing.xs },
+  experienceSubtitle: { ...Typography.small, color: colors.textSecondary },
   rewardDivider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.md },
   couponCard: {
     backgroundColor: colors.primarySurface,
@@ -1192,7 +1187,7 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.md,
   },
   couponRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
-  couponLabel: { ...Typography.caption, fontWeight: '700', color: colors.textPrimary },
+  couponLabel: { ...Typography.captionBold, color: colors.textPrimary },
   couponCodeBox: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.sm,
@@ -1202,9 +1197,9 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.border,
     marginBottom: Spacing.sm,
   },
-  couponCodeText: { ...Typography.large, fontWeight: '900', letterSpacing: 3, color: colors.textPrimary },
+  couponCodeText: { ...Typography.large, letterSpacing: 3, color: colors.textPrimary },
   copyButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm },
-  copyText: { ...Typography.small, fontWeight: '600', color: colors.primary },
+  copyText: { ...Typography.smallBold, color: colors.primary },
   contactCard: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
@@ -1213,7 +1208,7 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.border,
     marginBottom: Spacing.md,
   },
-  contactTitle: { ...Typography.small, fontWeight: '700', color: colors.textPrimary, marginBottom: Spacing.md },
+  contactTitle: { ...Typography.smallBold, color: colors.textPrimary, marginBottom: Spacing.md },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1222,7 +1217,7 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     borderBottomColor: colors.border,
   },
   contactLabel: { ...Typography.tiny, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  contactValue: { ...Typography.small, fontWeight: '600', color: colors.textPrimary, marginTop: Spacing.xxs },
+  contactValue: { ...Typography.smallBold, color: colors.textPrimary, marginTop: Spacing.xxs },
   smallCopyBtn: { padding: Spacing.xs },
   scheduleRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
   whatsappBtn: {
@@ -1233,7 +1228,7 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: Spacing.xs, backgroundColor: colors.secondary, paddingVertical: Spacing.md, borderRadius: BorderRadius.sm,
   },
-  scheduleBtnText: { color: colors.white, ...Typography.caption, fontWeight: '700' },
+  scheduleBtnText: { color: colors.white, ...Typography.captionBold },
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1242,7 +1237,7 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
   emptyContainer: { alignItems: 'center', paddingVertical: Spacing.xxxl },
   emptyIcon: { fontSize: Typography.displayLarge.fontSize, marginBottom: Spacing.xs },
-  emptyText: { color: colors.textSecondary, ...Typography.subheading, fontWeight: '600' },
+  emptyText: { color: colors.textSecondary, ...Typography.subheading },
   shareFormatToggle: {
     flexDirection: 'row',
     backgroundColor: colors.backgroundLight,
@@ -1264,7 +1259,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  shareFormatText: { ...Typography.small, fontWeight: '600', color: colors.textMuted },
+  shareFormatText: { ...Typography.smallBold, color: colors.textMuted },
   shareFormatTextActive: { color: colors.primaryDark },
   shareButton: {
     backgroundColor: colors.secondary,
@@ -1275,7 +1270,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
   },
-  shareButtonText: { color: colors.white, ...Typography.body, fontWeight: '700' },
+  shareButtonText: { color: colors.white, ...Typography.bodyBold },
 });
 
 export default AchievementDetailScreen;

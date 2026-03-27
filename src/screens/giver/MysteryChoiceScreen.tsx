@@ -298,7 +298,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     revealBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: colors.categoryAmber + '20',
+        backgroundColor: colors.categoryAmberSurface,
         borderRadius: BorderRadius.sm,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,

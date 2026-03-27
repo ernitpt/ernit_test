@@ -146,8 +146,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         marginRight: Spacing.sm,
     },
     title: {
-        ...Typography.body,
-        fontWeight: '700',
+        ...Typography.bodyBold,
         color: colors.textPrimary,
         marginBottom: Spacing.xs,
     },
@@ -157,8 +156,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         gap: Spacing.xs,
     },
     completedBadgeText: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.primary,
     },
     trophyCircle: {
@@ -183,7 +181,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     statText: {
         ...Typography.caption,
         color: colors.textSecondary,
-        fontWeight: '500',
     },
     statDot: {
         width: 3,
@@ -208,8 +205,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     },
     experienceTitle: {
         flex: 1,
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.textSecondary,
     },
     selfBadge: {
@@ -219,8 +215,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         borderTopColor: colors.border,
     },
     selfBadgeText: {
-        ...Typography.caption,
-        fontWeight: '600',
+        ...Typography.captionBold,
         color: colors.primary,
     },
 });

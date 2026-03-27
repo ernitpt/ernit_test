@@ -589,29 +589,29 @@ const CompletionScreen = () => {
 
             <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
 
-            <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
+            <Text style={{ ...Typography.hero, color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
               Goal Completed!
             </Text>
 
-            <Text style={{ fontSize: Typography.heroSub.fontSize, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+            <Text style={{ ...Typography.heroSub, color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
               {goal?.title || goal?.description || ''}
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{totalSessions}</Text>
-                <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>SESSIONS</Text>
+                <Text style={{ ...Typography.hero, color: colors.white }}>{totalSessions}</Text>
+                <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>SESSIONS</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: Typography.hero.fontSize, fontWeight: '900', color: colors.white }}>{goal?.targetCount || 0}</Text>
-                <Text style={{ ...Typography.display, color: colors.whiteAlpha90, fontWeight: '600' }}>WEEKS</Text>
+                <Text style={{ ...Typography.hero, color: colors.white }}>{goal?.targetCount || 0}</Text>
+                <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>WEEKS</Text>
               </View>
             </View>
 
             {sessionStreak >= 3 && (
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.blackAlpha20, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.huge, borderRadius: BorderRadius.pill, gap: Spacing.md, marginBottom: Spacing.huge }}>
                 <Text style={{ ...Typography.display }}>🔥</Text>
-                <Text style={{ ...Typography.display, fontWeight: '800', color: colors.warningLight }}>{sessionStreak}-session streak</Text>
+                <Text style={{ ...Typography.displayBold, color: colors.warningLight }}>{sessionStreak}-session streak</Text>
               </View>
             )}
 
@@ -622,7 +622,7 @@ const CompletionScreen = () => {
                 contentFit="contain" cachePolicy="memory-disk"
                 accessible={false}
               />
-              <Text style={{ ...Typography.display, fontWeight: '600', color: colors.overlayLight }}>
+              <Text style={{ ...Typography.display, color: colors.overlayLight }}>
                 Earned with Ernit
               </Text>
             </View>
@@ -742,7 +742,7 @@ const CompletionScreen = () => {
             </View>
           ) : paymentPending ? (
             <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
-              <Text style={[styles.couponInstructions, { fontWeight: '600', color: colors.warning }]}>
+              <Text style={[styles.couponInstructions, { color: colors.warning }]}>
                 Payment is being processed
               </Text>
               <Text style={[styles.couponInstructions, { marginTop: Spacing.sm }]}>
@@ -1004,8 +1004,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.xxl,
   },
   heroTitle: {
-    ...Typography.display,
-    fontWeight: '800',
+    ...Typography.displayBold,
     color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: Spacing.sm,
@@ -1036,7 +1035,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   statsTitle: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   goalTitle: {
@@ -1060,13 +1058,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.md,
   },
   statsNumber: {
-    ...Typography.display,
-    fontWeight: '800',
+    ...Typography.displayBold,
     color: colors.warning,
   },
   statsLabel: {
     ...Typography.subheading,
-    fontWeight: '600',
     color: colors.warningDark,
   },
   experienceCard: {
@@ -1090,7 +1086,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   experienceHeaderText: {
     ...Typography.heading3,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   experienceImage: {
@@ -1135,8 +1130,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   couponHeaderText: {
-    ...Typography.heading1,
-    fontWeight: '800',
+    ...Typography.heading1Bold,
     color: colors.textPrimary,
   },
   couponInstructions: {
@@ -1177,8 +1171,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderStyle: 'dashed',
   },
   couponCode: {
-    ...Typography.body,
-    fontWeight: '700',
+    ...Typography.bodyBold,
     color: colors.secondary,
     textAlign: 'center',
     letterSpacing: 3,
@@ -1201,7 +1194,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   copyCodeText: {
     ...Typography.subheading,
-    fontWeight: '600',
     color: colors.secondary,
   },
   copiedText: {
@@ -1217,14 +1209,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     gap: Spacing.sm,
   },
   validityText: {
-    ...Typography.small,
+    ...Typography.smallBold,
     color: colors.primaryDeep,
-    fontWeight: '600',
   },
   // Schedule Buttons
   scheduleViaLabel: {
-    ...Typography.small,
-    fontWeight: '600',
+    ...Typography.smallBold,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1252,8 +1242,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   scheduleButtonText: {
     color: colors.white,
-    ...Typography.body,
-    fontWeight: '600',
+    ...Typography.bodyBold,
   },
   scheduleButtonHalf: {
     flex: 1,
@@ -1267,8 +1256,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.border,
   },
   contactInfoTitle: {
-    ...Typography.body,
-    fontWeight: '700',
+    ...Typography.bodyBold,
     color: colors.textPrimary,
     marginBottom: Spacing.md,
   },
@@ -1281,16 +1269,14 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopColor: colors.border,
   },
   contactInfoLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
+    ...Typography.captionBold,
     color: colors.gray600,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   contactInfoValue: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...Typography.bodyBold,
     color: colors.textPrimary,
   },
   smallCopyButton: {
@@ -1316,7 +1302,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   noRewardCtaTitle: {
     ...Typography.large,
-    fontWeight: '700' as const,
     color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
@@ -1339,7 +1324,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   noRewardCtaButtonText: {
     color: colors.white,
     ...Typography.subheading,
-    fontWeight: '700' as const,
   },
   // Share section
   shareSection: {
@@ -1357,7 +1341,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   shareSectionTitle: {
     ...Typography.heading3,
-    fontWeight: '700' as const,
     color: colors.textPrimary,
     marginBottom: Spacing.lg,
   },
@@ -1384,8 +1367,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     elevation: 2,
   },
   shareFormatText: {
-    ...Typography.small,
-    fontWeight: '600' as const,
+    ...Typography.smallBold,
     color: colors.textSecondary,
   },
   shareFormatTextActive: {
@@ -1405,7 +1387,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   shareButtonText: {
     color: colors.white,
     ...Typography.subheading,
-    fontWeight: '700' as const,
   },
   // Streak CTA section
   streakCtaSection: {
@@ -1432,18 +1413,15 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   streakCount: {
-    ...Typography.display,
-    fontWeight: '800' as const,
+    ...Typography.displayBold,
     color: colors.warning,
   },
   streakLabel: {
-    ...Typography.body,
-    fontWeight: '600' as const,
+    ...Typography.bodyBold,
     color: colors.warningDark,
   },
   streakCtaTitle: {
     ...Typography.large,
-    fontWeight: '700' as const,
     color: colors.textPrimary,
     textAlign: 'center' as const,
     marginBottom: Spacing.sm,
@@ -1467,7 +1445,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   streakCtaPrimaryText: {
     color: colors.white,
     ...Typography.subheading,
-    fontWeight: '700' as const,
   },
   streakCtaSecondary: {
     paddingVertical: Spacing.md,
@@ -1482,7 +1459,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   streakCtaSecondaryText: {
     color: colors.textSecondary,
     ...Typography.subheading,
-    fontWeight: '600' as const,
   },
 });
 
