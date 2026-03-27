@@ -302,7 +302,7 @@ service cloud.firestore {
          && 'isFreeGoal' in resource.data
          && resource.data.isFreeGoal == true
          && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'empowerPending', 'updatedAt'])
+             .hasOnly(['experienceGiftId', 'giftAttachedAt', 'empoweredBy', 'empowerPending', 'isMystery', 'updatedAt'])
          && request.resource.data.experienceGiftId is string
          && request.resource.data.experienceGiftId != ''
          && exists(/databases/$(database)/documents/experienceGifts/$(request.resource.data.experienceGiftId))
@@ -529,7 +529,16 @@ service cloud.firestore {
         // Allow giver to mark gift as redeemed (empower/attach flow)
         (request.auth.uid == resource.data.giverId
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['isRedeemed', 'redeemedAt', 'redeemedGoalId', 'updatedAt']))
+                .hasOnly(['isRedeemed', 'redeemedAt', 'redeemedGoalId', 'status', 'claimedBy', 'updatedAt']))
+        ||
+        // Allow goal owner (recipient) to mark gift as redeemed when attaching to their goal
+        // SECURITY: Verify caller owns the goal referenced in redeemedGoalId
+        (request.resource.data.isRedeemed == true
+            && request.resource.data.redeemedGoalId is string
+            && exists(/databases/$(database)/documents/goals/$(request.resource.data.redeemedGoalId))
+            && get(/databases/$(database)/documents/goals/$(request.resource.data.redeemedGoalId)).data.userId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['isRedeemed', 'redeemedAt', 'redeemedGoalId', 'status', 'claimedBy', 'updatedAt']))
       );
 
       // Delete: never allowed from client

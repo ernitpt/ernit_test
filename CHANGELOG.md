@@ -818,6 +818,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - exhaustive Android compat — worklet template literals, CSS Platform.select, LayoutAnimation guards, push notif registration, Firestore dbOptions
 - WCAG contrast compliance — button colors, gradient endpoint, error token, centralized hardcoded colors
 - surfaceFrosted opacity in light mode — rgba(255,255,255,1) → 0.92 for proper frosted glass effect
+- gift claim permissions, nested buttons, duplicate claim prevention
 
 ### Added
 - Automatic changelog system with `npm run log` script

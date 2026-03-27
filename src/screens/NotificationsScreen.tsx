@@ -5,6 +5,7 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Image,
   RefreshControl,
@@ -306,7 +307,7 @@ const NotificationsScreen = () => {
         // Check if gift is already attached before attempting
         const existingGoal = await goalService.getGoalById(n.data.goalId);
         if (!existingGoal?.giftAttachedAt) {
-          await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, userId!, n.data.isMystery === true);
+          await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
         }
         const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
         if (n.data.isMystery) {
@@ -558,15 +559,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -679,15 +680,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -719,15 +720,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -771,15 +772,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -811,15 +812,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -851,15 +852,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -893,15 +894,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -938,15 +939,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -985,15 +986,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );
@@ -1024,15 +1025,15 @@ const NotificationsScreen = () => {
                 <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.clearButton}
+            <Pressable
+              style={({ pressed }) => [styles.clearButton, pressed && { opacity: 0.6 }]}
               onPress={(e) => { e.stopPropagation(); handleClearNotification(item.id!); }}
               accessibilityRole="button"
               accessibilityLabel="Clear this notification"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <X size={14} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Pressable>
           </TouchableOpacity>
         </Animated.View>
       );

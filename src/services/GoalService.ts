@@ -214,7 +214,7 @@ export class GoalService {
   }
 
   /** Attach a purchased gift to a free goal */
-  async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string, isMystery: boolean = false): Promise<void> {
+  async attachGiftToGoal(goalId: string, experienceGiftId: string, giverId: string, isMystery: boolean = false, recipientUserId?: string): Promise<void> {
     const goalRef = doc(db, 'goals', goalId);
     const giftRef = doc(db, 'experienceGifts', experienceGiftId);
 
@@ -259,6 +259,8 @@ export class GoalService {
       transaction.update(goalRef, updateFields);
       transaction.update(giftRef, {
         isRedeemed: true,
+        status: 'claimed',
+        ...(recipientUserId ? { claimedBy: recipientUserId } : {}),
         redeemedAt: serverTimestamp(),
         redeemedGoalId: goalId,
         updatedAt: serverTimestamp(),

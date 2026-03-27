@@ -214,7 +214,7 @@ const ConfirmationScreen = () => {
       // Self-purchase: auto-attach directly (buyer IS the goal owner)
       const attach = async () => {
         try {
-          await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user?.id ?? "");
+          await goalService.attachGiftToGoal(goalId, experienceGift.id, state.user?.id ?? "", false, state.user?.id);
           logger.log('Gift auto-attached to goal', goalId);
         } catch (error: unknown) {
           logger.error('Failed to auto-attach gift to goal:', error);
