@@ -285,22 +285,29 @@ export class GoalService {
     const qy = query(this.goalsCollection, where('userId', '==', userId));
     const unsub = onSnapshot(qy, async (snap) => {
       try {
-        const goals = await Promise.all(
+        const results = await Promise.all(
           snap.docs.map(async (d) => {
-            const data = normalizeGoal({ id: d.id, ...d.data() });
             try {
-              return await this.applyExpiredWeeksSweep(data);
-            } catch (sweepError: unknown) {
-              logger.error(`Error in applyExpiredWeeksSweep for goal ${data.id}:`, sweepError);
-              return data; // Return un-swept goal rather than crashing
+              const data = normalizeGoal({ id: d.id, ...d.data() });
+              try {
+                return await this.applyExpiredWeeksSweep(data);
+              } catch (sweepError: unknown) {
+                logger.error(`Error in applyExpiredWeeksSweep for goal ${data.id}:`, sweepError);
+                return data;
+              }
+            } catch (normalizeError: unknown) {
+              logger.error(`Skipping malformed goal ${d.id}:`, normalizeError);
+              return null; // Skip this goal rather than crashing the whole list
             }
           })
         );
-        cb(goals);
+        cb(results.filter((g): g is Goal => g !== null));
       } catch (error: unknown) {
         logger.error('Error processing goals in listenToUserGoals:', error);
-        // Still try to return basic normalized goals
-        const fallbackGoals = snap.docs.map((d) => normalizeGoal({ id: d.id, ...d.data() }));
+        const fallbackGoals = snap.docs.flatMap((d) => {
+          try { return [normalizeGoal({ id: d.id, ...d.data() })]; }
+          catch { return []; }
+        });
         cb(fallbackGoals);
       }
     }, (error) => {
