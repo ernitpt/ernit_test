@@ -874,6 +874,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform is not defined crash in DetailedGoalCard on web — pass isWeb flag into createStyles
 - missing Platform import in GoalCardModals causing web crash
 - align Android glow, shadow, and modal layout to match web rendering
+- surface onSnapshot errors, add fetch cache, defer profile image upload, add isMounted guards, deduplicate navigator routes
+- add failedCharges reconciliation, webhookFailures alerting, retryFailedCharges scheduler, and gift state machine
+- 36-issue master bug fix — crash fixes, broken flows, data integrity, performance
 
 ### Added
 - Automatic changelog system with `npm run log` script
