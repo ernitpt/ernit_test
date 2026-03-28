@@ -55,46 +55,72 @@ export const stripeWebhook = onRequest(
 
         logger.info("✅ [PROD] Webhook verified:", event.type);
 
-        // Handle payment_intent.succeeded event
-        if (event.type === "payment_intent.succeeded") {
-            const paymentIntent = event.data.object as Stripe.PaymentIntent;
-            logger.info("💰 [PROD] Payment succeeded:", paymentIntent.id);
+        try {
+            // Handle payment_intent.succeeded event
+            if (event.type === "payment_intent.succeeded") {
+                const paymentIntent = event.data.object as Stripe.PaymentIntent;
+                logger.info("💰 [PROD] Payment succeeded:", paymentIntent.id);
 
-            try {
-                await handleSuccessfulPayment(paymentIntent);
-                res.status(200).json({ received: true });
-            } catch (err: unknown) {
-                logger.error("❌ Error handling payment:", err);
-                // T1-2: Return 500 so Stripe retries — gifts must be created
-                res.status(500).json({ error: "Payment processing failed" });
-            }
-            return;
-        }
-
-        // Handle payment_intent.payment_failed event
-        if (event.type === "payment_intent.payment_failed") {
-            const paymentIntent = event.data.object as Stripe.PaymentIntent;
-            logger.info("❌ [PROD] Payment failed:", paymentIntent.id);
-            const metadata = paymentIntent.metadata;
-            if (metadata?.giverId) {
                 try {
-                    await getDbProd().collection('notifications').add({
-                        userId: metadata.giverId,
-                        type: 'payment_failed',
-                        title: 'Payment Failed',
-                        message: 'Your payment method was declined. Please update your payment details.',
-                        data: { giftId: metadata.giftId || '' },
-                        read: false,
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    });
-                    logger.info(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
-                } catch (notifError: unknown) {
-                    logger.error("❌ [PROD] Failed to send payment failed notification:", notifError);
+                    await handleSuccessfulPayment(paymentIntent);
+                    res.status(200).json({ received: true });
+                } catch (err: unknown) {
+                    logger.error("❌ Error handling payment:", err);
+                    // T1-2: Return 500 so Stripe retries — gifts must be created
+                    res.status(500).json({ error: "Payment processing failed" });
+                }
+                return;
+            }
+
+            // Handle payment_intent.payment_failed event
+            if (event.type === "payment_intent.payment_failed") {
+                const paymentIntent = event.data.object as Stripe.PaymentIntent;
+                logger.info("❌ [PROD] Payment failed:", paymentIntent.id);
+                const metadata = paymentIntent.metadata;
+                if (metadata?.giverId) {
+                    try {
+                        await getDbProd().collection('notifications').add({
+                            userId: metadata.giverId,
+                            type: 'payment_failed',
+                            title: 'Payment Failed',
+                            message: 'Your payment method was declined. Please update your payment details.',
+                            data: { giftId: metadata.giftId || '' },
+                            read: false,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                        logger.info(`✅ [PROD] Payment failed notification sent to giver ${metadata.giverId}`);
+                    } catch (notifError: unknown) {
+                        logger.error("❌ [PROD] Failed to send payment failed notification:", notifError);
+                    }
                 }
             }
-        }
 
-        res.status(200).json({ received: true });
+            res.status(200).json({ received: true });
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.error('[stripeWebhook] Handler error:', errorMessage);
+
+            // Write failure to Firestore for alerting
+            try {
+                const eventId = event?.id || 'unknown';
+                const failureRef = getDbProd().collection('webhookFailures').doc(eventId);
+                const existing = await failureRef.get();
+                const attempts = existing.exists ? (existing.data()?.attempts || 0) + 1 : 1;
+
+                await failureRef.set({
+                    eventId,
+                    eventType: event?.type || 'unknown',
+                    errorMessage,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    attempts,
+                    resolved: false,
+                }, { merge: true });
+            } catch (firestoreErr: unknown) {
+                logger.error('[stripeWebhook] Failed to write to webhookFailures:', firestoreErr);
+            }
+
+            return res.status(500).send('Webhook handler failed');
+        }
     }
 );
 

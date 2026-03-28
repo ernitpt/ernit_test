@@ -31,6 +31,7 @@ import { sendContactEmail } from "./sendContactEmail";
 import { createFreeGift } from "./createFreeGift";
 import { createDeferredGift } from "./createDeferredGift";
 import { chargeDeferredGift } from "./triggers/chargeDeferredGift";
+import { retryFailedCharges } from "./retryFailedCharges";
 
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
@@ -80,6 +81,7 @@ export {
     createFreeGift,
     createDeferredGift,
     chargeDeferredGift,
+    retryFailedCharges,
 };
 
 // Admin functions

@@ -4,6 +4,7 @@ import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getOrCreateStripeCustomer } from "../utils/stripeCustomer";
+import { validateGiftTransition, GiftStatus } from "../utils/giftStateMachine";
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY");
 
@@ -383,6 +384,14 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 // ── Step 3: Mark as paid on success (retry up to 3 times) ────
                 // Critical: Stripe charge succeeded — we MUST record it.
                 // If this fails, gift stays in 'processing' with no way to retry.
+
+                // Validate state machine transition before writing
+                // Gift status should be 'claimed' at this point (recipient has a goal linked)
+                const currentStatus = giftData.status as GiftStatus | undefined;
+                if (currentStatus) {
+                    validateGiftTransition(currentStatus, 'completed');
+                }
+
                 const paidUpdate = {
                     payment: 'paid',
                     status: 'completed',
@@ -390,11 +399,14 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     chargedAt: FieldValue.serverTimestamp(),
                     updatedAt: FieldValue.serverTimestamp(),
                 };
+                let lastError: Error | null = null;
                 for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
                         await giftRef.update(paidUpdate);
+                        lastError = null;
                         break;
                     } catch (updateErr: unknown) {
+                        lastError = updateErr as Error;
                         if (attempt === 3) {
                             // All retries failed — log critical error with PaymentIntent ID
                             // for manual reconciliation. Do NOT revert to 'deferred'.
@@ -403,6 +415,28 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                             logger.warn(`⚠️ Firestore update attempt ${attempt}/3 failed for gift ${giftId}, retrying...`);
                             await new Promise(r => setTimeout(r, 500 * attempt));
                         }
+                    }
+                }
+
+                // After all retries are exhausted — write to failedCharges for reconciliation
+                if (lastError !== null) {
+                    try {
+                        await db.collection('failedCharges').doc(giftId).set({
+                            giftId,
+                            paymentIntentId: paymentIntent.id,
+                            amount: giftData.deferredAmount,
+                            currency: giftData.deferredCurrency || 'eur',
+                            errorMessage: lastError.message || 'Unknown error',
+                            timestamp: FieldValue.serverTimestamp(),
+                            retryCount: 0,
+                            resolved: false,
+                            goalId: giftData.goalId || null,
+                            giverId: giftData.giverId || null,
+                            recipientId: giftData.userId || null,
+                        });
+                        logger.error(`[chargeDeferredGift] Wrote to failedCharges/${giftId} after exhausting retries`);
+                    } catch (failedChargeErr: unknown) {
+                        logger.error(`[chargeDeferredGift] Failed to write to failedCharges/${giftId}:`, failedChargeErr);
                     }
                 }
             } catch (stripeError: unknown) {
