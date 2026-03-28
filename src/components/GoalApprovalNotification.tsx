@@ -111,6 +111,11 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     }
 
     // Validate maximum limits: 5 weeks and 7 sessions per week
+    if (weeks === initialWeeks && sessions === initialSessions) {
+      setSuggestError('No changes made. Please adjust the values before submitting.');
+      return;
+    }
+
     if (weeks > 5) {
       setSuggestError('The maximum duration is 5 weeks.');
       return;

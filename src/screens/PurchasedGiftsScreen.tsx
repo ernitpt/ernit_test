@@ -44,6 +44,10 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 // Helper Functions and Components (moved outside parent for performance)
 // ------------------------------------------------------------------
 
+// Module-level cache to avoid redundant Firestore reads when multiple GiftItems
+// share the same experienceId (e.g. bulk purchases) or when the list re-renders.
+const experienceCache: Record<string, Experience> = {};
+
 const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!date) return 'N/A';
   const jsDate = toJSDate(date) ?? new Date(date as string | number | Date);
@@ -94,8 +98,15 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
     }
     const fetchExperience = async () => {
       try {
+        if (experienceCache[item.experienceId]) {
+          setExperience(experienceCache[item.experienceId]);
+          return;
+        }
         const exp = await experienceService.getExperienceById(item.experienceId);
-        setExperience(exp);
+        if (exp) {
+          experienceCache[item.experienceId] = exp;
+          setExperience(exp);
+        }
       } catch (error: unknown) {
         logger.error("Error fetching experience:", error);
       }

@@ -84,7 +84,8 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
   const isGiver = currentUserId === goal.empoweredBy;
   const isSelfGoal = currentUserId === goal.userId;
   const hasExperience = !!goal.experienceGiftId || !!goal.giftAttachedAt;
-  const nextSession = (goal.currentCount || 0) * (goal.sessionsPerWeek || 1) + (goal.weeklyCount || 0) + 1;
+  const spw = goal.sessionsPerWeek ?? 1;
+  const nextSession = (goal.currentCount || 0) * spw + (goal.weeklyCount || 0) + 1;
 
   useEffect(() => {
     if (goal.empoweredBy) {

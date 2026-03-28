@@ -198,14 +198,17 @@ const GoalSettingScreen = () => {
 
   // Fetch experience details
   useEffect(() => {
+    let mounted = true;
     const fetchExperience = async () => {
       if (!experienceGift?.experienceId) {
         return;
       }
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
+        if (!mounted) return;
         setExperience(exp);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching experience:', error);
         await logErrorToFirestore(error, {
           screenName: 'GoalSettingScreen',
@@ -217,6 +220,7 @@ const GoalSettingScreen = () => {
       }
     };
     fetchExperience();
+    return () => { mounted = false; };
   }, [experienceGift.experienceId]);
 
   // Pulse animation while submitting

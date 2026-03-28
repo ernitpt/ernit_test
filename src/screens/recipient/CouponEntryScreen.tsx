@@ -72,8 +72,9 @@ const CouponEntryScreen = () => {
   }, []);
 
   // Persist claim code from deep link so it survives an auth redirect
+  // Only write when the user is NOT yet authenticated — if they are, claiming can proceed directly
   useEffect(() => {
-    if (initialCode) {
+    if (initialCode && !state.user?.id) {
       AsyncStorage.setItem('pending_claim_code', initialCode);
     }
   }, []);

@@ -115,7 +115,7 @@ const AddFriendScreen: React.FC = () => {
       setSearchResults(previousResults);
       showError('Failed to send friend request. Please try again.');
     }
-  }, [currentUserId, currentUserName, currentUserProfileImageUrl, searchResults, showSuccess, showError, state.user?.profile?.country]);
+  }, [currentUserId, currentUserName, currentUserProfileImageUrl, showSuccess, showError, state.user?.profile?.country]);
 
   const handleViewProfile = useCallback((userId: string) => {
     Keyboard.dismiss();

@@ -298,6 +298,52 @@ export default function GiftFlowScreen() {
         );
     }, [currentStep]);
 
+    // Restore pending_gift_flow from AsyncStorage on mount (app restart while authenticated)
+    useEffect(() => {
+        if (!state.user?.id) return;
+        const restorePendingFlow = async () => {
+            try {
+                let raw: string | null = null;
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    raw = localStorage.getItem('pending_gift_flow');
+                } else {
+                    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                    raw = await AsyncStorage.getItem('pending_gift_flow');
+                }
+                if (!raw) return;
+                const p = JSON.parse(raw) as GiftFlowPrefill;
+                // Clear the key immediately so it isn't re-applied on future mounts
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    localStorage.removeItem('pending_gift_flow');
+                } else {
+                    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                    await AsyncStorage.removeItem('pending_gift_flow');
+                }
+                if (p.currentStep) setCurrentStep(p.currentStep);
+                if (p.challengeType) setChallengeType(p.challengeType);
+                if (p.weeks) setWeeks(p.weeks);
+                else if (p.durationWeeks) setWeeks(p.durationWeeks);
+                if (p.sessionsPerWeek) setSessionsPerWeek(p.sessionsPerWeek);
+                if (p.hours !== undefined) setHours(String(p.hours));
+                else if (p.targetHours !== undefined) setHours(String(p.targetHours));
+                if (p.minutes !== undefined) setMinutes(String(p.minutes));
+                else if (p.targetMinutes !== undefined) setMinutes(String(p.targetMinutes));
+                if (p.sessionMinutes) setSessionMinutes(p.sessionMinutes);
+                if (p.showCustomTime) setShowCustomTime(p.showCustomTime);
+                if (p.experience) setSelectedExperience(p.experience);
+                if (p.preferredRewardCategory) setPreferredRewardCategory(p.preferredRewardCategory as ExperienceCategory);
+                if (p.revealMode) setRevealMode(p.revealMode);
+                if (p.paymentChoice) setPaymentChoice(p.paymentChoice);
+                if (p.personalizedMessage) setPersonalizedMessage(p.personalizedMessage);
+                if (p.selectedGoalType) setSelectedGoalType(p.selectedGoalType);
+                if (p.customGoalType) setCustomGoalType(p.customGoalType);
+            } catch (error: unknown) {
+                logger.error('Error restoring pending_gift_flow:', error);
+            }
+        };
+        restorePendingFlow();
+    }, [state.user?.id]);
+
     // Prefill from auth redirect
     useEffect(() => {
         if (routeParams?.prefill) {

@@ -109,7 +109,7 @@ export default function CartScreen() {
     }
   }, [state.guestCart, state.user]);
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
@@ -130,7 +130,7 @@ export default function CartScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentCart]);
 
   const updateQuantity = async (experienceId: string, newQty: number) => {
     if (newQty < 1) {

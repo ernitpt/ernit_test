@@ -558,7 +558,7 @@ const CategorySelectionScreen = () => {
     }
 
     return new Set(cats.map((c) => c.id));
-  }, [allCarouselCategories, activeCategory, searchQuery, routeParams?.prefilterCategory]);
+  }, [allCarouselCategories, activeCategory, searchQuery]);
 
   const handleExperiencePress = useCallback((experienceId: string) => {
     const experience = categoriesWithExperiences

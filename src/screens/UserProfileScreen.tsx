@@ -499,6 +499,7 @@ const UserProfileScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [pendingImageBlob, setPendingImageBlob] = useState<Blob | null>(null);
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
+  const lastProfileFetchRef = useRef<number>(0);
 
   const userId = state.user?.id || '';
 
@@ -545,6 +546,9 @@ const UserProfileScreen: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
+      const now = Date.now();
+      if (now - lastProfileFetchRef.current < 30_000) return; // skip if < 30s ago
+      lastProfileFetchRef.current = now;
       loadProfileAndGoals();
     }, [loadProfileAndGoals])
   );
