@@ -88,7 +88,7 @@ const AuthScreen = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate('Goals');
+      navigation.navigate('ChallengeLanding');
     }
   }, [navigation]);
 

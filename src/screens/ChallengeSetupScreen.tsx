@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import ErrorRetry from '../components/ErrorRetry';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -115,6 +116,7 @@ export default function ChallengeSetupScreen() {
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
     const [loadingExperiences, setLoadingExperiences] = useState(true);
+    const [experienceError, setExperienceError] = useState(false);
 
     // Step 4: Preferred reward category
     const [preferredRewardCategory, setPreferredRewardCategory] = useState<ExperienceCategory | null>(null);
@@ -204,24 +206,27 @@ export default function ChallengeSetupScreen() {
     }, []);
 
     // Fetch experiences
-    useEffect(() => {
-        const fetchExperiences = async () => {
-            try {
-                const q = query(collection(db, 'experiences'), limit(50));
-                const snapshot = await getDocs(q);
-                const fetched = snapshot.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
-                    .filter(exp => exp.status !== 'draft')
-                    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-                setExperiences(fetched);
-            } catch (error: unknown) {
-                logger.error('Error fetching experiences:', error);
-            } finally {
-                setLoadingExperiences(false);
-            }
-        };
-        fetchExperiences();
+    const fetchExperiences = useCallback(async () => {
+        setExperienceError(false);
+        try {
+            const q = query(collection(db, 'experiences'), limit(50));
+            const snapshot = await getDocs(q);
+            const fetched = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
+                .filter(exp => exp.status !== 'draft')
+                .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+            setExperiences(fetched);
+        } catch (error: unknown) {
+            logger.error('Error fetching experiences:', error);
+            setExperienceError(true);
+        } finally {
+            setLoadingExperiences(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchExperiences();
+    }, [fetchExperiences]);
 
 
     // Pulse animation while submitting
@@ -1198,6 +1203,8 @@ export default function ChallengeSetupScreen() {
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                         </View>
+                    ) : experienceError ? (
+                        <ErrorRetry onRetry={fetchExperiences} message="Could not load experiences. Check your connection." />
                     ) : (
                         <View style={styles.stackedCategories}>
                             {visibleCategories.map((cat) => {

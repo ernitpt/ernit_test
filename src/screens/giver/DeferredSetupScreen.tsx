@@ -331,6 +331,8 @@ const NativeDeferredSetup: React.FC = () => {
     showInfo('You can add payment details later from Purchased Gifts.');
     if (experienceGift) {
       navigation.replace('Confirmation', { experienceGift });
+    } else {
+      navigation.replace('ChallengeLanding');
     }
   }, [navigation, experienceGift]);
 

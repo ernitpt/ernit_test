@@ -173,6 +173,18 @@ const GoalSettingScreen = () => {
     }
   }, [hasValidData, navigation]);
 
+  useEffect(() => {
+    if (experienceGift?.expiresAt) {
+      const expiresAt = experienceGift.expiresAt instanceof Date
+        ? experienceGift.expiresAt
+        : new Date(experienceGift.expiresAt as string | number);
+      if (expiresAt < new Date()) {
+        showError('This gift has expired and can no longer be claimed.');
+        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'CouponEntry' }] }));
+      }
+    }
+  }, [experienceGift?.expiresAt, showError, navigation]);
+
   if (!hasValidData || !experienceGift) {
     return (
       <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
@@ -398,7 +410,7 @@ const GoalSettingScreen = () => {
         isActive: true,
         isCompleted: false,
         isRevealed: false,
-        location: experience?.location || (experienceGift as ExperienceGift & { preferredRewardCategory?: string })?.preferredRewardCategory || 'Unknown location',
+        location: experience?.location || 'Unknown location',
         targetHours: hoursNum,
         targetMinutes: minutesNum,
         createdAt: now,

@@ -237,6 +237,9 @@ export default function GiftFlowScreen() {
     // Double-submit guard
     const submittingRef = useRef(false);
 
+    // Step-1 double-tap guard
+    const pendingStepRef = useRef(false);
+
     // Prevent discard alert after successful gift creation
     const giftCreatedRef = useRef(false);
 
@@ -710,10 +713,13 @@ export default function GiftFlowScreen() {
                         <TouchableOpacity
                             style={[styles.rewardChoice, isActive && styles.rewardChoiceActive]}
                             onPress={() => {
+                                if (pendingStepRef.current) return;
+                                pendingStepRef.current = true;
                                 setChallengeType(option.key);
                                 setValidationErrors(prev => ({ ...prev, type: false }));
                                 // Auto-advance after brief delay so selection animation plays
                                 setTimeout(() => {
+                                    pendingStepRef.current = false;
                                     setCurrentStep(2);
                                     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
                                 }, 250);

@@ -104,8 +104,12 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   }, [item.experienceId]);
 
   const handlePress = useCallback(() => {
-    navigation.navigate("Confirmation", { experienceGift: item });
-  }, [navigation, item]);
+    if (experience) {
+      navigation.navigate('ExperienceDetails', { experience });
+    } else {
+      // Category-only gift or experience not yet loaded — no detail screen to show
+    }
+  }, [navigation, item, experience]);
 
   return (
     <Card

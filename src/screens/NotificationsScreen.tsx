@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Platform,
   Linking,
+  Alert,
 } from 'react-native';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Avatar } from '../components/Avatar';
@@ -305,25 +306,38 @@ const NotificationsScreen = () => {
     }
 
     if (n.type === 'experience_empowered' && n.data?.goalId && n.data?.giftId) {
-      try {
-        // Check if gift is already attached before attempting
-        const existingGoal = await goalService.getGoalById(n.data.goalId);
-        if (!existingGoal?.giftAttachedAt) {
-          await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
-        }
-        const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
-        if (n.data.isMystery) {
-          showSuccess(`${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`);
-        } else {
-          showSuccess(`${n.data.giverName || 'A friend'} gifted you an experience!`);
-        }
-        if (goal) {
-          navigation.navigate('Journey', { goal });
-        }
-      } catch (error: unknown) {
-        logger.error('Error attaching empowered gift:', error);
-        showError('Could not attach the gift. Please try again.');
-      }
+      Alert.alert(
+        'Attach Gift to Goal?',
+        "This will link the gift to your active goal. You can't undo this.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Attach Gift',
+            onPress: async () => {
+              try {
+                // Check if gift is already attached before attempting
+                const existingGoal = await goalService.getGoalById(n.data.goalId);
+                if (!existingGoal?.giftAttachedAt) {
+                  await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
+                }
+                const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
+                if (n.data.isMystery) {
+                  showSuccess(`${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`);
+                } else {
+                  showSuccess(`${n.data.giverName || 'A friend'} gifted you an experience!`);
+                }
+                if (goal) {
+                  navigation.navigate('Journey', { goal });
+                }
+              } catch (error: unknown) {
+                logger.error('Error attaching empowered gift:', error);
+                showError('Could not attach the gift. Please try again.');
+              }
+            },
+          },
+        ]
+      );
+      return;
     }
 
     if (n.type === 'experience_booking_reminder' && n.data?.goalId) {
