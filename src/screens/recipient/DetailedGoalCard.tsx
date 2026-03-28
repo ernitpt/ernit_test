@@ -1143,7 +1143,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
 
   const handlePress = (g: Goal) => {
-    (navigation as { navigate: (screen: string, params?: unknown) => void }).navigate('Journey', { goal: g });
+    navigation.navigate('Journey', { goal: g });
   };
 
   const handleRemoveGoal = useCallback(async () => {

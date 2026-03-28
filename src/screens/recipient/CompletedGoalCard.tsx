@@ -8,7 +8,7 @@ import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
-import { useRecipientNavigation } from '../../types/navigation';
+import { useRootNavigation } from '../../types/navigation';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useApp } from '../../context/AppContext';
 
@@ -20,7 +20,7 @@ interface CompletedGoalCardProps {
 const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const navigation = useRecipientNavigation();
+    const navigation = useRootNavigation();
     const { state } = useApp();
 
     const totalSessions = goal.targetCount * goal.sessionsPerWeek;

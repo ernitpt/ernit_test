@@ -655,7 +655,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Journey: { goal: Goal };
   Goals: undefined;
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; giftId?: string };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
   GiverFlow: NavigatorScreenParams<GiverStackParamList>;
@@ -685,7 +685,7 @@ export type RootStackParamList = {
 export type GiverStackParamList = {
   CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
   ExperienceDetails: { experience: Experience };
-  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean };
+  ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; giftId?: string };
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   Cart: undefined;
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
@@ -695,8 +695,6 @@ export type GiverStackParamList = {
 
 export type RecipientStackParamList = {
   CouponEntry: { code?: string } | undefined;
-  GoalSetting: { experienceGift: ExperienceGift };
-  Journey: { goal: Goal };
   Profile: undefined;
 };
 

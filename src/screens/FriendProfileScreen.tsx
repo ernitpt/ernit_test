@@ -619,6 +619,7 @@ const FriendProfileScreen: React.FC = () => {
 
   const tabScrollRef = useRef<ScrollView>(null);
   const isTabPress = useRef(false);
+  const isMountedRef = useRef(true);
   const TAB_KEYS = ['goals', 'achievements', 'wishlist'] as const;
 
   // Redirect if userId is missing (e.g., after bad navigation)
@@ -633,10 +634,12 @@ const FriendProfileScreen: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
+      isMountedRef.current = true;
       if (userId) {
         loadFriendProfile();
       }
-    }, [userId])
+      return () => { isMountedRef.current = false; };
+    }, [userId, loadFriendProfile])
   );
 
   if (!userId) return null; // Early return AFTER all hooks
@@ -672,6 +675,7 @@ const FriendProfileScreen: React.FC = () => {
 
       const profile = await userService.getUserProfile(userId);
       const name = await userService.getUserName(userId);
+      if (!isMountedRef.current) return;
       setUserProfile(profile);
       setUserName(name);
 
@@ -695,6 +699,7 @@ const FriendProfileScreen: React.FC = () => {
         wishlistData = [];
       }
 
+      if (!isMountedRef.current) return;
       setActiveGoals(allGoals.filter((g) => !g.isCompleted));
       setCompletedGoals(allGoals.filter((g) => g.isCompleted));
       setWishlist(wishlistData || []);
@@ -705,17 +710,19 @@ const FriendProfileScreen: React.FC = () => {
           friendService.hasPendingRequest(currentUserId, userId),
           friendService.getFriends(currentUserId),
         ]);
+        if (!isMountedRef.current) return;
         setIsFriend(friendshipStatus);
         setHasPendingRequest(pendingStatus);
         const friendRecord = myFriends.find((f: Friend) => f.friendId === userId);
         setFriendSince(friendRecord?.createdAt ?? null);
       }
     } catch (error: unknown) {
+      if (!isMountedRef.current) return;
       logger.error('Error loading profile:', error);
       showError('Failed to load profile. Please try again.');
       setError(true);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLoading(false);
     }
   }, [userId, currentUserId]);
 

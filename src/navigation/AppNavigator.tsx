@@ -20,7 +20,7 @@ import { AuthGuardProvider } from '../context/AuthGuardContext';
 import LandingScreen from '../screens/LandingScreen';
 import AuthScreen from '../screens/AuthScreen';
 import CategorySelectionScreen from '../screens/giver/CategorySelectionScreen';
-import ExperienceDetailsScreen from '../screens/giver/ExperienceDetailsScreen.web';
+import ExperienceDetailsScreen from '../screens/giver/ExperienceDetailsScreen';
 import ExperienceCheckoutScreen from '../screens/giver/ExperienceCheckoutScreen';
 import ConfirmationScreen from '../screens/giver/ConfirmationScreen';
 import ConfirmationMultipleScreen from '../screens/giver/ConfirmationMultipleScreen';
@@ -105,8 +105,6 @@ const GiverNavigator = () => (
 const RecipientNavigator = () => (
   <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade' }}>
     <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
-    <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
-    <RecipientStack.Screen name="Journey" component={JourneyScreen} />
     <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
   </RecipientStack.Navigator>
 );
@@ -523,6 +521,8 @@ const AppNavigator = () => {
         } else if (mounted) {
           dispatch({ type: 'SET_USER', payload: null });
         }
+      } catch (error) {
+        logger.error('[AppNavigator] Failed to create user profile:', error);
       } finally {
         if (mounted) setIsCheckingAuth(false);
       }

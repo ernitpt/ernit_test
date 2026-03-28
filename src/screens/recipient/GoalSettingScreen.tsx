@@ -23,12 +23,10 @@ import { TextInput } from '../../components/TextInput';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { useBeforeRemove } from '../../hooks/useBeforeRemove';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CompositeNavigationProp } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  RecipientStackParamList,
   RootStackParamList,
   ExperienceGift,
   Goal,
@@ -65,10 +63,7 @@ import Button from '../../components/Button';
 
 const TOTAL_STEPS = 4;
 
-type NavProp = CompositeNavigationProp<
-  NativeStackNavigationProp<RecipientStackParamList, 'GoalSetting'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+type NavProp = NativeStackNavigationProp<RootStackParamList, 'GoalSetting'>;
 
 const GYM_SPRITE = require('../../assets/sprites/bicep_sprite.png');
 
@@ -168,8 +163,8 @@ const GoalSettingScreen = () => {
 
   useEffect(() => {
     if (!hasValidData) {
-      logger.warn('Missing/invalid experienceGift on GoalSettingScreen, redirecting to CouponEntry');
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'CouponEntry' }] }));
+      logger.warn('Missing/invalid experienceGift on GoalSettingScreen, redirecting to RecipientFlow');
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'RecipientFlow' }] }));
     }
   }, [hasValidData, navigation]);
 
@@ -180,7 +175,7 @@ const GoalSettingScreen = () => {
         : new Date(experienceGift.expiresAt as string | number);
       if (expiresAt < new Date()) {
         showError('This gift has expired and can no longer be claimed.');
-        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'CouponEntry' }] }));
+        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'RecipientFlow' }] }));
       }
     }
   }, [experienceGift?.expiresAt, showError, navigation]);
@@ -261,6 +256,13 @@ const GoalSettingScreen = () => {
         }
       };
       startGeneration();
+    }
+  }, [currentStep, weeks, sessionsPerWeek, experience]);
+
+  // Reset pre-generated hint if user navigates back before step 4
+  useEffect(() => {
+    if (currentStep < 4) {
+      setHintPromise(null);
     }
   }, [currentStep]);
 

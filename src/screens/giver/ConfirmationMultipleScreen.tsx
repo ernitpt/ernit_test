@@ -110,6 +110,7 @@ const ConfirmationMultipleScreen = () => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     const fetchExperiences = async () => {
       try {
         if (!experienceGifts || !Array.isArray(experienceGifts)) return;
@@ -118,6 +119,7 @@ const ConfirmationMultipleScreen = () => {
           return { gift, experience };
         });
         const results = await Promise.all(promises);
+        if (!mounted) return;
         setGiftsWithExperiences(results);
 
         // Initialize messages from existing gifts
@@ -132,14 +134,16 @@ const ConfirmationMultipleScreen = () => {
         setPersonalizedMessages(initialMessages);
         setMessageSentStatus(initialSentStatus);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error("Error fetching experiences:", error);
         setLoadError(true);
         showError("Could not load experience details.");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
     fetchExperiences();
+    return () => { mounted = false; };
   }, [experienceGifts]);
 
   const handleMessageChange = useCallback((giftId: string, text: string) => {

@@ -230,7 +230,7 @@ const ConfirmationScreen = () => {
       };
       attach();
     }
-  }, [goalId, experienceGift?.id]);
+  }, [goalId, experienceGift?.id, state.user?.id, isEmpower, empowerContext, dispatch]);
 
   // Cleanup copy timeout on unmount
   useEffect(() => {

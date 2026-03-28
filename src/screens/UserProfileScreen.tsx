@@ -497,6 +497,8 @@ const UserProfileScreen: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
   const [wishlistRemoveId, setWishlistRemoveId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingImageBlob, setPendingImageBlob] = useState<Blob | null>(null);
+  const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
 
   const userId = state.user?.id || '';
 
@@ -577,7 +579,6 @@ const UserProfileScreen: React.FC = () => {
       if (!result.canceled && result.assets[0]) {
         const localUri = result.assets[0].uri;
         try {
-        // 📤 Upload instantly so preview uses a valid Firebase URL (not blob:)
         const response = await fetch(localUri);
         const blob = await response.blob();
 
@@ -587,19 +588,16 @@ const UserProfileScreen: React.FC = () => {
           return;
         }
 
-        const ext = localUri.split('.').pop()?.split('?')[0] || 'jpg';
-        const filePath = `profile-images/${userId}/profile_${Date.now()}.${ext}`;
-        const storageRef = ref(storage, filePath);
-        await uploadBytes(storageRef, blob);
-        const downloadUrl = await getDownloadURL(storageRef);
-
+        // Store blob and local URI; upload deferred until Save is tapped
+        setPendingImageBlob(blob);
+        setPendingImageUri(localUri);
         setEditFormData((prev) => ({
           ...prev,
-          profileImageUrl: downloadUrl,
+          profileImageUrl: localUri, // local URI for preview only
         }));
       } catch (uploadErr: unknown) {
-        logger.error('Upload failed:', uploadErr);
-        showError('Could not upload profile image.');
+        logger.error('Image pick failed:', uploadErr);
+        showError('Could not open profile image.');
       }
     }
     } catch (error: unknown) {
@@ -615,7 +613,15 @@ const UserProfileScreen: React.FC = () => {
       profileImageUrl: userProfile?.profileImageUrl || '',
     });
     setFormErrors({});
+    setPendingImageBlob(null);
+    setPendingImageUri(null);
     setIsEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setPendingImageBlob(null);
+    setPendingImageUri(null);
+    setIsEditModalVisible(false);
   };
 
   const validateField = (field: 'name' | 'description', value: string) => {
@@ -657,13 +663,32 @@ const UserProfileScreen: React.FC = () => {
     // 1. Save previous state for rollback
     const previousProfile = userProfile;
 
-    // 2. Prepare updated profile
+    // 2. Upload pending image blob if present (deferred from pickImage)
+    let resolvedImageUrl = editFormData.profileImageUrl || '';
+    if (pendingImageBlob) {
+      try {
+        const ext = (pendingImageUri?.split('.').pop()?.split('?')[0]) || 'jpg';
+        const filePath = `profile-images/${userId}/profile_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, pendingImageBlob);
+        resolvedImageUrl = await getDownloadURL(storageRef);
+        setPendingImageBlob(null);
+        setPendingImageUri(null);
+      } catch (uploadErr: unknown) {
+        logger.error('Upload failed during save:', uploadErr);
+        showError('Could not upload profile image. Please try again.');
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    // 3. Prepare updated profile
     const sanitizedName = sanitizeText(nameVal, 50);
     const sanitizedDescription = sanitizeText(editFormData.description.trim(), 300);
     const profileUpdates = {
       name: sanitizedName || userProfile?.name || '',
       description: sanitizedDescription,
-      profileImageUrl: editFormData.profileImageUrl || '',
+      profileImageUrl: resolvedImageUrl,
       updatedAt: new Date(),
     };
 
@@ -672,23 +697,23 @@ const UserProfileScreen: React.FC = () => {
       ...profileUpdates,
     };
 
-    // 3. Update UI immediately
+    // 4. Update UI immediately
     setUserProfile(updatedProfile);
     if (state.user) {
       const updatedUser: User = { ...state.user, profile: updatedProfile };
       dispatch({ type: 'SET_USER', payload: updatedUser });
     }
 
-    // 4. Close modal and show success immediately
+    // 5. Close modal and show success immediately
     setIsEditModalVisible(false);
     showSuccess('Profile updated!');
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // 5. Call API in background
+    // 6. Call API in background
     try {
       await userService.updateUserProfile(userId, { profile: updatedProfile });
     } catch (error: unknown) {
-      // 6. Rollback on failure
+      // 7. Rollback on failure
       logger.error('Error updating profile:', error);
       setUserProfile(previousProfile);
       if (state.user && previousProfile) {
@@ -942,7 +967,7 @@ const UserProfileScreen: React.FC = () => {
         {/* Edit Modal */}
         <BaseModal
           visible={isEditModalVisible}
-          onClose={() => setIsEditModalVisible(false)}
+          onClose={closeEditModal}
           title="Edit Profile"
           variant="bottom"
           noPadding
@@ -953,7 +978,7 @@ const UserProfileScreen: React.FC = () => {
           >
             <View style={styles.modalHeader}>
               <TouchableOpacity
-                onPress={() => setIsEditModalVisible(false)}
+                onPress={closeEditModal}
                 style={styles.modalCancelButton}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>

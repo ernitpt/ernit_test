@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   View,
@@ -56,9 +56,14 @@ const FriendsListScreen: React.FC = () => {
   const [error, setError] = useState(false);
   const [displayCount, setDisplayCount] = useState(20);
   const currentUserId = state.user?.id;
+  const lastFetchRef = useRef<number>(0);
 
-  const loadFriends = useCallback(async () => {
+  const loadFriends = useCallback(async (forceRefresh = false) => {
     if (!currentUserId) return;
+
+    const now = Date.now();
+    if (!forceRefresh && now - lastFetchRef.current < 60_000) return; // skip if fetched < 60s ago
+    lastFetchRef.current = now;
 
     try {
       setIsLoading(true);
@@ -102,7 +107,7 @@ const FriendsListScreen: React.FC = () => {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFriends();
+    await loadFriends(true);
     setRefreshing(false);
   }, [loadFriends]);
 

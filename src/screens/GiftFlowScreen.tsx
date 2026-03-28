@@ -664,7 +664,7 @@ export default function GiftFlowScreen() {
                 navigation.navigate('ExperienceCheckout', {
                     cartItems: [{ experienceId: selectedExperience?.id ?? "", quantity: 1 }],
                     giftId: result.gift?.id,
-                } as { cartItems: CartItem[] });
+                });
             } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
                 navigation.navigate('DeferredSetup', {
                     setupIntentClientSecret: result.setupIntentClientSecret,

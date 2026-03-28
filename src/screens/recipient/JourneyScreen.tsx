@@ -26,7 +26,7 @@ type HintEntry = PersonalizedHint | {
   duration?: number;
   forSessionNumber?: number;
 };
-import { useRecipientNavigation } from '../../types/navigation';
+import { useRootNavigation } from '../../types/navigation';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
 import MainScreen from '../MainScreen';
@@ -882,7 +882,7 @@ const createHintStyles = (colors: typeof Colors) => StyleSheet.create({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 const JourneyScreen = () => {
-  const navigation = useRecipientNavigation();
+  const navigation = useRootNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const routeParams = route.params as { goal?: Goal } | undefined;
@@ -969,26 +969,31 @@ const JourneyScreen = () => {
       }
     }, (error) => {
       logger.error('[JourneyScreen] Goal snapshot error:', error.message);
+      setError(true);
     });
     return () => { isMounted = false; unsub(); };
   }, [currentGoal?.id]);
 
   // Fetch experience gift
   useEffect(() => {
+    let mounted = true;
     const fetchExperienceGift = async () => {
       if (currentGoal?.experienceGiftId) {
         try {
           const gift = await experienceGiftService.getExperienceGiftById(
             currentGoal.experienceGiftId
           );
+          if (!mounted) return;
           if (gift) setExperienceGift(gift);
         } catch (error: unknown) {
+          if (!mounted) return;
           logger.error('Error fetching experience gift:', error);
           setError(true);
         }
       }
     };
     fetchExperienceGift();
+    return () => { mounted = false; };
   }, [currentGoal?.experienceGiftId]);
 
   // Fetch sessions when tab changes to Sessions, or when screen refocuses
@@ -1021,16 +1026,20 @@ const JourneyScreen = () => {
   // Fetch all motivations for inline display on session cards
   useEffect(() => {
     if (!currentGoal?.id) return;
+    let mounted = true;
     const fetchMotivations = async () => {
       try {
         const data = await motivationService.getAllMotivations(currentGoal.id);
+        if (!mounted) return;
         setMotivations(data);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching motivations:', error);
         setError(true);
       }
     };
     fetchMotivations();
+    return () => { mounted = false; };
   }, [currentGoal?.id]);
 
   // Group motivations by target session number

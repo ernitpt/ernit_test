@@ -212,7 +212,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   const clearCartEverywhere = async () => {
     dispatch({ type: "CLEAR_CART" });
     if (state.user?.id) {
-      try { await userService.clearCart(state.user.id); } catch {}
+      try { await userService.clearCart(state.user.id); } catch (e) { logger.error('Failed to clear server cart:', e); }
     }
   };
 
@@ -338,7 +338,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           return_url:
             Platform.OS === "web"
               ? window.location.href
-              : `${process.env.EXPO_PUBLIC_APP_URL || 'https://ernit-nine.vercel.app'}/payment-success`,
+              : `${process.env.EXPO_PUBLIC_APP_URL ?? ''}/payment-success`,
         },
         redirect: "if_required",
       });

@@ -15,9 +15,10 @@ import {
 } from 'react-native';
 import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RecipientStackParamList, ExperienceGift } from '../../types';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { RecipientStackParamList, RootStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
 import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
@@ -37,8 +38,10 @@ import { Typography } from '../../config/typography';
 import { Shadows } from '../../config/shadows';
 import { MotiView, AnimatePresence } from 'moti';
 
-type CouponEntryNavigationProp =
-  NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
+type CouponEntryNavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 const CouponEntryScreen = () => {
   const colors = useColors();
@@ -194,11 +197,11 @@ const CouponEntryScreen = () => {
         setPendingExperienceGift(experienceGift);
         setShowPersonalizedMessage(true);
       } else {
-        // No message, proceed directly to GoalSetting
-        navigation.reset({
+        // No message, proceed directly to GoalSetting (RootStack)
+        navigation.dispatch(CommonActions.reset({
           index: 0,
           routes: [{ name: 'GoalSetting', params: { experienceGift } }],
-        });
+        }));
       }
     } catch (error: unknown) {
       logger.error('Error claiming experience gift:', error);
@@ -221,10 +224,10 @@ const CouponEntryScreen = () => {
     // Small delay to let animation complete
     continueTimeoutRef.current = setTimeout(() => {
       if (pendingExperienceGift) {
-        navigation.reset({
+        navigation.dispatch(CommonActions.reset({
           index: 0,
           routes: [{ name: 'GoalSetting', params: { experienceGift: pendingExperienceGift } }],
-        });
+        }));
       }
     }, 200);
   };
