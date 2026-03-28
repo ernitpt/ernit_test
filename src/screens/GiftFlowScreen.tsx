@@ -58,13 +58,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Path } from 'react-native-svg';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
+import SpriteAnimation from '../components/SpriteAnimation';
+
+const GYM_SPRITE = require('../assets/sprites/bicep_sprite.png');
 
 // ─── Goal type options (Together flow) ───────────────────────────────────────
 const getGoalTypes = (colors: typeof Colors) => [
-    { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-    { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info },
-    { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
-    { icon: '✏️', name: 'Add your own', tagline: 'Custom Challenge', color: colors.textMuted },
+    { icon: null, sprite: GYM_SPRITE, name: 'Gym', tagline: 'Hit the weights', color: colors.success },
+    { icon: '🧘', sprite: null, name: 'Yoga', tagline: 'Find your flow', color: colors.info },
+    { icon: '💃', sprite: null, name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
+    { icon: '✏️', sprite: null, name: 'Add your own', tagline: 'Custom Challenge', color: colors.textMuted },
 ];
 
 // ─── Step titles (dynamic based on challengeType) ────────────────────────────
@@ -775,7 +778,21 @@ export default function GiftFlowScreen() {
                                 accessibilityRole="button"
                                 accessibilityLabel={`Select ${type.name} goal type`}
                             >
-                                <Text style={styles.goalTypeEmoji}>{type.icon}</Text>
+                                {type.sprite ? (
+                                    <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                                        <SpriteAnimation
+                                            source={type.sprite}
+                                            columns={5}
+                                            rows={5}
+                                            frameCount={25}
+                                            frameWidth={160}
+                                            frameHeight={160}
+                                            frameDuration={60}
+                                        />
+                                    </View>
+                                ) : (
+                                    <Text style={styles.goalTypeEmoji}>{type.icon}</Text>
+                                )}
                                 <Text style={[styles.goalTypeName, isSelected && styles.goalTypeNameActive]}>{type.name}</Text>
                                 <Text style={[
                                     styles.goalTypeTagline,

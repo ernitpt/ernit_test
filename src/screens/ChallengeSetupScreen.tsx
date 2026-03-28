@@ -32,7 +32,8 @@ import { ChevronLeft, ChevronRight, Check, Info } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, auth } from '../services/firebase';
+import { config } from '../config/environment';
 import { Experience, Goal, ExperienceCategory, ChallengeSetupPrefill } from '../types';
 import { serializeNav } from '../utils/serializeNav';
 import { useRootNavigation } from '../types/navigation';
@@ -52,12 +53,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
 import ExperienceDetailModal from '../components/ExperienceDetailModal';
+import SpriteAnimation from '../components/SpriteAnimation';
+
+const GYM_SPRITE = require('../assets/sprites/bicep_sprite.png');
 
 const getGoalTypes = (colors: typeof Colors) => [
-    { icon: '\u{1F3CB}\u{FE0F}', name: 'Gym', color: colors.secondary, tagline: 'Hit the weights' },
-    { icon: '\u{1F9D8}', name: 'Yoga', color: colors.categoryPink, tagline: 'Find your flow' },
-    { icon: '\u{1F483}', name: 'Dance', color: colors.accent, tagline: 'Move to the beat' },
-    { icon: '\u270F\uFE0F', name: 'Add your own', color: colors.textSecondary, tagline: 'Custom Challenge' },
+    { icon: null, sprite: GYM_SPRITE, name: 'Gym', color: colors.secondary, tagline: 'Hit the weights' },
+    { icon: '\u{1F9D8}', sprite: null, name: 'Yoga', color: colors.categoryPink, tagline: 'Find your flow' },
+    { icon: '\u{1F483}', sprite: null, name: 'Dance', color: colors.accent, tagline: 'Move to the beat' },
+    { icon: '\u270F\uFE0F', sprite: null, name: 'Add your own', color: colors.textSecondary, tagline: 'Custom Challenge' },
 ];
 
 const STEP_TITLES = [
@@ -444,12 +448,45 @@ export default function ChallengeSetupScreen() {
                     });
                 }, 300);
             } else if (paymentChoice === 'payLater' && selectedExperience) {
-                // "Pay on success" — goal created with paymentCommitment: 'payOnCompletion'.
-                // At completion, the user will be prompted to purchase via ExperienceCheckout.
-                // No card collection at setup (supports MB WAY and all payment methods at completion).
-                showSuccess('Challenge created! You\'ll pay when you complete your goal.');
+                // "Pay on success" — create deferred gift with SetupIntent to save card
+                const token = await auth.currentUser?.getIdToken();
+                if (!token) throw new Error('Not authenticated');
+
+                const deferredResponse = await fetch(
+                    `${config.functionsUrl}/${config.giftFunctions.createDeferredGift}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            experienceId: selectedExperience.id,
+                            challengeType: 'solo',
+                            revealMode: 'revealed',
+                            giverName: state.user.displayName || '',
+                        }),
+                    }
+                );
+
+                if (!deferredResponse.ok) {
+                    const errorData = await deferredResponse.json().catch(() => ({}));
+                    throw new Error((errorData as { error?: string })?.error || 'Failed to set up payment');
+                }
+
+                const deferredResult = await deferredResponse.json();
+
+                // Link the deferred gift to the goal
+                if (deferredResult.gift?.id) {
+                    await goalService.updateGoal(goal.id, { experienceGiftId: deferredResult.gift.id });
+                }
+
+                showSuccess('Challenge created! Save your card to secure your reward.');
                 setTimeout(() => {
-                    navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+                    navigation.replace('DeferredSetup', {
+                        setupIntentClientSecret: deferredResult.setupIntentClientSecret,
+                        experienceGift: deferredResult.gift,
+                    });
                 }, 300);
             } else {
                 // Free goal (category preference or skip) — go straight to Goals
@@ -533,7 +570,21 @@ export default function ChallengeSetupScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Select ${goal.name} goal`}
                         >
-                            <Text style={styles.goalIcon}>{goal.icon}</Text>
+                            {goal.sprite ? (
+                                <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                                    <SpriteAnimation
+                                        source={goal.sprite}
+                                        columns={5}
+                                        rows={5}
+                                        frameCount={25}
+                                        frameWidth={100}
+                                        frameHeight={100}
+                                        frameDuration={60}
+                                    />
+                                </View>
+                            ) : (
+                                <Text style={styles.goalIcon}>{goal.icon}</Text>
+                            )}
                             <Text style={[
                                 styles.goalName,
                                 selectedGoal === goal.name && styles.goalNameActive,
@@ -1159,7 +1210,7 @@ export default function ChallengeSetupScreen() {
                                         from={{ opacity: 0, translateY: 12 }}
                                         animate={{ opacity: 1, translateY: 0 }}
                                         transition={{ type: 'timing', duration: 300 }}
-                                        style={[styles.categorySection, { backgroundColor: 'transparent' }]}
+                                        style={styles.categorySection}
                                     >
                                         <View style={styles.categorySectionHeader}>
                                             <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
@@ -1257,7 +1308,6 @@ export default function ChallengeSetupScreen() {
                     from={{ opacity: 0, translateY: 16 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 300 }}
-                    style={{ backgroundColor: 'transparent' }}
                 >
                     <TouchableOpacity
                         style={[
@@ -1305,7 +1355,6 @@ export default function ChallengeSetupScreen() {
                             from={{ opacity: 0, translateY: 16 }}
                             animate={{ opacity: 1, translateY: 0 }}
                             transition={{ type: 'timing', duration: 300, delay: (index + 1) * 80 }}
-                            style={{ backgroundColor: 'transparent' }}
                         >
                             <TouchableOpacity
                                 style={[
@@ -1519,9 +1568,21 @@ export default function ChallengeSetupScreen() {
                                 {selectedGoal && (
                                     <View style={styles.heroContextRow}>
                                         <View style={styles.contextBadge}>
-                                            <Text style={styles.contextEmoji}>
-                                                {selectedGoal === 'Gym' ? '🏋️' : selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Dance' ? '💃' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
-                                            </Text>
+                                            {selectedGoal === 'Gym' ? (
+                                                <SpriteAnimation
+                                                    source={GYM_SPRITE}
+                                                    columns={5}
+                                                    rows={5}
+                                                    frameCount={25}
+                                                    frameWidth={24}
+                                                    frameHeight={24}
+                                                    frameDuration={60}
+                                                />
+                                            ) : (
+                                                <Text style={styles.contextEmoji}>
+                                                    {selectedGoal === 'Yoga' ? '🧘' : selectedGoal === 'Dance' ? '💃' : selectedGoal === 'Run' ? '🏃' : selectedGoal === 'Read' ? '📚' : selectedGoal === 'Walk' ? '🚶' : '✨'}
+                                                </Text>
+                                            )}
                                             <Text style={styles.contextText}>{selectedGoal === 'Add your own' ? (customGoal.trim() || 'Custom') : selectedGoal}</Text>
                                         </View>
                                         <View style={styles.contextDivider} />

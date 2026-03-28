@@ -35,6 +35,7 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { Shadows } from '../../config/shadows';
+import { MotiView, AnimatePresence } from 'moti';
 
 type CouponEntryNavigationProp =
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>;
@@ -58,8 +59,6 @@ const CouponEntryScreen = () => {
 
   // Shake animation for error feedback
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  // Animated height for error message area
-  const errorHeightAnim = useRef(new Animated.Value(0)).current;
   const continueTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Cleanup timeout on unmount to prevent memory leaks
@@ -68,15 +67,6 @@ const CouponEntryScreen = () => {
       if (continueTimeoutRef.current) clearTimeout(continueTimeoutRef.current);
     };
   }, []);
-
-  // Animate error message area open/closed
-  useEffect(() => {
-    Animated.timing(errorHeightAnim, {
-      toValue: errorMessage ? 36 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [errorMessage]);
 
   // Persist claim code from deep link so it survives an auth redirect
   useEffect(() => {
@@ -315,12 +305,21 @@ const CouponEntryScreen = () => {
                     />
                   </Animated.View>
 
-                  {/* Error message (animated height — collapses to 0 when empty) */}
-                  <Animated.View style={[styles.errorContainer, { height: errorHeightAnim }]}>
+                  {/* Error message (fade in/out via Moti) */}
+                  <AnimatePresence>
                     {errorMessage ? (
-                      <Text style={styles.errorText}>{errorMessage}</Text>
+                      <MotiView
+                        key="error"
+                        from={{ opacity: 0, translateY: -8 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        exit={{ opacity: 0, translateY: -8 }}
+                        transition={{ type: 'timing', duration: 200 }}
+                        style={styles.errorContainer}
+                      >
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                      </MotiView>
                     ) : null}
-                  </Animated.View>
+                  </AnimatePresence>
 
                   <Button
                     variant="primary"

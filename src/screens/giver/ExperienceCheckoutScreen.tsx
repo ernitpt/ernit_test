@@ -507,8 +507,292 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   );
 };
 
-// ========== OUTER WRAPPER (creates PaymentIntent & <Elements>) ==========
-const ExperienceCheckoutScreen: React.FC = () => {
+// ========== NATIVE CHECKOUT (uses @stripe/stripe-react-native PaymentSheet) ==========
+const NativeCheckoutScreen: React.FC = () => {
+  const { usePaymentSheet } = require('../../hooks/useNativePaymentSheet');
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const route = useRoute();
+  const navigation = useNavigation<NavigationProp>();
+  const { state, dispatch } = useApp();
+  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { showError, showSuccess, showInfo } = useToast();
+  const insets = useSafeAreaInsets();
+
+  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean } | undefined;
+  const cartItems = routeParams?.cartItems || [];
+  const goalId = routeParams?.goalId || state.empowerContext?.goalId;
+  const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
+
+  const [loading, setLoading] = useState(true);
+  const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [sheetReady, setSheetReady] = useState(false);
+
+  const totalQuantity = Array.isArray(cartItems)
+    ? cartItems.reduce((sum, item) => sum + item.quantity, 0)
+    : 0;
+
+  const initRef = useRef(false);
+  const pollCancelledRef = useRef(false);
+
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
+
+  useEffect(() => {
+    if (!state.user) requireAuth("Please log in to proceed to checkout.");
+  }, [state.user, requireAuth]);
+
+  useEffect(() => {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.reset({ index: 0, routes: [{ name: 'CategorySelection' }] });
+    }
+  }, [cartItems, navigation]);
+
+  useEffect(() => {
+    return () => { pollCancelledRef.current = true; };
+  }, []);
+
+  useEffect(() => {
+    if (initRef.current) return;
+
+    const init = async () => {
+      try {
+        if (!cartItems || cartItems.length === 0) return;
+        initRef.current = true;
+
+        const list: Experience[] = [];
+        let total = 0;
+        for (const item of cartItems) {
+          const exp = await experienceService.getExperienceById(item.experienceId);
+          if (exp) { list.push(exp); total += exp.price * item.quantity; }
+        }
+        if (list.length === 0) {
+          showError("Could not load experiences for checkout.");
+          initRef.current = false;
+          if (navigation.canGoBack()) navigation.goBack();
+          return;
+        }
+
+        setCartExperiences(list);
+        setTotalAmount(total);
+
+        const firstExp = list[0];
+        const cartMetadata = cartItems.map((item) => {
+          const exp = list.find((e) => e.id === item.experienceId);
+          return { experienceId: item.experienceId, partnerId: exp?.partnerId || firstExp.partnerId, quantity: item.quantity };
+        });
+
+        const response = await stripeService.createPaymentIntent(
+          total, state.user?.id || '', state.user?.displayName || '',
+          firstExp.partnerId, cartMetadata, '', isMystery
+        );
+        setPaymentIntentId(response.paymentIntentId);
+
+        const { error } = await initPaymentSheet({
+          paymentIntentClientSecret: response.clientSecret,
+          merchantDisplayName: 'Ernit',
+          style: 'automatic',
+        });
+
+        if (error) {
+          logger.error('PaymentSheet init error:', error);
+          showError('Could not set up payment. Please try again.');
+          initRef.current = false;
+        } else {
+          setSheetReady(true);
+        }
+      } catch (err: unknown) {
+        logger.error('Error initializing native checkout:', err);
+        await logErrorToFirestore(err, {
+          screenName: 'ExperienceCheckoutScreen',
+          feature: 'NativeInitCheckout',
+          userId: state.user?.id,
+        });
+        showError(getUserMessage(err, 'Could not set up payment. Please try again.'));
+        initRef.current = false;
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+  }, []);
+
+  const handlePay = useCallback(async () => {
+    if (isProcessing || !sheetReady) return;
+    setIsProcessing(true);
+    analyticsService.trackEvent('payment_initiated', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
+
+    try {
+      const { error } = await presentPaymentSheet();
+
+      if (error) {
+        if (error.code === 'Canceled') {
+          // User dismissed the sheet — not an error
+          return;
+        }
+        throw error;
+      }
+
+      // Payment succeeded
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      analyticsService.trackEvent('payment_completed', 'conversion', { totalAmount, totalQuantity }, 'ExperienceCheckoutScreen');
+
+      if (paymentIntentId) {
+        const gifts = await pollForGifts(paymentIntentId, totalQuantity, 20, 2000, pollCancelledRef);
+
+        if (gifts.length === 1) {
+          dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: gifts[0] });
+          dispatch({ type: 'CLEAR_CART' });
+          showSuccess('Your payment was processed successfully!');
+          navigation.navigate('Confirmation', { experienceGift: gifts[0], goalId });
+        } else if (gifts.length > 1) {
+          dispatch({ type: 'CLEAR_CART' });
+          showSuccess('Your payment was processed successfully!');
+          navigation.navigate('ConfirmationMultiple', { experienceGifts: gifts });
+        } else {
+          dispatch({ type: 'CLEAR_CART' });
+          showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
+          setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
+        }
+      }
+    } catch (err: unknown) {
+      await logErrorToFirestore(err, {
+        screenName: 'ExperienceCheckoutScreen',
+        feature: 'NativeHandlePurchase',
+        userId: state.user?.id,
+      });
+      const errorMessage = getUserMessage(err, 'Payment failed. Please verify your card details and try again.');
+      analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
+      showError(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing, sheetReady, paymentIntentId, totalAmount, totalQuantity, goalId, navigation, dispatch]);
+
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Home">
+          <View style={styles.loadingContainer}><Text style={styles.loadingText}>Redirecting...</Text></View>
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
+  if (!state.user) {
+    return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Home">
+          <LoginPrompt visible={showLoginPrompt} onClose={closeLoginPrompt} message={loginMessage} />
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
+  if (loading) {
+    return (
+      <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
+        <MainScreen activeRoute="Home">
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+                <ChevronLeft color={colors.textPrimary} size={24} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Checkout</Text>
+              <View style={styles.lockIcon}><Lock color={colors.secondary} size={20} /></View>
+            </View>
+            <View style={{ flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl }}>
+              <CheckoutSkeleton />
+            </View>
+          </View>
+        </MainScreen>
+      </ErrorBoundary>
+    );
+  }
+
+  return (
+    <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
+      <MainScreen activeRoute="Home">
+        <View style={styles.container}>
+          {isProcessing && (
+            <View style={styles.processingOverlay}>
+              <ActivityIndicator color={colors.secondary} size="large" />
+              <Text style={styles.processingText}>Processing payment...</Text>
+            </View>
+          )}
+
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={[styles.backButton, isProcessing && styles.backButtonDisabled]}
+              onPress={() => { if (!isProcessing) navigation.goBack(); }}
+              activeOpacity={0.7}
+              disabled={isProcessing}
+            >
+              <ChevronLeft color={colors.textPrimary} size={24} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Checkout</Text>
+            <View style={styles.lockIcon}><Lock color={colors.secondary} size={20} /></View>
+          </View>
+
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* Order summary */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Your Gifts</Text>
+              {cartItems.map((item) => {
+                const exp = cartExperiences.find((e) => e.id === item.experienceId);
+                if (!exp) return null;
+                return (
+                  <View key={item.experienceId} style={styles.summaryRow}>
+                    <View style={styles.summaryInfo}>
+                      <Text style={styles.summaryTitle}>{exp.title}</Text>
+                      {exp.subtitle ? <Text style={styles.subtitle}>{exp.subtitle}</Text> : null}
+                    </View>
+                    <Text style={styles.priceAmount}>{'\u20AC'}{(exp.price * item.quantity).toFixed(2)}</Text>
+                  </View>
+                );
+              })}
+              <View style={styles.priceLine}>
+                <Text style={styles.priceLabel}>Total</Text>
+                <Text style={styles.priceAmount}>{'\u20AC'}{totalAmount.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {/* Security notice */}
+            <View style={styles.securityNotice}>
+              <Lock color={colors.textSecondary} size={16} />
+              <Text style={styles.securityText}>Your payment information is encrypted and secure</Text>
+            </View>
+
+            <View style={{ height: vh(200) }} />
+          </ScrollView>
+
+          {/* Bottom CTA */}
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
+            <View style={styles.totalSection}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalAmount}>{'\u20AC'}{totalAmount.toFixed(2)}</Text>
+            </View>
+            <Button
+              variant="primary"
+              title={sheetReady ? `Pay \u20AC${totalAmount.toFixed(2)}` : 'Setting up...'}
+              onPress={handlePay}
+              disabled={isProcessing || !sheetReady}
+              loading={isProcessing}
+              fullWidth
+            />
+          </View>
+        </View>
+      </MainScreen>
+    </ErrorBoundary>
+  );
+};
+
+// ========== WEB CHECKOUT WRAPPER (creates PaymentIntent & <Elements>) ==========
+const WebCheckoutScreen: React.FC = () => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute();
@@ -800,6 +1084,8 @@ const ExperienceCheckoutScreen: React.FC = () => {
   );
 };
 
+// ========== PLATFORM SWITCH ==========
+const ExperienceCheckoutScreen = Platform.OS === 'web' ? WebCheckoutScreen : NativeCheckoutScreen;
 export default ExperienceCheckoutScreen;
 
 // --- Styles (based on your original) ---

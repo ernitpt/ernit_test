@@ -1,13 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
-  Platform, Linking, LayoutAnimation, RefreshControl, Share, useWindowDimensions,
-  UIManager,
+  Platform, Linking, RefreshControl, Share, useWindowDimensions,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -231,12 +226,10 @@ const SessionCard = React.memo(({
   };
 
   const handleCardTap = () => {
-    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onToggleExpand();
   };
 
   const toggleMotivations = () => {
-    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setMotivationsExpanded(!motivationsExpanded);
   };
 
@@ -1350,7 +1343,6 @@ const JourneyScreen = () => {
           motivations={motivationsBySession[s.sessionNumber] || []}
           isExpanded={expandedSessionId === s.id}
           onToggleExpand={() => {
-            if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setExpandedSessionId(prev => prev === s.id ? null : s.id);
           }}
           onImagePress={(uri) => {

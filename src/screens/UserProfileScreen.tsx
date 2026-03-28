@@ -74,6 +74,7 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
+  const { state, dispatch } = useApp();
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -147,6 +148,14 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
+            dispatch({
+              type: 'SET_EMPOWER_CONTEXT',
+              payload: {
+                goalId: goal.id,
+                userId: state.user?.id || '',
+                userName: state.user?.displayName || 'You',
+              },
+            });
             navigation.navigate('CategorySelection', {
               ...(goal.preferredRewardCategory ? { prefilterCategory: goal.preferredRewardCategory } : {}),
             });

@@ -95,6 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - goal edit approval — giver can approve/reject recipient edit requests via notification
 - created investor deck HTML for Fundação Ageas meeting
 - finish button progress fill animation with time-based fill and glow on completion
+- rewrite FreeGoalCompletionScreen with hero header, tilted share card, streak CTA, and image capture sharing
+- remake FreeGoalCompletionScreen with full stats, hero share card, streak, and what's next CTA
+- unified AchievementDetailScreen handles both completion and review modes
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -370,6 +373,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace hardcoded hex colors with design tokens in ChallengeLandingScreen and HeroPreviewScreen
 - fix inline fontWeight override in GoalsScreen completedHeaderText
 - P2 typography audit — replace standalone fontWeight with Typography presets across StreakBanner, SessionActionArea, TimerDisplay, WeeklyCalendar, ProgressBars sub-components
+- blue Try Again button on error and retry screens
+- replace LayoutAnimation with Reanimated FadeIn/FadeOut in GoalsScreen
+- convert TimerDisplay fill animations to scaleX/native driver for Android performance
+- replace JS-bridge color/glow animations with Reanimated-backed MotiView/MotiText in FooterNavigation
+- reduce confetti particle count by 40% on Android to prevent frame drops
+- Android DetailedGoalCard uses solid surface bg + elevation instead of glassmorphism border
+- unify 3 completion screens into single AchievementDetailScreen with mode param
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -846,6 +856,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove clock snap rAF animation and add backgroundColor transparent to MotiView wrappers in ChallengeSetupScreen
 - remove clock snap animation and add transparent bg to MotiView wrappers in GiftFlowScreen
 - slider glitch (pageX tracking), clock FPS (remove rAF animation), MotiView white box (transparent bg), safe area in BaseModal and ExperienceDetailModal, goal card resilience (individual ErrorBoundary)
+- skip malformed Firestore goal docs instead of crashing GoalsScreen
+- Android slider touch area and reward animation grey box artifacts
+- Android-compatible glow overlay for finish button in TimerDisplay
+- replace shadow-based glow with overlay opacity in StreakBanner for Android compatibility
+- Android-compatible shadow/glow animation in ProgressBars using scaleX and native driver
+- replace height animation with Moti fade in CouponEntryScreen error message
+- Android animation compatibility — remove LayoutAnimation, overlay-based glows, scaleX fills, Moti color transitions, reduced confetti
+- native Android payment crash — use stripe-react-native PaymentSheet instead of web-only Elements
+- ChallengeSetupScreen payLater now creates deferred gift and collects card via DeferredSetup
+- reaction picker smooth exit animation and full-screen dismiss backdrop
+- celebration modal shows correct weeks completed count (was 0/x, now 1/x) on last session of week
+- Android timer blinking — detach native driver animation after transition completes
+- web bundling crash from native-only @stripe/stripe-react-native — use platform-specific file resolution
+- add-reward flow now correctly passes goalId through purchase chain — fixes broken attachment on profile goals, achievements, and completion screen
+- self-purchase from empowerContext skips MysteryChoice screen (only needed for gifting to others)
+- Platform is not defined crash in DetailedGoalCard on web — pass isWeb flag into createStyles
+- missing Platform import in GoalCardModals causing web crash
+- align Android glow, shadow, and modal layout to match web rendering
 
 ### Added
 - Automatic changelog system with `npm run log` script

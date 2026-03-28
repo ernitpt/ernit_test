@@ -211,13 +211,23 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
   };
 
   const handleBuyNow = async () => {
-    // If empowerContext is set, route through MysteryChoiceScreen first
-    if (state.empowerContext) {
+    // If empowerContext is set for someone else's goal, route through MysteryChoiceScreen
+    const isSelfEmpower = state.empowerContext?.userId === state.user?.id;
+    if (state.empowerContext && !isSelfEmpower) {
       navigation.navigate("MysteryChoice", { experience });
       return;
     }
 
-    // Add current item to cart first
+    // Self-purchase (with or without empowerContext): go straight to checkout
+    if (state.empowerContext && isSelfEmpower) {
+      navigation.navigate("ExperienceCheckout", {
+        cartItems: [{ experienceId: experience.id, quantity: 1 }],
+        goalId: state.empowerContext.goalId,
+      });
+      return;
+    }
+
+    // Normal purchase (no empowerContext): add to cart
     const cartItem: CartItem = {
       experienceId: experience.id,
       quantity,
@@ -438,11 +448,15 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                   />
                 ) : (
                   <WebView
-                    originWhitelist={["https://*", "https://maps.google.com/*", "https://www.google.com/*"]}
-                    source={{ uri: streetMapUrl }}
+                    originWhitelist={["*"]}
+                    source={{
+                      html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0}iframe{width:100%;height:100%;border:0}</style></head><body><iframe src="${streetMapUrl}" allowfullscreen loading="lazy"></iframe></body></html>`,
+                    }}
                     style={styles.webview}
                     javaScriptEnabled
                     domStorageEnabled
+                    scrollEnabled={false}
+                    nestedScrollEnabled={false}
                   />
                 )}
               </View>

@@ -388,7 +388,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                 <ConfettiCannon
                   ref={confettiRef}
                   autoStart={false}
-                  count={80}
+                  count={Platform.OS === 'android' ? 48 : 80}
                   explosionSpeed={420}
                   fallSpeed={2600}
                   origin={{ x: 150, y: -10 }}

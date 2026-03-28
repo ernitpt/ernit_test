@@ -3,7 +3,7 @@
 // The server creates the SetupIntent in createDeferredGift; this screen presents the
 // PaymentElement in setup mode so the giver's card is saved for off-session charging later.
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
@@ -234,9 +234,186 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Outer wrapper — initialises Stripe <Elements> with the SetupIntent secret
+// Native setup — uses @stripe/stripe-react-native PaymentSheet for card setup
 // ──────────────────────────────────────────────────────────────────────────────
-const DeferredSetupScreen: React.FC = () => {
+const NativeDeferredSetup: React.FC = () => {
+  const { usePaymentSheet } = require('../../hooks/useNativePaymentSheet');
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const route = useRoute();
+  const navigation = useNavigation<NavigationProp>();
+  const { state } = useApp();
+  const { showError, showInfo } = useToast();
+  const insets = useSafeAreaInsets();
+
+  const routeParams = route.params as {
+    setupIntentClientSecret: string;
+    experienceGift: ExperienceGift;
+  } | undefined;
+
+  const setupIntentClientSecret = routeParams?.setupIntentClientSecret;
+  const experienceGift = routeParams?.experienceGift;
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [sheetReady, setSheetReady] = useState(false);
+  const initRef = React.useRef(false);
+
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
+
+  React.useEffect(() => {
+    if (!setupIntentClientSecret || !experienceGift) {
+      logger.warn('NativeDeferredSetup: missing params, redirecting');
+      if (experienceGift) {
+        navigation.replace('Confirmation', { experienceGift });
+      } else {
+        navigation.replace('ChallengeLanding');
+      }
+      return;
+    }
+
+    if (initRef.current) return;
+    initRef.current = true;
+
+    const init = async () => {
+      try {
+        const { error } = await initPaymentSheet({
+          setupIntentClientSecret,
+          merchantDisplayName: 'Ernit',
+          style: 'automatic',
+        });
+        if (error) {
+          logger.error('PaymentSheet setup init error:', error);
+          showError('Could not set up card form. Please try again.');
+          initRef.current = false;
+        } else {
+          setSheetReady(true);
+        }
+      } catch (err: unknown) {
+        logger.error('Error initializing native deferred setup:', err);
+        showError('Something went wrong. Please try again.');
+        initRef.current = false;
+      }
+    };
+
+    init();
+  }, [setupIntentClientSecret, experienceGift]);
+
+  const handleSaveCard = React.useCallback(async () => {
+    if (isProcessing || !sheetReady) return;
+    setIsProcessing(true);
+
+    try {
+      const { error } = await presentPaymentSheet();
+
+      if (error) {
+        if (error.code === 'Canceled') return;
+        throw error;
+      }
+
+      // Card saved successfully
+      if (experienceGift) {
+        navigation.replace('Confirmation', { experienceGift });
+      }
+    } catch (err: unknown) {
+      logger.error('Error confirming native SetupIntent:', err);
+      await logErrorToFirestore(err, {
+        screenName: 'DeferredSetupScreen',
+        feature: 'NativeConfirmSetupIntent',
+        userId: state.user?.id,
+      });
+      showError('Could not save your card. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing, sheetReady, experienceGift, navigation]);
+
+  const handleSkip = React.useCallback(() => {
+    showInfo('You can add payment details later from Purchased Gifts.');
+    if (experienceGift) {
+      navigation.replace('Confirmation', { experienceGift });
+    }
+  }, [navigation, experienceGift]);
+
+  if (!setupIntentClientSecret || !experienceGift) return null;
+
+  return (
+    <ErrorBoundary screenName="DeferredSetupScreen" userId={state.user?.id}>
+      <MainScreen activeRoute="Home">
+        <View style={styles.container}>
+          {isProcessing && (
+            <View style={styles.processingOverlay}>
+              <ActivityIndicator color={colors.secondary} size="large" />
+              <Text style={styles.processingText}>Saving your card...</Text>
+            </View>
+          )}
+
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              disabled={isProcessing}
+            >
+              <ChevronLeft color={colors.textPrimary} size={24} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Secure Your Gift</Text>
+            <View style={styles.lockIcon}>
+              <Lock color={colors.secondary} size={20} />
+            </View>
+          </View>
+
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Zero charge until they succeed</Text>
+              <Text style={styles.infoSubtitle}>
+                Save your card now. We'll only charge you once your recipient completes their goal.
+                You can remove it any time from Purchased Gifts.
+              </Text>
+            </View>
+
+            <View style={styles.securityNotice}>
+              <Lock color={colors.textSecondary} size={16} />
+              <Text style={styles.securityText}>
+                Your payment information is encrypted and secure
+              </Text>
+            </View>
+
+            <View style={{ height: vh(200) }} />
+          </ScrollView>
+
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
+            <Button
+              variant="primary"
+              title={sheetReady ? 'Save Card & Continue' : 'Setting up...'}
+              onPress={handleSaveCard}
+              disabled={isProcessing || !sheetReady}
+              loading={isProcessing}
+              fullWidth
+            />
+            <TouchableOpacity
+              onPress={handleSkip}
+              disabled={isProcessing}
+              style={styles.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip card setup for now"
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </MainScreen>
+    </ErrorBoundary>
+  );
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Web wrapper — initialises Stripe <Elements> with the SetupIntent secret
+// ──────────────────────────────────────────────────────────────────────────────
+const WebDeferredSetup: React.FC = () => {
   const colors = useColors();
   const route = useRoute();
   const navigation = useNavigation<NavigationProp>();
@@ -250,15 +427,20 @@ const DeferredSetupScreen: React.FC = () => {
   const setupIntentClientSecret = routeParams?.setupIntentClientSecret;
   const experienceGift = routeParams?.experienceGift;
 
-  if (!setupIntentClientSecret || !experienceGift) {
-    // Guard: if params are missing (e.g. deep-link without context), skip to Confirmation
-    logger.warn('DeferredSetupScreen: missing params, redirecting');
-    if (experienceGift) {
-      navigation.replace('Confirmation', { experienceGift });
-    } else {
-      navigation.replace('ChallengeLanding');
+  useEffect(() => {
+    if (!setupIntentClientSecret || !experienceGift) {
+      // Guard: if params are missing (e.g. deep-link without context), skip to Confirmation
+      logger.warn('DeferredSetupScreen: missing params, redirecting');
+      if (experienceGift) {
+        navigation.replace('Confirmation', { experienceGift });
+      } else {
+        navigation.replace('ChallengeLanding');
+      }
     }
-    return null;
+  }, [navigation, setupIntentClientSecret, experienceGift]);
+
+  if (!setupIntentClientSecret || !experienceGift) {
+    return null; // useEffect handles navigation
   }
 
   return (
@@ -287,6 +469,8 @@ const DeferredSetupScreen: React.FC = () => {
   );
 };
 
+// ========== PLATFORM SWITCH ==========
+const DeferredSetupScreen = Platform.OS === 'web' ? WebDeferredSetup : NativeDeferredSetup;
 export default DeferredSetupScreen;
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({

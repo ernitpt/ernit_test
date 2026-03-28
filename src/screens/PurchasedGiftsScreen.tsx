@@ -115,15 +115,17 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       accessibilityLabel={`View gift details for ${experience ? experience.title : item.preferredRewardCategory || 'experience'}. Status: ${item.status}`}
     >
       <View style={styles.cardRow}>
-        <Text style={styles.title}>
-          {experience
-            ? experience.title
-            : !item.experienceId
-              ? item.preferredRewardCategory
+        {experience || !item.experienceId ? (
+          <Text style={styles.title}>
+            {experience
+              ? experience.title
+              : item.preferredRewardCategory
                 ? item.preferredRewardCategory.charAt(0).toUpperCase() + item.preferredRewardCategory.slice(1)
-                : 'Surprise Experience'
-              : <SkeletonBox width={120} height={16} borderRadius={4} />}
-        </Text>
+                : 'Surprise Experience'}
+          </Text>
+        ) : (
+          <SkeletonBox width={120} height={16} borderRadius={4} />
+        )}
         <Text
           style={[
             styles.status,
@@ -135,14 +137,13 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       </View>
 
       {item.status === 'claimed' ? (
-        <Text style={[styles.detail, { color: colors.primaryDeep, fontWeight: '500' }]}>
-          Claimed by:{' '}
-          {loadingName ? (
-            <SkeletonBox width={80} height={14} borderRadius={4} />
-          ) : (
-            claimedByName || 'Unknown'
-          )}
-        </Text>
+        loadingName ? (
+          <SkeletonBox width={80} height={14} borderRadius={4} />
+        ) : (
+          <Text style={[styles.detail, { color: colors.primaryDeep, fontWeight: '500' }]}>
+            Claimed by: {claimedByName || 'Unknown'}
+          </Text>
+        )
       ) : (
         <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
       )}

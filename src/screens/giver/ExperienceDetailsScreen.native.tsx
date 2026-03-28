@@ -8,7 +8,8 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
-import { ChevronLeft, HelpCircle } from 'lucide-react-native';
+import { ChevronLeft, HelpCircle, MapPin } from 'lucide-react-native';
+import { WebView } from 'react-native-webview';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../services/firebase';
 import {
@@ -116,10 +117,11 @@ export default function ExperienceDetailsScreen() {
       });
       const data = result.data as { clientSecret: string };
 
-      // Hand off to the web checkout flow — gift creation happens server-side
+      // Hand off to the checkout flow — gift creation happens server-side
       // via the stripeWebhook Cloud Function after payment succeeds.
       navigation.navigate('ExperienceCheckout', {
         cartItems: [{ experienceId: experience.id, quantity: 1 }],
+        goalId: state.empowerContext?.goalId,
         clientSecret: data.clientSecret,
       } as never);
     } catch (err: unknown) {
@@ -160,6 +162,32 @@ export default function ExperienceDetailsScreen() {
           />
           <Text style={styles.title}>{experience.title}</Text>
           <Text style={styles.desc}>{experience.description}</Text>
+
+          {/* Location + Map */}
+          {(experience.location || partner?.mapsUrl) && (
+            <View style={styles.locationSection}>
+              {(partner?.address || experience.location) && (
+                <View style={styles.addressRow}>
+                  <MapPin color={colors.border} size={16} />
+                  <Text style={styles.addressText}>
+                    {partner?.address || experience.location}
+                  </Text>
+                </View>
+              )}
+              {partner?.mapsUrl && (
+                <View style={styles.mapContainer}>
+                  <WebView
+                    source={{ uri: partner.mapsUrl.includes('?') ? `${partner.mapsUrl}&layer=` : `${partner.mapsUrl}?layer=` }}
+                    style={{ flex: 1, borderRadius: BorderRadius.md }}
+                    javaScriptEnabled
+                    domStorageEnabled
+                    scrollEnabled={false}
+                    nestedScrollEnabled={false}
+                  />
+                </View>
+              )}
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={() => setShowHowItWorks(true)}
@@ -236,6 +264,10 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '600',
     marginLeft: Spacing.xs,
   },
+  locationSection: { marginBottom: Spacing.lg },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
+  addressText: { color: colors.border, ...Typography.body, flex: 1 },
+  mapContainer: { height: vh(180), borderRadius: BorderRadius.md, overflow: 'hidden', backgroundColor: colors.border },
   price: { color: colors.white, ...Typography.large, fontWeight: '700', marginBottom: Spacing.lg },
   textInputContainer: {
     marginBottom: Spacing.lg,

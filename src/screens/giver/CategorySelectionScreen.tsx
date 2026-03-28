@@ -13,10 +13,8 @@ import {
   Animated,
   Easing,
   Platform,
-  UIManager,
   ScrollView,
   Dimensions,
-  LayoutAnimation,
   NativeSyntheticEvent,
   NativeScrollEvent,
   useWindowDimensions,
@@ -343,12 +341,6 @@ const CategorySelectionScreen = () => {
   const auth = getAuth();
   const user = auth.currentUser;
 
-  useEffect(() => {
-    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
-
   // Calculate cart item count (from user cart or guest cart)
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = useMemo(() => currentCart.reduce((total, item) => total + item.quantity, 0) || 0, [currentCart]);
@@ -579,7 +571,6 @@ const CategorySelectionScreen = () => {
 
   // Animate category filter changes
   const handleCategoryChange = useCallback((cat: ExperienceCategory | 'all') => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveCategory(cat);
   }, []);
 

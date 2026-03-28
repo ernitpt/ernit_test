@@ -226,20 +226,20 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
     );
     pulse.start();
 
-    // Glow loop (non-native driver — shadowOpacity)
+    // Glow loop (overlay opacity — works cross-platform)
     const glow = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
           toValue: config.maxShadowOpacity,
           duration: config.pulseDuration,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(glowAnim, {
           toValue: 0.1,
           duration: config.pulseDuration,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ])
     );
@@ -322,27 +322,38 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
               />
             ))}
 
-          {/* Animated flame */}
-          <Animated.View
-            style={[
-              styles.flameContainer,
-              {
-                backgroundColor: config.flameBg,
+          {/* Animated flame with glow overlay */}
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            {/* Glow overlay behind flame — works on Android */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: config.flameColor,
+                opacity: glowAnim,
                 transform: [{ scale: pulseAnim }],
-                shadowColor: config.flameColor,
-                shadowOpacity: glowAnim as unknown as number,
-                shadowRadius: 12,
-                shadowOffset: { width: 0, height: 0 },
-                elevation: 4,
-              },
-            ]}
-          >
-            <Flame
-              color={config.flameColor}
-              size={config.flameSize}
-              fill={config.flameColor}
+              }}
+              pointerEvents="none"
             />
-          </Animated.View>
+            <Animated.View
+              style={[
+                styles.flameContainer,
+                {
+                  backgroundColor: config.flameBg,
+                  transform: [{ scale: pulseAnim }],
+                  elevation: 4,
+                },
+              ]}
+            >
+              <Flame
+                color={config.flameColor}
+                size={config.flameSize}
+                fill={config.flameColor}
+              />
+            </Animated.View>
+          </View>
 
           {/* Text content */}
           <View style={styles.textContainer}>

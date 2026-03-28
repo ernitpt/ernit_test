@@ -20,7 +20,7 @@ const AnimatedFilledDay: React.FC<{ label: string }> = React.memo(({ label }) =>
         toValue: 1,
         duration: 700,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
       Animated.sequence([
         Animated.timing(scaleAnim, {

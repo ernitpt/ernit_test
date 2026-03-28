@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { MapPin, Clock, Check, Tag } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { WebView } from 'react-native-webview';
 import Button from './Button';
 import { Experience, PartnerUser } from '../types';
 import { partnerService } from '../services/PartnerService';
@@ -259,17 +260,31 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                                             </Text>
                                         </View>
                                     )}
-                                    {partner?.mapsUrl && Platform.OS === 'web' && (
+                                    {partner?.mapsUrl && (
                                         <View style={styles.mapContainer}>
-                                            <iframe
-                                                src={partner.mapsUrl.includes('?') ? `${partner.mapsUrl}&layer=` : `${partner.mapsUrl}?layer=`}
-                                                width="100%"
-                                                height="100%"
-                                                style={{ border: 0, borderRadius: BorderRadius.md }}
-                                                allowFullScreen
-                                                loading="lazy"
-                                                title="Location"
-                                            />
+                                            {Platform.OS === 'web' ? (
+                                                <iframe
+                                                    src={partner.mapsUrl.includes('?') ? `${partner.mapsUrl}&layer=` : `${partner.mapsUrl}?layer=`}
+                                                    width="100%"
+                                                    height="100%"
+                                                    style={{ border: 0, borderRadius: BorderRadius.md }}
+                                                    allowFullScreen
+                                                    loading="lazy"
+                                                    title="Location"
+                                                />
+                                            ) : (
+                                                <WebView
+                                                    originWhitelist={["*"]}
+                                                    source={{
+                                                        html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0}iframe{width:100%;height:100%;border:0}</style></head><body><iframe src="${partner.mapsUrl.includes('?') ? `${partner.mapsUrl}&layer=` : `${partner.mapsUrl}?layer=`}" allowfullscreen loading="lazy"></iframe></body></html>`,
+                                                    }}
+                                                    style={{ flex: 1, borderRadius: BorderRadius.md }}
+                                                    javaScriptEnabled
+                                                    domStorageEnabled
+                                                    scrollEnabled={false}
+                                                    nestedScrollEnabled={false}
+                                                />
+                                            )}
                                         </View>
                                     )}
                                 </View>

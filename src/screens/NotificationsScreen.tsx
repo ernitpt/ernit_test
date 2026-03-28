@@ -333,7 +333,7 @@ const NotificationsScreen = () => {
           if (goal.experienceGiftId) {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             if (gift) {
-              navigation.navigate('Completion', { goal, experienceGift: gift });
+              navigation.navigate('AchievementDetail', { goal, experienceGift: gift, mode: 'completion' });
               return;
             }
           }

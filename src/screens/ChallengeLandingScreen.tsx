@@ -591,7 +591,7 @@ export default function ChallengeLandingScreen() {
                     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}
                 >
                     {/* Hero Section — stacked gradients for smooth cross-fade */}
-                    <View style={[styles.hero, { paddingTop: insets.top + vh(60) }]}>
+                    <View style={[styles.hero, { paddingTop: insets.top + vh(80) }]}>
                         <LinearGradient
                             colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
@@ -621,7 +621,7 @@ export default function ChallengeLandingScreen() {
                         )}
 
                         <TouchableOpacity
-                            style={[styles.loginButton, { top: insets.top + 10 }]}
+                            style={[styles.loginButton, { top: Math.max(insets.top, 16) + 8 }]}
                             onPress={() => isLoggedIn
                                 ? navigation.navigate('Goals')
                                 : navigation.navigate('Auth', { mode: 'signin' })
@@ -1311,8 +1311,9 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 shadowOpacity: 0.6,
             },
             android: {
-                // elevation creates ugly gray shadow on Android — use border-only glow
                 borderColor: colors.primary,
+                elevation: 8,
+                shadowColor: colors.primary,
             },
         }),
     } as any,
@@ -1331,6 +1332,8 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
             },
             android: {
                 borderColor: colors.warning,
+                elevation: 8,
+                shadowColor: colors.warning,
             },
         }),
     } as any,

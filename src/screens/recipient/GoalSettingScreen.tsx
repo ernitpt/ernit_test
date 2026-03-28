@@ -1,6 +1,7 @@
 // screens/Recipient/GoalSettingScreen.tsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import SpriteAnimation from '../../components/SpriteAnimation';
 import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
@@ -69,11 +70,13 @@ type NavProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+const GYM_SPRITE = require('../../assets/sprites/bicep_sprite.png');
+
 const getGoalTypes = (colors: typeof Colors) => [
-  { icon: '🏋️', name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-  { icon: '🧘', name: 'Yoga', tagline: 'Find your flow', color: colors.info },
-  { icon: '💃', name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
-  { icon: '✏️', name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
+  { icon: null, sprite: GYM_SPRITE, name: 'Gym', tagline: 'Hit the weights', color: colors.success },
+  { icon: '🧘', sprite: null, name: 'Yoga', tagline: 'Find your flow', color: colors.info },
+  { icon: '💃', sprite: null, name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
+  { icon: '✏️', sprite: null, name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
 ];
 
 const STEP_TITLES = [
@@ -830,7 +833,21 @@ const GoalSettingScreen = () => {
               accessibilityRole="button"
               accessibilityLabel={`Select ${goal.name} goal`}
             >
-              <Text style={styles.goalIcon}>{goal.icon}</Text>
+              {goal.sprite ? (
+                <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                  <SpriteAnimation
+                    source={goal.sprite}
+                    columns={5}
+                    rows={5}
+                    frameCount={25}
+                    frameWidth={160}
+                    frameHeight={160}
+                    frameDuration={60}
+                  />
+                </View>
+              ) : (
+                <Text style={styles.goalIcon}>{goal.icon}</Text>
+              )}
               <Text style={[
                 styles.goalName,
                 selectedCategory === goal.name && styles.goalNameActive,

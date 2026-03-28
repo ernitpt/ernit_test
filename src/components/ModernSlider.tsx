@@ -53,22 +53,28 @@ const ModernSlider = ({
                 <Text style={styles.sliderLabelText}>{rightLabel}</Text>
             </View>
             <View
-                ref={trackRef}
-                style={styles.sliderTrack}
-                onLayout={(e: LayoutChangeEvent) => {
-                    const w = e.nativeEvent.layout.width;
-                    setTrackWidth(w);
-                    trackRef.current?.measure((_fx, _fy, _width, _height, px) => {
-                        trackPageX.current = px;
-                    });
-                }}
+                style={styles.sliderTouchArea}
                 onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderTerminationRequest={() => false}
                 onResponderGrant={handlePress}
                 onResponderMove={handlePress}
             >
-                <View style={[styles.sliderProgress, { width: `${progress}%` as DimensionValue }]} />
-                <View style={[styles.sliderThumb, { left: (progress / 100) * trackWidth - 12 }]}>
-                    <View style={styles.sliderThumbInner} />
+                <View
+                    ref={trackRef}
+                    style={styles.sliderTrack}
+                    onLayout={(e: LayoutChangeEvent) => {
+                        const w = e.nativeEvent.layout.width;
+                        setTrackWidth(w);
+                        trackRef.current?.measure((_fx, _fy, _width, _height, px) => {
+                            trackPageX.current = px;
+                        });
+                    }}
+                >
+                    <View style={[styles.sliderProgress, { width: `${progress}%` as DimensionValue }]} />
+                    <View style={[styles.sliderThumb, { left: (progress / 100) * trackWidth - 12 }]}>
+                        <View style={styles.sliderThumbInner} />
+                    </View>
                 </View>
             </View>
         </View>
@@ -115,6 +121,11 @@ const createStyles = (colors: typeof Colors) =>
             ...Typography.caption,
             fontWeight: '600',
             color: colors.textMuted,
+        },
+        sliderTouchArea: {
+            paddingVertical: 20,
+            marginVertical: -20,
+            width: '100%',
         },
         sliderTrack: {
             height: 8,

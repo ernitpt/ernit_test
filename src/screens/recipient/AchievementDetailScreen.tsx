@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
-  Platform, Linking, LayoutAnimation, UIManager,
+  Platform, Linking, Dimensions, DimensionValue,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { MotiView } from 'moti';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
-import { collection, query, where, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { Goal, SessionRecord, Motivation, PersonalizedHint, Experience, PartnerUser } from '../../types';
+import { Goal, SessionRecord, Motivation, PersonalizedHint, Experience, PartnerUser, ExperienceGift } from '../../types';
 
 type HintEntry = PersonalizedHint | {
   id?: string;
@@ -46,19 +43,25 @@ import { partnerService } from '../../services/PartnerService';
 import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
+import { goalService } from '../../services/GoalService';
+import { generateCouponForGoal } from '../../services/CouponService';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { Card } from '../../components/Card';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Typography } from '../../config/typography';
 import { Spacing } from '../../config/spacing';
+import { Shadows } from '../../config/shadows';
 import { logger } from '../../utils/logger';
 import { toJSDate } from '../../utils/GoalHelpers';
 import ErrorRetry from '../../components/ErrorRetry';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle } from 'lucide-react-native';
+import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
+import * as Haptics from 'expo-haptics';
 
 // ─────────────────────────────────────────────────────────────
 // HintItem - extracted to module level to prevent unmount/remount on every render
@@ -182,7 +185,6 @@ const SessionCard = ({
   };
 
   const toggleMotivations = () => {
-    if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
 
@@ -237,7 +239,7 @@ const SessionCard = ({
             </Text>
           </TouchableOpacity>
           {expanded && (
-            <View style={sessStyles.motivationList}>
+            <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 200 }} style={sessStyles.motivationList}>
               {motivations.map((m) => (
                 <View key={m.id} style={sessStyles.motivationItem}>
                   {m.authorProfileImage ? (
@@ -270,7 +272,7 @@ const SessionCard = ({
                   </View>
                 </View>
               ))}
-            </View>
+            </MotiView>
           )}
         </>
       )}
@@ -441,7 +443,10 @@ const AchievementDetailScreen = () => {
   const cStyles = useMemo(() => createCStyles(colors), [colors]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const routeParams = route.params as { goal?: Goal } | undefined;
+  const routeParams = route.params as { goal?: Goal; experienceGift?: ExperienceGift; mode?: 'completion' | 'review' } | undefined;
+  const mode = routeParams?.mode || 'review';
+  const isCompletion = mode === 'completion';
+  const experienceGiftParam = routeParams?.experienceGift || null;
   const rawGoal = routeParams?.goal;
   const goal: Goal | null = rawGoal ? {
     ...rawGoal,
@@ -479,10 +484,35 @@ const AchievementDetailScreen = () => {
   const [isSharing, setIsSharing] = useState(false);
   const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
+  // Completion mode — streak & active goals
+  const [sessionStreak, setSessionStreak] = useState(0);
+  const [otherActiveGoals, setOtherActiveGoals] = useState(0);
+
+  // Completion mode — payment pending
+  const [paymentPending, setPaymentPending] = useState(false);
+
+  // Completion mode — celebration message (randomised once on mount)
+  const [celebrationMessage] = useState(() => {
+    const messages = ['Incredible!', 'You crushed it!', 'Legend!', 'Unstoppable!', 'Champion!', 'Phenomenal!'];
+    return messages[Math.floor(Math.random() * messages.length)];
+  });
+
+  // Confetti ref
+  const confettiRef = useRef<InstanceType<typeof ConfettiCannon>>(null);
+
   // Booking
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
+
+  // Goal type emoji mapping (used in share card)
+  const GOAL_TYPE_EMOJI: Record<string, string> = {
+    fitness: '💪', yoga: '🧘', meditation: '🧠', running: '🏃',
+    cycling: '🚴', swimming: '🏊', reading: '📚', writing: '✍️',
+    cooking: '👨‍🍳', music: '🎵', art: '🎨', dance: '💃',
+    hiking: '🥾', study: '📖', code: '💻', default: '🏆',
+  };
+  const goalTypeEmoji = GOAL_TYPE_EMOJI[goal?.goalType || ''] || GOAL_TYPE_EMOJI.default;
 
   // Computed values
   const hasReward = Boolean(goal?.experienceGiftId) || Boolean(goal?.giftAttachedAt);
@@ -542,7 +572,9 @@ const AchievementDetailScreen = () => {
 
         // Determine experience ID source
         let expId: string | null = null;
-        if (goal.pledgedExperience?.experienceId) {
+        if (experienceGiftParam?.experienceId) {
+          expId = experienceGiftParam.experienceId;
+        } else if (goal.pledgedExperience?.experienceId) {
           expId = goal.pledgedExperience.experienceId;
         } else if (goal.experienceGiftId) {
           try {
@@ -571,6 +603,19 @@ const AchievementDetailScreen = () => {
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             setCouponCode(snapshot.docs[0].data().code);
+          } else if (!goal.isFreeGoal && expId && goal.userId) {
+            // Completion mode: attempt to generate coupon for paid goals
+            try {
+              const code = await generateCouponForGoal(goal.id, goal.userId, partner?.id || '');
+              setCouponCode(code);
+            } catch (err: unknown) {
+              const errMsg = err instanceof Error ? err.message : String(err);
+              if (errMsg.includes('PAYMENT_PENDING')) {
+                setPaymentPending(true);
+              } else {
+                logger.warn('Coupon generation failed:', err);
+              }
+            }
           }
         }
       } catch (error: unknown) {
@@ -600,6 +645,30 @@ const AchievementDetailScreen = () => {
     };
     loadSessions();
   }, [goal?.id]);
+
+  // useEffect — Completion mode: haptics, confetti, streak & active goals
+  useEffect(() => {
+    if (!isCompletion) return;
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => confettiRef.current?.start(), 300);
+  }, [isCompletion]);
+
+  useEffect(() => {
+    if (!isCompletion || !goal?.userId) return;
+    const fetchStreakAndGoals = async () => {
+      try {
+        const userDocSnap = await getDoc(doc(db, 'users', goal.userId));
+        if (userDocSnap.exists()) {
+          setSessionStreak(userDocSnap.data().sessionStreak || 0);
+        }
+        const allGoals = await goalService.getUserGoals(goal.userId);
+        setOtherActiveGoals(allGoals.filter((g: Goal) => g.id !== goal.id && !g.isCompleted).length);
+      } catch (error: unknown) {
+        logger.error('Error fetching streak/goals:', error);
+      }
+    };
+    fetchStreakAndGoals();
+  }, [isCompletion, goal?.userId, goal?.id]);
 
   // useEffect 3 - Motivations
   useEffect(() => {
@@ -856,52 +925,124 @@ const AchievementDetailScreen = () => {
         <StatusBar style="light" />
         <SharedHeader title="Achievement" showBack />
 
-        {/* Off-screen Share Card */}
+        {/* Off-screen Share Card — hero-style tilted design */}
         <View style={{ position: 'absolute', left: -9999, overflow: 'hidden', height: 0 }}>
-          <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: colors.cyan }} collapsable={false}>
-            <LinearGradient colors={[colors.secondary, colors.cyan, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}>
-              {experienceImage ? (
-                <Image source={{ uri: experienceImage }} style={{ width: 600, height: shareFormat === 'story' ? 400 : 300, borderRadius: BorderRadius.pill, marginBottom: 60 }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
-              ) : null}
-              <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
-              <Text style={{ ...Typography.hero, color: colors.white, textAlign: 'center', marginTop: 40, marginBottom: 16 }}>Goal Completed!</Text>
-              <Text style={{ ...Typography.heroSub, color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>{goal.title || goal.description || ''}</Text>
-              <View style={{ flexDirection: 'row', gap: 60, marginBottom: 60 }}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ ...Typography.hero, color: colors.white }}>{totalSessions}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>SESSIONS</Text>
+          <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: colors.primaryDark }} collapsable={false}>
+            <LinearGradient colors={[colors.primaryDark, colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1, padding: 100, justifyContent: 'center', alignItems: 'center' }}>
+
+              {/* Tilted card pair */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 80, gap: -40 }}>
+                {/* Left card — goal emoji */}
+                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-6deg' }], shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30, elevation: 16 }}>
+                  <Text style={{ fontSize: 120 }}>{goalTypeEmoji}</Text>
                 </View>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ ...Typography.hero, color: colors.white }}>{goal.targetCount || 0}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>WEEKS</Text>
+                {/* Right card — experience image or gift emoji */}
+                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '6deg' }], shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30, elevation: 16, overflow: 'hidden' }}>
+                  {experienceImage ? (
+                    <Image source={{ uri: experienceImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
+                  ) : (
+                    <Text style={{ fontSize: 120 }}>🎁</Text>
+                  )}
                 </View>
               </View>
+
+              {/* Title */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+                <CheckCircle color={colors.white} size={60} />
+                <Text style={{ fontSize: 52, fontWeight: '800', color: colors.white, textTransform: 'uppercase', letterSpacing: 4 }}>GOAL COMPLETED</Text>
+              </View>
+
+              {/* Goal title */}
+              <Text style={{ fontSize: 56, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
+                {goal.title || goal.description || ''}
+              </Text>
+
+              {/* Stats row */}
+              <View style={{ flexDirection: 'row', gap: 60, backgroundColor: colors.whiteAlpha15, borderRadius: 30, paddingVertical: 40, paddingHorizontal: 80, marginBottom: 80 }}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{totalSessions}</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>SESSIONS</Text>
+                </View>
+                <View style={{ width: 2, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 1 }} />
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{goal.targetCount || 0}</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>WEEKS</Text>
+                </View>
+                {sessionStreak >= 3 && (
+                  <>
+                    <View style={{ width: 2, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 1 }} />
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 80, fontWeight: '800', color: colors.celebrationGold }}>{sessionStreak}</Text>
+                      <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>STREAK</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {/* Footer */}
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
-                <Image source={require('../../assets/favicon.png')} style={{ width: 60, height: 60, marginBottom: 12 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
-                <Text style={{ ...Typography.display, color: colors.whiteAlpha40 }}>Earned with Ernit</Text>
+                <Image source={require('../../assets/favicon.png')} style={{ width: 70, height: 70, marginBottom: 16 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
+                <Text style={{ fontSize: 32, color: 'rgba(255,255,255,0.4)' }}>Earned with Ernit</Text>
               </View>
             </LinearGradient>
           </View>
         </View>
 
+        {isCompletion && (
+          <ConfettiCannon
+            ref={confettiRef}
+            count={Platform.OS === 'android' ? 90 : 150}
+            origin={{ x: Dimensions.get('window').width / 2, y: -20 }}
+            autoStart={false}
+            fadeOut
+            fallSpeed={3000}
+            colors={[colors.celebrationGold, colors.warning, colors.secondary, colors.secondary, colors.categoryPink]}
+          />
+        )}
+
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: Spacing.xl, paddingBottom: Spacing.huge + insets.bottom, alignItems: 'center' }}>
           <View style={{ width: '100%', maxWidth: 380, paddingHorizontal: Spacing.lg }}>
 
-            {/* ─── 1. Completion Header ─── */}
-            <View style={cStyles.headerCard}>
-              <View style={cStyles.trophyCircle}>
-                <Trophy size={32} color={colors.primary} />
-              </View>
-              <Text style={cStyles.headerTitle}>Challenge Complete!</Text>
-              <View style={cStyles.statsRow}>
-                <Text style={cStyles.statText}>{totalSessions} sessions</Text>
-                <View style={cStyles.statDot} />
-                <Text style={cStyles.statText}>{goal.targetCount} weeks</Text>
-              </View>
-              {completedDate && (
-                <Text style={cStyles.completedDate}>Completed {completedDate}</Text>
+            {/* ─── 1. Completion / Review Header Card ─── */}
+            <Card variant="elevated" style={{ alignItems: 'center', marginBottom: Spacing.sectionGap }}>
+              <CheckCircle color={colors.primary} size={48} />
+              <Text style={[Typography.heading1, { color: colors.textPrimary, marginTop: Spacing.md, textAlign: 'center' }]}>
+                Goal Completed
+              </Text>
+
+              {isCompletion && (
+                <Text style={[Typography.subheading, { color: colors.primary, marginTop: Spacing.xs, textAlign: 'center' }]}>
+                  {celebrationMessage}
+                </Text>
               )}
-            </View>
+
+              {/* Stats chips row */}
+              <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <View style={cStyles.statChip}>
+                  <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{totalSessions}</Text>
+                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Sessions</Text>
+                </View>
+                <View style={cStyles.statChip}>
+                  <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{goal.targetCount || 0}</Text>
+                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Weeks</Text>
+                </View>
+                {isCompletion && sessionStreak >= 3 && (
+                  <View style={[cStyles.statChip, { backgroundColor: colors.warningLight }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                      <Flame color={colors.warning} size={18} fill={colors.warning} />
+                      <Text style={[Typography.heading2, { color: colors.warning }]}>{sessionStreak}</Text>
+                    </View>
+                    <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
+                  </View>
+                )}
+              </View>
+
+              {completedDate && (
+                <Text style={[Typography.caption, { color: colors.textMuted, marginTop: Spacing.md }]}>
+                  Completed {completedDate}
+                </Text>
+              )}
+            </Card>
 
             {/* ─── 2. Achievement Info ─── */}
             <View style={cStyles.section}>
@@ -1026,63 +1167,67 @@ const AchievementDetailScreen = () => {
               </View>
             )}
 
-            {/* ─── 4. Sessions History ─── */}
-            <View style={cStyles.section}>
-              <Text style={cStyles.sectionTitle}>
-                Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
-              </Text>
-              {sessionsLoading && sessions.length === 0 ? (
-                <View style={{ gap: Spacing.sm }}>
-                  <SessionCardSkeleton />
-                  <SessionCardSkeleton />
-                  <SessionCardSkeleton />
+            {!isCompletion && (
+              <>
+                {/* ─── 4. Sessions History ─── */}
+                <View style={cStyles.section}>
+                  <Text style={cStyles.sectionTitle}>
+                    Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
+                  </Text>
+                  {sessionsLoading && sessions.length === 0 ? (
+                    <View style={{ gap: Spacing.sm }}>
+                      <SessionCardSkeleton />
+                      <SessionCardSkeleton />
+                      <SessionCardSkeleton />
+                    </View>
+                  ) : sessions.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.emptyIcon}>🏃</Text>
+                      <Text style={styles.emptyText}>No sessions recorded</Text>
+                    </View>
+                  ) : (
+                    <View>
+                      {sessions.map((s, i) => (
+                        <SessionCard key={s.id} session={s} index={i} motivations={motivationsBySession[s.sessionNumber] || []} />
+                      ))}
+                    </View>
+                  )}
                 </View>
-              ) : sessions.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyIcon}>🏃</Text>
-                  <Text style={styles.emptyText}>No sessions recorded</Text>
-                </View>
-              ) : (
-                <View>
-                  {sessions.map((s, i) => (
-                    <SessionCard key={s.id} session={s} index={i} motivations={motivationsBySession[s.sessionNumber] || []} />
-                  ))}
-                </View>
-              )}
-            </View>
 
-            {/* ─── 5. Hints History ─── */}
-            {hasHints && (
-              <View style={cStyles.section}>
-                <Text style={cStyles.sectionTitle}>
-                  Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
-                </Text>
-                <View>
-                  {(hintsArray as HintEntry[])
-                    .slice()
-                    .sort((a: HintEntry, b: HintEntry) => {
-                      const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;
-                      const sessionB = ('forSessionNumber' in b ? b.forSessionNumber : undefined) || ('session' in b ? b.session : 0) || 0;
-                      return Number(sessionB) - Number(sessionA);
-                    })
-                    .map((h: HintEntry, i: number) => {
-                      const session = ('forSessionNumber' in h ? h.forSessionNumber : undefined) || ('session' in h ? h.session : 0) || 0;
-                      let dateMs = 0;
-                      if (h.createdAt) {
-                        if (h.createdAt && typeof h.createdAt === 'object' && 'toMillis' in h.createdAt && typeof h.createdAt.toMillis === 'function') {
-                          dateMs = h.createdAt.toMillis();
-                        } else if (h.createdAt instanceof Date) {
-                          dateMs = h.createdAt.getTime();
-                        } else {
-                          dateMs = new Date(h.createdAt).getTime();
-                        }
-                      } else if (h.date) {
-                        dateMs = h.date;
-                      }
-                      return <HintItem key={`${session}-${dateMs}`} hint={h} index={i} onImagePress={handleHintImagePress} />;
-                    })}
-                </View>
-              </View>
+                {/* ─── 5. Hints History ─── */}
+                {hasHints && (
+                  <View style={cStyles.section}>
+                    <Text style={cStyles.sectionTitle}>
+                      Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
+                    </Text>
+                    <View>
+                      {(hintsArray as HintEntry[])
+                        .slice()
+                        .sort((a: HintEntry, b: HintEntry) => {
+                          const sessionA = ('forSessionNumber' in a ? a.forSessionNumber : undefined) || ('session' in a ? a.session : 0) || 0;
+                          const sessionB = ('forSessionNumber' in b ? b.forSessionNumber : undefined) || ('session' in b ? b.session : 0) || 0;
+                          return Number(sessionB) - Number(sessionA);
+                        })
+                        .map((h: HintEntry, i: number) => {
+                          const session = ('forSessionNumber' in h ? h.forSessionNumber : undefined) || ('session' in h ? h.session : 0) || 0;
+                          let dateMs = 0;
+                          if (h.createdAt) {
+                            if (h.createdAt && typeof h.createdAt === 'object' && 'toMillis' in h.createdAt && typeof h.createdAt.toMillis === 'function') {
+                              dateMs = h.createdAt.toMillis();
+                            } else if (h.createdAt instanceof Date) {
+                              dateMs = h.createdAt.getTime();
+                            } else {
+                              dateMs = new Date(h.createdAt).getTime();
+                            }
+                          } else if (h.date) {
+                            dateMs = h.date;
+                          }
+                          return <HintItem key={`${session}-${dateMs}`} hint={h} index={i} onImagePress={handleHintImagePress} />;
+                        })}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
 
             {/* ─── 6. Share Section ─── */}
@@ -1112,6 +1257,48 @@ const AchievementDetailScreen = () => {
               </TouchableOpacity>
             </View>
 
+            {/* ─── 7. Streak CTA (completion mode only) ─── */}
+            {isCompletion && (
+              <View style={styles.ctaSection}>
+                {sessionStreak >= 3 && (
+                  <View style={styles.streakBadge}>
+                    <Flame color={colors.warning} size={28} fill={colors.warning} />
+                    <Text style={styles.streakCount}>{sessionStreak}</Text>
+                    <Text style={styles.streakLabel}>session streak</Text>
+                  </View>
+                )}
+
+                {otherActiveGoals === 0 ? (
+                  <>
+                    <Text style={styles.ctaTitle}>
+                      {sessionStreak >= 3 ? `Keep your ${sessionStreak}-session streak alive!` : 'Ready for your next challenge?'}
+                    </Text>
+                    {sessionStreak >= 3 && (
+                      <Text style={styles.ctaMessage}>Start a new goal to keep it going — your streak resets after 7 days of inactivity</Text>
+                    )}
+                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('CategorySelection')} accessibilityRole="button" accessibilityLabel="Browse experiences">
+                      <Text style={styles.ctaPrimaryText}>Browse Experiences</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.ctaSecondary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel="Back to goals">
+                      <Text style={styles.ctaSecondaryText}>Back to Goals</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.ctaTitle}>
+                      {sessionStreak >= 3 ? `Your ${sessionStreak}-session streak continues!` : 'You still have active goals — keep going!'}
+                    </Text>
+                    {sessionStreak >= 3 && (
+                      <Text style={styles.ctaMessage}>Keep going with your other goals to build it even higher</Text>
+                    )}
+                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel="Back to goals">
+                      <Text style={styles.ctaPrimaryText}>Back to Goals</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+
           </View>
         </ScrollView>
 
@@ -1137,34 +1324,14 @@ const AchievementDetailScreen = () => {
 // STYLES - cStyles for completed-goal layout (from JourneyScreen)
 // ─────────────────────────────────────────────────────────────
 const createCStyles = (colors: typeof Colors) => StyleSheet.create({
-  headerCard: {
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xxl,
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    shadowColor: colors.black,
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  statChip: {
+    alignItems: 'center' as const,
+    backgroundColor: colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    minWidth: 80,
   },
-  trophyCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.pill,
-    backgroundColor: colors.primarySurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  headerTitle: { ...Typography.heading2, color: colors.textPrimary, marginBottom: Spacing.sm },
-  statsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
-  statText: { ...Typography.smallBold, color: colors.textSecondary },
-  statDot: { width: 4, height: 4, borderRadius: BorderRadius.xs, backgroundColor: colors.textMuted },
-  completedDate: { ...Typography.caption, color: colors.textMuted, marginTop: Spacing.xxs },
   section: { marginBottom: Spacing.lg },
   sectionTitle: { ...Typography.subheading, color: colors.textPrimary, marginBottom: Spacing.sm },
   countBadge: { ...Typography.captionBold, color: colors.primary },
@@ -1273,6 +1440,33 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   shareButtonText: { color: colors.white, ...Typography.bodyBold },
+  ctaSection: {
+    backgroundColor: colors.surface,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    alignItems: 'center' as const,
+    ...Shadows.sm,
+  },
+  streakBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: Spacing.sm,
+    backgroundColor: colors.warningLight,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
+  },
+  streakCount: { ...Typography.displayBold, color: colors.warning },
+  streakLabel: { ...Typography.bodyBold, color: colors.warningDark },
+  ctaTitle: { ...Typography.large, color: colors.textPrimary, textAlign: 'center' as const, marginBottom: Spacing.sm },
+  ctaMessage: { ...Typography.small, color: colors.textSecondary, textAlign: 'center' as const, lineHeight: 20, marginBottom: Spacing.lg },
+  ctaPrimary: { backgroundColor: colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxxl, borderRadius: BorderRadius.lg, marginTop: Spacing.sm, width: '100%' as DimensionValue, alignItems: 'center' as const },
+  ctaPrimaryText: { color: colors.white, ...Typography.subheading },
+  ctaSecondary: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxxl, borderRadius: BorderRadius.lg, marginTop: Spacing.sm, width: '100%' as DimensionValue, alignItems: 'center' as const, borderWidth: 1, borderColor: colors.border },
+  ctaSecondaryText: { color: colors.textSecondary, ...Typography.subheading },
 });
 
 export default AchievementDetailScreen;

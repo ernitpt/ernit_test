@@ -304,7 +304,7 @@ Earn it. Unlock it. Enjoy it 🚀
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>Payment Successful!</Text>
             <Text style={styles.heroSubtitle}>
-              {experienceGifts.length} thoughtful gift(s) ready to share 🎉
+              {experienceGifts?.length ?? 0} thoughtful gift(s) ready to share 🎉
             </Text>
           </Animated.View>
         </View>

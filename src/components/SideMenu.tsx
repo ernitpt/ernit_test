@@ -6,18 +6,13 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  LayoutAnimation,
   TouchableWithoutFeedback,
   Modal,
   ScrollView,
   Platform,
-  UIManager,
 } from 'react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
+import Animated2, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -331,7 +326,6 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     if (!state.user?.id) return;
     if (!state.user?.profile) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const newValue = !reminderEnabled;
     setReminderEnabled(newValue);
     try {
@@ -564,7 +558,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                         </TouchableOpacity>
                       </View>
                       {reminderEnabled && (
-                        <View style={styles.reminderRow}>
+                        <Animated2.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.reminderRow}>
                           <Text style={styles.reminderLabel}>Remind me at</Text>
                           <TouchableOpacity
                             onPress={openTimePicker}
@@ -577,7 +571,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                               {formatTime12h(reminderTime)}
                             </Text>
                           </TouchableOpacity>
-                        </View>
+                        </Animated2.View>
                       )}
                     </View>
                   </Animated.View>

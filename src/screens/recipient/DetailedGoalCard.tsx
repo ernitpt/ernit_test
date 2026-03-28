@@ -5,10 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  LayoutAnimation,
   Pressable,
   Platform,
-  UIManager,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -74,10 +72,6 @@ import { Gift } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { toJSDate } from '../../utils/GoalHelpers';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const MAX_SESSION_SECONDS = 28800; // 8 hours
 
@@ -92,7 +86,8 @@ interface DetailedGoalCardProps {
 
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isWeb = Platform.OS === 'web';
+  const styles = useMemo(() => createStyles(colors, isWeb), [colors, isWeb]);
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -175,20 +170,26 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Timer transition animation (fade + slide when swapping SessionAction <-> Timer)
   const timerFadeAnim = useRef(new Animated.Value(1)).current;
+  const [timerTransitionDone, setTimerTransitionDone] = useState(true);
   const prevTimerRunning = useRef(isTimerRunning);
 
   useEffect(() => {
     if (prevTimerRunning.current !== isTimerRunning) {
       prevTimerRunning.current = isTimerRunning;
-      // Animate height change
-      if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(250, 'easeInEaseOut', 'opacity'));
-      // Fade-in the new content
+      setTimerTransitionDone(false);
       timerFadeAnim.setValue(0);
       Animated.timing(timerFadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
-      }).start();
+      }).start(({ finished }) => {
+        if (finished) {
+          // On Android, the native driver can desync from JS on frequent re-renders
+          // (timer ticks every second). Clearing the animated style after transition
+          // prevents the Animated.View from flickering on subsequent re-renders.
+          setTimerTransitionDone(true);
+        }
+      });
     }
   }, [isTimerRunning, timerFadeAnim]);
 
@@ -710,8 +711,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             // The user can claim from the reveal modal or navigate to FreeGoalCompletion manually.
             return;
           }
-          navigation.navigate('FreeGoalCompletion', {
+          navigation.navigate('AchievementDetail', {
             goal: serializeNav(updated),
+            mode: 'completion',
           });
         } else if (gift) {
           if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
@@ -729,9 +731,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               }
             );
           }
-          navigation.navigate('Completion', {
+          navigation.navigate('AchievementDetail', {
             goal: serializeNav(updated),
             experienceGift: serializeNav(gift),
+            mode: 'completion',
           });
         }
       } else {
@@ -840,8 +843,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
     // Compute week celebration: isWeekCompleted=true means the week just flipped
     const weekJustCompleted = updated.isWeekCompleted === true;
-    // completedWeekNumber: when week just completed, currentCount reflects completed weeks
-    const completedWeekNumber = weekJustCompleted ? updated.currentCount : 0;
+    // currentCount is only incremented by the week boundary sweep (next session),
+    // so add 1 when the week was just completed to reflect the actual count now.
+    const adjustedWeeksCompleted = weekJustCompleted
+      ? updated.currentCount + 1
+      : updated.currentCount;
+    const completedWeekNumber = weekJustCompleted ? adjustedWeeksCompleted : 0;
 
     // Always prepare celebration data (used after hint dismissal or directly)
     setCelebrationData({
@@ -853,7 +860,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       mediaUri: mediaUrl || null,
       weeklyCount: updated.weeklyCount,
       sessionsPerWeek: updated.sessionsPerWeek,
-      weeksCompleted: updated.currentCount,
+      weeksCompleted: adjustedWeeksCompleted,
       totalWeeks: updated.targetCount,
       weekJustCompleted,
       completedWeekNumber,
@@ -1409,10 +1416,13 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           )}
 
           {/* Action Area or Timer — animated crossfade */}
-          <Animated.View style={{
-            opacity: timerFadeAnim,
-            transform: [{ translateY: timerFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-          }}>
+          <Animated.View style={timerTransitionDone
+            ? { opacity: 1 }
+            : {
+              opacity: timerFadeAnim,
+              transform: [{ translateY: timerFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+            }
+          }>
             {!isTimerRunning ? (
               <SessionActionArea
                 goal={currentGoal}
@@ -1659,10 +1669,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           } catch (err: unknown) {
             logger.warn('Failed to mark experience revealed:', err);
           }
-          // If goal is already completed, navigate to completion screen
+          // If goal is already completed, navigate to achievement screen
           if (currentGoal.isCompleted) {
-            navigation.navigate('FreeGoalCompletion', {
+            navigation.navigate('AchievementDetail', {
               goal: serializeNav(currentGoal),
+              mode: 'completion',
             });
           }
         }}
@@ -1741,25 +1752,28 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const createStyles = (colors: typeof Colors) => StyleSheet.create({
+const createStyles = (colors: typeof Colors, isWeb = false) => StyleSheet.create({
   card: {
     position: 'relative' as const,
-    backgroundColor: colors.whiteAlpha88,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
-    shadowColor: colors.textPrimary,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: colors.whiteAlpha60,
-    // Glassmorphism (web only)
-    ...(Platform.OS === 'web' ? {
+    // Web: glassmorphism with semi-transparent bg + border + backdrop blur
+    // Native: solid bg with elevation shadow (no backdrop blur support)
+    ...(isWeb ? {
+      backgroundColor: colors.whiteAlpha88,
+      shadowColor: colors.textPrimary,
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      borderWidth: 1,
+      borderColor: colors.whiteAlpha60,
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
-    } as Record<string, string> : {}),
+    } as Record<string, string> : {
+      backgroundColor: colors.surface,
+      elevation: 2,
+    }),
   },
   cardMenuContainer: {
     position: 'absolute' as const,

@@ -75,6 +75,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
             onClose();
             navigation.navigate('ExperienceCheckout', {
                 cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
+                goalId,
             });
         }, 400);
     };

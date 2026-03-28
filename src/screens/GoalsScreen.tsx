@@ -6,17 +6,13 @@ import {
   FlatList,
   ScrollView,
   Animated,
-  LayoutAnimation,
   TouchableOpacity,
   Image,
   RefreshControl,
   Platform,
-  UIManager,
 } from 'react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import Animated2, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MotiView } from 'moti';
@@ -266,11 +262,12 @@ const GoalsScreen: React.FC = () => {
       // NO! DetailedGoalCard already calls tickWeeklySession.
       // We just need to handle the UI/Navigation consequences.
 
-      // Free goals: navigate to FreeGoalCompletion instead
+      // Free goals: navigate to AchievementDetail completion mode
       if (updatedGoal.isFreeGoal) {
         if (updatedGoal.isCompleted) {
-          navigation.navigate('FreeGoalCompletion', {
+          navigation.navigate('AchievementDetail', {
             goal: serializeNav(updatedGoal),
+            mode: 'completion',
           });
         }
         return;
@@ -280,9 +277,10 @@ const GoalsScreen: React.FC = () => {
       const experienceGift = await experienceGiftService.getExperienceGiftById(updatedGoal.experienceGiftId);
 
       if (updatedGoal.isCompleted) {
-        navigation.navigate('Completion', {
+        navigation.navigate('AchievementDetail', {
           goal: serializeNav(updatedGoal),
           experienceGift: serializeNav(experienceGift),
+          mode: 'completion',
         });
       }
       // Don't show toast here - the hint popup from DetailedGoalCard already provides feedback
@@ -387,7 +385,6 @@ const GoalsScreen: React.FC = () => {
                   style={styles.completedHeader}
                   activeOpacity={0.7}
                   onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                     setShowCompleted((v) => !v);
                   }}
                   accessibilityRole="button"
@@ -406,9 +403,13 @@ const GoalsScreen: React.FC = () => {
                   )}
                 </TouchableOpacity>
 
-                {showCompleted && completedGoals.map((goal, idx) => (
-                  <CompletedGoalCard key={goal.id} goal={goal} index={idx} />
-                ))}
+                {showCompleted && (
+                  <Animated2.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)}>
+                    {completedGoals.map((goal, idx) => (
+                      <CompletedGoalCard key={goal.id} goal={goal} index={idx} />
+                    ))}
+                  </Animated2.View>
+                )}
               </View>
             ) : null}
           />

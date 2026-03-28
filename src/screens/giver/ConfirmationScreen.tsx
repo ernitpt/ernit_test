@@ -383,7 +383,7 @@ Earn it. Unlock it. Enjoy it 🚀
       <StatusBar style="auto" />
       <ConfettiCannon
         ref={confettiRef}
-        count={200}
+        count={Platform.OS === 'android' ? 120 : 200}
         origin={{ x: Dimensions.get('window').width / 2, y: -20 }}
         autoStart={false}
         fadeOut

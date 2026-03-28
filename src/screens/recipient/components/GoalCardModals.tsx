@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { MotiView } from 'moti';
@@ -161,7 +162,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
             <ConfettiCannon
               ref={confettiRef}
               autoStart={false}
-              count={confettiCount}
+              count={Platform.OS === 'android' ? Math.floor(confettiCount * 0.6) : confettiCount}
               origin={{ x: screenWidth / 2, y: -20 }}
               explosionSpeed={weekTier ? 400 : 350}
               fallSpeed={3000}

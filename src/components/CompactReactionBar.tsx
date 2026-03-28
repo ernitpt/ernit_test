@@ -290,7 +290,11 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         position: 'relative',
     },
     pickerBackdrop: {
-        ...StyleSheet.absoluteFillObject,
+        position: 'absolute',
+        top: -1000,
+        left: -1000,
+        right: -1000,
+        bottom: -1000,
         zIndex: 1,
     },
     reactionsRow: {

@@ -658,7 +658,6 @@ export type RootStackParamList = {
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
-  Completion: { goal: Goal; experienceGift?: ExperienceGift };
   GiverFlow: NavigatorScreenParams<GiverStackParamList>;
   RecipientFlow: NavigatorScreenParams<RecipientStackParamList>;
   GoalSetting: { experienceGift: ExperienceGift };
@@ -672,8 +671,7 @@ export type RootStackParamList = {
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
-  FreeGoalCompletion: { goal: Goal };
-  AchievementDetail: { goal: Goal };
+  AchievementDetail: { goal: Goal; experienceGift?: ExperienceGift; mode?: 'completion' | 'review' };
   ChallengeLanding: { mode?: 'self' | 'gift' } | undefined;
   MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
@@ -700,7 +698,6 @@ export type RecipientStackParamList = {
   GoalSetting: { experienceGift: ExperienceGift };
   Journey: { goal: Goal };
   Profile: undefined;
-  Completion: { goal: Goal; experienceGift?: ExperienceGift };
 };
 
 // Analytics types

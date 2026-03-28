@@ -88,14 +88,9 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
       toValue: timeProgress,
       duration: 300,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [timeProgress, totalGoalSeconds]);
-
-  const passiveFillWidth = passiveFillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
 
   // Glow fade-in when canFinish
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -116,7 +111,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
       toValue: 1,
       duration: 800,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     });
     animRef.current.start(({ finished }) => {
       if (finished) {
@@ -135,18 +130,12 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     setPressing(false);
   };
 
-  const fillWidth = fillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  // Native glow styles (animated)
-  const nativeGlowStyle = Platform.OS !== 'web' ? {
+  // Native glow styles (animated) — iOS only; Android uses overlay
+  const nativeGlowStyle = Platform.OS === 'ios' ? {
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 12] }),
     shadowOpacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }),
-    elevation: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }),
   } : {};
 
   // Web glow style (static shadow, animated opacity on wrapper)
@@ -188,9 +177,11 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
               style={[
                 StyleSheet.absoluteFill,
                 {
-                  width: passiveFillWidth,
+                  width: '100%',
                   backgroundColor: colors.primary,
                   borderRadius: BorderRadius.md,
+                  transform: [{ scaleX: passiveFillAnim }],
+                  transformOrigin: 'left center',
                 },
               ]}
             />
@@ -200,9 +191,11 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
             style={[
               StyleSheet.absoluteFill,
               {
-                width: fillWidth,
+                width: '100%',
                 backgroundColor: colors.whiteAlpha25,
                 borderRadius: BorderRadius.md,
+                transform: [{ scaleX: fillAnim }],
+                transformOrigin: 'left center',
               },
             ]}
           />
@@ -216,6 +209,20 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
 
   return (
     <Animated.View style={[{ borderRadius: BorderRadius.md, width: '100%' }, nativeGlowStyle]}>
+      {/* Android glow overlay — shadow* props don't work on Android */}
+      {Platform.OS === 'android' && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              borderRadius: BorderRadius.md,
+              backgroundColor: colors.primary,
+              opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }),
+            },
+          ]}
+          pointerEvents="none"
+        />
+      )}
       <Pressable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -235,9 +242,11 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
             style={[
               StyleSheet.absoluteFill,
               {
-                width: passiveFillWidth,
+                width: '100%',
                 backgroundColor: colors.primary,
                 borderRadius: BorderRadius.md,
+                transform: [{ scaleX: passiveFillAnim }],
+                transformOrigin: 'left center',
               },
             ]}
           />
@@ -247,9 +256,11 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
           style={[
             StyleSheet.absoluteFill,
             {
-              width: fillWidth,
+              width: '100%',
               backgroundColor: colors.whiteAlpha25,
               borderRadius: BorderRadius.md,
+              transform: [{ scaleX: fillAnim }],
+              transformOrigin: 'left center',
             },
           ]}
         />

@@ -27,7 +27,7 @@ import ConfirmationMultipleScreen from '../screens/giver/ConfirmationMultipleScr
 import CouponEntryScreen from '../screens/recipient/CouponEntryScreen';
 import GoalSettingScreen from '../screens/recipient/GoalSettingScreen';
 import JourneyScreen from '../screens/recipient/JourneyScreen';
-import CompletionScreen from '../screens/recipient/CompletionScreen';
+// CompletionScreen removed — merged into AchievementDetailScreen
 import UserProfileScreen from '../screens/UserProfileScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import GoalDetailScreen from '../screens/GoalDetailScreen';
@@ -38,7 +38,7 @@ import FriendProfileScreen from '../screens/FriendProfileScreen';
 import FriendsListScreen from '../screens/FriendsListScreen';
 import PurchasedGiftsScreen from '../screens/PurchasedGiftsScreen';
 import FeedScreen from '../screens/FeedScreen';
-import FreeGoalCompletionScreen from '../screens/recipient/FreeGoalCompletionScreen';
+// FreeGoalCompletionScreen removed — merged into AchievementDetailScreen
 import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
@@ -67,14 +67,12 @@ const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
   'Journey',
   'ExperienceCheckout',
   'RecipientFlow',
-  'Completion',
   'Notification',
   'Feed',
   'AddFriend',
   'FriendProfile',
   'FriendsList',
   'PurchasedGifts',
-  'FreeGoalCompletion',
   'AchievementDetail',
 ];
 
@@ -110,7 +108,6 @@ const RecipientNavigator = () => (
     <RecipientStack.Screen name="GoalSetting" component={GoalSettingScreen} />
     <RecipientStack.Screen name="Journey" component={JourneyScreen} />
     <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
-    <RecipientStack.Screen name="Completion" component={CompletionScreen} />
   </RecipientStack.Navigator>
 );
 
@@ -237,7 +234,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         ExperienceCheckout: 'checkout',
         Confirmation: 'confirmation',
         ConfirmationMultiple: 'confirmation-multiple',
-        Completion: 'completion',
         Notification: 'notifications',
         Feed: 'feed',
         AddFriend: 'add-friend',
@@ -245,7 +241,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         FriendsList: 'friends',
         PurchasedGifts: 'purchased-gifts',
         GoalSetting: 'goal-setting',
-        FreeGoalCompletion: 'free-goal-completion',
         GiftLanding: 'gift',
         GiftFlow: 'gift/create',
         DeferredSetup: 'gift/setup-payment',
@@ -376,14 +371,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           )}
         </RootStack.Screen>
 
-        <RootStack.Screen name="Completion">
-          {() => (
-            <ProtectedRoute>
-              <CompletionScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
         <RootStack.Screen name="Notification">
           {() => (
             <ProtectedRoute>
@@ -436,14 +423,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           {() => (
             <ProtectedRoute>
               <GoalSettingScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="FreeGoalCompletion">
-          {() => (
-            <ProtectedRoute>
-              <FreeGoalCompletionScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>

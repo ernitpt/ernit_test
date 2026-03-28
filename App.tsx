@@ -13,6 +13,7 @@ import { ThemeProvider } from './src/themes/ThemeContext';
 import ToastOverlay from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { logger } from './src/utils/logger';
+import NativeStripeProvider from './src/components/NativeStripeProvider';
 
 import {
   useFonts,
@@ -127,17 +128,19 @@ export default function App() {
   return (
     <ThemeProvider>
     <SafeAreaProvider>
-      <ErrorBoundary screenName="App">
-        <AppProvider>
-          <ToastProvider>
-            <TimerProvider>
-              <AppNavigator />
-              <PWAInstaller />
-            </TimerProvider>
-            <ToastOverlay />
-          </ToastProvider>
-        </AppProvider>
-      </ErrorBoundary>
+      <NativeStripeProvider>
+        <ErrorBoundary screenName="App">
+          <AppProvider>
+            <ToastProvider>
+              <TimerProvider>
+                <AppNavigator />
+                <PWAInstaller />
+              </TimerProvider>
+              <ToastOverlay />
+            </ToastProvider>
+          </AppProvider>
+        </ErrorBoundary>
+      </NativeStripeProvider>
     </SafeAreaProvider>
     </ThemeProvider>
   );

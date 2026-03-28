@@ -1311,8 +1311,9 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 shadowOpacity: 0.6,
             },
             android: {
-                // elevation creates gray shadow on Android — border-only glow instead
                 borderColor: colors.primary,
+                elevation: 8,
+                shadowColor: colors.primary,
             },
         }),
     } as any,
@@ -1330,8 +1331,9 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
                 shadowOpacity: 0.6,
             },
             android: {
-                // elevation creates gray shadow on Android — border-only glow instead
                 borderColor: colors.warning,
+                elevation: 8,
+                shadowColor: colors.warning,
             },
         }),
     } as any,

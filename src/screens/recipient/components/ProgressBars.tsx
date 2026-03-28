@@ -27,14 +27,14 @@ const Capsule: React.FC<{
           toValue: 1,
           duration: 800,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.parallel([
           Animated.timing(glowAnim, {
             toValue: 1,
             duration: 220,
             easing: Easing.out(Easing.cubic),
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.sequence([
             Animated.timing(scaleAnim, {
@@ -55,7 +55,7 @@ const Capsule: React.FC<{
           toValue: 0,
           duration: 200,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start(() => {
         // Haptic feedback on capsule fill completion
@@ -66,7 +66,7 @@ const Capsule: React.FC<{
         toValue: isFilled ? 1 : 0,
         duration: 250,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     }
   }, [isFilled, widthAnim, glowAnim, scaleAnim]);
@@ -83,21 +83,26 @@ const Capsule: React.FC<{
         { backgroundColor: emptyColor, transform: [{ scale: scaleAnim }] },
       ]}
     >
+      {/* Glow overlay — works on Android (shadow* props don't) */}
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
           {
-            width: widthAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0%', '100%'],
-            }),
             backgroundColor: fillColor,
             borderRadius: BorderRadius.pill,
-            shadowColor: fillColor,
-            shadowOpacity,
-            shadowRadius: 6,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: shadowOpacity as unknown as number,
+            opacity: shadowOpacity,
+          },
+        ]}
+        pointerEvents="none"
+      />
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: fillColor,
+            borderRadius: BorderRadius.pill,
+            transform: [{ scaleX: widthAnim }],
+            transformOrigin: 'left center',
           },
         ]}
       />

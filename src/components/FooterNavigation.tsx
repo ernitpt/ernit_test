@@ -1,11 +1,10 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Easing,
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -33,6 +32,7 @@ import MenuIcon from '../assets/icons/sidemenu.svg';
 import type { SvgProps } from 'react-native-svg';
 
 import { useAuthGuard } from '../context/AuthGuardContext';
+import { MotiView, MotiText } from 'moti';
 
 export const FOOTER_HEIGHT = 72;
 
@@ -56,26 +56,6 @@ const NavButton = React.memo<{
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  // Always start glow at 0 so the entrance animation plays on every mount
-  const glowAnim = useRef(new Animated.Value(0)).current;
-  const labelColorAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(glowAnim, {
-        toValue: isActive ? 1 : 0,
-        duration: isActive ? 400 : 250,
-        useNativeDriver: false,
-        easing: Easing.out(Easing.cubic),
-      }),
-      Animated.spring(labelColorAnim, {
-        toValue: isActive ? 1 : 0,
-        useNativeDriver: false,
-        friction: 6,
-        tension: 80,
-      }),
-    ]).start();
-  }, [isActive]);
 
   const handlePress = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -96,21 +76,6 @@ const NavButton = React.memo<{
     ]).start();
   };
 
-  const labelColor = labelColorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.textMuted, colors.primary],
-  });
-
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.3],
-  });
-
-  const glowScale = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.4, 1],
-  });
-
   const SelectedIcon = isActive ? IconActive : Icon;
 
   return (
@@ -130,14 +95,18 @@ const NavButton = React.memo<{
       >
         <View style={styles.iconWrapper}>
           {/* Soft circular glow behind icon */}
-          <Animated.View
+          <MotiView
+            animate={{
+              opacity: isActive ? 0.3 : 0,
+              scale: isActive ? 1 : 0.4,
+            }}
+            transition={{
+              type: 'timing',
+              duration: isActive ? 400 : 250,
+            }}
             style={[
               styles.iconGlow,
-              {
-                opacity: glowOpacity,
-                transform: [{ scale: glowScale }],
-                backgroundColor: colors.secondary,
-              },
+              { backgroundColor: colors.secondary },
             ]}
           />
           <SelectedIcon width={28} height={28} />
@@ -151,14 +120,21 @@ const NavButton = React.memo<{
           </View>
         )}
 
-        <Animated.Text
+        <MotiText
+          animate={{
+            color: isActive ? colors.primary : colors.textMuted,
+          }}
+          transition={{
+            type: 'timing',
+            duration: 250,
+          }}
           style={[
             styles.navLabel,
-            { color: labelColor, fontWeight: isActive ? '700' : '600' },
+            { fontWeight: isActive ? '700' : '600' },
           ]}
         >
           {label}
-        </Animated.Text>
+        </MotiText>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -269,17 +245,7 @@ const createStyles = (colors: typeof Colors) =>
       paddingTop: Spacing.sm,
       paddingBottom: Spacing.sm,
       paddingHorizontal: Spacing.sm,
-      ...Platform.select({
-        ios: {
-          shadowColor: colors.black,
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 12,
-        },
-        android: {
-          elevation: 8,
-        },
-      }),
+      // No container shadow — web reference has none; glow comes from active icons only
     },
 
     navContainer: {
@@ -311,12 +277,23 @@ const createStyles = (colors: typeof Colors) =>
 
     iconGlow: {
       position: 'absolute',
-      width: 36,
-      height: 36,
-      borderRadius: 18,
       ...Platform.select({
-        web: { filter: 'blur(6px)' },
+        web: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          filter: 'blur(6px)',
+        },
+        android: {
+          // Match web dimensions; no blur available but opacity + size match web
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+        },
         default: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
           shadowOffset: { width: 0, height: 0 },
           shadowRadius: 10,
           shadowOpacity: 0.6,

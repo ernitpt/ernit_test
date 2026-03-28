@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ViewStyle,
   Dimensions,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -135,7 +134,7 @@ const createStyles = (colors: typeof Colors) =>
       backgroundColor: colors.white,
       borderRadius: BorderRadius.xl,
       width: '90%',
-      maxHeight: Platform.OS === 'android' ? '80%' : '85%',
+      maxHeight: '85%',
       ...Shadows.lg,
     },
     bottomContainer: {
@@ -143,7 +142,7 @@ const createStyles = (colors: typeof Colors) =>
       borderTopLeftRadius: BorderRadius.xxl,
       borderTopRightRadius: BorderRadius.xxl,
       width: '100%',
-      maxHeight: Platform.OS === 'android' ? '80%' : '85%',
+      maxHeight: '85%',
       position: 'absolute',
       bottom: 0,
       ...Shadows.lg,

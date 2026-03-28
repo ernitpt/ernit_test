@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import {
     View,
     StyleSheet,
@@ -33,6 +33,9 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
+    // Keep component mounted during exit animation
+    const [shouldRender, setShouldRender] = useState(visible);
+
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
     const buttonScaleAnims = useRef(
@@ -41,6 +44,7 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
 
     useEffect(() => {
         if (visible) {
+            setShouldRender(true);
             Animated.parallel([
                 Animated.spring(scaleAnim, {
                     toValue: 1,
@@ -55,24 +59,27 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
                     useNativeDriver: true,
                 }),
             ]).start();
-        } else {
+        } else if (shouldRender) {
             Animated.parallel([
                 Animated.timing(scaleAnim, {
-                    toValue: 0,
-                    duration: 100,
+                    toValue: 0.85,
+                    duration: 150,
+                    easing: Easing.in(Easing.ease),
                     useNativeDriver: true,
                 }),
                 Animated.timing(opacityAnim, {
                     toValue: 0,
-                    duration: 100,
+                    duration: 150,
+                    easing: Easing.in(Easing.ease),
                     useNativeDriver: true,
                 }),
-            ]).start();
+            ]).start(() => {
+                setShouldRender(false);
+            });
         }
     }, [visible]);
 
     const handlePress = (type: ReactionType, index: number) => {
-        // Smooth scale animation when clicking
         Animated.sequence([
             Animated.spring(buttonScaleAnims[index], {
                 toValue: 1.3,
@@ -91,7 +98,7 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
         onSelect(type);
     };
 
-    if (!visible) return null;
+    if (!shouldRender) return null;
 
     return (
         <Animated.View
