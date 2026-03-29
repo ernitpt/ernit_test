@@ -19,7 +19,7 @@ export const stripeWebhook = onRequest(
         region: "europe-west1",
         secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
     },
-    async (req, res) => {
+    async (req, res): Promise<void> => {
         logger.info("🔔 [PROD] Webhook received");
 
         if (req.method !== "POST") {
@@ -137,7 +137,7 @@ export const stripeWebhook = onRequest(
                 logger.error('[stripeWebhook] Failed to write to webhookFailures:', firestoreErr);
             }
 
-            return res.status(500).send('Webhook handler failed');
+            res.status(500).send('Webhook handler failed'); return;
         }
     }
 );
