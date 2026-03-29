@@ -180,7 +180,12 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
           <Text style={styles.progressLabel}>Sessions this week</Text>
           <AnimatedCount value={weeklyFilled} total={weeklyTotal} />
         </View>
-        <View style={styles.capsuleRow}>
+        <View
+          style={styles.capsuleRow}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(weeklyTotal > 0 ? (weeklyFilled / weeklyTotal) * 100 : 0) }}
+          accessibilityLabel={`${Math.round(weeklyTotal > 0 ? (weeklyFilled / weeklyTotal) * 100 : 0)}% complete`}
+        >
           {Array.from({ length: weeklyTotal }, (_, i) => (
             <Capsule
               key={i}
@@ -198,7 +203,12 @@ const ProgressBars: React.FC<ProgressBarsProps> = React.memo(({
           <Text style={styles.progressLabel}>Weeks completed</Text>
           <AnimatedCount value={completedWeeks} total={overallTotal} />
         </View>
-        <View style={styles.capsuleRow}>
+        <View
+          style={styles.capsuleRow}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(overallTotal > 0 ? (completedWeeks / overallTotal) * 100 : 0) }}
+          accessibilityLabel={`${Math.round(overallTotal > 0 ? (completedWeeks / overallTotal) * 100 : 0)}% complete`}
+        >
           {Array.from({ length: overallTotal }, (_, i) => (
             <Capsule
               key={i}

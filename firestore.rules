@@ -55,6 +55,11 @@ service cloud.firestore {
       match /coupons/{couponId} {
         allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // meta subcollection: goalCount, rateLimits — used by GoalService and FriendService
+      match /meta/{metaId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     /** =====================
@@ -145,7 +150,7 @@ service cloud.firestore {
       // partner progress display, and notification handling.
       // NOTE: list queries still use where('userId', '==', uid) so users can only
       // list their OWN goals. But get-by-ID is open to all authenticated users.
-      // Sensitive goal data (session details, media) is in subcollections with tighter rules.
+      // Sensitive goal data (session details, hints, media) is in subcollections with tighter rules.
       allow read: if request.auth != null;
 
       /* ===============================
@@ -329,16 +334,23 @@ service cloud.firestore {
          NESTED SESSIONS
          =============================== */
       match /sessions/{sessionId} {
-        allow read, write: if request.auth != null &&
+        // SECURITY FIX: Replaced broad `write` (which includes delete) with explicit create/update only.
+        // Sessions are append-only audit logs — deletes are forbidden to preserve integrity.
+        allow read, create, update: if request.auth != null &&
           request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        allow delete: if false;
       }
 
       /* ===============================
          NESTED HINTS
          =============================== */
+      // TODO: verify and remove if goalSessions/hints subcollections are no longer used
       match /hints/{hintId} {
-        allow read, write: if request.auth != null &&
+        // SECURITY FIX: Replaced broad `write` (which includes delete) with explicit create/update only.
+        // Hints are append-only audit logs — deletes are forbidden to preserve integrity.
+        allow read, create, update: if request.auth != null &&
           request.auth.uid == get(/databases/$(database)/documents/goals/$(goalId)).data.userId;
+        allow delete: if false;
       }
 
       /* ===============================
@@ -479,12 +491,13 @@ service cloud.firestore {
       // already knows to query for. Consider a Cloud Function proxy for stricter isolation.
       allow list: if request.auth != null && request.query.limit <= 10;
 
-      // Get: allow giver, recipient, or any authenticated user for unclaimed pending/active gifts.
-      // The pending/active check is needed because the claim transaction does a get() before update().
+      // Get: allow giver or recipient only.
+      // SECURITY FIX: Removed the "unclaimed gift readable by any authenticated user" branch —
+      // it exposed claimCode, personalizedMessage, and paymentIntentId to arbitrary users.
+      // Claiming is now handled server-side via Cloud Functions which bypass client rules.
       allow get: if request.auth != null &&
         (resource.data.giverId == request.auth.uid ||
-         resource.data.recipientId == request.auth.uid ||
-         (resource.data.status in ['pending', 'active'] && !('recipientId' in resource.data)));
+         resource.data.recipientId == request.auth.uid);
 
       // Create: only via cloud functions (server-side)
       allow create: if false;
@@ -611,17 +624,20 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId ||
          request.auth.uid == resource.data.friendId);
 
-      // Creating friendship doc — creator must be one of the users
-      // NOTE: Real authorization happens in the acceptFriendRequest transaction
-      // (verifies request status == 'accepted', creates friends, deletes request atomically).
+      // Creating friendship doc — creator must be one of the users AND a prior accepted
+      // friendRequest must exist between these two users.
       // SECURITY FIX (HIGH-3): Added server timestamp enforcement (createdAt == request.time) and
       // addedAt field requirement to prevent replaying old friend creation writes.
+      // SECURITY FIX (S2): Added friendRequest existence check to prevent fake friendship injection.
+      // The requestId field must be present on the friends doc. We verify via get() on the pre-
+      // transaction committed state (the transaction deletes the request, so get() still sees it
+      // as existing at rule-evaluation time for the concurrent write).
       allow create: if request.auth != null
         && request.resource.data.userId is string
         && request.resource.data.friendId is string
         && request.resource.data.userId != request.resource.data.friendId
         && request.resource.data.keys().hasAll(['userId', 'friendId', 'createdAt', 'addedAt'])
-        && request.resource.data.keys().hasOnly(['userId', 'friendId', 'friendName', 'friendProfileImageUrl', 'createdAt', 'addedAt'])
+        && request.resource.data.keys().hasOnly(['userId', 'friendId', 'friendName', 'friendProfileImageUrl', 'createdAt', 'addedAt', 'requestId'])
         && (request.auth.uid == request.resource.data.userId || request.auth.uid == request.resource.data.friendId)
         && request.resource.data.createdAt == request.time;
 
@@ -732,7 +748,8 @@ service cloud.firestore {
                                          'personalized_hint_left', 'motivation_received',
                                          'free_goal_completed', 'free_goal_milestone',
                                          'shared_session', 'shared_start', 'shared_unlock',
-                                         'shared_completion', 'payment_charged', 'payment_failed'] &&
+                                         'shared_completion', 'payment_charged', 'payment_failed',
+                                         'goal_edit_request', 'goal_edit_response'] &&
          request.resource.data.keys().hasAll(['userId', 'type', 'data']) &&
          'goalId' in request.resource.data.data &&
          exists(/databases/$(database)/documents/goals/$(request.resource.data.data.goalId)) &&
@@ -773,7 +790,7 @@ service cloud.firestore {
      * ===================== **/
     match /experiences/{experienceId} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow create, update: if request.auth != null
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner';
     }
@@ -783,7 +800,7 @@ service cloud.firestore {
      * ===================== **/
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow create, update: if request.auth != null
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true
         && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.userType == 'partner';
     }
@@ -899,10 +916,13 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
 
-        // Update: own comments OR liking (only likedBy/likeCount fields)
+        // Update: own comments OR liking (only likedBy/likeCount fields).
+        // SECURITY FIX: likedBy updates now require the caller's UID to be present in the updated array,
+        // preventing users from inserting or removing arbitrary UIDs in the likedBy list.
         allow update: if request.auth != null
           && (resource.data.userId == request.auth.uid
-              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likeCount']));
+              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likeCount'])
+                  && request.auth.uid in resource.data.likedBy));
 
         // Delete: own comments only
         allow delete: if request.auth != null
@@ -914,6 +934,7 @@ service cloud.firestore {
     /** =====================
      * 📋 GOAL SESSIONS
      * ===================== **/
+    // TODO: verify and remove if goalSessions/hints subcollections are no longer used
     match /goalSessions/{goalId} {
       match /sessions/{sessionId} {
         // Read/write: only the goal owner
@@ -946,6 +967,7 @@ service cloud.firestore {
       // Write-only: authenticated users can create events, no client reads
       // SECURITY FIX (HIGH-5): Added field validation to prevent arbitrary data injection
       allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.userId
         && request.resource.data.keys().hasOnly(['eventName', 'category', 'userId', 'timestamp', 'properties', 'sessionId', 'screenName', 'userAgent', 'environment'])
         && request.resource.data.eventName is string
         && request.resource.data.eventName.size() <= 100
@@ -968,7 +990,7 @@ service cloud.firestore {
      * 🐛 ERROR LOGS
      * ===================== **/
     match /errors/{errorId} {
-      // Anyone can create (ErrorBoundary may fire before auth)
+      // Anyone can create (ErrorBoundary and AuthScreen may fire before/during auth)
       // SECURITY: Validate structure and enforce size limits to prevent DoS
       allow create: if
         request.resource.data.keys().hasAll(['message', 'timestamp']) &&

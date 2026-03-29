@@ -15,7 +15,6 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
-  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,7 +38,13 @@ import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
+const _stripePk = process.env.EXPO_PUBLIC_STRIPE_PK;
+if (Platform.OS === 'web' && !_stripePk) {
+  // Fail loudly at module load so misconfigured builds are caught immediately
+  // rather than silently producing null Stripe sessions at runtime.
+  logger.error('DeferredSetupScreen: EXPO_PUBLIC_STRIPE_PK is not configured');
+}
+const stripePromise = Platform.OS === 'web' && _stripePk ? loadStripe(_stripePk) : null;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'DeferredSetup'>;
 
@@ -143,7 +148,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       >
         <View style={styles.container}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}
@@ -158,13 +163,6 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               <Lock color={colors.secondary} size={20} />
             </View>
           </View>
-
-          {isProcessing && (
-            <View style={styles.processingOverlay}>
-              <ActivityIndicator color={colors.secondary} size="large" />
-              <Text style={styles.processingText}>Saving your card...</Text>
-            </View>
-          )}
 
           <ScrollView
             style={styles.scrollView}
@@ -342,14 +340,7 @@ const NativeDeferredSetup: React.FC = () => {
     <ErrorBoundary screenName="DeferredSetupScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.container}>
-          {isProcessing && (
-            <View style={styles.processingOverlay}>
-              <ActivityIndicator color={colors.secondary} size="large" />
-              <Text style={styles.processingText}>Saving your card...</Text>
-            </View>
-          )}
-
-          <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}
@@ -485,7 +476,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Platform.OS === 'ios' ? vh(50) : vh(40),
     paddingBottom: Spacing.lg,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -601,22 +591,5 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     elevation: 8,
-  },
-  processingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surfaceFrosted,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  processingText: {
-    marginTop: Spacing.md,
-    ...Typography.subheading,
-    color: colors.textSecondary,
-    fontWeight: '500',
   },
 });

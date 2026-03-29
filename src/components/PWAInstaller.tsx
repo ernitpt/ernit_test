@@ -17,6 +17,17 @@ interface BeforeInstallPromptEvent extends Event {
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+// Safe localStorage helpers — localStorage throws in private browsing and when quota is exceeded
+const safeGetItem = (key: string): string | null => {
+    try { return localStorage.getItem(key); } catch { return null; }
+};
+const safeSetItem = (key: string, value: string): void => {
+    try { localStorage.setItem(key, value); } catch { /* ignore */ }
+};
+const safeRemoveItem = (key: string): void => {
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+};
+
 export const PWAInstaller: React.FC = () => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -50,30 +61,30 @@ export const PWAInstaller: React.FC = () => {
             document.referrer.includes('android-app://');
 
         // Check previous installation state
-        const wasInstalled = localStorage.getItem('pwa-was-installed') === 'true';
+        const wasInstalled = safeGetItem('pwa-was-installed') === 'true';
 
         // Detect if app was uninstalled: was installed before but isn't now
         if (wasInstalled && !isStandalone) {
             // App was uninstalled! Clear the dismissal flag so prompt can reappear
-            localStorage.removeItem('pwa-install-dismissed-until');
-            localStorage.removeItem('pwa-was-installed');
+            safeRemoveItem('pwa-install-dismissed-until');
+            safeRemoveItem('pwa-was-installed');
             logger.log('PWA uninstalled detected - clearing dismissal flag');
         }
 
         // Update current installation state
         if (isStandalone) {
-            localStorage.setItem('pwa-was-installed', 'true');
+            safeSetItem('pwa-was-installed', 'true');
         }
 
         // Check if already dismissed (after potential cleanup above)
-        const dismissedUntil = localStorage.getItem('pwa-install-dismissed-until');
+        const dismissedUntil = safeGetItem('pwa-install-dismissed-until');
         if (dismissedUntil) {
             const dismissedTimestamp = parseInt(dismissedUntil, 10);
             const now = Date.now();
             // If still within dismissal period, don't show prompt
             if (now < dismissedTimestamp) return;
             // Dismissal period expired, clear the flag
-            localStorage.removeItem('pwa-install-dismissed-until');
+            safeRemoveItem('pwa-install-dismissed-until');
         }
 
         // iOS: Show manual installation prompt if not installed
@@ -103,7 +114,7 @@ export const PWAInstaller: React.FC = () => {
         setShowIOSPrompt(false);
         // Dismiss for 7 days instead of permanently
         const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
-        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
+        safeSetItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     const handleAndroidInstall = async () => {
@@ -118,7 +129,7 @@ export const PWAInstaller: React.FC = () => {
         if (outcome === 'accepted') {
             logger.log('User accepted the install prompt');
             // Track that app is now installed
-            localStorage.setItem('pwa-was-installed', 'true');
+            safeSetItem('pwa-was-installed', 'true');
         }
 
         // Clear the prompt
@@ -126,14 +137,14 @@ export const PWAInstaller: React.FC = () => {
         setShowAndroidPrompt(false);
         // Dismiss for 7 days instead of permanently
         const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
-        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
+        safeSetItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     const handleAndroidDismiss = () => {
         setShowAndroidPrompt(false);
         // Dismiss for 7 days instead of permanently
         const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
-        localStorage.setItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
+        safeSetItem('pwa-install-dismissed-until', sevenDaysFromNow.toString());
     };
 
     // iOS Installation Modal

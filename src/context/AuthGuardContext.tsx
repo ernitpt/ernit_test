@@ -5,6 +5,8 @@ import { RootStackParamList } from '../types';
 import { Platform } from 'react-native';
 import { pushNotificationService } from '../services/PushNotificationService';
 import { logger } from '../utils/logger';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 type PendingNavigation = {
   routeName: keyof RootStackParamList;
   params?: Record<string, unknown>;
@@ -38,8 +40,16 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Prevent double-trigger spam
   const isBlockingRef = useRef(false);
   const wasAuthenticatedRef = useRef(!!state.user);
+  const authSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAuthenticated = !!state.user;
+
+  // Reset wasAuthenticatedRef on logout so listener re-attaches on next login
+  useEffect(() => {
+    if (!isAuthenticated) {
+      wasAuthenticatedRef.current = false;
+    }
+  }, [isAuthenticated]);
 
   // Initialize push notifications when user becomes authenticated
   useEffect(() => {
@@ -79,21 +89,24 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
     wasAuthenticatedRef.current = isNowAuthenticated;
   }, [isAuthenticated, state.user]);
 
+  // Keep a ref to the current userId so interval callbacks always use the latest value
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    userIdRef.current = state.user?.id ?? null;
+  }, [state.user?.id]);
+
   // Periodic token health check - re-register if token is missing
   useEffect(() => {
     if (!isAuthenticated || !state.user || Platform.OS !== 'web') {
       return;
     }
 
-    const userId = state.user.id;
-
     // Check token health every 5 minutes
     const healthCheckInterval = setInterval(async () => {
+      const currentUserId = userIdRef.current;
+      if (!currentUserId) return; // user logged out between ticks
       try {
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { db } = await import('../services/firebase');
-
-        const userRef = doc(db, 'users', userId);
+        const userRef = doc(db, 'users', currentUserId);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
@@ -103,7 +116,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
           // If user has no tokens, re-register
           if (fcmTokens.length === 0) {
             logger.warn('🔔 FCM token missing from Firestore, re-registering...');
-            await pushNotificationService.setupPushNotifications(userId);
+            await pushNotificationService.setupPushNotifications(currentUserId);
           }
         }
       } catch (error: unknown) {
@@ -113,11 +126,10 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // Also do an initial check after 10 seconds (give app time to fully load)
     const initialCheckTimeout = setTimeout(async () => {
+      const currentUserId = userIdRef.current;
+      if (!currentUserId) return; // user logged out before initial check fired
       try {
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { db } = await import('../services/firebase');
-
-        const userRef = doc(db, 'users', userId);
+        const userRef = doc(db, 'users', currentUserId);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
@@ -126,7 +138,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
           if (fcmTokens.length === 0) {
             logger.warn('🔔 FCM token missing on startup, re-registering...');
-            await pushNotificationService.setupPushNotifications(userId);
+            await pushNotificationService.setupPushNotifications(currentUserId);
           }
         }
       } catch (error: unknown) {
@@ -138,7 +150,7 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
       clearInterval(healthCheckInterval);
       clearTimeout(initialCheckTimeout);
     };
-  }, [isAuthenticated, state.user]);
+  }, [isAuthenticated, state.user?.id]);
 
   /**
    * Require authentication for an action
@@ -183,12 +195,21 @@ export const AuthGuardProvider: React.FC<{ children: ReactNode }> = ({ children 
    * When user logs in successfully, navigate to pending route
    * Called by AuthScreen after success animation
    */
+  // Clear the auth success timer on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (authSuccessTimerRef.current) clearTimeout(authSuccessTimerRef.current);
+    };
+  }, []);
+
   const handleAuthSuccess = useCallback(() => {
     setShowLoginPrompt(false);
     isBlockingRef.current = false;
 
     // Small delay to ensure navigation is ready
-    setTimeout(() => {
+    if (authSuccessTimerRef.current) clearTimeout(authSuccessTimerRef.current);
+    authSuccessTimerRef.current = setTimeout(() => {
+      authSuccessTimerRef.current = null;
       if (pendingNavigation) {
         const { routeName, params } = pendingNavigation;
         setPendingNavigation(null);

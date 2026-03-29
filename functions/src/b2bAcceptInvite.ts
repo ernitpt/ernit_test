@@ -44,75 +44,94 @@ export const b2bAcceptInvite = onCall(
       throw new HttpsError("not-found", "Invitation not found or already used.");
     }
 
-    const inviteDoc = inviteQuery.docs[0];
-    const invite = inviteDoc.data();
+    const inviteRef = inviteQuery.docs[0].ref;
 
-    // Check expiry
-    const now = Timestamp.now();
-    if (invite.expiresAt && invite.expiresAt.toMillis() < now.toMillis()) {
-      // Mark as expired
-      await inviteDoc.ref.update({ status: "expired" });
-      throw new HttpsError("deadline-exceeded", "This invitation has expired.");
-    }
+    // Capture email/role/etc from the initial query snapshot for email verification
+    // (done before the transaction — these fields are immutable once created).
+    const initialInvite = inviteQuery.docs[0].data();
 
-    // Verify email matches (case-insensitive)
-    if (invite.email.toLowerCase() !== userEmail.toLowerCase()) {
+    // Verify email matches (case-insensitive) — no race condition risk on immutable field
+    if (initialInvite.email.toLowerCase() !== userEmail.toLowerCase()) {
       throw new HttpsError(
         "permission-denied",
         "This invitation was sent to a different email address."
       );
     }
 
-    const companyId = invite.companyId;
+    const companyId = initialInvite.companyId;
 
-    // Check if already a member
+    // Check if already a member (outside transaction — read-only pre-check)
     const existingMember = await b2bDb
       .collection("companyMembers")
       .doc(`${companyId}_${uid}`)
       .get();
 
     if (existingMember.exists && existingMember.data()?.status === "active") {
-      // Already a member, just mark invite as accepted
-      await inviteDoc.ref.update({ status: "accepted" });
+      // Already a member — atomically mark invite as accepted and return
+      await b2bDb.runTransaction(async (transaction) => {
+        const freshInvite = await transaction.get(inviteRef);
+        if (!freshInvite.exists || freshInvite.data()?.status !== "pending") {
+          throw new HttpsError("not-found", "Invitation not found or already used.");
+        }
+        transaction.update(inviteRef, { status: "accepted" });
+      });
       return { companyId, message: "You are already a member of this company." };
     }
 
-    // Use batch write for atomicity
-    const batch = b2bDb.batch();
-
-    // 1. Create or update member document
+    // Atomically: re-verify expiry + mark accepted + create member doc + update user
+    // Using a transaction prevents two concurrent accept requests from both succeeding,
+    // and prevents accepting an invite that expires between the query and the write.
     const memberRef = b2bDb.collection("companyMembers").doc(`${companyId}_${uid}`);
-    batch.set(memberRef, {
-      companyId,
-      userId: uid,
-      role: invite.role || "employee",
-      displayName: request.auth.token.name || userEmail.split("@")[0],
-      email: userEmail.toLowerCase(),
-      department: invite.department || null,
-      invitedBy: invite.invitedBy,
-      status: "active",
-      joinedAt: FieldValue.serverTimestamp(),
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    // 2. Update user's companyIds
     const userRef = b2bDb.collection("users").doc(uid);
-    batch.set(
-      userRef,
-      {
+    const displayName = request.auth.token.name || userEmail.split("@")[0];
+
+    await b2bDb.runTransaction(async (transaction) => {
+      const freshInvite = await transaction.get(inviteRef);
+      const invite = freshInvite.data();
+
+      if (!freshInvite.exists || !invite || invite.status !== "pending") {
+        throw new HttpsError("not-found", "Invitation not found or already used.");
+      }
+
+      if (invite.expiresAt && invite.expiresAt.toDate() < new Date()) {
+        // Mark as expired atomically
+        transaction.update(inviteRef, { status: "expired" });
+        throw new HttpsError("deadline-exceeded", "This invitation has expired.");
+      }
+
+      // Mark invite as accepted atomically
+      transaction.update(inviteRef, {
+        status: "accepted",
+        acceptedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Create member document
+      transaction.set(memberRef, {
+        companyId,
+        userId: uid,
+        role: invite.role || "employee",
+        displayName,
         email: userEmail.toLowerCase(),
-        displayName: request.auth.token.name || userEmail.split("@")[0],
-        companyIds: FieldValue.arrayUnion(companyId),
+        department: invite.department || null,
+        invitedBy: invite.invitedBy,
+        status: "active",
+        joinedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+      });
 
-    // 3. Mark invite as accepted
-    batch.update(inviteDoc.ref, { status: "accepted" });
-
-    await batch.commit();
+      // Update user's companyIds
+      transaction.set(
+        userRef,
+        {
+          email: userEmail.toLowerCase(),
+          displayName,
+          companyIds: FieldValue.arrayUnion(companyId),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
 
     return {
       companyId,

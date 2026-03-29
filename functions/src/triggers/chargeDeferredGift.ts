@@ -114,8 +114,11 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 }
 
                 if (!partnerGoalSnap?.exists) {
-                    logger.warn('Partner goal deleted, treating as completed for charge purposes');
-                    // Proceed with charge (fall through to charge logic)
+                    // C14: Partner goal was deleted after the shared challenge was set up.
+                    // Do NOT charge the giver for a ghost partner gift — abort and mark failed.
+                    logger.error(`Partner goal not found for gift ${giftId}, aborting charge`);
+                    await giftRef.update({ payment: 'failed', failureReason: 'partner_goal_deleted', updatedAt: FieldValue.serverTimestamp() });
+                    return null;
                 } else if (!partnerGoalData?.isCompleted) {
                     // One partner done, waiting on the other — notify BOTH (H3)
                     logger.info(`ℹ️ [PROD] Shared challenge: partner has not completed yet, skipping charge for goal ${goalId}`);
@@ -152,33 +155,47 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 if (giftData.payment === 'free') {
                     logger.info(`ℹ️ [PROD] Free shared gift ${giftId} — unlocking both goals`);
 
-                    // Unlock both goals (C1 pattern, no charge needed)
-                    const unlockBatch = db.batch();
-                    unlockBatch.update(db.doc(`goals/${goalId}`), {
-                        isUnlocked: true,
-                        unlockedAt: FieldValue.serverTimestamp(),
-                    });
-                    unlockBatch.update(db.doc(`goals/${afterData.partnerGoalId}`), {
-                        isUnlocked: true,
-                        unlockedAt: FieldValue.serverTimestamp(),
-                    });
-                    // Mark gift as completed
-                    unlockBatch.update(giftRef, {
-                        status: 'completed',
-                        updatedAt: FieldValue.serverTimestamp(),
-                    });
-                    await unlockBatch.commit();
+                    const goalRef1 = db.doc(`goals/${goalId}`);
+                    const goalRef2 = db.doc(`goals/${afterData.partnerGoalId}`);
 
-                    // Fix 8: Skip shared_unlock notifications if already sent
-                    if (giftData.notificationSent) {
+                    // Idempotency check FIRST, then unlock — all inside one transaction
+                    // to prevent concurrent invocations from both running the unlock batch.
+                    let alreadyNotified = false;
+                    try {
+                        await db.runTransaction(async (tx) => {
+                            const freshGift = await tx.get(giftRef);
+                            if (freshGift.data()?.notificationSent) {
+                                alreadyNotified = true;
+                                return; // nothing to write; transaction exits cleanly
+                            }
+                            // Mark as notified + completed atomically with goal unlocks
+                            tx.update(giftRef, {
+                                notificationSent: true,
+                                status: 'completed',
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                            tx.update(goalRef1, {
+                                isUnlocked: true,
+                                unlockedAt: FieldValue.serverTimestamp(),
+                            });
+                            tx.update(goalRef2, {
+                                isUnlocked: true,
+                                unlockedAt: FieldValue.serverTimestamp(),
+                            });
+                        });
+                    } catch (txErr: unknown) {
+                        logger.error(`❌ [PROD] Transaction failed for free shared gift ${giftId}:`, txErr);
+                        return null;
+                    }
+
+                    if (alreadyNotified) {
                         logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                         return null;
                     }
 
-                    // Send shared_unlock notifications to BOTH users (H2)
+                    // Send shared_unlock notifications to BOTH users AFTER the transaction (fire-and-forget)
                     const unlockMessage = 'Both of you completed the challenge! Your reward is unlocked.';
                     const unlockNotifBatch = db.batch();
-                    // Notify the completing user (goal owner who triggered this)
                     unlockNotifBatch.set(db.collection('notifications').doc(), {
                         userId: afterData.userId,
                         type: 'shared_unlock',
@@ -188,7 +205,6 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         read: false,
                         createdAt: FieldValue.serverTimestamp(),
                     });
-                    // Notify the partner (the other goal's owner)
                     if (partnerUserId && partnerUserId !== afterData.userId) {
                         unlockNotifBatch.set(db.collection('notifications').doc(), {
                             userId: partnerUserId,
@@ -201,9 +217,6 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         });
                     }
                     await unlockNotifBatch.commit();
-
-                    // Fix 8: Mark notification as sent to prevent duplicate sends
-                    await giftRef.update({ notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
 
                     logger.info(`✅ [PROD] Free shared gift ${giftId} — both goals unlocked and notifications sent`);
                     return null;
@@ -306,9 +319,11 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             // ── Step 1: Atomically claim the charge slot ──────────────────────
             // Mark as 'processing' inside a transaction so concurrent invocations
             // bail out immediately. No external I/O inside the transaction.
-            let claimedPaymentMethodId: string;
-            let claimedAmount: number;
-            let claimedCurrency: string;
+            // chargeData is returned from the transaction to avoid using variables
+            // that were assigned inside the closure but declared outside — those
+            // would be undefined if the transaction throws due to contention before
+            // the assignment is reached.
+            let chargeData: { paymentMethodId: string; amount: number; currency: string } | null = null;
 
             try {
                 await db.runTransaction(async (tx) => {
@@ -319,15 +334,14 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         throw new Error('ALREADY_PROCESSING');
                     }
 
-                    // Capture values from the fresh read for correctness
-                    claimedPaymentMethodId = paymentMethodId;
-                    claimedAmount = amount;
-                    claimedCurrency = currency;
-
                     tx.update(giftRef, {
                         payment: 'processing',
                         updatedAt: FieldValue.serverTimestamp(),
                     });
+
+                    // Capture charge values inside the transaction so they are only
+                    // set when the transaction body actually executes successfully.
+                    chargeData = { paymentMethodId, amount, currency };
                 });
             } catch (txError: unknown) {
                 if ((txError as Error).message === 'ALREADY_PROCESSING') {
@@ -337,21 +351,51 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                 throw txError;
             }
 
+            if (!chargeData) {
+                logger.error(`❌ [PROD] Transaction did not produce charge data for gift ${giftId}`);
+                return null;
+            }
+
+            // Re-fetch the gift document after the transaction commits to get fresh
+            // field values (paymentMethodId, amount, currency) for the Stripe call.
+            // The pre-transaction giftData snapshot may be stale if concurrent
+            // updates modified those fields between the initial read and now.
+            const freshGiftSnap = await giftRef.get();
+            const freshGiftData = freshGiftSnap.data();
+            if (!freshGiftData) {
+                logger.error(`❌ [PROD] Could not re-fetch gift ${giftId} after transaction`);
+                return null;
+            }
+
+            // Derive the Stripe charge parameters from the fresh snapshot.
+            // deferredAmount and deferredCurrency come from the fresh doc to pick up
+            // any concurrent updates. paymentMethodId was already retrieved from Stripe
+            // using the pre-transaction setupIntentId — re-use it unless the
+            // setupIntentId itself changed (rare), in which case re-retrieve.
+            const freshSetupIntentId = freshGiftData.setupIntentId as string | undefined;
+            let freshPaymentMethodId: string = (chargeData as { paymentMethodId: string }).paymentMethodId;
+            if (freshSetupIntentId && freshSetupIntentId !== giftData.setupIntentId) {
+                const freshSetupIntent = await stripe.setupIntents.retrieve(freshSetupIntentId);
+                freshPaymentMethodId = freshSetupIntent.payment_method as string;
+            }
+            const freshAmount = Math.round((freshGiftData.deferredAmount || 0) * 100);
+            const freshCurrency = freshGiftData.deferredCurrency || 'eur';
+
             // ── Step 2: Stripe call OUTSIDE transaction ───────────────────────
             let paymentIntentId: string;
             let paymentIntentStatus: string;
 
             try {
-                // Retrieve Stripe Customer from gift doc, or create one on-the-fly
-                // (handles old gifts created before customer tracking was added)
-                const stripeCustomerId = giftData.stripeCustomerId
-                    || await getOrCreateStripeCustomer(stripe, db, giftData.giverId);
+                // Retrieve Stripe Customer from the fresh gift doc, or create one
+                // on-the-fly (handles old gifts created before customer tracking was added)
+                const stripeCustomerId = freshGiftData.stripeCustomerId
+                    || await getOrCreateStripeCustomer(stripe, db, freshGiftData.giverId);
 
                 // Ensure the payment method is attached to the customer
                 // (needed for legacy gifts where SetupIntent had no customer).
                 // If already attached, Stripe throws — safe to ignore.
                 try {
-                    await stripe.paymentMethods.attach(claimedPaymentMethodId!, {
+                    await stripe.paymentMethods.attach(freshPaymentMethodId, {
                         customer: stripeCustomerId,
                     });
                 } catch (attachErr: unknown) {
@@ -362,15 +406,15 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
                 const paymentIntent = await stripe.paymentIntents.create(
                     {
-                        amount: claimedAmount!,
-                        currency: claimedCurrency!,
+                        amount: freshAmount,
+                        currency: freshCurrency,
                         customer: stripeCustomerId,
-                        payment_method: claimedPaymentMethodId!,
+                        payment_method: freshPaymentMethodId,
                         off_session: true,
                         confirm: true,
                         metadata: {
                             giftId,
-                            giverId: giftData.giverId,
+                            giverId: freshGiftData.giverId,
                             goalId,
                             type: 'deferred_charge',
                         },
@@ -387,7 +431,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
                 // Validate state machine transition before writing
                 // Gift status should be 'claimed' at this point (recipient has a goal linked)
-                const currentStatus = giftData.status as GiftStatus | undefined;
+                const currentStatus = freshGiftData.status as GiftStatus | undefined;
                 if (currentStatus) {
                     validateGiftTransition(currentStatus, 'completed');
                 }
@@ -424,20 +468,23 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         await db.collection('failedCharges').doc(giftId).set({
                             giftId,
                             paymentIntentId: paymentIntent.id,
-                            amount: giftData.deferredAmount,
-                            currency: giftData.deferredCurrency || 'eur',
+                            amount: freshGiftData.deferredAmount,
+                            currency: freshGiftData.deferredCurrency || 'eur',
                             errorMessage: lastError.message || 'Unknown error',
                             timestamp: FieldValue.serverTimestamp(),
                             retryCount: 0,
                             resolved: false,
-                            goalId: giftData.goalId || null,
-                            giverId: giftData.giverId || null,
-                            recipientId: giftData.userId || null,
+                            goalId: freshGiftData.goalId || null,
+                            giverId: freshGiftData.giverId || null,
+                            recipientId: freshGiftData.recipientId || null,
                         });
                         logger.error(`[chargeDeferredGift] Wrote to failedCharges/${giftId} after exhausting retries`);
                     } catch (failedChargeErr: unknown) {
                         logger.error(`[chargeDeferredGift] Failed to write to failedCharges/${giftId}:`, failedChargeErr);
                     }
+                    // Gift is not reliably marked paid — do NOT unlock goals.
+                    logger.error('All retries exhausted, gift stuck in processing');
+                    return null;
                 }
             } catch (stripeError: unknown) {
                 // ── Step 4: Revert to 'deferred' on Stripe failure ────────────
@@ -473,8 +520,20 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     ? (await db.doc(`goals/${afterData.partnerGoalId}`).get()).data()
                     : null;
 
-                // Fix 8: Skip shared_unlock notifications if already sent
-                if (!giftData.notificationSent) {
+                // Fix 8 (hardened): Atomically claim the right to send the shared_unlock
+                // notification so concurrent invocations cannot both pass the check.
+                // freshGiftData was read before the transaction committed and is stale —
+                // we must re-read inside a new transaction.
+                let shouldSendSharedUnlockNotification = false;
+                await db.runTransaction(async (tx) => {
+                    const latestGiftSnap = await tx.get(giftRef);
+                    if (!latestGiftSnap.data()?.notificationSent) {
+                        tx.update(giftRef, { notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
+                        shouldSendSharedUnlockNotification = true;
+                    }
+                });
+
+                if (shouldSendSharedUnlockNotification) {
                     // ── H2: Notify BOTH users of shared unlock ────────────────────
                     const unlockMessage = 'Both of you completed the challenge! Your reward is unlocked.';
                     const sharedUnlockBatch = db.batch();
@@ -484,7 +543,7 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         type: 'shared_unlock',
                         title: 'Challenge Complete!',
                         message: unlockMessage,
-                        data: { giftId, goalId, amount: giftData.deferredAmount },
+                        data: { giftId, goalId, amount: freshGiftData.deferredAmount },
                         read: false,
                         createdAt: FieldValue.serverTimestamp(),
                     });
@@ -495,26 +554,23 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                             type: 'shared_unlock',
                             title: 'Challenge Complete!',
                             message: unlockMessage,
-                            data: { giftId, goalId, amount: giftData.deferredAmount },
+                            data: { giftId, goalId, amount: freshGiftData.deferredAmount },
                             read: false,
                             createdAt: FieldValue.serverTimestamp(),
                         });
                     }
                     await sharedUnlockBatch.commit();
-
-                    // Fix 8: Mark notification as sent to prevent duplicate sends
-                    await giftRef.update({ notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
                 } else {
                     logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                 }
             } else {
                 // Solo challenge — notify giver of successful charge
                 await db.collection("notifications").add({
-                    userId: giftData.giverId,
+                    userId: freshGiftData.giverId,
                     type: 'payment_charged',
                     title: 'Challenge completed!',
-                    message: `${recipientName} achieved their goal! €${giftData.deferredAmount} has been charged.`,
-                    data: { giftId, goalId, amount: giftData.deferredAmount },
+                    message: `${recipientName} achieved their goal! €${freshGiftData.deferredAmount} has been charged.`,
+                    data: { giftId, goalId, amount: freshGiftData.deferredAmount },
                     read: false,
                     createdAt: FieldValue.serverTimestamp(),
                 });

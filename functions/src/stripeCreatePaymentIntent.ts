@@ -71,23 +71,44 @@ export const stripeCreatePaymentIntent = onRequest(
         const db = getDbProd();
 
         // ✅ RATE LIMITING: Max 20 payment intent creations per hour per user
+        // Atomic transaction prevents TOCTOU race where concurrent requests both
+        // pass the count check before either has written the updated counter.
         const RATE_LIMIT = 20;
         const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
         const rateLimitRef = db.collection('rateLimits').doc(`createPaymentIntent_${userId}`);
-        const rateLimitSnap = await rateLimitRef.get();
-        const now = Date.now();
 
-        if (rateLimitSnap.exists) {
-            const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
-            if (requests.length >= RATE_LIMIT) {
+        try {
+            await db.runTransaction(async (transaction) => {
+                const snap = await transaction.get(rateLimitRef);
+                const data = snap.data() || { count: 0, windowStart: Date.now() };
+                const windowExpired = Date.now() - (data.windowStart || 0) > RATE_WINDOW_MS;
+                const currentCount = windowExpired ? 0 : (data.count || 0);
+
+                if (currentCount >= RATE_LIMIT) {
+                    throw new Error('RATE_LIMIT_EXCEEDED');
+                }
+
+                transaction.set(rateLimitRef, {
+                    count: windowExpired ? 1 : (currentCount + 1),
+                    windowStart: windowExpired ? Date.now() : data.windowStart,
+                    userId,
+                    updatedAt: new Date().toISOString(),
+                }, { merge: !windowExpired });
+            });
+        } catch (rateLimitError: unknown) {
+            if ((rateLimitError as Error).message === 'RATE_LIMIT_EXCEEDED') {
                 logger.warn(`⚠️ stripeCreatePaymentIntent rate limit exceeded for user ${userId}`);
                 res.status(429).json({ error: 'Too many payment requests. Please try again later.' });
                 return;
             }
-            await rateLimitRef.set({ requests: [...requests, now], lastRequest: now });
-        } else {
-            await rateLimitRef.set({ requests: [now], lastRequest: now });
+            throw rateLimitError;
         }
+
+        // Sanitize string inputs — strip HTML/script tags, limit length
+        const sanitize = (s: unknown, maxLen = 500): string => {
+            if (typeof s !== 'string') return '';
+            return s.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
+        };
 
         try {
             const {
@@ -184,12 +205,17 @@ export const stripeCreatePaymentIntent = onRequest(
                 metadata: {
                     type: "multiple_experience_gifts",
                     giverId,
-                    giverName: giverName || "",
+                    giverName: (giverName || '').slice(0, 100),
                     primaryPartnerId: primaryPartnerId || "",
                     cart: cartJSON,
-                    personalizedMessage: personalizedMessage || "",
+                    personalizedMessage: (personalizedMessage || '').slice(0, 500),
                     isMystery: isMystery ? "true" : "false",
                     source: "ernit_experience_gift",
+                    challengeType: sanitize(req.body.challengeType, 20) || 'solo',
+                    revealMode: sanitize(req.body.revealMode, 20) || 'revealed',
+                    goalName: sanitize(req.body.goalName, 200) || '',
+                    goalType: sanitize(req.body.goalType, 50) || 'custom',
+                    sameExperienceForBoth: req.body.sameExperienceForBoth === true ? 'true' : 'false',
                 },
             });
 

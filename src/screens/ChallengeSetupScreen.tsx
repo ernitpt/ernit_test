@@ -143,6 +143,24 @@ export default function ChallengeSetupScreen() {
     const [validationErrors, setValidationErrors] = useState({ goal: false, time: false, experience: false });
     const [plannedStartDate, setPlannedStartDate] = useState(new Date());
 
+    // Tracks whether the component is still mounted (guards async setState after unmount)
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
+
+    // Navigation timer ref — cleared on unmount to avoid navigating after unmount
+    const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        return () => {
+            if (navTimerRef.current) clearTimeout(navTimerRef.current);
+        };
+    }, []);
+
+    // Prevents double-tap on step 1 goal chip auto-advance
+    const pendingAdvanceRef = useRef(false);
+
     // Animations
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const scrollViewRef = useRef<ScrollView>(null);
@@ -215,12 +233,12 @@ export default function ChallengeSetupScreen() {
                 .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
                 .filter(exp => exp.status !== 'draft')
                 .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-            setExperiences(fetched);
+            if (isMountedRef.current) setExperiences(fetched);
         } catch (error: unknown) {
             logger.error('Error fetching experiences:', error);
-            setExperienceError(true);
+            if (isMountedRef.current) setExperienceError(true);
         } finally {
-            setLoadingExperiences(false);
+            if (isMountedRef.current) setLoadingExperiences(false);
         }
     }, []);
 
@@ -383,7 +401,7 @@ export default function ChallengeSetupScreen() {
                 targetCount: weeks,
                 currentCount: 0,
                 weeklyCount: 0,
-                sessionsPerWeek,
+                sessionsPerWeek: Math.max(1, sessionsPerWeek),
                 frequency: 'weekly',
                 duration: durationInDays,
                 startDate: now,
@@ -402,7 +420,7 @@ export default function ChallengeSetupScreen() {
                 empoweredBy: state.user.id,
                 approvalStatus: 'approved',
                 initialTargetCount: weeks,
-                initialSessionsPerWeek: sessionsPerWeek,
+                initialSessionsPerWeek: Math.max(1, sessionsPerWeek),
                 approvalRequestedAt: now,
                 approvalDeadline: now,
                 giverActionTaken: true,
@@ -433,6 +451,7 @@ export default function ChallengeSetupScreen() {
             };
 
             const goal = await goalService.createFreeGoal(goalData as Goal);
+            if (!isMountedRef.current) return;
             if (!goal?.id) throw new Error('Goal creation returned no ID');
             dispatch({ type: 'SET_GOAL', payload: goal });
 
@@ -443,7 +462,8 @@ export default function ChallengeSetupScreen() {
             if (paymentChoice === 'payNow' && selectedExperience) {
                 // "Lock it in" — pay now via ExperienceCheckout
                 showSuccess('Challenge created! Complete payment to secure your reward.');
-                setTimeout(() => {
+                navTimerRef.current = setTimeout(() => {
+                    if (!isMountedRef.current) return;
                     navigation.replace('ExperienceCheckout', {
                         cartItems: [{
                             experienceId: selectedExperience.id,
@@ -455,6 +475,7 @@ export default function ChallengeSetupScreen() {
             } else if (paymentChoice === 'payLater' && selectedExperience) {
                 // "Pay on success" — create deferred gift with SetupIntent to save card
                 const token = await auth.currentUser?.getIdToken();
+                if (!isMountedRef.current) return;
                 if (!token) throw new Error('Not authenticated');
 
                 const deferredResponse = await fetch(
@@ -487,7 +508,8 @@ export default function ChallengeSetupScreen() {
                 }
 
                 showSuccess('Challenge created! Save your card to secure your reward.');
-                setTimeout(() => {
+                navTimerRef.current = setTimeout(() => {
+                    if (!isMountedRef.current) return;
                     navigation.replace('DeferredSetup', {
                         setupIntentClientSecret: deferredResult.setupIntentClientSecret,
                         experienceGift: deferredResult.gift,
@@ -496,7 +518,8 @@ export default function ChallengeSetupScreen() {
             } else {
                 // Free goal (category preference or skip) — go straight to Goals
                 showSuccess('Challenge created!');
-                setTimeout(() => {
+                navTimerRef.current = setTimeout(() => {
+                    if (!isMountedRef.current) return;
                     try {
                         navigation.reset({
                             index: 0,
@@ -509,6 +532,7 @@ export default function ChallengeSetupScreen() {
                 }, 300);
             }
         } catch (error: unknown) {
+            if (!isMountedRef.current) return;
             logger.error('Error creating free goal:', error);
             await logErrorToFirestore(error, {
                 screenName: 'ChallengeSetupScreen',
@@ -523,7 +547,7 @@ export default function ChallengeSetupScreen() {
                 ? 'You already have 3 active free goals. Complete or delete one first to start a new challenge.'
                 : 'Failed to create goal. Please try again.');
         } finally {
-            setIsSubmitting(false);
+            if (isMountedRef.current) setIsSubmitting(false);
             // Only reset ref if goal wasn't created — prevents re-submission
             if (!goalCreatedRef.current) {
                 submittingRef.current = false;
@@ -566,9 +590,12 @@ export default function ChallengeSetupScreen() {
                                 setValidationErrors(prev => ({ ...prev, goal: false }));
                                 if (goal.name !== 'Add your own') {
                                     setCustomGoal('');
+                                    if (pendingAdvanceRef.current) return;
+                                    pendingAdvanceRef.current = true;
                                     setTimeout(() => {
                                         setCurrentStep(prev => prev + 1);
                                         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                                        pendingAdvanceRef.current = false;
                                     }, 250);
                                 }
                             }}
@@ -619,19 +646,16 @@ export default function ChallengeSetupScreen() {
                             setCustomGoal(text);
                             if (validationErrors.goal && text.trim()) {
                                 setValidationErrors(prev => ({ ...prev, goal: false }));
+                            } else if (!text.trim()) {
+                                setValidationErrors(prev => ({ ...prev, goal: true }));
                             }
                         }}
+                        error={validationErrors.goal && customGoal.trim() === '' ? 'Please enter a custom goal' : undefined}
                         maxLength={50}
                         autoFocus
                         accessibilityLabel="Custom goal name"
-
                         containerStyle={{ marginBottom: 0 }}
                     />
-                    {validationErrors.goal && customGoal.trim() === '' && (
-                        <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, fontWeight: '500' }}>
-                            Please enter a custom goal
-                        </Text>
-                    )}
                 </View>
             )}
         </View>

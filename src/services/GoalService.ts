@@ -17,6 +17,7 @@ import {
   deleteDoc,
   Timestamp,
   runTransaction,
+  increment,
 } from 'firebase/firestore';
 import type { Goal, PersonalizedHint } from '../types';
 
@@ -84,28 +85,48 @@ export class GoalService {
   /** Create a new goal */
   async createGoal(goal: Goal): Promise<Goal> {
     try {
-      // Check goal limit (max 3 active goals, exempt paid gifted goals)
+      // SECURITY FIX (S3): Verify the experienceGift belongs to this user BEFORE the limit check,
+      // preventing a client-supplied giftId from being used to bypass the active goal count.
       const isPaidGiftedGoal = !!goal.experienceGiftId && !goal.isFreeGoal;
-      if (!isPaidGiftedGoal) {
-        const activeGoalsQuery = query(
-          this.goalsCollection,
-          where('userId', '==', goal.userId),
-          where('isCompleted', '==', false),
-        );
-        const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
-        if (activeGoalsSnapshot.size >= 3) {
-          throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
+      if (isPaidGiftedGoal && goal.experienceGiftId) {
+        const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+        if (!gift || gift.recipientId !== goal.userId) {
+          throw new AppError('INVALID_GIFT', 'Invalid or unauthorized experience gift.', 'validation');
         }
       }
 
+      // SECURITY FIX (C18): Use a counter document to atomically enforce the active goal limit,
+      // preventing a race condition where two concurrent requests could both pass the check.
+      // FIX: goal document creation is now INSIDE the transaction so a failed addDoc can
+      // never leave the counter permanently incremented with no matching goal document.
       const normalized = normalizeGoal(goal);
-      const docRef = await addDoc(this.goalsCollection, {
+      const goalData = {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
         description: sanitizeText(normalized.description || '', 500),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      const docRef = doc(this.goalsCollection); // pre-generate ID
+      if (!isPaidGiftedGoal) {
+        const goalCountRef = doc(db, 'users', goal.userId, 'meta', 'goalCount');
+        await runTransaction(db, async (transaction) => {
+          const countSnap = await transaction.get(goalCountRef);
+          const activeCount: number = countSnap.exists() ? (countSnap.data().active ?? 0) : 0;
+          if (activeCount >= 3) {
+            throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
+          }
+          // Increment counter and create the goal doc atomically so they cannot diverge.
+          transaction.set(goalCountRef, { active: increment(1) }, { merge: true });
+          transaction.set(docRef, { ...goalData, id: docRef.id });
+        });
+      } else {
+        // Paid/gifted goal — no counter limit, but still create inside a transaction
+        // so callers get a consistent docRef regardless of path taken.
+        await runTransaction(db, async (transaction) => {
+          transaction.set(docRef, { ...goalData, id: docRef.id });
+        });
+      }
 
       // Create feed post for goal started
       try {
@@ -150,28 +171,39 @@ export class GoalService {
         throw new AppError('INVALID_GOAL_DATA', 'Invalid free goal data: missing isFreeGoal', 'validation');
       }
 
-      // Check goal limit (max 3 active goals, exempt paid commitment goals)
+      // SECURITY FIX (C18): Use a counter document to atomically enforce the active goal limit,
+      // preventing a race condition where two concurrent requests could both pass the check.
+      // FIX: goal document creation is now INSIDE the transaction so a failed addDoc can
+      // never leave the counter permanently incremented with no matching goal document.
       const hasPaidCommitment = !!goal.paymentCommitment && goal.paymentCommitment !== null;
-      if (!hasPaidCommitment) {
-        const activeGoalsQuery = query(
-          this.goalsCollection,
-          where('userId', '==', goal.userId),
-          where('isCompleted', '==', false),
-        );
-        const activeGoalsSnapshot = await getDocs(activeGoalsQuery);
-        if (activeGoalsSnapshot.size >= 3) {
-          throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
-        }
-      }
-
       const normalized = normalizeGoal(goal);
-      const docRef = await addDoc(this.goalsCollection, {
+      const goalData = {
         ...normalized,
         title: sanitizeText(normalized.title || '', 100),
         description: sanitizeText(normalized.description || '', 500),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      const docRef = doc(this.goalsCollection); // pre-generate ID
+      if (!hasPaidCommitment) {
+        const goalCountRef = doc(db, 'users', goal.userId, 'meta', 'goalCount');
+        await runTransaction(db, async (transaction) => {
+          const countSnap = await transaction.get(goalCountRef);
+          const activeCount: number = countSnap.exists() ? (countSnap.data().active ?? 0) : 0;
+          if (activeCount >= 3) {
+            throw new AppError('GOAL_LIMIT_REACHED', 'You can have up to 3 active goals.', 'business');
+          }
+          // Increment counter and create the goal doc atomically so they cannot diverge.
+          transaction.set(goalCountRef, { active: increment(1) }, { merge: true });
+          transaction.set(docRef, { ...goalData, id: docRef.id });
+        });
+      } else {
+        // Paid commitment — no counter limit, but still create inside a transaction
+        // for consistency with the non-paid path.
+        await runTransaction(db, async (transaction) => {
+          transaction.set(docRef, { ...goalData, id: docRef.id });
+        });
+      }
 
       // Create feed post for goal started
       try {
@@ -356,16 +388,6 @@ export class GoalService {
       throw new AppError('INVALID_URL', 'Invalid image URL', 'validation');
     }
 
-    // SECURITY: Check array size limit before adding
-    const currentGoal = await this.getGoalById(goalId);
-    if (!currentGoal) {
-      throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    }
-    const MAX_HINTS = 1000; // Reasonable limit for a goal
-    if ((currentGoal.hints?.length || 0) >= MAX_HINTS) {
-      throw new AppError('HINTS_LIMIT', 'Maximum hints limit reached for this goal', 'business');
-    }
-
     // Create clean hint object with only allowed fields
     const cleanHint: Record<string, unknown> = {
       id: hintObj.id,
@@ -382,10 +404,25 @@ export class GoalService {
     if (hintObj.type) cleanHint.type = hintObj.type;
     if (typeof hintObj.duration === 'number') cleanHint.duration = hintObj.duration;
 
+    // FIX M16: Use a transaction so the count check and append are atomic —
+    // prevents two concurrent callers from both passing the limit check.
+    const MAX_HINTS = 1000; // Reasonable limit for a goal
     const goalRef = doc(db, 'goals', goalId);
-    await updateDoc(goalRef, {
-      hints: arrayUnion(cleanHint),
-      updatedAt: serverTimestamp(),
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(goalRef);
+      if (!snap.exists()) {
+        throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      }
+      const hints: unknown[] = snap.data()?.hints || [];
+      if (hints.length >= MAX_HINTS) {
+        throw new AppError('HINTS_LIMIT', 'Maximum hints limit reached for this goal', 'business');
+      }
+      // Use arrayUnion (not spread) so concurrent transaction retries are idempotent
+      // and we don't overwrite the full array on every write.
+      transaction.update(goalRef, {
+        hints: arrayUnion(cleanHint),
+        updatedAt: serverTimestamp(),
+      });
     });
   }
 
@@ -467,6 +504,29 @@ export class GoalService {
       .filter(key => allowedFields.includes(key))
       .reduce((obj, key) => ({ ...obj, [key]: updates[key as keyof Goal] }), {});
 
+    // Prevent directly setting completion state (must go through completeGoal)
+    if ('isCompleted' in sanitizedUpdates) {
+      throw new AppError('FORBIDDEN', 'Cannot set isCompleted directly. Use completeGoal().', 'validation');
+    }
+    // Prevent setting currentCount directly (must go through session logging)
+    if ('currentCount' in sanitizedUpdates) {
+      throw new AppError('FORBIDDEN', 'Cannot set currentCount directly. Use tickWeeklySession().', 'validation');
+    }
+    // Validate sessionsPerWeek range
+    if ('sessionsPerWeek' in sanitizedUpdates) {
+      const spw = sanitizedUpdates.sessionsPerWeek as number;
+      if (typeof spw !== 'number' || spw < 1 || spw > 7) {
+        throw new AppError('INVALID_ARGUMENT', 'sessionsPerWeek must be between 1 and 7.', 'validation');
+      }
+    }
+    // Validate targetCount range
+    if ('targetCount' in sanitizedUpdates) {
+      const tc = sanitizedUpdates.targetCount as number;
+      if (typeof tc !== 'number' || tc < 1 || tc > 52) {
+        throw new AppError('INVALID_ARGUMENT', 'targetCount must be between 1 and 52.', 'validation');
+      }
+    }
+
     await updateDoc(ref, { ...sanitizedUpdates, updatedAt: serverTimestamp() });
   }
 
@@ -522,56 +582,66 @@ export class GoalService {
   /** Approve a goal */
   async approveGoal(goalId: string, message?: string): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    const goalData = snap.data();
-    if (goalData?.empoweredBy !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the goal supporter can approve', 'auth');
-    }
-    const currentGoal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    // Extract category from title or description
-    const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
-    const category = titleMatch ? titleMatch[1] : 'this goal';
+    // FIX H18: Read, authorization check, and write are all inside a single transaction
+    // so the caller cannot lose their supporter role between the read and write.
+    // FIX: Return computed values from the transaction so they are safely available after.
+    const { finalTargetCount, finalSessionsPerWeek } = await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      const goalData = snap.data();
+      if (goalData?.empoweredBy !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the goal supporter can approve', 'auth');
+      }
+      const currentGoal = normalizeGoal({ id: snap.id, ...goalData });
 
-    // Check if there are suggested changes and apply them
-    const finalTargetCount = currentGoal.suggestedTargetCount || currentGoal.targetCount;
-    const finalSessionsPerWeek = currentGoal.suggestedSessionsPerWeek || currentGoal.sessionsPerWeek;
+      // Extract category from title or description
+      const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
+      const category = titleMatch ? titleMatch[1] : 'this goal';
 
-    // If suggestions exist, recalculate duration and endDate
-    let updates: Record<string, unknown> = {
-      approvalStatus: 'approved',
-      giverMessage: message || '',
-      giverActionTaken: true,
-      updatedAt: serverTimestamp(),
-    };
+      // Check if there are suggested changes and apply them
+      const computedTargetCount = currentGoal.suggestedTargetCount || currentGoal.targetCount;
+      const computedSessionsPerWeek = currentGoal.suggestedSessionsPerWeek || currentGoal.sessionsPerWeek;
 
-    if (currentGoal.suggestedTargetCount || currentGoal.suggestedSessionsPerWeek) {
-      // Apply the suggested changes
-      const durationInDays = finalTargetCount * 7;
-      const startDate = toJSDate(currentGoal.startDate) || DateHelper.now();
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + durationInDays);
+      // If suggestions exist, recalculate duration and endDate
+      let updates: Record<string, unknown> = {
+        approvalStatus: 'approved',
+        giverMessage: message || '',
+        giverActionTaken: true,
+        updatedAt: serverTimestamp(),
+      };
 
-      // Validate date range
-      if (endDate <= startDate) {
-        throw new AppError('INVALID_DATE_RANGE', 'Calculated endDate must be after startDate', 'validation');
+      if (currentGoal.suggestedTargetCount || currentGoal.suggestedSessionsPerWeek) {
+        // Apply the suggested changes
+        // duration is stored in DAYS (targetCount * 7)
+        const durationInDays = computedTargetCount * 7;
+        const startDate = toJSDate(currentGoal.startDate) || DateHelper.now();
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + durationInDays);
+
+        // Validate date range
+        if (endDate <= startDate) {
+          throw new AppError('INVALID_DATE_RANGE', 'Calculated endDate must be after startDate', 'validation');
+        }
+
+        updates = {
+          ...updates,
+          targetCount: computedTargetCount,
+          sessionsPerWeek: computedSessionsPerWeek,
+          duration: durationInDays, // duration is stored in DAYS (targetCount * 7)
+          endDate,
+        };
       }
 
-      updates = {
-        ...updates,
-        targetCount: finalTargetCount,
-        sessionsPerWeek: finalSessionsPerWeek,
-        duration: durationInDays,
-        endDate,
-      };
-    }
+      // Update description to reflect final values
+      const updatedDescription = `Work on ${category} for ${computedTargetCount} weeks, ${computedSessionsPerWeek} times per week.`;
+      updates.description = updatedDescription;
 
-    // Update description to reflect final values
-    const updatedDescription = `Work on ${category} for ${finalTargetCount} weeks, ${finalSessionsPerWeek} times per week.`;
-    updates.description = updatedDescription;
+      transaction.update(ref, updates);
 
-    await updateDoc(ref, updates);
+      return { finalTargetCount: computedTargetCount, finalSessionsPerWeek: computedSessionsPerWeek };
+    });
+
     const updatedSnap = await getDoc(ref);
     const goal = normalizeGoal({ id: updatedSnap.id, ...updatedSnap.data() });
 
@@ -606,12 +676,6 @@ export class GoalService {
     suggestedSessionsPerWeek: number,
     message?: string
   ): Promise<Goal> {
-    const goalDoc = await getDoc(doc(db, 'goals', goalId));
-    if (!goalDoc.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    if (goalDoc.data()?.empoweredBy !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the goal supporter can suggest changes', 'auth');
-    }
-
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (suggestedTargetCount > 5) {
       throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
@@ -621,15 +685,26 @@ export class GoalService {
     }
 
     const ref = doc(db, 'goals', goalId);
-    const updates: Record<string, unknown> = {
-      approvalStatus: 'suggested_change',
-      suggestedTargetCount,
-      suggestedSessionsPerWeek,
-      giverMessage: message || '',
-      giverActionTaken: true,
-      updatedAt: serverTimestamp(),
-    };
-    await updateDoc(ref, updates);
+
+    // FIX H18: Read, authorization check, and write are all inside a single transaction
+    // so the caller cannot lose their supporter role between the read and write.
+    await runTransaction(db, async (transaction) => {
+      const goalSnap = await transaction.get(ref);
+      if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      if (goalSnap.data()?.empoweredBy !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the goal supporter can suggest changes', 'auth');
+      }
+      const updates: Record<string, unknown> = {
+        approvalStatus: 'suggested_change',
+        suggestedTargetCount,
+        suggestedSessionsPerWeek,
+        giverMessage: message || '',
+        giverActionTaken: true,
+        updatedAt: serverTimestamp(),
+      };
+      transaction.update(ref, updates);
+    });
+
     const snap = await getDoc(ref);
     return normalizeGoal({ id: snap.id, ...snap.data() });
   }
@@ -642,55 +717,64 @@ export class GoalService {
     message?: string
   ): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
-    const goalSnap = await getDoc(ref);
-    if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    if (goalSnap.data()?.userId !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the goal owner can respond to suggestions', 'auth');
-    }
-    const currentGoal = normalizeGoal({ id: goalSnap.id, ...goalSnap.data() });
 
-    // Ensure new goal is not less than initial
-    const minTargetCount = currentGoal.initialTargetCount || currentGoal.targetCount;
-    const minSessionsPerWeek = currentGoal.initialSessionsPerWeek || currentGoal.sessionsPerWeek;
+    // BUG-6 FIX: Wrap status check + update in a single transaction to prevent
+    // two concurrent calls from both reading 'pending_suggestion' and both proceeding.
+    const { updatedDescription } = await runTransaction(db, async (transaction) => {
+      const goalSnap = await transaction.get(ref);
+      if (!goalSnap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      if (goalSnap.data()?.userId !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the goal owner can respond to suggestions', 'auth');
+      }
+      if (goalSnap.data()?.approvalStatus !== 'pending_suggestion') {
+        throw new AppError('VALIDATION_ERROR', 'Goal is not awaiting a suggestion response', 'validation');
+      }
+      const currentGoal = normalizeGoal({ id: goalSnap.id, ...goalSnap.data() });
 
-    if (newTargetCount < minTargetCount || newSessionsPerWeek < minSessionsPerWeek) {
-      throw new AppError('VALIDATION_ERROR', 'New goal cannot be less than the original goal', 'validation');
-    }
+      // Ensure new goal is not less than initial
+      const minTargetCount = currentGoal.initialTargetCount || currentGoal.targetCount;
+      const minSessionsPerWeek = currentGoal.initialSessionsPerWeek || currentGoal.sessionsPerWeek;
 
-    // Validate maximum limits: 5 weeks and 7 sessions per week
-    if (newTargetCount > 5) {
-      throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
-    }
-    if (newSessionsPerWeek > 7) {
-      throw new AppError('VALIDATION_ERROR', 'The maximum is 7 sessions per week.', 'validation');
-    }
+      if (newTargetCount < minTargetCount || newSessionsPerWeek < minSessionsPerWeek) {
+        throw new AppError('VALIDATION_ERROR', 'New goal cannot be less than the original goal', 'validation');
+      }
 
-    // Update goal with new values
-    const now = DateHelper.now();
-    const durationInDays = newTargetCount * 7;
-    // Ensure startDate is a Date object
-    const startDate = toJSDate(currentGoal.startDate) || DateHelper.now();
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + durationInDays);
+      // Validate maximum limits: 5 weeks and 7 sessions per week
+      if (newTargetCount > 5) {
+        throw new AppError('VALIDATION_ERROR', 'The maximum duration is 5 weeks.', 'validation');
+      }
+      if (newSessionsPerWeek > 7) {
+        throw new AppError('VALIDATION_ERROR', 'The maximum is 7 sessions per week.', 'validation');
+      }
 
-    // Extract category from title or description
-    const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
-    const category = titleMatch ? titleMatch[1] : 'this goal';
+      // duration is stored in DAYS (targetCount * 7)
+      const durationInDays = newTargetCount * 7;
+      // Ensure startDate is a Date object
+      const startDate = toJSDate(currentGoal.startDate) || DateHelper.now();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + durationInDays);
 
-    // Update description to reflect new values
-    const updatedDescription = `Work on ${category} for ${newTargetCount} weeks, ${newSessionsPerWeek} times per week.`;
+      // Extract category from title or description
+      const titleMatch = currentGoal.title?.match(/Attend (.+) Sessions/);
+      const category = titleMatch ? titleMatch[1] : 'this goal';
 
-    const updates: Record<string, unknown> = {
-      approvalStatus: 'approved',
-      targetCount: newTargetCount,
-      sessionsPerWeek: newSessionsPerWeek,
-      duration: durationInDays,
-      endDate,
-      description: updatedDescription,
-      receiverMessage: message || '',
-      updatedAt: serverTimestamp(),
-    };
-    await updateDoc(ref, updates);
+      // Update description to reflect new values
+      const txUpdatedDescription = `Work on ${category} for ${newTargetCount} weeks, ${newSessionsPerWeek} times per week.`;
+
+      transaction.update(ref, {
+        approvalStatus: 'approved',
+        targetCount: newTargetCount,
+        sessionsPerWeek: newSessionsPerWeek,
+        duration: durationInDays,
+        endDate,
+        description: txUpdatedDescription,
+        receiverMessage: message || '',
+        updatedAt: serverTimestamp(),
+      });
+
+      return { updatedDescription: txUpdatedDescription };
+    });
+
     const snap = await getDoc(ref);
     const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
@@ -729,7 +813,9 @@ export class GoalService {
     const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
     if (goal.approvalStatus === 'pending' && goal.approvalDeadline) {
-      const now = DateHelper.now();
+      // FIX M20: Use Timestamp.now() (real wall-clock time) instead of DateHelper.now(),
+      // which can be artificially offset by debug tools on the client.
+      const now = Timestamp.now().toDate();
       if (now >= goal.approvalDeadline && !goal.giverActionTaken) {
         // Auto-approve
         await updateDoc(ref, {
@@ -816,40 +902,48 @@ export class GoalService {
     newSessionsPerWeek: number
   ): Promise<Goal> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    if (goal.userId !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the goal owner can edit this goal', 'auth');
-    }
-    if (!goal.isFreeGoal && goal.empoweredBy && goal.empoweredBy !== auth.currentUser?.uid) {
-      throw new AppError('VALIDATION_ERROR', 'This goal was gifted to you — please request changes from your supporter instead.', 'validation');
-    }
-    if (newTargetCount < (goal.currentCount || 0)) {
-      throw new AppError('VALIDATION_ERROR', `Can't reduce below already-completed weeks (${goal.currentCount})`, 'validation');
-    }
-    if (newSessionsPerWeek < (goal.weeklyCount || 0)) {
-      throw new AppError('VALIDATION_ERROR', `Can't reduce sessions/week below already-logged this week (${goal.weeklyCount})`, 'validation');
-    }
-    if (newTargetCount < 1 || newTargetCount > 5) {
-      throw new AppError('VALIDATION_ERROR', 'Weeks must be between 1 and 5', 'validation');
-    }
-    if (newSessionsPerWeek < 1 || newSessionsPerWeek > 7) {
-      throw new AppError('VALIDATION_ERROR', 'Sessions per week must be between 1 and 7', 'validation');
-    }
+    // BUG-8 FIX: Wrap ownership check + approvalStatus guard + update in a single
+    // transaction so a concurrent review approval can't race with a self-edit.
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    const startDate = toJSDate(goal.startDate) || DateHelper.now();
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + newTargetCount * 7);
+      if (goal.userId !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the goal owner can edit this goal', 'auth');
+      }
+      if (!goal.isFreeGoal && goal.empoweredBy && goal.empoweredBy !== auth.currentUser?.uid) {
+        throw new AppError('VALIDATION_ERROR', 'This goal was gifted to you — please request changes from your supporter instead.', 'validation');
+      }
+      if (goal.approvalStatus === 'pending') {
+        throw new AppError('VALIDATION_ERROR', 'Cannot self-edit a goal that is currently under review', 'validation');
+      }
+      if (newTargetCount < (goal.currentCount || 0)) {
+        throw new AppError('VALIDATION_ERROR', `Can't reduce below already-completed weeks (${goal.currentCount})`, 'validation');
+      }
+      if (newSessionsPerWeek < (goal.weeklyCount || 0)) {
+        throw new AppError('VALIDATION_ERROR', `Can't reduce sessions/week below already-logged this week (${goal.weeklyCount})`, 'validation');
+      }
+      if (newTargetCount < 1 || newTargetCount > 5) {
+        throw new AppError('VALIDATION_ERROR', 'Weeks must be between 1 and 5', 'validation');
+      }
+      if (newSessionsPerWeek < 1 || newSessionsPerWeek > 7) {
+        throw new AppError('VALIDATION_ERROR', 'Sessions per week must be between 1 and 7', 'validation');
+      }
 
-    await updateDoc(ref, {
-      targetCount: newTargetCount,
-      sessionsPerWeek: newSessionsPerWeek,
-      duration: newTargetCount * 7,
-      endDate,
-      totalSessions: newTargetCount * newSessionsPerWeek,
-      updatedAt: serverTimestamp(),
+      const startDate = toJSDate(goal.startDate) || DateHelper.now();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + newTargetCount * 7);
+
+      transaction.update(ref, {
+        targetCount: newTargetCount,
+        sessionsPerWeek: newSessionsPerWeek,
+        duration: newTargetCount * 7, // duration is stored in DAYS (targetCount * 7)
+        endDate,
+        totalSessions: newTargetCount * newSessionsPerWeek,
+        updatedAt: serverTimestamp(),
+      });
     });
 
     analyticsService.trackEvent('goal_edited', 'conversion', { goalId, targetCount: newTargetCount, sessionsPerWeek: newSessionsPerWeek });
@@ -869,29 +963,35 @@ export class GoalService {
     message?: string
   ): Promise<void> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    if (goal.userId !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the goal owner can request edits', 'auth');
-    }
-    if (!goal.empoweredBy || goal.isFreeGoal || goal.empoweredBy === auth.currentUser?.uid) {
-      throw new AppError('VALIDATION_ERROR', 'You can edit this goal directly — no request needed.', 'validation');
-    }
-    if ((goal as unknown as Record<string, unknown>).pendingEditRequest) {
-      throw new AppError('VALIDATION_ERROR', 'A pending edit request already exists for this goal', 'validation');
-    }
+    // BUG-FIX P1-7: Wrap ownership/pending check + update in a single transaction
+    // to prevent a TOCTOU race where two concurrent requests both pass the pending check.
+    let goal: Goal;
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    await updateDoc(ref, {
-      pendingEditRequest: {
-        requestedTargetCount,
-        requestedSessionsPerWeek,
-        message: sanitizeText(message || '', 500),
-        requestedAt: new Date(),
-        requestedBy: auth.currentUser!.uid,
-      },
-      updatedAt: serverTimestamp(),
+      if (goal.userId !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the goal owner can request edits', 'auth');
+      }
+      if (!goal.empoweredBy || goal.isFreeGoal || goal.empoweredBy === auth.currentUser?.uid) {
+        throw new AppError('VALIDATION_ERROR', 'You can edit this goal directly — no request needed.', 'validation');
+      }
+      if (goal.pendingEditRequest) {
+        throw new AppError('VALIDATION_ERROR', 'A pending edit request already exists for this goal', 'validation');
+      }
+
+      transaction.update(ref, {
+        pendingEditRequest: {
+          requestedTargetCount,
+          requestedSessionsPerWeek,
+          message: sanitizeText(message || '', 500),
+          requestedAt: new Date(),
+          requestedBy: auth.currentUser!.uid,
+        },
+        updatedAt: serverTimestamp(),
+      });
     });
 
     analyticsService.trackEvent('goal_edit_requested', 'engagement', { goalId, requestedTargetCount, requestedSessionsPerWeek });
@@ -914,39 +1014,45 @@ export class GoalService {
    */
   async approveGoalEditRequest(goalId: string): Promise<void> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    if (goal.empoweredBy !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the giver can approve edit requests', 'auth');
-    }
+    // BUG-7 FIX: Wrap status check + update in a single transaction to prevent
+    // two concurrent giver calls from both reading 'pending' and both applying the edit.
+    const { goal, requestedTargetCount, requestedSessionsPerWeek } = await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      const txGoal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest as {
-      requestedTargetCount: number;
-      requestedSessionsPerWeek: number;
-      requestedBy: string;
-    } | undefined;
+      if (txGoal.empoweredBy !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the giver can approve edit requests', 'auth');
+      }
+      if (txGoal.approvalStatus !== 'pending' && txGoal.approvalStatus !== 'approved') {
+        throw new AppError('VALIDATION_ERROR', 'Goal is not in a state that can accept an edit approval', 'invalid-argument');
+      }
 
-    if (!pending) {
-      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
-    }
+      const pending = txGoal.pendingEditRequest;
 
-    const { requestedTargetCount, requestedSessionsPerWeek } = pending;
+      if (!pending) {
+        throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+      }
 
-    // Apply the changes
-    const startDate = toJSDate(goal.startDate) || DateHelper.now();
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + requestedTargetCount * 7);
+      const { requestedTargetCount: txTargetCount, requestedSessionsPerWeek: txSessionsPerWeek } = pending;
 
-    await updateDoc(ref, {
-      targetCount: requestedTargetCount,
-      sessionsPerWeek: requestedSessionsPerWeek,
-      duration: requestedTargetCount * 7,
-      endDate,
-      totalSessions: requestedTargetCount * requestedSessionsPerWeek,
-      pendingEditRequest: null,
-      updatedAt: serverTimestamp(),
+      // Apply the changes
+      const startDate = toJSDate(txGoal.startDate) || DateHelper.now();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + txTargetCount * 7);
+
+      transaction.update(ref, {
+        targetCount: txTargetCount,
+        sessionsPerWeek: txSessionsPerWeek,
+        duration: txTargetCount * 7, // duration is stored in DAYS (targetCount * 7)
+        endDate,
+        totalSessions: txTargetCount * txSessionsPerWeek,
+        pendingEditRequest: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      return { goal: txGoal, requestedTargetCount: txTargetCount, requestedSessionsPerWeek: txSessionsPerWeek };
     });
 
     analyticsService.trackEvent('goal_edit_approved', 'conversion', { goalId, requestedTargetCount, requestedSessionsPerWeek });
@@ -977,7 +1083,7 @@ export class GoalService {
       throw new AppError('UNAUTHORIZED', 'Only the giver can reject edit requests', 'auth');
     }
 
-    const pending = (snap.data() as Record<string, unknown>).pendingEditRequest;
+    const pending = goal.pendingEditRequest;
     if (!pending) {
       throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
     }

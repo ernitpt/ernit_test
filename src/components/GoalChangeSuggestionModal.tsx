@@ -51,7 +51,9 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
   const maxSessions = 7;
 
   const [selectedWeeks, setSelectedWeeks] = useState(suggestedWeeks || initialWeeks || 0);
+  const [weeksInput, setWeeksInput] = useState(String(suggestedWeeks || initialWeeks || 0));
   const [selectedSessions, setSelectedSessions] = useState(suggestedSessions || initialSessions || 0);
+  const [sessionsInput, setSessionsInput] = useState(String(suggestedSessions || initialSessions || 0));
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,9 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       const weeks = goal?.suggestedTargetCount || goal?.targetCount || 0;
       const sessions = goal?.suggestedSessionsPerWeek || goal?.sessionsPerWeek || 0;
       setSelectedWeeks(weeks);
+      setWeeksInput(String(weeks));
       setSelectedSessions(sessions);
+      setSessionsInput(String(sessions));
       setMessage('');
       setError(null);
 
@@ -87,6 +91,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
     if (loading) return;
     const newValue = Math.max(minWeeks, Math.min(maxWeeks, selectedWeeks + delta));
     setSelectedWeeks(newValue);
+    setWeeksInput(String(newValue));
     setError(null);
   };
 
@@ -94,26 +99,39 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
     if (loading) return;
     const newValue = Math.max(minSessions, Math.min(maxSessions, selectedSessions + delta));
     setSelectedSessions(newValue);
+    setSessionsInput(String(newValue));
     setError(null);
   };
 
   const handleWeeksChange = (text: string) => {
-    const num = parseInt(text.replace(/[^0-9]/g, ''));
+    // Allow empty string while typing — validate on blur
+    setWeeksInput(text);
+    const num = parseInt(text, 10);
     if (!isNaN(num)) {
-      const clamped = Math.max(minWeeks, Math.min(maxWeeks, num));
-      setSelectedWeeks(clamped);
-    } else if (text === '') {
-      setSelectedWeeks(minWeeks);
+      setSelectedWeeks(Math.max(minWeeks, Math.min(maxWeeks, num)));
+    }
+  };
+
+  const handleWeeksBlur = () => {
+    // On blur, if empty or invalid, reset input to current valid value
+    if (!weeksInput || isNaN(parseInt(weeksInput, 10))) {
+      setWeeksInput(String(selectedWeeks));
     }
   };
 
   const handleSessionsChange = (text: string) => {
-    const num = parseInt(text.replace(/[^0-9]/g, ''));
+    // Allow empty string while typing — validate on blur
+    setSessionsInput(text);
+    const num = parseInt(text, 10);
     if (!isNaN(num)) {
-      const clamped = Math.max(minSessions, Math.min(maxSessions, num));
-      setSelectedSessions(clamped);
-    } else if (text === '') {
-      setSelectedSessions(minSessions);
+      setSelectedSessions(Math.max(minSessions, Math.min(maxSessions, num)));
+    }
+  };
+
+  const handleSessionsBlur = () => {
+    // On blur, if empty or invalid, reset input to current valid value
+    if (!sessionsInput || isNaN(parseInt(sessionsInput, 10))) {
+      setSessionsInput(String(selectedSessions));
     }
   };
 
@@ -235,8 +253,9 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
             <View style={{ flex: 1 }}>
               <TextInput
                 style={styles.numberInput}
-                value={selectedWeeks.toString()}
+                value={weeksInput}
                 onChangeText={handleWeeksChange}
+                onBlur={handleWeeksBlur}
                 keyboardType="numeric"
                 editable={!loading}
               />
@@ -282,8 +301,9 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
             <View style={{ flex: 1 }}>
               <TextInput
                 style={styles.numberInput}
-                value={selectedSessions.toString()}
+                value={sessionsInput}
                 onChangeText={handleSessionsChange}
+                onBlur={handleSessionsBlur}
                 keyboardType="numeric"
                 editable={!loading}
               />

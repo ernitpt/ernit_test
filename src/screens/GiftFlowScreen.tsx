@@ -373,6 +373,7 @@ export default function GiftFlowScreen() {
 
     // Fetch experiences
     useEffect(() => {
+        let mounted = true;
         const fetchExperiences = async () => {
             try {
                 const q = query(collection(db, 'experiences'), limit(50));
@@ -381,15 +382,16 @@ export default function GiftFlowScreen() {
                     .map(doc => ({ id: doc.id, ...doc.data() } as Experience))
                     .filter(exp => exp.status !== 'draft')
                     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-                setExperiences(fetched);
+                if (mounted) setExperiences(fetched);
             } catch (error: unknown) {
                 logger.error('Error fetching experiences:', error);
-                setExperienceLoadError(true);
+                if (mounted) setExperienceLoadError(true);
             } finally {
-                setLoadingExperiences(false);
+                if (mounted) setLoadingExperiences(false);
             }
         };
         fetchExperiences();
+        return () => { mounted = false; };
     }, []);
 
     // Pulse animation while submitting
@@ -631,6 +633,7 @@ export default function GiftFlowScreen() {
                         body: JSON.stringify({
                             challengeType: 'shared',
                             preferredRewardCategory,
+                            revealMode: revealMode ?? 'secret',
                             giverName: state.user.displayName || '',
                             personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
                             goalName: `${weeks}-week challenge`,
@@ -668,7 +671,30 @@ export default function GiftFlowScreen() {
                 return;
             }
 
-            // Standard path: specific experience selected (solo or together with experience)
+            // payNow path: navigate directly to ExperienceCheckout.
+            // ExperienceCheckout creates its own PaymentIntent on mount and the
+            // stripeWebhook Cloud Function creates the gift after payment succeeds.
+            // Calling createDeferredGift here would create an orphaned SetupIntent
+            // that is immediately abandoned — a financial leak.
+            if (paymentChoice === 'payNow') {
+                setShowConfirm(false);
+                giftCreatedRef.current = true;
+                navigation.navigate('ExperienceCheckout', {
+                    cartItems: [{ experienceId: selectedExperience?.id ?? "", quantity: 1 }],
+                    challengeType,
+                    revealMode,
+                    personalizedMessage: sanitizeText(personalizedMessage.trim(), 200),
+                    ...(challengeType === 'shared' ? {
+                        goalName: `${weeks}-week challenge`,
+                        goalType: selectedGoalType === 'Gym' ? 'gym' : selectedGoalType === 'Yoga' ? 'yoga' : selectedGoalType === 'Dance' ? 'dance' : 'custom',
+                        customGoalText: selectedGoalType === 'Add your own' ? customGoalType : undefined,
+                        sameExperienceForBoth,
+                    } : {}),
+                } as never); // TODO: ExperienceCheckout route type needs to accept these params - tracked as tech debt
+                return;
+            }
+
+            // payLater / no-payment paths: create the deferred gift (SetupIntent) server-side.
             const functionName = config.giftFunctions.createDeferredGift;
             const response = await fetch(
                 `${config.functionsUrl}/${functionName}`,
@@ -706,12 +732,7 @@ export default function GiftFlowScreen() {
             setShowConfirm(false);
             giftCreatedRef.current = true;
 
-            if (paymentChoice === 'payNow') {
-                navigation.navigate('ExperienceCheckout', {
-                    cartItems: [{ experienceId: selectedExperience?.id ?? "", quantity: 1 }],
-                    giftId: result.gift?.id,
-                });
-            } else if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
+            if (paymentChoice === 'payLater' && result.setupIntentClientSecret) {
                 navigation.navigate('DeferredSetup', {
                     setupIntentClientSecret: result.setupIntentClientSecret,
                     experienceGift: result.gift,
@@ -2005,7 +2026,6 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: Platform.OS === 'ios' ? vh(56) : vh(40),
         paddingBottom: vh(14),
         paddingHorizontal: Spacing.xl,
         backgroundColor: colors.white,

@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 /**
  * Cloud Function: checkUnstartedGoals
@@ -22,116 +23,134 @@ export const checkUnstartedGoals = functions.onSchedule(
         try {
             logger.info("🔍 [PROD] Starting unstarted goals check...");
 
-            // Import db from index.ts (production database)
-            const db = require("../index").dbProd;
+            // Get production db directly (avoids circular require("../index"))
+            const db = getFirestore();
             const now = new Date();
 
-            // Get all goals where weekStartAt is null (not started) and not completed
-            const goalsSnap = await db
-                .collection("goals")
-                .where("weekStartAt", "==", null)
-                .where("isCompleted", "==", false)
-                .get();
-
-            logger.info(`📊 [PROD] Found ${goalsSnap.size} unstarted goals`);
-
+            // Paginated fetch of all unstarted goals (weekStartAt == null, not completed)
+            const PAGE_SIZE = 500;
+            let lastDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+            let processed = 0;
             let notificationsSent = 0;
 
-            for (const goalDoc of goalsSnap.docs) {
-                const goal = goalDoc.data();
-                const plannedStart = goal.plannedStartDate?.toDate();
+            while (true) {
+                let goalsQuery = db
+                    .collection("goals")
+                    .where("weekStartAt", "==", null)
+                    .where("isCompleted", "==", false)
+                    .orderBy(admin.firestore.FieldPath.documentId())
+                    .limit(PAGE_SIZE);
 
-                if (!plannedStart) {
+                if (lastDoc) {
+                    goalsQuery = goalsQuery.startAfter(lastDoc);
+                }
+
+                const goalsSnap = await goalsQuery.get();
+                if (goalsSnap.empty) break;
+
+                logger.info(`📊 [PROD] Processing page of ${goalsSnap.size} unstarted goals (total so far: ${processed})`);
+
+                for (const goalDoc of goalsSnap.docs) {
+                    const goal = goalDoc.data();
+                    const plannedStart = goal.plannedStartDate?.toDate();
+
+                    if (!plannedStart) {
+                        logger.info(
+                            `⚠️ [PROD] Goal ${goalDoc.id} has no plannedStartDate, skipping`
+                        );
+                        continue;
+                    }
+
+                    // Calculate days since planned start
+                    const timeDiff = now.getTime() - plannedStart.getTime();
+                    const daysSincePlanned = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+
                     logger.info(
-                        `⚠️ [PROD] Goal ${goalDoc.id} has no plannedStartDate, skipping`
+                        `📅 [PROD] Goal ${goalDoc.id}: ${daysSincePlanned} days since planned start`
                     );
-                    continue;
-                }
 
-                // Calculate days since planned start
-                const timeDiff = now.getTime() - plannedStart.getTime();
-                const daysSincePlanned = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+                    let title: string;
+                    let message: string;
 
-                logger.info(
-                    `📅 [PROD] Goal ${goalDoc.id}: ${daysSincePlanned} days since planned start`
-                );
+                    // Day of planned start
+                    if (daysSincePlanned === 0) {
+                        title = "Today's the day! 🎯";
+                        message = `Ready to start your ${goal.title?.replace("Attend ", "").replace(" Sessions", "")} goal? You've got this!`;
+                    }
+                    // Day after planned start
+                    else if (daysSincePlanned === 1) {
+                        title = "No pressure! 💪";
+                        message = `You planned to start yesterday, but that's totally fine! You can still begin today.`;
+                    }
+                    // 3 days after planned start
+                    else if (daysSincePlanned === 3) {
+                        title = "We're here when you're ready 🙌";
+                        message = `Still interested in ${goal.title?.replace("Attend ", "").replace(" Sessions", "")}? Start whenever feels right for you!`;
+                    }
+                    // Skip if outside notification windows
+                    else {
+                        logger.info(
+                            `⏭️ [PROD] Goal ${goalDoc.id}: Not in notification window (day ${daysSincePlanned})`
+                        );
+                        continue;
+                    }
 
-                let title: string;
-                let message: string;
+                    // Dedup check: skip if we already sent a notification for this day
+                    const sentDays: number[] = Array.isArray(goal.sentUnstartedNotificationDays)
+                        ? goal.sentUnstartedNotificationDays
+                        : [];
 
-                // Day of planned start
-                if (daysSincePlanned === 0) {
-                    title = "Today's the day! 🎯";
-                    message = `Ready to start your ${goal.title?.replace("Attend ", "").replace(" Sessions", "")} goal? You've got this!`;
-                }
-                // Day after planned start
-                else if (daysSincePlanned === 1) {
-                    title = "No pressure! 💪";
-                    message = `You planned to start yesterday, but that's totally fine! You can still begin today.`;
-                }
-                // 3 days after planned start
-                else if (daysSincePlanned === 3) {
-                    title = "We're here when you're ready 🙌";
-                    message = `Still interested in ${goal.title?.replace("Attend ", "").replace(" Sessions", "")}? Start whenever feels right for you!`;
-                }
-                // Skip if outside notification windows
-                else {
-                    logger.info(
-                        `⏭️ [PROD] Goal ${goalDoc.id}: Not in notification window (day ${daysSincePlanned})`
-                    );
-                    continue;
-                }
+                    if (sentDays.includes(daysSincePlanned)) {
+                        logger.info(
+                            `⏭️ [PROD] Goal ${goalDoc.id}: already sent day-${daysSincePlanned} notification, skipping`
+                        );
+                        continue;
+                    }
 
-                // Dedup check: skip if we already sent a notification for this day
-                const sentDays: number[] = Array.isArray(goal.sentUnstartedNotificationDays)
-                    ? goal.sentUnstartedNotificationDays
-                    : [];
+                    // Create notification + stamp dedup atomically
+                    try {
+                        const batch = db.batch();
+                        const notifRef = db.collection("notifications").doc();
+                        batch.set(notifRef, {
+                            userId: goal.userId,
+                            type: "goal_progress",
+                            title,
+                            message,
+                            read: false,
+                            clearable: true,
+                            data: {
+                                goalId: goalDoc.id,
+                            },
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
 
-                if (sentDays.includes(daysSincePlanned)) {
-                    logger.info(
-                        `⏭️ [PROD] Goal ${goalDoc.id}: already sent day-${daysSincePlanned} notification, skipping`
-                    );
-                    continue;
-                }
+                        // Track that this day's notification has been sent
+                        batch.update(goalDoc.ref, {
+                            sentUnstartedNotificationDays: admin.firestore.FieldValue.arrayUnion(daysSincePlanned),
+                        });
 
-                // Create notification + stamp dedup atomically
-                try {
-                    const batch = db.batch();
-                    const notifRef = db.collection("notifications").doc();
-                    batch.set(notifRef, {
-                        userId: goal.userId,
-                        type: "goal_progress",
-                        title,
-                        message,
-                        read: false,
-                        clearable: true,
-                        data: {
-                            goalId: goalDoc.id,
-                        },
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    });
+                        await batch.commit();
 
-                    // Track that this day's notification has been sent
-                    batch.update(goalDoc.ref, {
-                        sentUnstartedNotificationDays: admin.firestore.FieldValue.arrayUnion(daysSincePlanned),
-                    });
+                        notificationsSent++;
+                        logger.info(
+                            `✅ [PROD] Sent day-${daysSincePlanned} reminder to user ${goal.userId} for goal ${goalDoc.id}`
+                        );
+                    } catch (notifError: unknown) {
+                        logger.error(
+                            `❌ [PROD] Failed to create notification for goal ${goalDoc.id}:`,
+                            notifError
+                        );
+                    }
+                } // end for goalDoc
 
-                    await batch.commit();
+                processed += goalsSnap.docs.length;
 
-                    notificationsSent++;
-                    logger.info(
-                        `✅ [PROD] Sent day-${daysSincePlanned} reminder to user ${goal.userId} for goal ${goalDoc.id}`
-                    );
-                } catch (notifError: unknown) {
-                    logger.error(
-                        `❌ [PROD] Failed to create notification for goal ${goalDoc.id}:`,
-                        notifError
-                    );
-                }
-            }
+                if (goalsSnap.docs.length < PAGE_SIZE) break;
+                lastDoc = goalsSnap.docs[goalsSnap.docs.length - 1];
+            } // end while pagination
 
             logger.info(
-                `✨ [PROD] Unstarted goals check complete. Sent ${notificationsSent} notification(s).`
+                `✨ [PROD] Unstarted goals check complete. Processed ${processed} goals. Sent ${notificationsSent} notification(s).`
             );
         } catch (error: unknown) {
             logger.error("❌ [PROD] Error in checkUnstartedGoals:", error);

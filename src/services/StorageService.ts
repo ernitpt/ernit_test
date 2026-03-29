@@ -9,18 +9,39 @@ import { AppError } from '../utils/AppError';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
 const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15MB
-const ALLOWED_AUDIO_TYPES = ['audio/x-m4a', 'audio/m4a', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm'];
+const ALLOWED_AUDIO_TYPES = ['audio/x-m4a', 'audio/m4a', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/aac'];
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+
+/**
+ * Infer MIME type from blob.type, falling back to URI extension.
+ * React Native fetch() on file:// URIs produces blobs with type = "" or
+ * "application/octet-stream", so extension-based inference is required for
+ * all native camera/gallery uploads.
+ */
+function getMimeType(blob: Blob, uri: string): string {
+    if (blob.type && blob.type !== 'application/octet-stream') return blob.type;
+    const ext = uri.split('.').pop()?.toLowerCase();
+    const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        webp: 'image/webp', gif: 'image/gif',
+        mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/mp4',
+        mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav',
+    };
+    return mimeMap[ext ?? ''] ?? 'application/octet-stream';
+}
 
 class StorageService {
     private storage = getStorage(app);
 
     /**
-     * ✅ SECURITY: Validate file before upload
+     * ✅ SECURITY: Validate file before upload.
+     * Uses getMimeType() so native file:// blobs with empty type are handled
+     * via extension inference rather than rejected outright.
      */
     private validateFile(
         blob: Blob,
+        uri: string,
         allowedTypes: string[],
         maxSize: number,
         fileType: 'audio' | 'image' | 'video'
@@ -36,14 +57,12 @@ class StorageService {
             throw new AppError('FILE_EMPTY', `Invalid ${fileType} file: file is empty.`, 'validation');
         }
 
-        // Check file type
-        if (blob.type && !allowedTypes.includes(blob.type)) {
-            throw new AppError('INVALID_FILE_TYPE', `Invalid ${fileType} type. Allowed types: ${allowedTypes.join(', ')}`, 'validation');
-        }
+        // Infer MIME (handles empty type from native file:// blobs)
+        const mimeType = getMimeType(blob, uri);
 
-        // Reject files with no MIME type — cannot verify safety
-        if (!blob.type) {
-            throw new AppError('NO_MIME_TYPE', 'File has no MIME type. Upload rejected for security.', 'validation');
+        // Check file type
+        if (!allowedTypes.includes(mimeType)) {
+            throw new AppError('INVALID_FILE_TYPE', `Invalid ${fileType} type. Allowed types: ${allowedTypes.join(', ')}`, 'validation');
         }
     }
 
@@ -62,13 +81,14 @@ class StorageService {
             const blob = await response.blob();
 
             // ✅ SECURITY: Validate audio file
-            this.validateFile(blob, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
+            this.validateFile(blob, uri, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
 
             const filename = `audio_${Date.now()}.m4a`;
             const path = `hints/${userId}/audio/${filename}`;
             const storageRef = ref(this.storage, path);
+            const mimeType = getMimeType(blob, uri);
 
-            await uploadBytes(storageRef, blob);
+            await uploadBytes(storageRef, blob, { contentType: mimeType });
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error: unknown) {
@@ -95,13 +115,14 @@ class StorageService {
             blob = await compressImageBlob(blob);
 
             // ✅ SECURITY: Validate image file
-            this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
+            this.validateFile(blob, uri, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
 
             const filename = `image_${Date.now()}.jpg`;
             const path = `hints/${userId}/images/${filename}`;
             const storageRef = ref(this.storage, path);
+            const mimeType = getMimeType(blob, uri);
 
-            await uploadBytes(storageRef, blob);
+            await uploadBytes(storageRef, blob, { contentType: mimeType });
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error: unknown) {
@@ -120,11 +141,12 @@ class StorageService {
             const response = await fetch(uri, { signal: controller.signal });
             clearTimeout(timeoutId);
             const blob = await response.blob();
-            this.validateFile(blob, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
+            this.validateFile(blob, uri, ALLOWED_AUDIO_TYPES, MAX_AUDIO_SIZE, 'audio');
             const filename = `audio_${Date.now()}.m4a`;
             const path = `motivations/${userId}/audio/${filename}`;
             const storageRef = ref(this.storage, path);
-            await uploadBytes(storageRef, blob);
+            const mimeType = getMimeType(blob, uri);
+            await uploadBytes(storageRef, blob, { contentType: mimeType });
             return await getDownloadURL(storageRef);
         } catch (error: unknown) {
             logger.error('Error uploading motivation audio:', error);
@@ -144,11 +166,12 @@ class StorageService {
             clearTimeout(timeoutId);
             let blob = await response.blob();
             blob = await compressImageBlob(blob);
-            this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
+            this.validateFile(blob, uri, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
             const filename = `image_${Date.now()}.jpg`;
             const path = `motivations/${userId}/images/${filename}`;
             const storageRef = ref(this.storage, path);
-            await uploadBytes(storageRef, blob);
+            const mimeType = getMimeType(blob, uri);
+            await uploadBytes(storageRef, blob, { contentType: mimeType });
             return await getDownloadURL(storageRef);
         } catch (error: unknown) {
             logger.error('Error uploading motivation image:', error);
@@ -174,18 +197,19 @@ class StorageService {
             let blob = await response.blob();
 
             if (mediaType === 'video') {
-                this.validateFile(blob, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video');
+                this.validateFile(blob, uri, ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE, 'video');
             } else {
                 blob = await compressImageBlob(blob);
-                this.validateFile(blob, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
+                this.validateFile(blob, uri, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, 'image');
             }
 
             const ext = mediaType === 'video' ? 'mp4' : 'jpg';
             const filename = `${mediaType}_${Date.now()}.${ext}`;
             const path = `sessions/${userId}/${goalId}/${filename}`;
             const storageRef = ref(this.storage, path);
+            const mimeType = getMimeType(blob, uri);
 
-            await uploadBytes(storageRef, blob);
+            await uploadBytes(storageRef, blob, { contentType: mimeType });
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error: unknown) {

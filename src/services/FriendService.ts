@@ -13,6 +13,7 @@
   writeBatch,
   runTransaction,
   Timestamp,
+  increment,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, auth } from './firebase';
@@ -61,23 +62,43 @@ export class FriendService {
   }
 
   /**
-   * Check if user has exceeded friend request rate limit
-   * Limit: 10 requests per hour
+   * Check if user has exceeded friend request rate limit and atomically increment the counter.
+   * Uses a transaction to prevent TOCTOU: two concurrent sends cannot both read count=9
+   * and both write 10, bypassing the limit.
+   * Limit: 10 requests per hour.
+   * Returns true if rate-limited (should abort), false if allowed (counter already incremented).
    */
   private async checkRateLimit(userId: string): Promise<boolean> {
+    const rateLimitRef = doc(db, 'users', userId, 'meta', 'rateLimits');
     const now = Date.now();
     const oneHourAgo = now - (60 * 60 * 1000);
 
-    const recentRequests = await getDocs(
-      query(
-        collection(db, 'friendRequests'),
-        where('senderId', '==', userId),
-        where('createdAt', '>=', new Date(oneHourAgo))
-      )
-    );
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(rateLimitRef);
+      const data = snap.exists() ? snap.data() : null;
 
-    // Limit: 10 requests per hour
-    return recentRequests.size >= 10;
+      // Reset window if it started more than an hour ago
+      const windowStart: number = data?.friendRequestWindowStart ?? 0;
+      const windowCount: number = (windowStart < oneHourAgo) ? 0 : (data?.friendRequestCount ?? 0);
+
+      if (windowCount >= 10) {
+        return true; // Rate-limited — do not increment
+      }
+
+      // Atomically record this attempt
+      if (!snap.exists() || windowStart < oneHourAgo) {
+        transaction.set(rateLimitRef, {
+          friendRequestWindowStart: now,
+          friendRequestCount: 1,
+        }, { merge: true });
+      } else {
+        transaction.update(rateLimitRef, {
+          friendRequestCount: increment(1),
+        });
+      }
+
+      return false; // Allowed
+    });
   }
 
   /**
@@ -201,6 +222,8 @@ export class FriendService {
         }
 
         // Create bidirectional friend docs
+        // SECURITY FIX (S2): Include requestId so Firestore rules can verify a prior
+        // accepted friendRequest exists between these two users.
         const friendDoc1Ref = doc(collection(db, 'friends'));
         transaction.set(friendDoc1Ref, {
           userId: senderId,
@@ -209,6 +232,7 @@ export class FriendService {
           friendProfileImageUrl: recipientProfileImageUrl ?? null,
           createdAt: serverTimestamp(),
           addedAt: serverTimestamp(),
+          requestId,
         });
 
         const friendDoc2Ref = doc(collection(db, 'friends'));
@@ -219,6 +243,7 @@ export class FriendService {
           friendProfileImageUrl: senderProfileImageUrl ?? null,
           createdAt: serverTimestamp(),
           addedAt: serverTimestamp(),
+          requestId,
         });
 
         // Delete the friend request

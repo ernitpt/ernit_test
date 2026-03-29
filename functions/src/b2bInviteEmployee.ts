@@ -27,7 +27,8 @@ export const b2bInviteEmployee = onCall(
     const { email, role, department, companyId } = request.data;
 
     // Validate inputs
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email)) {
       throw new HttpsError("invalid-argument", "Valid email is required.");
     }
     if (!companyId || typeof companyId !== "string") {

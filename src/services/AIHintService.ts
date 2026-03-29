@@ -42,7 +42,10 @@ export type SessionDoc = {
 const LOCAL_HINT_CACHE_KEY = "local_hint_cache_v1";
 let localCache: Record<string, { hint: string; cachedAt: number }> = {};
 
-async function loadLocalCache(): Promise<void> {
+// Singleton promise to prevent concurrent cache loads from both querying AsyncStorage
+let _cacheLoadPromise: Promise<void> | null = null;
+
+async function doLoadCache(): Promise<void> {
   if (Object.keys(localCache).length > 0) return;
 
   try {
@@ -66,7 +69,18 @@ async function loadLocalCache(): Promise<void> {
       const sorted = entries.sort((a, b) => b[1].cachedAt - a[1].cachedAt).slice(0, 100);
       localCache = Object.fromEntries(sorted);
     }
-  } catch { }
+  } catch (e) {
+    logger.error('[AIHintService] Error loading local cache:', e);
+  }
+}
+
+async function loadLocalCache(): Promise<void> {
+  if (_cacheLoadPromise) return _cacheLoadPromise;
+  _cacheLoadPromise = doLoadCache().finally(() => {
+    // Reset so subsequent calls after completion can re-enter (e.g., cache refresh)
+    _cacheLoadPromise = null;
+  });
+  return _cacheLoadPromise;
 }
 
 async function saveLocalCache(): Promise<void> {
@@ -75,7 +89,9 @@ async function saveLocalCache(): Promise<void> {
       LOCAL_HINT_CACHE_KEY,
       JSON.stringify(localCache)
     );
-  } catch { }
+  } catch (e) {
+    logger.error('[AIHintService] Error saving local cache:', e);
+  }
 }
 
 // 🌀 Determine style rotation by session number

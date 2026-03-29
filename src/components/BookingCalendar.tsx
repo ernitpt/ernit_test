@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useModalAnimation } from '../hooks/useModalAnimation';
+import { BaseModal } from './BaseModal';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -28,7 +28,12 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState(initialDate);
-    const slideAnim = useModalAnimation(visible);
+
+    // Sync internal state when the initialDate prop changes (prop-to-state sync)
+    useEffect(() => {
+        setSelectedDate(initialDate);
+        setCurrentMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+    }, [initialDate]);
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -61,18 +66,20 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    const goToPreviousMonth = () => {
-        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-    };
+    // P3-17: wrapped in useCallback — BookingCalendar is React.memo'd; plain functions
+    // recreate on every render and defeat memoisation for child TouchableOpacity handlers.
+    const goToPreviousMonth = useCallback(() => {
+        setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    }, []);
 
-    const goToNextMonth = () => {
-        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-    };
+    const goToNextMonth = useCallback(() => {
+        setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    }, []);
 
-    const isDateDisabled = (date: Date | null) => {
+    const isDateDisabled = useCallback((date: Date | null) => {
         if (!date) return true;
         return date < minimumDate;
-    };
+    }, [minimumDate]);
 
     const isDateSelected = (date: Date | null) => {
         if (!date) return false;
@@ -93,160 +100,106 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
         );
     };
 
-    const handleDateSelect = (date: Date | null) => {
+    const handleDateSelect = useCallback((date: Date | null) => {
         if (!date || isDateDisabled(date)) return;
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedDate(date);
-    };
+    }, [isDateDisabled]);
 
-    const handleConfirm = () => {
+    const handleConfirm = useCallback(() => {
         onConfirm(selectedDate);
-    };
-
-    const formattedDate = selectedDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-    });
+    }, [onConfirm, selectedDate]);
 
     return (
-        <Modal
+        <BaseModal
             visible={visible}
-            transparent
-            animationType="fade"
-            onRequestClose={onCancel}
+            onClose={onCancel}
+            title="When do you want to do your experience?"
+            variant="center"
         >
-            <TouchableOpacity
-                style={styles.overlay}
-                activeOpacity={1}
-                onPress={onCancel}
-            >
-                <Animated.View
-                    style={[
-                        styles.calendarContainer,
-                        { transform: [{ translateY: slideAnim }] },
-                    ]}
-                    accessibilityViewIsModal={true}
-                >
-                    <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                        {/* Custom Title */}
-                        <View style={styles.titleContainer}>
-                            <Text style={styles.title}>When do you want to do your experience?</Text>
-                        </View>
+            {/* Month navigation header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel="Previous month" accessibilityRole="button">
+                    <ChevronLeft color={colors.secondary} size={24} />
+                </TouchableOpacity>
 
-                        {/* Header */}
-                        <View style={styles.header}>
-                            <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel="Previous month" accessibilityRole="button">
-                                <ChevronLeft color={colors.secondary} size={24} />
-                            </TouchableOpacity>
+                <Text style={styles.monthYear}>
+                    {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </Text>
 
-                            <Text style={styles.monthYear}>
-                                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                            </Text>
+                <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel="Next month" accessibilityRole="button">
+                    <ChevronRight color={colors.secondary} size={24} />
+                </TouchableOpacity>
+            </View>
 
-                            <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel="Next month" accessibilityRole="button">
-                                <ChevronRight color={colors.secondary} size={24} />
-                            </TouchableOpacity>
-                        </View>
+            {/* Week days */}
+            <View style={styles.weekDaysRow}>
+                {weekDays.map((day) => (
+                    <Text key={day} style={styles.weekDay}>
+                        {day}
+                    </Text>
+                ))}
+            </View>
 
-                        {/* Week days */}
-                        <View style={styles.weekDaysRow}>
-                            {weekDays.map((day) => (
-                                <Text key={day} style={styles.weekDay}>
-                                    {day}
+            {/* Calendar grid */}
+            <View style={styles.daysGrid}>
+                {days.map((date, index) => {
+                    const disabled = isDateDisabled(date);
+                    const selected = isDateSelected(date);
+                    const today = isToday(date);
+
+                    return (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.dayCell,
+                                selected && styles.selectedDay,
+                                today && !selected && styles.todayDay,
+                            ]}
+                            onPress={() => handleDateSelect(date)}
+                            disabled={disabled}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={date ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined}
+                            accessibilityState={{ disabled, selected }}
+                        >
+                            {date && (
+                                <Text
+                                    style={[
+                                        styles.dayText,
+                                        disabled && styles.disabledDayText,
+                                        selected && styles.selectedDayText,
+                                        today && !selected && styles.todayDayText,
+                                    ]}
+                                >
+                                    {date.getDate()}
                                 </Text>
-                            ))}
-                        </View>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
 
-                        {/* Calendar grid */}
-                        <View style={styles.daysGrid}>
-                            {days.map((date, index) => {
-                                const disabled = isDateDisabled(date);
-                                const selected = isDateSelected(date);
-                                const today = isToday(date);
-
-                                return (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={[
-                                            styles.dayCell,
-                                            selected && styles.selectedDay,
-                                            today && !selected && styles.todayDay,
-                                        ]}
-                                        onPress={() => handleDateSelect(date)}
-                                        disabled={disabled}
-                                        activeOpacity={0.7}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={date ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined}
-                                        accessibilityState={{ disabled, selected }}
-                                    >
-                                        {date && (
-                                            <Text
-                                                style={[
-                                                    styles.dayText,
-                                                    disabled && styles.disabledDayText,
-                                                    selected && styles.selectedDayText,
-                                                    today && !selected && styles.todayDayText,
-                                                ]}
-                                            >
-                                                {date.getDate()}
-                                            </Text>
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* Footer with Confirm Button */}
-                        <View style={styles.footer}>
-                            <Button
-                                variant="ghost"
-                                title="Cancel"
-                                onPress={onCancel}
-                                style={styles.cancelButton}
-                            />
-                            <Button
-                                variant="primary"
-                                title={`Book for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                                onPress={handleConfirm}
-                                style={styles.confirmButton}
-                            />
-                        </View>
-                    </TouchableOpacity>
-                </Animated.View>
-            </TouchableOpacity>
-        </Modal>
+            {/* Footer with Confirm Button */}
+            <View style={styles.footer}>
+                <Button
+                    variant="ghost"
+                    title="Cancel"
+                    onPress={onCancel}
+                    style={styles.cancelButton}
+                />
+                <Button
+                    variant="primary"
+                    title={`Book for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    onPress={handleConfirm}
+                    style={styles.confirmButton}
+                />
+            </View>
+        </BaseModal>
     );
 });
 
 const createStyles = (colors: typeof Colors) => StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: colors.overlay,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    calendarContainer: {
-        backgroundColor: colors.white,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.xl,
-        width: Math.min(Dimensions.get('window').width * 0.9, 400),
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    titleContainer: {
-        marginBottom: Spacing.lg,
-        alignItems: 'center',
-    },
-    title: {
-        ...Typography.heading3,
-        color: colors.textPrimary,
-        textAlign: 'center',
-    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',

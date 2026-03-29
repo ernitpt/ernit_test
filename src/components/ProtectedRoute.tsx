@@ -1,8 +1,11 @@
 import React, { useEffect, useCallback } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
 import { RootStackParamList } from '../types';
+
+type ProtectedRouteNavProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -17,7 +20,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
 }) => {
   const { state } = useApp();
-  const navigation = useNavigation();
+  const navigation = useNavigation<ProtectedRouteNavProp>();
   const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
 
   // When route is focused and user is not authenticated, show login prompt
@@ -34,10 +37,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         // Show login prompt, preserving the deep-link destination
         requireAuth('Please log in to access this page.', routeName, params as Record<string, unknown>);
 
-        // Navigate back after a short delay to prevent the protected page from rendering
+        // Navigate back after a short delay to prevent the protected page from rendering.
+        // On cold-start deep links there is no back stack, so fall back to ChallengeLanding.
         const timer = setTimeout(() => {
           if (navigation.canGoBack()) {
             navigation.goBack();
+          } else {
+            navigation.navigate('ChallengeLanding');
           }
         }, 0);
 

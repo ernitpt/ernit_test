@@ -65,7 +65,7 @@ export async function sendPushNotification(
     } else if (type === 'personalized_hint_left') {
         clickAction = `/goal/${data?.goalId}`;
     } else if (type === 'post_reaction') {
-        clickAction = `/feed`;
+        clickAction = `/feed?highlightPostId=${data?.postId || ''}`;
     } else if (type === 'gift_received' || type === 'experience_empowered') {
         clickAction = '/notifications';
     } else if (type === 'goal_approval_request' || type === 'goal_change_suggested') {
@@ -92,7 +92,13 @@ export async function sendPushNotification(
     if (data) {
         Object.keys(data).forEach((key) => {
             const value = data[key];
-            notificationDataPayload[key] = value != null ? String(value) : '';
+            if (value == null) {
+                notificationDataPayload[key] = '';
+            } else if (typeof value === 'object') {
+                notificationDataPayload[key] = JSON.stringify(value);
+            } else {
+                notificationDataPayload[key] = String(value);
+            }
         });
     }
 

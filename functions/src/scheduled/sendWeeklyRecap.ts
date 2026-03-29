@@ -1,6 +1,21 @@
 import * as functions from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
+
+/**
+ * Returns the ISO 8601 week number for a given date.
+ * ISO 8601: week 1 is the week containing the first Thursday of the year.
+ * This replaces the previous non-standard calculation which used getDay()+1
+ * and produced incorrect week numbers near year boundaries.
+ */
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7; // treat Sunday (0) as 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum); // shift to Thursday of the same ISO week
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
 
 /**
  * Cloud Function: sendWeeklyRecap
@@ -23,43 +38,61 @@ export const sendWeeklyRecap = functions.onSchedule(
         try {
             logger.info("🔍 [PROD] Starting weekly recap generation...");
 
-            // Compute ISO week key for idempotency guard
+            // Compute ISO 8601 week key for idempotency guard.
+            // Uses getISOWeekNumber() which correctly handles year-boundary weeks
+            // (e.g. Dec 31 may belong to week 1 of the next year under ISO 8601).
             const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const weekNumber = Math.ceil(
-                ((now.getTime() - startOfYear.getTime()) / 86400000 +
-                    startOfYear.getDay() +
-                    1) /
-                    7
-            );
-            const weekKey = `${now.getFullYear()}-W${weekNumber}`;
+            const isoWeek = getISOWeekNumber(now);
+            // Use the ISO year (from the Thursday of the week, not necessarily now.getFullYear())
+            const isoYearDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            const dayNum = isoYearDate.getUTCDay() || 7;
+            isoYearDate.setUTCDate(isoYearDate.getUTCDate() + 4 - dayNum);
+            const isoYear = isoYearDate.getUTCFullYear();
+            const weekKey = `${isoYear}-W${isoWeek}`;
 
             logger.info(`📅 [PROD] Week key: ${weekKey}`);
 
-            // Import db from index.ts (production database)
-            const db = require("../index").dbProd;
+            // Get production db directly (avoids circular require("../index"))
+            const db = getFirestore();
 
-            // Get all active goals (not completed)
-            const goalsSnap = await db
-                .collection("goals")
-                .where("isCompleted", "==", false)
-                .get();
-
-            logger.info(`📊 [PROD] Found ${goalsSnap.size} active goals`);
-
-            // Group goals by userId
+            // Paginated fetch of all active goals (not completed), grouped by userId
+            const PAGE_SIZE = 500;
             const userGoalsMap = new Map<string, any[]>();
+            let lastDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+            let totalGoalsFetched = 0;
 
-            for (const goalDoc of goalsSnap.docs) {
-                const goal = { id: goalDoc.id, _ref: goalDoc.ref, ...goalDoc.data() };
-                const userId = goal.userId;
+            while (true) {
+                let goalsQuery = db
+                    .collection("goals")
+                    .where("isCompleted", "==", false)
+                    .orderBy(admin.firestore.FieldPath.documentId())
+                    .limit(PAGE_SIZE);
 
-                if (!userGoalsMap.has(userId)) {
-                    userGoalsMap.set(userId, []);
+                if (lastDoc) {
+                    goalsQuery = goalsQuery.startAfter(lastDoc);
                 }
-                userGoalsMap.get(userId)!.push(goal);
+
+                const goalsSnap = await goalsQuery.get();
+                if (goalsSnap.empty) break;
+
+                for (const goalDoc of goalsSnap.docs) {
+                    const goalData = goalDoc.data() as Record<string, any>;
+                    const goal: Record<string, any> = { id: goalDoc.id, _ref: goalDoc.ref, ...goalData };
+                    const userId = goalData.userId as string;
+
+                    if (!userGoalsMap.has(userId)) {
+                        userGoalsMap.set(userId, []);
+                    }
+                    userGoalsMap.get(userId)!.push(goal);
+                }
+
+                totalGoalsFetched += goalsSnap.docs.length;
+
+                if (goalsSnap.docs.length < PAGE_SIZE) break;
+                lastDoc = goalsSnap.docs[goalsSnap.docs.length - 1];
             }
 
+            logger.info(`📊 [PROD] Fetched ${totalGoalsFetched} active goals across all users`);
             logger.info(`👥 [PROD] Processing recaps for ${userGoalsMap.size} users`);
 
             let recapsSent = 0;
@@ -96,14 +129,8 @@ export const sendWeeklyRecap = functions.onSchedule(
                         }
                     }
 
-                    // Idempotency guard: skip if this user already received a recap for this week.
-                    // Must check primaryGoal (same doc that gets stamped below) to be consistent.
-                    if (primaryGoal?.lastWeeklyRecapWeek === weekKey) {
-                        logger.info(`⏭️ [PROD] Skipping user ${userId} — recap already sent for ${weekKey}`);
-                        continue;
-                    }
-
-                    // Calculate primary goal progress
+                    // Calculate primary goal progress (using snapshot values for message
+                    // content — the transaction below will re-verify the guard field).
                     const currentCount = primaryGoal.currentCount || 0;
                     const targetCount = primaryGoal.targetCount || 1;
                     const sessionsPerWeek = primaryGoal.sessionsPerWeek || 0;
@@ -135,32 +162,55 @@ export const sendWeeklyRecap = functions.onSchedule(
                         message = `Fresh start tomorrow! You have ${totalGoals} active goal(s) waiting. One session is all it takes.`;
                     }
 
-                    // Create notification and stamp idempotency key atomically
-                    const batch = db.batch();
+                    // Atomically guard + stamp using a transaction so two concurrent
+                    // scheduler invocations cannot both pass the weekKey check and
+                    // both send a duplicate recap notification.
+                    const userRef = primaryGoal._ref as FirebaseFirestore.DocumentReference; // DocumentReference for the primary goal
+                    let skipped = false;
 
-                    const notifRef = db.collection("notifications").doc();
-                    batch.set(notifRef, {
-                        userId: userId,
-                        type: "weekly_recap",
-                        title: "Your Weekly Recap",
-                        message,
-                        read: false,
-                        clearable: true,
-                        data: {
-                            totalSessionsDone,
-                            totalSessionsRequired,
-                            goalsOnTrack,
-                            totalGoals,
-                            primaryGoalId: primaryGoal.id,
-                            preferredRewardCategory: rewardCategory || null,
-                        },
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    await db.runTransaction(async (txn) => {
+                        const freshSnap = await txn.get(userRef);
+                        if (!freshSnap.exists) {
+                            skipped = true;
+                            return;
+                        }
+                        const freshData = freshSnap.data()!;
+                        if (freshData.lastWeeklyRecapWeek === weekKey) {
+                            // Another invocation already sent the recap for this week.
+                            skipped = true;
+                            return;
+                        }
+
+                        // Stamp the guard field atomically — any concurrent transaction
+                        // reading after this will see weekKey and skip.
+                        txn.update(userRef, { lastWeeklyRecapWeek: weekKey });
+
+                        // Write the notification inside the transaction so the stamp
+                        // and the notification are committed in the same round-trip.
+                        const notifRef = db.collection("notifications").doc();
+                        txn.set(notifRef, {
+                            userId: userId,
+                            type: "weekly_recap",
+                            title: "Your Weekly Recap",
+                            message,
+                            read: false,
+                            clearable: true,
+                            data: {
+                                totalSessionsDone,
+                                totalSessionsRequired,
+                                goalsOnTrack,
+                                totalGoals,
+                                primaryGoalId: primaryGoal.id,
+                                preferredRewardCategory: rewardCategory || null,
+                            },
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
                     });
 
-                    // Stamp the primary goal so this week's recap is not sent again
-                    batch.update(primaryGoal._ref, { lastWeeklyRecapWeek: weekKey });
-
-                    await batch.commit();
+                    if (skipped) {
+                        logger.info(`⏭️ [PROD] Skipping user ${userId} — recap already sent for ${weekKey} (detected in transaction)`);
+                        continue;
+                    }
 
                     recapsSent++;
                     logger.info(
@@ -175,7 +225,7 @@ export const sendWeeklyRecap = functions.onSchedule(
             }
 
             logger.info(
-                `✨ [PROD] Weekly recap generation complete. Sent ${recapsSent} recap(s).`
+                `✨ [PROD] Weekly recap generation complete. Processed ${totalGoalsFetched} goals across ${userGoalsMap.size} users. Sent ${recapsSent} recap(s).`
             );
         } catch (error: unknown) {
             logger.error("❌ [PROD] Error in sendWeeklyRecap:", error);

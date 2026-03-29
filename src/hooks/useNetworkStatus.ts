@@ -13,6 +13,13 @@ export function useNetworkStatus() {
   const isFirstCheck = useRef(true);
   const [isConnected, setIsConnected] = useState(true);
 
+  // Keep refs to the latest toast functions so the NetInfo subscription
+  // never needs to be torn down and recreated when the functions change identity.
+  const showErrorRef = useRef(showError);
+  const showSuccessRef = useRef(showSuccess);
+  useEffect(() => { showErrorRef.current = showError; }, [showError]);
+  useEffect(() => { showSuccessRef.current = showSuccess; }, [showSuccess]);
+
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       setIsConnected(state.isConnected ?? true);
@@ -22,22 +29,22 @@ export function useNetworkStatus() {
         isFirstCheck.current = false;
         if (!state.isConnected) {
           wasOffline.current = true;
-          showError('No internet connection');
+          showErrorRef.current('No internet connection');
         }
         return;
       }
 
       if (!state.isConnected && !wasOffline.current) {
         wasOffline.current = true;
-        showError('No internet connection');
+        showErrorRef.current('No internet connection');
       } else if (state.isConnected && wasOffline.current) {
         wasOffline.current = false;
-        showSuccess('Back online');
+        showSuccessRef.current('Back online');
       }
     });
 
     return () => unsubscribe();
-  }, [showError, showSuccess]);
+  }, []); // stable — toast functions accessed via refs
 
   return { isConnected };
 }

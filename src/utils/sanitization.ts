@@ -58,10 +58,9 @@ export function escapeHtml(text: string): string {
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#x27;',
-        '/': '&#x2F;',
     };
 
-    return text.replace(/[&<>"'\/]/g, (char) => htmlEscapes[char] || char);
+    return text.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
 }
 
 /**
@@ -73,8 +72,8 @@ export function sanitizeEmail(email: string): string {
     // Trim and lowercase
     const sanitized = email.trim().toLowerCase();
 
-    // Basic email validation regex
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Robust email validation regex (validates local part, domain, and TLD)
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
     if (!emailRegex.test(sanitized)) {
         throw new Error('Invalid email format');

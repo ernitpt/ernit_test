@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { getMessaging, getToken, onMessage, isSupported, Messaging, MessagePayload } from 'firebase/messaging';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, runTransaction } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from './firebase';
@@ -133,21 +133,21 @@ class PushNotificationService {
     }
 
     /**
-     * Save FCM token to user's Firestore profile
-     * Uses arrayRemove + arrayUnion to ensure deduplication
+     * Save FCM token to user's Firestore profile.
+     * Uses a transaction to atomically remove the old token and add the new one,
+     * preventing a crash between the two operations from leaving the array inconsistent.
      */
     private async saveTokenToFirestore(userId: string, token: string): Promise<void> {
         try {
             const userRef = doc(db, 'users', userId);
 
-            // First, remove this token if it exists (handles re-registration)
-            await updateDoc(userRef, {
-                fcmTokens: arrayRemove(token),
-            });
-
-            // Then add it fresh to ensure it appears exactly once
-            await updateDoc(userRef, {
-                fcmTokens: arrayUnion(token),
+            await runTransaction(db, async (transaction) => {
+                const snap = await transaction.get(userRef);
+                const tokens: string[] = snap.exists() ? (snap.data()?.fcmTokens ?? []) : [];
+                // Remove any existing copy of this token, then add it once
+                const updatedTokens = tokens.filter((t: string) => t !== token);
+                updatedTokens.push(token);
+                transaction.update(userRef, { fcmTokens: updatedTokens });
             });
 
             logger.log('🔔 FCM token saved to Firestore (deduplicated)');
@@ -268,7 +268,18 @@ class PushNotificationService {
      * Setup notification handler for local notifications
      * Call this on app startup to configure how notifications behave
      */
-    setupNotificationHandler() {
+    async setupNotificationHandler() {
+        // Android 8.0+ requires a notification channel before any local notification can show
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+                name: 'Ernit Notifications',
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#00C896',
+                sound: 'default',
+            });
+        }
+
         // Configure how notifications are handled when app is in foreground
         Notifications.setNotificationHandler({
             handleNotification: async () => ({
@@ -337,6 +348,7 @@ class PushNotificationService {
                         body: "Great job! You can now finish your session and log your progress.",
                         data: { goalId, type: 'session_completion' },
                         sound: true,
+                        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
                     },
                     trigger: {
                         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -516,6 +528,7 @@ class PushNotificationService {
                     data: { goalId, type: 'timer_progress' },
                     // sticky keeps the notification alive on Android until cancelled
                     sticky: Platform.OS === 'android',
+                    ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
                 },
                 trigger: null, // show immediately
             });

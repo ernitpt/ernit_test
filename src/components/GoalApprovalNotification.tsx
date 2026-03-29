@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,10 +34,21 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const [suggestWeeks, setSuggestWeeks] = useState('');
   const [suggestSessions, setSuggestSessions] = useState('');
   const [suggestMessage, setSuggestMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  // M8c: Separate loading states so approve and suggest spinners don't bleed into each other
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const colors = useColors();
+
+  // M8a: isMounted guard — prevents setState after unmount
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  // BUG-25: mutual exclusion — prevents handleApprove and handleSuggestChange running concurrently
+  const operationInProgressRef = useRef(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const initialWeeks = notification.data?.initialTargetCount || 0;
@@ -45,21 +56,31 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
   const handleApprove = async () => {
     if (!notification.data?.goalId || !notification.id) return;
+    // BUG-25: mutual exclusion guard
+    if (operationInProgressRef.current) return;
+    operationInProgressRef.current = true;
     setError(null);
-    setLoading(true);
+    // BUG-26: guard against empty recipientId before any mutation
+    if (!notification.data?.recipientId) {
+      setError('Recipient information is missing.');
+      operationInProgressRef.current = false;
+      return;
+    }
+    setApproveLoading(true); // M8c: use dedicated approve loading state
     try {
       const sanitizedApproveMessage = sanitizeText(approveMessage.trim(), 500);
-      await goalService.approveGoal(notification.data.goalId, sanitizedApproveMessage || null);
 
-      // Get recipient name and giver name
+      // BUG-27: fetch giverName BEFORE any mutation so data is in hand if it throws
+      // M8b: recipientName was fetched here but never used — removed to avoid unnecessary read
       // The notification is sent TO the giver, so notification.userId is the giver's ID
-      const recipientName = await userService.getUserName(notification.data.recipientId || '');
       const giverName = await userService.getUserName(notification.userId); // The person approving (receiving this notification)
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
+      await goalService.approveGoal(notification.data.goalId, sanitizedApproveMessage || null);
+
       // Notify receiver
-      await notificationService.createNotification(
-        notification.data.recipientId || '',
+      const notifId = await notificationService.createNotification(
+        notification.data.recipientId,
         'goal_approval_response',
         '✅ Your goal has been approved!',
         sanitizedApproveMessage
@@ -73,6 +94,12 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         }
       );
 
+      // BUG-28: don't delete original notification if recipient notification silently failed
+      if (!notifId) {
+        setError('Failed to notify recipient.');
+        return;
+      }
+
       // Delete original notification (force delete since it's being replaced)
       try {
         await notificationService.deleteNotification(notification.id, true);
@@ -80,52 +107,71 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         logger.warn('Could not delete original notification:', deleteError);
       }
 
+      if (!mountedRef.current) return; // M8a: isMounted guard
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowApproveModal(false);
       setApproveMessage('');
       onActionTaken();
     } catch (error: unknown) {
       logger.error('Error approving goal:', error);
+      if (!mountedRef.current) return; // M8a: isMounted guard
       setError('Failed to approve goal. Please try again.');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setApproveLoading(false); // M8a: isMounted guard
+      operationInProgressRef.current = false; // BUG-25: release lock
     }
   };
 
   const handleSuggestChange = async () => {
     if (!notification.data?.goalId || !notification.id) return;
+    // BUG-25: mutual exclusion guard
+    if (operationInProgressRef.current) return;
+    operationInProgressRef.current = true;
     setSuggestError(null);
 
+    // BUG-26: guard against empty recipientId before any mutation
+    if (!notification.data?.recipientId) {
+      setSuggestError('Recipient information is missing.');
+      operationInProgressRef.current = false;
+      return;
+    }
+
     // Use placeholder values as defaults if input is empty
-    const weeks = suggestWeeks.trim() ? parseInt(suggestWeeks) : initialWeeks;
-    const sessions = suggestSessions.trim() ? parseInt(suggestSessions) : initialSessions;
+    // BUG-30: always pass radix 10 to parseInt
+    const weeks = suggestWeeks.trim() ? parseInt(suggestWeeks, 10) : initialWeeks;
+    const sessions = suggestSessions.trim() ? parseInt(suggestSessions, 10) : initialSessions;
 
     if (!weeks || !sessions || weeks <= 0 || sessions <= 0) {
       setSuggestError('Please enter valid numbers for weeks and sessions.');
+      operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     if (weeks < initialWeeks || sessions < initialSessions) {
       setSuggestError('Suggested goal cannot be less than the original goal.');
+      operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (weeks === initialWeeks && sessions === initialSessions) {
       setSuggestError('No changes made. Please adjust the values before submitting.');
+      operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     if (weeks > 5) {
       setSuggestError('The maximum duration is 5 weeks.');
+      operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
     if (sessions > 7) {
       setSuggestError('The maximum is 7 sessions per week.');
+      operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
-    setLoading(true);
+    setSuggestLoading(true); // M8c: use dedicated suggest loading state
     try {
       const sanitizedSuggestMessage = sanitizeText(suggestMessage.trim(), 500);
       await goalService.suggestGoalChange(
@@ -135,8 +181,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         sanitizedSuggestMessage || undefined
       );
 
-      // Get recipient name, giver name, and experience title
-      const recipientName = await userService.getUserName(notification.data.recipientId || '');
+      // M8b: recipientName was fetched here but never used — removed to avoid unnecessary read
       // The notification is for the giver, so notification.userId is the giver's ID
       // Also check if giverId exists in data as fallback (cast to any to access potentially missing field)
       const giverIdForSuggestion = notification.data?.giverId || notification.userId;
@@ -144,8 +189,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       const experienceTitle = notification.data.experienceTitle || 'the experience';
 
       // Notify receiver (non-clearable until they respond)
-      await notificationService.createNotification(
-        notification.data.recipientId || '',
+      const notifId = await notificationService.createNotification(
+        notification.data.recipientId,
         'goal_change_suggested',
         `💡 ${giverNameForSuggestion} suggested a goal change`,
         '', //suggestMessage.trim() || `${giverName} suggested: ${weeks} weeks, ${sessions} sessions per week`,
@@ -164,6 +209,12 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         false // Not clearable until receiver responds
       );
 
+      // BUG-28: don't delete original notification if recipient notification silently failed
+      if (!notifId) {
+        setSuggestError('Failed to notify recipient.');
+        return;
+      }
+
       // Delete original notification (force delete since it's being replaced)
       try {
         await notificationService.deleteNotification(notification.id, true);
@@ -180,6 +231,8 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         }
       }
 
+      if (!mountedRef.current) return; // M8a: isMounted guard
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setShowSuggestModal(false);
       setSuggestWeeks('');
       setSuggestSessions('');
@@ -187,9 +240,11 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       onActionTaken();
     } catch (error: unknown) {
       logger.error('Error suggesting goal change:', error);
+      if (!mountedRef.current) return; // M8a: isMounted guard
       setSuggestError('Failed to suggest goal change. Please try again.');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setSuggestLoading(false); // M8a: isMounted guard
+      operationInProgressRef.current = false; // BUG-25: release lock
     }
   };
 
@@ -205,14 +260,14 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           variant="primary"
           title="Approve"
           onPress={() => setShowApproveModal(true)}
-          loading={loading}
+          loading={approveLoading}
           style={styles.buttonFlex}
         />
         <Button
           variant="secondary"
           title="Suggest Change"
           onPress={() => setShowSuggestModal(true)}
-          disabled={loading}
+          disabled={approveLoading || suggestLoading}
           style={styles.buttonFlex}
         />
       </View>
@@ -253,7 +308,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
               setApproveMessage('');
               setError(null);
             }}
-            disabled={loading}
+            disabled={approveLoading}
             accessibilityRole="button"
             accessibilityLabel="Cancel goal approval"
           >
@@ -262,11 +317,11 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           <TouchableOpacity
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleApprove}
-            disabled={loading}
+            disabled={approveLoading}
             accessibilityRole="button"
             accessibilityLabel="Confirm goal approval"
           >
-            {loading ? (
+            {approveLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Approve</Text>
@@ -347,7 +402,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
               setSuggestMessage('');
               setSuggestError(null);
             }}
-            disabled={loading}
+            disabled={suggestLoading}
             accessibilityRole="button"
             accessibilityLabel="Cancel change suggestion"
           >
@@ -356,11 +411,11 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           <TouchableOpacity
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleSuggestChange}
-            disabled={loading}
+            disabled={suggestLoading}
             accessibilityRole="button"
             accessibilityLabel="Submit change suggestion"
           >
-            {loading ? (
+            {suggestLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.confirmButtonText}>Suggest</Text>

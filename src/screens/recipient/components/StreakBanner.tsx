@@ -205,6 +205,16 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
     // Skip animations for compact variant (streak < 3)
     if (streak < 3) return;
 
+    // Stop any running animations and reset to initial values before starting new ones
+    pulseAnim.stopAnimation();
+    glowAnim.stopAnimation();
+    numberScale.stopAnimation();
+    pulseAnim.setValue(1);
+    glowAnim.setValue(0);
+    numberScale.setValue(0);
+    sparkAnims.forEach(anim => anim.stopAnimation());
+    sparkAnims.forEach(anim => anim.setValue(0));
+
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Flame pulse loop (native driver — transforms only)
@@ -330,7 +340,7 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
                 position: 'absolute',
                 width: 72,
                 height: 72,
-                borderRadius: 36,
+                borderRadius: BorderRadius.circle,
                 backgroundColor: config.flameColor,
                 opacity: glowAnim,
                 transform: [{ scale: pulseAnim }],

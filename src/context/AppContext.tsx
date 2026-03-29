@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useReducer, useMemo, useEffect, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { User, ExperienceGift, Goal, Hint, CartItem } from '../types';
 import { logger } from '../utils/logger';
@@ -29,6 +29,7 @@ type AppAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_EXPERIENCE_GIFT'; payload: ExperienceGift | null }
   | { type: 'SET_GOAL'; payload: Goal | null }
+  | { type: 'SET_GOALS'; payload: Goal[] }
   | { type: 'ADD_HINT'; payload: Hint }
   | { type: 'SET_HINTS'; payload: Hint[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -88,7 +89,11 @@ function mergeGuestCart(guestCart?: CartItem[], userCart?: CartItem[]): CartItem
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
     case 'SET_USER': {
-      if (action.payload && state.guestCart?.length) {
+      // BUG-31: When logging out (null payload), reset all auth state but preserve guest cart
+      if (action.payload === null) {
+        return { ...initialState, guestCart: state.guestCart };
+      }
+      if (state.guestCart?.length) {
         const mergedCart = mergeGuestCart(state.guestCart, action.payload.cart);
         return {
           ...state,
@@ -99,7 +104,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return {
         ...state,
         user: action.payload,
-        guestCart: action.payload ? undefined : state.guestCart,
+        guestCart: undefined,
       };
     }
 
@@ -121,11 +126,20 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case 'SET_ERROR':
       return { ...state, error: action.payload };
 
+    case 'SET_GOALS':
+      return { ...state, goals: action.payload };
+
     case 'UPDATE_GOAL_PROGRESS': {
       if (!state.currentGoal) return state;
       if (state.currentGoal.id !== action.payload.goalId) return state;
       return {
         ...state,
+        // BUG-34: Keep goals array in sync with currentGoal progress
+        goals: state.goals.map((g) =>
+          g.id === action.payload.goalId
+            ? { ...g, currentCount: action.payload.currentCount }
+            : g
+        ),
         currentGoal: {
           ...state.currentGoal,
           currentCount: action.payload.currentCount,
@@ -139,6 +153,21 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
       return {
         ...state,
+        // BUG-34: Keep goals array in sync with currentGoal weekly progress
+        goals: state.goals.map((g) =>
+          g.id === action.payload.goalId
+            ? {
+                ...g,
+                currentCount: action.payload.currentCount,
+                weeklyCount: action.payload.weeklyCount,
+                weekStartAt: action.payload.weekStartAt,
+                isCompleted:
+                  typeof action.payload.isCompleted === 'boolean'
+                    ? action.payload.isCompleted
+                    : g.isCompleted,
+              }
+            : g
+        ),
         currentGoal: {
           ...state.currentGoal,
           currentCount: action.payload.currentCount,
@@ -193,6 +222,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             : item
         );
       } else {
+        // Enforce max 20 distinct items in the cart
+        if (existingCart.length >= 20) {
+          return state;
+        }
         // Add new item
         newCart = [...existingCart, action.payload];
       }
@@ -302,7 +335,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, debugMode: !state.debugMode };
 
     case 'RESET_STATE':
-      return initialState;
+      // BUG-30: Spread to return a fresh copy, not a shared reference to initialState
+      return { ...initialState };
 
     default:
       return state;
@@ -318,6 +352,14 @@ const AppContext = createContext<{
 // Provider component
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+
+  // BUG-32: Keep a ref in sync with state so the guest-cart restore effect can
+  // read the latest state without being listed as a dependency (which would
+  // re-run the effect on every render and defeat the [] intent).
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  });
 
   // Persist guest cart to localStorage (extracted from reducer for purity)
   useEffect(() => {
@@ -338,7 +380,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (savedCart) {
           const parsedCart = JSON.parse(savedCart);
           if (Array.isArray(parsedCart) && parsedCart.length > 0) {
-            dispatch({ type: 'SET_CART', payload: parsedCart });
+            // BUG-32: Guard against overwriting a user cart that was already
+            // populated by onAuthStateChanged before this effect ran.
+            // stateRef holds the current state without adding it as a dep.
+            if (!stateRef.current.user) {
+              dispatch({ type: 'SET_CART', payload: parsedCart });
+            }
           }
         }
       } catch (error: unknown) {

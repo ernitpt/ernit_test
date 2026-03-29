@@ -7,6 +7,33 @@ import { allowedOrigins } from "./cors";
 
 const ALLOWED_MIME_TYPES = ['jpeg', 'jpg', 'png', 'webp'];
 
+/**
+ * Explicit allowlist of Experience fields that callers are permitted to update.
+ * Sensitive fields such as `partnerId`, `status`, `claimCode`, and payment-related
+ * fields are intentionally excluded to prevent arbitrary field injection via the
+ * `fields` payload.
+ *
+ * Note: `status` and `partnerId` are handled by their own dedicated validation
+ * blocks above (lines 105–131) and are included here so those validated values
+ * can still reach updateData.  Any other field not in this list is silently
+ * dropped, even if it passes through request.data.
+ */
+const ALLOWED_UPDATE_FIELDS = [
+    'title',
+    'subtitle',
+    'description',
+    'category',
+    'price',
+    'duration',
+    'location',
+    'partnerId',
+    'status',
+    'isRecommendedForValentines',
+    'recommendedOrder',
+    'order',
+    'isFeatured',
+] as const;
+
 function sanitizePath(str: string): string {
   return str.replace(/[^a-zA-Z0-9\-_ ]/g, '_').substring(0, 50);
 }
@@ -249,9 +276,16 @@ export const updateExperience = onCall(
                 updatedBy: userId, // Track who updated this experience
             };
 
-            // Add field updates if provided
+            // Add field updates if provided — only copy allowlisted keys to
+            // prevent arbitrary field injection (e.g. internal flags, claimCode).
             if (fields) {
-                Object.assign(updateData, fields);
+                const safeFields: Record<string, unknown> = {};
+                for (const key of ALLOWED_UPDATE_FIELDS) {
+                    if (key in (fields as Record<string, unknown>)) {
+                        safeFields[key] = (fields as Record<string, unknown>)[key];
+                    }
+                }
+                Object.assign(updateData, safeFields);
             }
 
             // Handle image order and cover image

@@ -138,7 +138,7 @@ const FriendsListScreen: React.FC = () => {
             <View style={styles.friendInfo}>
               <Text style={styles.friendName}>{displayName}</Text>
               <Text style={styles.friendDate}>
-                Friends since {new Date(item.createdAt).toLocaleDateString()}
+                Friends since {(item.createdAt?.toDate?.() ?? new Date(item.createdAt)).toLocaleDateString()}
               </Text>
             </View>
           </TouchableOpacity>

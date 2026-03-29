@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { logger } from '../utils/logger';
@@ -35,7 +35,7 @@ export interface MediaComposerState {
     deleteRecording: () => Promise<void>;
     pickImage: () => Promise<void>;
     setImageUri: (uri: string | null) => void;
-    resetState: () => void;
+    resetState: () => Promise<void>;
 }
 
 /**
@@ -60,6 +60,8 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
     const [imageUri, setImageUri] = useState<string | null>(null);
 
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const mountedRef = useRef(true);
     // Keep a ref to recording/sound so the cleanup effect always sees latest values
     const recordingRef = useRef<Audio.Recording | null>(null);
     const soundRef = useRef<Audio.Sound | null>(null);
@@ -68,7 +70,29 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
     useEffect(() => { recordingRef.current = recording; }, [recording]);
     useEffect(() => { soundRef.current = sound; }, [sound]);
 
-    const resetState = () => {
+    const resetState = useCallback(async () => {
+        // Stop any active recording first so the microphone is released
+        if (recordingRef.current) {
+            try {
+                await recordingRef.current.stopAndUnloadAsync();
+            } catch (e) {
+                // ignore — may already be stopped or unloaded
+            }
+        }
+        // Stop any active sound playback
+        if (soundRef.current) {
+            try {
+                await soundRef.current.unloadAsync();
+            } catch (e) {
+                // ignore — may already be unloaded
+            }
+        }
+        // Clear intervals before nulling state
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (recordingIntervalRef.current) {
+            clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = null;
+        }
         setAudioUri(null);
         setRecording(null);
         setSound(null);
@@ -78,8 +102,7 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
         setPlaybackPosition(0);
         setSoundDuration(0);
         setImageUri(null);
-        if (timerRef.current) clearInterval(timerRef.current);
-    };
+    }, []);
 
     // Reset when modal closes; cleanup on unmount
     useEffect(() => {
@@ -101,11 +124,17 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
-    // Dedicated interval cleanup on unmount
+    // Dedicated interval cleanup and mounted flag on unmount
     useEffect(() => {
+        mountedRef.current = true;
         return () => {
+            mountedRef.current = false;
             if (timerRef.current) {
                 clearInterval(timerRef.current);
+            }
+            if (recordingIntervalRef.current) {
+                clearInterval(recordingIntervalRef.current);
+                recordingIntervalRef.current = null;
             }
         };
     }, []);
@@ -132,7 +161,9 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
             setIsRecording(true);
             setRecordingDuration(0);
 
-            timerRef.current = setInterval(() => {
+            // Clear any pre-existing interval before starting a new one to prevent accumulation
+            if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = setInterval(() => {
                 setRecordingDuration(prev => {
                     const newDuration = prev + 1;
                     if (newDuration >= MAX_AUDIO_DURATION) {
@@ -152,6 +183,10 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
         if (!currentRecording) return;
 
         if (timerRef.current) clearInterval(timerRef.current);
+        if (recordingIntervalRef.current) {
+            clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = null;
+        }
         setIsRecording(false);
 
         try {
@@ -177,6 +212,11 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
                     { uri: audioUri },
                     { shouldPlay: true }
                 );
+                // Guard: if component unmounted while createAsync was pending, unload immediately
+                if (!mountedRef.current) {
+                    newSound.unloadAsync().catch(() => {});
+                    return;
+                }
                 setSound(newSound);
                 setIsPlaying(true);
 
@@ -209,8 +249,10 @@ export function useMediaComposer(visible: boolean): MediaComposerState {
         }
         setSound(null);
         setAudioUri(null);
+        setIsPlaying(false);
         setRecordingDuration(0);
         setPlaybackPosition(0);
+        setSoundDuration(0);
     };
 
     // --- Image Logic ---

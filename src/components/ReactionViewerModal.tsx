@@ -46,34 +46,33 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     const styles = useMemo(() => createStyles(colors), [colors]);
 
     useEffect(() => {
-        if (visible) {
-            loadReactions();
-        }
-    }, [visible, postId]);
+        if (!visible) return;
+        let mounted = true;
 
-    const loadReactions = async () => {
-        setLoading(true);
-        try {
-            const allReactions = await reactionService.getReactions(postId);
-            setReactions(allReactions);
-
-            // Auto-select first tab with reactions
-            if (allReactions.length > 0) {
-                const firstType = allReactions[0].type;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const allReactions = await reactionService.getReactions(postId);
+                if (!mounted) return;
+                setReactions(allReactions);
                 setSelectedTab('all');
+            } catch (error: unknown) {
+                if (!mounted) return;
+                logger.error('Error loading reactions:', error);
+                await logErrorToFirestore(error, {
+                    screenName: 'ReactionViewerModal',
+                    feature: 'LoadReactions',
+                    userId: 'system',
+                    additionalData: { postId },
+                });
+            } finally {
+                if (mounted) setLoading(false);
             }
-        } catch (error: unknown) {
-            logger.error('Error loading reactions:', error);
-            await logErrorToFirestore(error, {
-                screenName: 'ReactionViewerModal',
-                feature: 'LoadReactions',
-                userId: 'system',
-                additionalData: { postId },
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+
+        load();
+        return () => { mounted = false; };
+    }, [visible, postId]);
 
     const handleClose = () => {
         onClose();

@@ -146,6 +146,26 @@ const toDate = (value: unknown): Date | undefined => {
   return isNaN(date.getTime()) ? undefined : date;
 };
 
+// Defensive date conversion: returns null for a single bad field instead of
+// nullifying the entire goal object (FIX 3).
+const safeToDate = (val: unknown): Date | null => {
+  try {
+    if (!val) return null;
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+    if ((val as { toDate?: () => Date })?.toDate) return (val as { toDate: () => Date }).toDate();
+    if (typeof val === 'object' && 'seconds' in (val as object)) {
+      return new Date(((val as { seconds: number }).seconds) * 1000);
+    }
+    if (typeof val === 'string' || typeof val === 'number') {
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // SessionCard - copy from JourneyScreen exactly
 // ─────────────────────────────────────────────────────────────
@@ -448,14 +468,19 @@ const AchievementDetailScreen = () => {
   const isCompletion = mode === 'completion';
   const experienceGiftParam = routeParams?.experienceGift || null;
   const rawGoal = routeParams?.goal;
+  // FIX 3: Use safeToDate per-field so a single bad date field doesn't null out
+  // the entire goal and trigger a premature redirect to Profile.
   const goal: Goal | null = rawGoal ? {
     ...rawGoal,
-    startDate: toDate(rawGoal.startDate)!,
-    endDate: toDate(rawGoal.endDate)!,
-    createdAt: toDate(rawGoal.createdAt)!,
-    updatedAt: toDate(rawGoal.updatedAt),
-    completedAt: toDate(rawGoal.completedAt),
+    startDate: safeToDate(rawGoal.startDate) ?? rawGoal.startDate,
+    endDate: safeToDate(rawGoal.endDate) ?? rawGoal.endDate,
+    createdAt: safeToDate(rawGoal.createdAt) ?? rawGoal.createdAt,
+    updatedAt: safeToDate(rawGoal.updatedAt) ?? rawGoal.updatedAt,
+    completedAt: safeToDate(rawGoal.completedAt) ?? null,
   } : null;
+
+  // Retry key to re-trigger data fetch on error
+  const [retryKey, setRetryKey] = useState(0);
 
   // Experience & partner data
   const [experience, setExperience] = useState<Experience | null>(null);
@@ -482,7 +507,9 @@ const AchievementDetailScreen = () => {
   const shareCardRef = useRef<View>(null);
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [isSharing, setIsSharing] = useState(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Completion mode — streak & active goals
   const [sessionStreak, setSessionStreak] = useState(0);
@@ -537,19 +564,27 @@ const AchievementDetailScreen = () => {
     ? Array.isArray(experience.imageUrl) ? experience.imageUrl[0] : (experience.imageUrl || experience.coverImageUrl)
     : goal?.pledgedExperience?.coverImageUrl || null;
 
-  // Format completion date
+  // Format completion date — handle Firestore Timestamp, serialized {seconds,nanoseconds}, Date, or string
   const completedAtValue = goal?.completedAt;
-  const parsedDate = completedAtValue instanceof Timestamp
-    ? completedAtValue.toDate()
-    : completedAtValue ? new Date(completedAtValue as Date) : null;
+  const parsedDate = (() => {
+    const v = completedAtValue;
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if ((v as { toDate?: () => Date })?.toDate) return (v as { toDate: () => Date }).toDate(); // Firestore Timestamp
+    if ((v as { seconds?: number })?.seconds != null) return new Date((v as { seconds: number }).seconds * 1000); // serialized Timestamp
+    const d = new Date(v as string | number);
+    return isNaN(d.getTime()) ? null : d;
+  })();
   const completedDate = parsedDate && !isNaN(parsedDate.getTime())
     ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
-  // Cleanup copy timeout on unmount
+  // Cleanup copy timeouts on unmount
   useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+      if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
     };
   }, []);
 
@@ -561,12 +596,14 @@ const AchievementDetailScreen = () => {
       navigation.navigate('Profile');
       return;
     }
+    let mounted = true;
     const fetchData = async () => {
       setIsLoading(true);
       try {
         // User name
         if (goal.userId) {
           const name = await userService.getUserName(goal.userId);
+          if (!mounted) return;
           setUserName(name || 'User');
         }
 
@@ -579,6 +616,7 @@ const AchievementDetailScreen = () => {
         } else if (goal.experienceGiftId) {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
+            if (!mounted) return;
             if (gift) expId = gift.experienceId;
           } catch (error: unknown) {
             logger.warn('Failed to load experience gift:', error);
@@ -587,101 +625,123 @@ const AchievementDetailScreen = () => {
 
         if (expId) {
           const exp = await experienceService.getExperienceById(expId);
+          if (!mounted) return;
           setExperience(exp);
           if (exp?.partnerId) {
             const partnerData = await partnerService.getPartnerById(exp.partnerId);
+            if (!mounted) return;
             setPartner(partnerData);
           }
         }
 
         // Existing coupon - check goal first, then Firestore
         if (goal.couponCode) {
-          setCouponCode(goal.couponCode);
+          if (mounted) setCouponCode(goal.couponCode);
         } else if (goal.experienceGiftId) {
           const couponsRef = collection(db, 'partnerCoupons');
           const q = query(couponsRef, where('goalId', '==', goal.id), limit(1));
           const snapshot = await getDocs(q);
+          if (!mounted) return;
           if (!snapshot.empty) {
             setCouponCode(snapshot.docs[0].data().code);
           } else if (!goal.isFreeGoal && expId && goal.userId) {
             // Completion mode: attempt to generate coupon for paid goals
             try {
               const code = await generateCouponForGoal(goal.id, goal.userId, partner?.id || '');
-              setCouponCode(code);
+              if (mounted) setCouponCode(code);
             } catch (err: unknown) {
               const errMsg = err instanceof Error ? err.message : String(err);
-              if (errMsg.includes('PAYMENT_PENDING')) {
-                setPaymentPending(true);
-              } else {
-                logger.warn('Coupon generation failed:', err);
+              if (mounted) {
+                if (errMsg.includes('PAYMENT_PENDING')) {
+                  setPaymentPending(true);
+                } else {
+                  logger.warn('Coupon generation failed:', err);
+                }
               }
             }
           }
         }
       } catch (error: unknown) {
         logger.error('Error fetching achievement data:', error);
-        showError('Could not load achievement details.');
-        setError(true);
+        if (mounted) {
+          showError('Could not load achievement details.');
+          setError(true);
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
     fetchData();
-  }, [goal?.id]);
+    return () => { mounted = false; };
+  }, [goal?.id, retryKey, experienceGiftParam?.id]);
 
   // useEffect 2 - Sessions
   useEffect(() => {
     if (!goal?.id) return;
+    let mounted = true;
     const loadSessions = async () => {
       setSessionsLoading(true);
       try {
         const data = await sessionService.getSessionsForGoal(goal.id);
+        if (!mounted) return;
         setSessions(data);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching sessions:', error);
       } finally {
-        setSessionsLoading(false);
+        if (mounted) setSessionsLoading(false);
       }
     };
     loadSessions();
+    return () => { mounted = false; };
   }, [goal?.id]);
 
   // useEffect — Completion mode: haptics, confetti, streak & active goals
   useEffect(() => {
     if (!isCompletion) return;
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => confettiRef.current?.start(), 300);
+    const confettiTimer = setTimeout(() => confettiRef.current?.start(), 300);
+    return () => clearTimeout(confettiTimer);
   }, [isCompletion]);
 
   useEffect(() => {
     if (!isCompletion || !goal?.userId) return;
+    let mounted = true;
     const fetchStreakAndGoals = async () => {
       try {
         const userDocSnap = await getDoc(doc(db, 'users', goal.userId));
+        if (!mounted) return;
         if (userDocSnap.exists()) {
           setSessionStreak(userDocSnap.data().sessionStreak || 0);
         }
         const allGoals = await goalService.getUserGoals(goal.userId);
+        if (!mounted) return;
         setOtherActiveGoals(allGoals.filter((g: Goal) => g.id !== goal.id && !g.isCompleted).length);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching streak/goals:', error);
       }
     };
     fetchStreakAndGoals();
+    return () => { mounted = false; };
   }, [isCompletion, goal?.userId, goal?.id]);
 
   // useEffect 3 - Motivations
   useEffect(() => {
     if (!goal?.id) return;
+    let mounted = true;
     const fetchMotivations = async () => {
       try {
         const data = await motivationService.getAllMotivations(goal.id);
+        if (!mounted) return;
         setMotivations(data);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching motivations:', error);
       }
     };
     fetchMotivations();
+    return () => { mounted = false; };
   }, [goal?.id]);
 
   // ───── Handler functions ─────
@@ -697,8 +757,8 @@ const AchievementDetailScreen = () => {
     if (!partner?.phone) return;
     await Clipboard.setStringAsync(partner.phone);
     setIsPhoneCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
+    if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+    phoneTimeoutRef.current = setTimeout(() => setIsPhoneCopied(false), 2000);
   }, [partner?.phone]);
 
   const handleCopyEmail = useCallback(async () => {
@@ -706,8 +766,8 @@ const AchievementDetailScreen = () => {
     if (!contactEmail) return;
     await Clipboard.setStringAsync(contactEmail);
     setIsEmailCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
+    if (emailTimeoutRef.current) clearTimeout(emailTimeoutRef.current);
+    emailTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   }, [partner?.contactEmail, partner?.email]);
 
   const handleEmailFallback = useCallback((url: string) => {
@@ -720,11 +780,12 @@ const AchievementDetailScreen = () => {
     }).catch(() => showInfo('Could not open email client.'));
   }, []);
 
-  const handleWhatsAppSchedule = useCallback(() => {
+  const handleWhatsAppSchedule = useCallback((dateOverride?: Date) => {
     if (!partner?.phone || !experience) return;
 
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', {
+    const resolvedDate = dateOverride ?? preferredDate;
+    const dateString = resolvedDate
+      ? resolvedDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -750,7 +811,7 @@ const AchievementDetailScreen = () => {
     }).catch(() => showInfo('WhatsApp is not installed. Please use email to contact the partner.'));
   }, [partner, experience, preferredDate, userName]);
 
-  const handleEmailSchedule = useCallback(() => {
+  const handleEmailSchedule = useCallback((dateOverride?: Date) => {
     if (!partner || !experience) return;
     const contactEmail = partner.contactEmail || partner.email;
     if (!contactEmail) {
@@ -758,8 +819,9 @@ const AchievementDetailScreen = () => {
       return;
     }
 
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', {
+    const resolvedDate = dateOverride ?? preferredDate;
+    const dateString = resolvedDate
+      ? resolvedDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -789,22 +851,17 @@ const AchievementDetailScreen = () => {
     setShowCalendar(false);
 
     if (bookingMethod === 'whatsapp') {
-      handleWhatsAppSchedule();
+      handleWhatsAppSchedule(date); // pass date directly to avoid reading stale state
     } else if (bookingMethod === 'email') {
-      handleEmailSchedule();
+      handleEmailSchedule(date); // pass date directly to avoid reading stale state
     }
   }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
   const handleCancelBooking = useCallback(() => {
     setPreferredDate(null);
     setShowCalendar(false);
-
-    if (bookingMethod === 'whatsapp') {
-      handleWhatsAppSchedule();
-    } else if (bookingMethod === 'email') {
-      handleEmailSchedule();
-    }
-  }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
+    // Do NOT send a booking message when the user cancels the calendar
+  }, []);
 
   const handleShare = useCallback(async () => {
     if (!shareCardRef.current) return;
@@ -896,22 +953,7 @@ const AchievementDetailScreen = () => {
             message="Could not load achievement details"
             onRetry={() => {
               setError(false);
-              setIsLoading(true);
-              // Re-fetch by re-triggering the useEffect dependency
-              const fetchData = async () => {
-                try {
-                  if (goal?.userId) {
-                    const name = await userService.getUserName(goal.userId);
-                    setUserName(name || 'User');
-                  }
-                } catch (err: unknown) {
-                  logger.error('Retry failed:', err);
-                  setError(true);
-                } finally {
-                  setIsLoading(false);
-                }
-              };
-              fetchData();
+              setRetryKey(k => k + 1);
             }}
           />
         </MainScreen>
@@ -961,19 +1003,19 @@ const AchievementDetailScreen = () => {
               <View style={{ flexDirection: 'row', gap: 60, backgroundColor: colors.whiteAlpha15, borderRadius: 30, paddingVertical: 40, paddingHorizontal: 80, marginBottom: 80 }}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{totalSessions}</Text>
-                  <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>SESSIONS</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>SESSIONS</Text>
                 </View>
-                <View style={{ width: 2, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 1 }} />
+                <View style={{ width: 2, backgroundColor: Colors.whiteAlpha20, borderRadius: 1 }} />
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{goal.targetCount || 0}</Text>
-                  <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>WEEKS</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>WEEKS</Text>
                 </View>
                 {sessionStreak >= 3 && (
                   <>
-                    <View style={{ width: 2, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 1 }} />
+                    <View style={{ width: 2, backgroundColor: Colors.whiteAlpha20, borderRadius: 1 }} />
                     <View style={{ alignItems: 'center' }}>
                       <Text style={{ fontSize: 80, fontWeight: '800', color: colors.celebrationGold }}>{sessionStreak}</Text>
-                      <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 3 }}>STREAK</Text>
+                      <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>STREAK</Text>
                     </View>
                   </>
                 )}
@@ -982,7 +1024,7 @@ const AchievementDetailScreen = () => {
               {/* Footer */}
               <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
                 <Image source={require('../../assets/favicon.png')} style={{ width: 70, height: 70, marginBottom: 16 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
-                <Text style={{ fontSize: 32, color: 'rgba(255,255,255,0.4)' }}>Earned with Ernit</Text>
+                <Text style={{ fontSize: 32, color: Colors.whiteAlpha40 }}>Earned with Ernit</Text>
               </View>
             </LinearGradient>
           </View>

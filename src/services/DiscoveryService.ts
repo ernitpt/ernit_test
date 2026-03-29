@@ -1,5 +1,5 @@
 import { db } from '../services/firebase';
-import { collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Experience, ExperienceCategory } from '../types';
 import { logger } from '../utils/logger';
 
@@ -246,7 +246,7 @@ class DiscoveryService {
       const goalRef = doc(db, 'goals', goalId);
       await updateDoc(goalRef, {
         discoveredExperience: snapshot_,
-        discoveredAt: new Date(),
+        discoveredAt: serverTimestamp(),
       });
 
       return winner;
@@ -369,7 +369,7 @@ class DiscoveryService {
       const goalRef = doc(db, 'goals', goalId);
       await updateDoc(goalRef, {
         experienceRevealed: true,
-        experienceRevealedAt: new Date(),
+        experienceRevealedAt: serverTimestamp(),
       });
       logger.log('[DiscoveryService] markExperienceRevealed:', goalId);
     } catch (err: unknown) {

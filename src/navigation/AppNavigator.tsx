@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, NavigationContainerRef, LinkingOptions, NavigationState, PartialState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
@@ -57,25 +58,6 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const GiverStack = createNativeStackNavigator<GiverStackParamList>();
 const RecipientStack = createNativeStackNavigator<RecipientStackParamList>();
 
-const PROTECTED_ROUTES: (keyof RootStackParamList)[] = [
-  'GiverFlow',
-  'Confirmation',
-  'ConfirmationMultiple',
-  'Profile',
-  'Goals',
-  'GoalDetail',
-  'Journey',
-  'ExperienceCheckout',
-  'RecipientFlow',
-  'Notification',
-  'Feed',
-  'AddFriend',
-  'FriendProfile',
-  'FriendsList',
-  'PurchasedGifts',
-  'AchievementDetail',
-];
-
 // Helper function to detect incognito mode
 const isIncognitoMode = () => {
   if (Platform.OS !== 'web') return false;
@@ -117,6 +99,7 @@ const RecipientNavigator = () => (
 const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackParamList }) => {
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const pendingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   // Reset URL to root on web refresh (except for checkout and URLs with query params)
@@ -147,11 +130,8 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
     }
   }, []);
 
-  // Set navigation ref for AuthGuardContext
+  // Clear navigation ref on unmount (registration happens in onReady below)
   useEffect(() => {
-    if (navigationRef.current) {
-      setNavigationRef(navigationRef.current);
-    }
     return () => {
       setNavigationRef(null);
     };
@@ -189,10 +169,14 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
             navigate();
           }
         }, 100);
+        // Store interval id so cleanup can cancel it if listener fires before nav is ready
+        if (pendingIntervalRef.current) clearInterval(pendingIntervalRef.current);
+        pendingIntervalRef.current = interval;
       }
     });
 
     return () => {
+      if (pendingIntervalRef.current) clearInterval(pendingIntervalRef.current);
       responseListener.remove();
     };
   }, [isNavigationReady]);
@@ -259,6 +243,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       onReady={() => {
         logger.log('🧭 Navigation ready');
         setIsNavigationReady(true);
+        setNavigationRef(navigationRef.current);
       }}
       onStateChange={(navState) => {
         // Update document title
@@ -294,7 +279,14 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
         <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
         <RootStack.Screen name="GiftLanding" component={ChallengeLandingScreen} initialParams={{ mode: 'gift' }} />
         <RootStack.Screen name="GiftFlow" component={GiftFlowScreen} />
-        <RootStack.Screen name="DeferredSetup" component={DeferredSetupScreen} />
+
+        <RootStack.Screen name="DeferredSetup">
+          {() => (
+            <ProtectedRoute>
+              <DeferredSetupScreen />
+            </ProtectedRoute>
+          )}
+        </RootStack.Screen>
 
         {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
@@ -492,7 +484,7 @@ const AppNavigator = () => {
           if (persisted) {
             const mergedCart = cartService.mergeCarts(guestCart, persisted.cart || []);
 
-            if (mergedCart.length !== persisted.cart?.length) {
+            if (JSON.stringify(mergedCart) !== JSON.stringify(persisted.cart ?? [])) {
               await userService.updateCart(firebaseUser.uid, mergedCart);
             }
 
@@ -514,6 +506,7 @@ const AppNavigator = () => {
             };
 
             await userService.createUserProfile(newUser);
+            if (!mounted) return;
             dispatch({ type: 'SET_USER', payload: newUser });
 
             await cartService.clearGuestCart();
@@ -523,6 +516,7 @@ const AppNavigator = () => {
         }
       } catch (error) {
         logger.error('[AppNavigator] Failed to create user profile:', error);
+        if (mounted) dispatch({ type: 'SET_USER', payload: null });
       } finally {
         if (mounted) setIsCheckingAuth(false);
       }
@@ -538,17 +532,16 @@ const AppNavigator = () => {
   // Load guest cart AFTER auth resolved
   // -----------------------------
   useEffect(() => {
-    if (isCheckingAuth) return;
+    if (isCheckingAuth || state.user) return;
 
-    (async () => {
-      if (!state.user) {
-        const guestCart = await cartService.getGuestCart();
-        if (guestCart.length > 0) {
-          dispatch({ type: 'SET_CART', payload: guestCart });
-        }
+    let mounted = true;
+    cartService.getGuestCart().then(guestCart => {
+      if (mounted && guestCart.length > 0) {
+        dispatch({ type: 'SET_CART', payload: guestCart });
       }
-    })();
-  }, [isCheckingAuth, state.user]);
+    }).catch((e) => { logger.warn('Failed to load guest cart:', e); });
+    return () => { mounted = false; };
+  }, [isCheckingAuth, state.user?.id, dispatch]);
 
   // -----------------------------
   // Show loading screen while checking auth
@@ -572,9 +565,11 @@ const AppNavigator = () => {
   const initialRoute = state.user?.id ? 'Goals' : 'ChallengeLanding';
 
   return (
-    <AuthGuardProvider>
-      <AppNavigatorContent initialRoute={initialRoute} />
-    </AuthGuardProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthGuardProvider>
+        <AppNavigatorContent initialRoute={initialRoute} />
+      </AuthGuardProvider>
+    </GestureHandlerRootView>
   );
 };
 

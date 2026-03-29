@@ -1,10 +1,16 @@
 // Utility functions for the Ernit app
 import { getRandomBytes } from 'expo-crypto';
 
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (
+  amount: number,
+  currency: string = 'EUR',
+  locale: string = 'de-DE' // German locale for EUR formatting
+): string => {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -50,7 +56,8 @@ export const generateTempId = (): string => {
 };
 
 export const calculateProgressPercentage = (current: number, target: number): number => {
-  return Math.min((current / target) * 100, 100);
+  if (!target || target <= 0) return 0;
+  return Math.min(100, Math.round((current / target) * 100));
 };
 
 export const getProgressStage = (percentage: number): 'early' | 'mid' | 'late' | 'reveal' => {
@@ -63,12 +70,10 @@ export const getProgressStage = (percentage: number): 'early' | 'mid' | 'late' |
 export const getCategoryDisplayName = (category: string): string => {
   const categoryMap: Record<string, string> = {
     adventure: 'Adventure',
-    relaxation: 'Relaxation',
-    'food-culture': 'Food & Culture',
-    'romantic-getaway': 'Romantic Getaway',
-    'foreign-trip': 'Foreign Trip',
+    wellness: 'Wellness',
+    creative: 'Creative',
   };
-  return categoryMap[category] || category;
+  return categoryMap[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
 };
 
 export const validateEmail = (email: string): boolean => {

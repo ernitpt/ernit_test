@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions/v2";
 import { logger } from "firebase-functions/v2";
 import { sendPushNotification } from "../utils/notificationSender";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 /**
  * Cloud Function: onNotificationCreated
@@ -23,6 +24,14 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
 
         const notificationData = snapshot.data();
 
+        // BUG-01: Idempotency guard — Cloud Functions use at-least-once delivery,
+        // so a retry after a crash or timeout would send a duplicate push.
+        // If pushSentAt is already set, this notification was already processed.
+        if (notificationData?.pushSentAt) {
+            logger.info("ℹ️ [PROD] Push already sent for notification, skipping duplicate", { notificationId });
+            return null;
+        }
+
         try {
             // Get the recipient user ID
             const userId = notificationData.userId;
@@ -31,8 +40,9 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
                 return null;
             }
 
-            // Import dbProd from index.ts (production database)
-            const dbProd = require("../index").dbProd;
+            // Use getFirestore() directly — avoids a circular require through index.ts
+            // which returns undefined on cold-start due to module initialization order.
+            const db = getFirestore();
 
             // Send push notification using shared utility
             await sendPushNotification({
@@ -44,9 +54,12 @@ export const onNotificationCreated = functions.firestore.onDocumentCreated(
                     message: notificationData.message || "",
                     data: notificationData.data,
                 },
-                db: dbProd,
+                db,
                 envLabel: "PROD",
             });
+
+            // BUG-01: Mark as sent so any retry due to at-least-once delivery skips it.
+            await snapshot.ref.update({ pushSentAt: FieldValue.serverTimestamp() });
 
             return null;
         } catch (error: unknown) {

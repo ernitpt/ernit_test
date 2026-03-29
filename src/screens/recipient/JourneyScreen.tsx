@@ -8,7 +8,7 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
-import { doc, onSnapshot, collection, getDocs, query, limit, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, getDocs, query, limit, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import type { Goal, ExperienceGift, SessionRecord, Motivation, Experience, PersonalizedHint, PartnerUser } from '../../types';
 
@@ -235,7 +235,7 @@ const SessionCard = React.memo(({
 
   useEffect(() => {
     if (!isExpanded && videoRef.current) {
-      videoRef.current.pauseAsync();
+      videoRef.current.pauseAsync().catch(() => {});
     }
   }, [isExpanded]);
 
@@ -921,6 +921,7 @@ const JourneyScreen = () => {
   const emailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const bookingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const shareCardRef = useRef<View>(null);
+  const isMountedRef = useRef(true);
   const tabScrollRef = useRef<ScrollView>(null);
   const { width: screenWidth } = useWindowDimensions();
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
@@ -946,6 +947,12 @@ const JourneyScreen = () => {
     };
   }, []);
 
+  // Track mount state to guard async setState calls
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
   // Keep goal synced with Firestore
   useEffect(() => {
     if (!currentGoal?.id) return;
@@ -962,8 +969,23 @@ const JourneyScreen = () => {
           updatedGoal.approvalDeadline
         ) {
           const now = new Date();
-          if (now >= updatedGoal.approvalDeadline && !updatedGoal.giverActionTaken) {
-            await goalService.checkAndAutoApprove(currentGoal.id);
+          // approvalDeadline may be a Firestore Timestamp (not yet converted to Date)
+          // when received directly from the snapshot before normalizeGoal runs.
+          // Convert explicitly to avoid `Date >= Timestamp` always being false.
+          const rawDeadline = updatedGoal.approvalDeadline as unknown;
+          const deadline: Date | null =
+            rawDeadline instanceof Date
+              ? rawDeadline
+              : rawDeadline && typeof rawDeadline === 'object' && 'toDate' in rawDeadline && typeof (rawDeadline as { toDate: unknown }).toDate === 'function'
+                ? (rawDeadline as { toDate: () => Date }).toDate()
+                : rawDeadline && typeof rawDeadline === 'object' && 'seconds' in rawDeadline && (rawDeadline as { seconds: unknown }).seconds != null
+                  ? new Date((rawDeadline as { seconds: number }).seconds * 1000)
+                  : null;
+          if (deadline && now >= deadline && !updatedGoal.giverActionTaken) {
+            // Fire-and-forget: server-side write, no setState after await
+            goalService.checkAndAutoApprove(currentGoal.id).catch(
+              (err: unknown) => logger.error('[JourneyScreen] checkAndAutoApprove failed:', err)
+            );
           }
         }
       }
@@ -1002,12 +1024,14 @@ const JourneyScreen = () => {
     setSessionsLoading(true);
     try {
       const data = await sessionService.getSessionsForGoal(currentGoal.id);
+      if (!isMountedRef.current) return;
       setSessions(data);
     } catch (error: unknown) {
+      if (!isMountedRef.current) return;
       logger.error('Error fetching sessions:', error);
       setError(true);
     } finally {
-      setSessionsLoading(false);
+      if (isMountedRef.current) setSessionsLoading(false);
     }
   }, [currentGoal?.id]);
 
@@ -1059,14 +1083,20 @@ const JourneyScreen = () => {
       setRecommendedExperiences([]);
       return;
     }
+    let mounted = true;
     const fetchRecommended = async () => {
       try {
-        const snapshot = await getDocs(query(collection(db, 'experiences'), limit(20)));
+        // Apply server-side category filter to avoid downloading all experiences client-side
+        const category = currentGoal?.preferredRewardCategory || currentGoal?.category;
+        const q = category
+          ? query(collection(db, 'experiences'), where('category', '==', category), where('isActive', '==', true), limit(10))
+          : query(collection(db, 'experiences'), where('isActive', '==', true), limit(10));
+        const snapshot = await getDocs(q);
+        if (!mounted) return;
         const all = snapshot.docs
           .map(d => ({ id: d.id, ...d.data() } as Experience))
           .filter(exp => exp.status !== 'draft');
         const filtered = all
-          .filter(exp => exp.category?.toLowerCase() === currentGoal.preferredRewardCategory?.toLowerCase())
           .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         setRecommendedExperiences(filtered.slice(0, 3));
       } catch (error: unknown) {
@@ -1074,16 +1104,19 @@ const JourneyScreen = () => {
       }
     };
     fetchRecommended();
+    return () => { mounted = false; };
   }, [currentGoal?.preferredRewardCategory, currentGoal?.pledgedExperience]);
 
   // ─── Completed goal: fetch experience, partner, coupon ────────────────────
   useEffect(() => {
     if (!currentGoal?.isCompleted) return;
+    let mounted = true;
 
     const fetchCompletedGoalData = async () => {
       try {
         // Fetch user name
         const name = await userService.getUserName(currentGoal.userId);
+        if (!mounted) return;
         setUserName(name || 'User');
 
         // Determine experience ID source
@@ -1093,8 +1126,10 @@ const JourneyScreen = () => {
         } else if (currentGoal.experienceGiftId) {
           try {
             const gift = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
+            if (!mounted) return;
             if (gift) expId = gift.experienceId;
           } catch (error: unknown) {
+            if (!mounted) return;
             logger.warn('Failed to load experience gift:', error);
             // Continue without gift data — non-fatal
           }
@@ -1102,10 +1137,12 @@ const JourneyScreen = () => {
 
         if (expId) {
           const exp = await experienceService.getExperienceById(expId);
+          if (!mounted) return;
           setExperience(exp);
 
           if (exp?.partnerId) {
             const partnerData = await partnerService.getPartnerById(exp.partnerId);
+            if (!mounted) return;
             setPartner(partnerData);
           }
         }
@@ -1115,12 +1152,14 @@ const JourneyScreen = () => {
           setCouponCode(currentGoal.couponCode);
         }
       } catch (err: unknown) {
+        if (!mounted) return;
         logger.error('Error fetching completed goal data:', err);
         setError(true);
       }
     };
 
     fetchCompletedGoalData();
+    return () => { mounted = false; };
   }, [currentGoal?.isCompleted, currentGoal?.id]);
 
   // ─── Coupon generation (reused from CompletionScreen) ─────────────────────
@@ -1173,10 +1212,11 @@ const JourneyScreen = () => {
     emailTimeoutRef.current = setTimeout(() => setIsEmailCopied(false), 2000);
   }, [partner]);
 
-  const handleWhatsAppSchedule = useCallback(() => {
+  const handleWhatsAppSchedule = useCallback((date?: Date) => {
     if (!partner?.phone || !experience) return;
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    const resolvedDate = date ?? preferredDate;
+    const dateString = resolvedDate
+      ? resolvedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
       : 'at your earliest convenience';
     const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
     const phone = partner.phone.replace(/[^0-9]/g, '');
@@ -1186,21 +1226,22 @@ const JourneyScreen = () => {
       default: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
     });
     Linking.canOpenURL(url!).then(ok => {
-      if (ok) Linking.openURL(url!);
+      if (ok) Linking.openURL(url!).catch(e => logger.error('Failed to open WhatsApp URL:', e));
       else showInfo('WhatsApp is not installed.');
-    });
+    }).catch(e => logger.error('Failed to check WhatsApp URL:', e));
   }, [partner, experience, preferredDate, userName]);
 
-  const handleEmailSchedule = useCallback(() => {
+  const handleEmailSchedule = useCallback((date?: Date) => {
     if (!partner || !experience) return;
     const email = partner.contactEmail || partner.email;
     if (!email) return;
-    const dateString = preferredDate
-      ? preferredDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    const resolvedDate = date ?? preferredDate;
+    const dateString = resolvedDate
+      ? resolvedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
       : 'at your earliest convenience';
     const message = `Hi ${partner.name || 'there'}!\n\nI've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
     const subject = `Experience Booking - ${experience.title}`;
-    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`);
+    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`).catch(e => logger.error('Failed to open email URL:', e));
   }, [partner, experience, preferredDate, userName]);
 
   const handleBookWhatsApp = useCallback(() => {
@@ -1217,8 +1258,8 @@ const JourneyScreen = () => {
     setPreferredDate(date);
     setShowCalendar(false);
     bookingTimeoutRef.current = setTimeout(() => {
-      if (bookingMethod === 'whatsapp') handleWhatsAppSchedule();
-      else if (bookingMethod === 'email') handleEmailSchedule();
+      if (bookingMethod === 'whatsapp') handleWhatsAppSchedule(date);
+      else if (bookingMethod === 'email') handleEmailSchedule(date);
     }, 100);
   }, [bookingMethod, handleWhatsAppSchedule, handleEmailSchedule]);
 
@@ -1276,7 +1317,7 @@ const JourneyScreen = () => {
     } finally {
       setIsSharing(false);
     }
-  }, []);
+  }, [showError, showInfo]);
 
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =
@@ -1959,7 +2000,7 @@ const JourneyScreen = () => {
                           <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? 'Your Reward' : 'Your Dream Reward'}</Text>
                           {currentGoal.pledgedExperience.price > 0 && (
                             <Text style={styles.experiencePrice}>
-                              ${currentGoal.pledgedExperience.price}
+                              {'\u20AC'}{currentGoal.pledgedExperience.price}
                             </Text>
                           )}
                         </View>

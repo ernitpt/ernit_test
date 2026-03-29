@@ -54,9 +54,13 @@ const FeedScreen: React.FC = () => {
     const [posts, setPosts] = useState<FeedPostType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    // M9: Ref mirrors isRefreshing so loadFeed can check it without being a dep
+    const isRefreshingRef = useRef(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    // M: Ref mirrors hasMore so loadFeed can check it without being a dep (prevents excess reloads)
+    const hasMoreRef = useRef(true);
     const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
     const highlightAnim = React.useRef(new Animated.Value(0)).current;
     const flatListRef = React.useRef<FlatList>(null);
@@ -70,7 +74,7 @@ const FeedScreen: React.FC = () => {
     const filteredPosts = useMemo(() => {
         if (activeFilter === 'all') return posts;
         if (activeFilter === 'goals') return posts.filter(p => p.type === 'goal_started' || p.type === 'goal_approved');
-        if (activeFilter === 'sessions') return posts.filter(p => p.type === 'session_progress');
+        if (activeFilter === 'sessions') return posts.filter(p => p.type === 'session_progress' || p.type === 'goal_progress');
         if (activeFilter === 'completed') return posts.filter(p => p.type === 'goal_completed');
         return posts;
     }, [posts, activeFilter]);
@@ -112,6 +116,8 @@ const FeedScreen: React.FC = () => {
     }, [route.params?.highlightPostId]);
 
     // Scroll to highlighted post
+    // M24: Use posts.length (not posts array) as dep — reaction updates change object identity
+    //      but not count, preventing unnecessary re-scroll on every reaction update.
     useEffect(() => {
         let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -132,7 +138,10 @@ const FeedScreen: React.FC = () => {
         return () => {
             if (scrollTimeout) clearTimeout(scrollTimeout);
         };
-    }, [highlightedPostId, posts]);
+    }, [highlightedPostId, posts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync hasMoreRef with state so loadFeed can use the ref without it being a dep
+    useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
 
     const loadFeed = useCallback(async (loadMore = false) => {
         if (!state.user?.id) {
@@ -140,10 +149,11 @@ const FeedScreen: React.FC = () => {
             return;
         }
 
-        if (loadMore && !hasMore) return;
+        if (loadMore && !hasMoreRef.current) return;
 
         try {
-            if (!loadMore && !isRefreshing) {
+            // M9: Read from ref instead of isRefreshing state to avoid it being a dep
+            if (!loadMore && !isRefreshingRef.current) {
                 setIsLoading(true);
                 setError(false);
             }
@@ -161,7 +171,9 @@ const FeedScreen: React.FC = () => {
             }
 
             lastTimestampRef.current = lastTimestamp;
-            setHasMore(loadedPosts.length >= FEED_PAGE_SIZE);
+            const newHasMore = loadedPosts.length >= FEED_PAGE_SIZE;
+            setHasMore(newHasMore);
+            hasMoreRef.current = newHasMore;
         } catch (error: unknown) {
             logger.error('Error loading feed:', error);
             if (!loadMore) {
@@ -172,21 +184,28 @@ const FeedScreen: React.FC = () => {
             setIsLoading(false);
             setIsLoadingMore(false);
         }
-    }, [state.user?.id, hasMore, isRefreshing]);
+        // M9: isRefreshing removed from deps — use isRefreshingRef.current inside instead
+        // hasMore removed from deps — use hasMoreRef.current inside instead to prevent excess reloads
+    }, [state.user?.id]);
 
     useFocusEffect(
         React.useCallback(() => {
             analyticsService.trackScreenView('FeedScreen');
+            // FIX 5A: Reset pagination cursor on re-focus so the feed reloads
+            // from the top instead of appending from a stale position.
+            lastTimestampRef.current = undefined;
             loadFeed();
         }, [loadFeed])
     );
 
     const handleRefresh = useCallback(async () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        isRefreshingRef.current = true; // M9: sync ref before loadFeed reads it
         setIsRefreshing(true);
         lastTimestampRef.current = undefined;
         setHasMore(true);
         await loadFeed();
+        isRefreshingRef.current = false; // M9: reset ref after load completes
         setIsRefreshing(false);
     }, [loadFeed]);
 
@@ -194,7 +213,7 @@ const FeedScreen: React.FC = () => {
         if (isLoadingMore || !hasMore || isLoading) return;
         setIsLoadingMore(true);
         loadFeed(true);
-    }, [isLoadingMore, hasMore, isLoading]);
+    }, [isLoadingMore, hasMore, isLoading, loadFeed]); // FIX 5B: added loadFeed dep
 
     const renderPost = useCallback(({ item }: { item: FeedPostType }) => {
         const isHighlighted = item.id === highlightedPostId;

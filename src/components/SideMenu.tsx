@@ -342,13 +342,16 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const handleReminderTimeChange = async (time: string) => {
     if (!state.user?.id) return;
     if (!state.user?.profile) return;
-    setReminderTime(time);
+    const previousTime = reminderTime;
+    setReminderTime(time); // optimistic update
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       await userService.updateUserProfile(state.user.id, {
         profile: { ...state.user.profile, reminderTime: time, timezone },
       });
     } catch (error: unknown) {
+      setReminderTime(previousTime); // rollback on failure
+      showError('Failed to save reminder time. Please try again.');
       logger.error('Error saving reminder time:', error);
     }
   };
@@ -392,7 +395,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   return (
     <>
       {shouldRender && (
-        <View style={styles.container}>
+        <View style={styles.container} accessibilityViewIsModal={true}>
           {/* Overlay */}
           <TouchableWithoutFeedback onPress={onClose}>
             <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />

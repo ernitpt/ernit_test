@@ -58,13 +58,15 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
         try {
             setLoading(true);
             const goalData = await goalService.getGoalById(notification.data?.goalId || '');
+            if (!isMounted.current) return;
             setGoal(goalData);
             setShowHintModal(true);
         } catch (error: unknown) {
+            if (!isMounted.current) return;
             logger.error('Error fetching goal:', error);
             showError('Could not load goal details');
         } finally {
-            setLoading(false);
+            if (isMounted.current) setLoading(false);
         }
     };
 
@@ -73,13 +75,15 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             try {
                 setLoading(true);
                 const goalData = await goalService.getGoalById(notification.data?.goalId || '');
+                if (!isMounted.current) return;
                 setGoal(goalData);
                 setShowHistoryModal(true);
             } catch (error: unknown) {
+                if (!isMounted.current) return;
                 logger.error('Error fetching goal:', error);
                 showError('Could not load goal details');
             } finally {
-                setLoading(false);
+                if (isMounted.current) setLoading(false);
             }
         } else {
             setShowHistoryModal(true);
@@ -91,13 +95,14 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
 
         const totalSessionsDone =
             (goal.currentCount * goal.sessionsPerWeek) + goal.weeklyCount;
-        // We want to leave a hint for the session AFTER the current one (or the one about to start)
-        // If 0 sessions done, we want hint for Session 2 (since Session 1 is "current")
-        const nextSessionNumber = totalSessionsDone + 2;
+        // We want to leave a hint for the upcoming session (the next one after what was just completed)
+        // If 0 sessions done, we want hint for Session 1 (the very next one)
+        const nextSessionNumber = totalSessionsDone + 1;
 
         try {
             // Get giver name
             const giverName = await userService.getUserName(state.user?.id ?? "");
+            if (!isMounted.current) return;
 
             let audioUrl: string | undefined;
             let imageUrl: string | undefined;
@@ -105,8 +110,10 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             // Upload media if present
             if (submission.type === 'audio' && submission.audioUri) {
                 audioUrl = await storageService.uploadAudio(submission.audioUri, state.user?.id ?? "");
+                if (!isMounted.current) return;
             } else if (submission.imageUri) {
                 imageUrl = await storageService.uploadImage(submission.imageUri, state.user?.id ?? "");
+                if (!isMounted.current) return;
             }
 
             const hintData: PersonalizedHint = {
@@ -126,6 +133,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                 notification.data.goalId,
                 hintData
             );
+            if (!isMounted.current) return;
 
             // Send notification to recipient
             await notificationService.createPersonalizedHintNotification(
@@ -138,6 +146,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                 goal.targetCount,
                 nextSessionNumber
             );
+            if (!isMounted.current) return;
 
             // Update local goal state to reflect the hint was set
             setGoal({
@@ -162,9 +171,13 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
     const isDisabled = loading || hasPersonalizedHint || !isLatest || !isActualProgress || goal?.isCompleted;
 
     const handleClear = async () => {
+        if (!notification.id) {
+            logger.warn('GoalProgressNotification: notification has no id');
+            return;
+        }
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
-            await notificationService.deleteNotification(notification.id!);
+            await notificationService.deleteNotification(notification.id);
         } catch (error: unknown) {
             logger.error('Error clearing notification:', error);
         }

@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     Animated,
     KeyboardAvoidingView,
+    BackHandler,
 } from 'react-native';
 import { vh } from '../utils/responsive';
 import { ConfirmationDialog } from './ConfirmationDialog';
@@ -72,6 +73,17 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             setMenuVisibleId(null);
         }
     }, [visible, postId]);
+
+    // Android hardware back button — dismiss the modal
+    useEffect(() => {
+        if (Platform.OS === 'web') return;
+        if (!visible) return;
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            onClose();
+            return true;
+        });
+        return () => subscription.remove();
+    }, [visible, onClose]);
 
     const loadComments = async () => {
         setIsLoading(true);
@@ -156,7 +168,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             logger.error('Error toggling comment like:', error);
             await loadComments();
         }
-    }, [state.user?.id, postId]);
+    }, [state.user?.id, postId, loadComments]);
 
     const handleDeleteComment = useCallback((commentId: string) => {
         setDeleteConfirmId(commentId);
@@ -291,7 +303,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                         onPress={() => setMenuVisibleId(null)}
                     />
                 )}
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Comments</Text>

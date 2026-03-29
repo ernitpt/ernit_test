@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
-  Animated,
   TouchableOpacity,
   Image,
   RefreshControl,
@@ -13,9 +12,9 @@ import {
 } from 'react-native';
 
 import Animated2, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { Plus, Target, ChevronDown, ChevronUp, Trophy, Rocket } from 'lucide-react-native';
+import { Plus, Target, ChevronDown, ChevronUp, Trophy } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { MotiView } from 'moti';
+import { MotiView, AnimatePresence } from 'moti';
 import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -43,7 +42,7 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import ErrorRetry from '../components/ErrorRetry';
-import Button from '../components/Button';
+
 import { EmptyState } from '../components/EmptyState';
 import * as Haptics from 'expo-haptics';
 
@@ -58,8 +57,31 @@ const GoalsScreen: React.FC = () => {
   const { showError, showInfo } = useToast();
   const userId = state.user?.id || '';
 
-  const [currentGoals, setCurrentGoals] = useState<Goal[]>([]);
-  const [completedGoals, setCompletedGoals] = useState<Goal[]>([]);
+  const [rawGoals, setRawGoals] = useState<Goal[]>([]);
+
+  const currentGoals = useMemo(
+    () =>
+      rawGoals
+        .filter((g) => !g.isCompleted && g.currentCount < g.targetCount)
+        .sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        }),
+    [rawGoals],
+  );
+
+  const completedGoals = useMemo(
+    () =>
+      rawGoals
+        .filter((g) => g.isCompleted || g.currentCount >= g.targetCount)
+        .sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        }),
+    [rawGoals],
+  );
   const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -121,28 +143,8 @@ const GoalsScreen: React.FC = () => {
       try {
         setError(false);
 
-        const activeGoals = goals.filter((g) => {
-          return !g.isCompleted && g.currentCount < g.targetCount;
-        });
-        // Sort active goals by newest first
-        activeGoals.sort((a, b) => {
-          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bDate - aDate;
-        });
-        setCurrentGoals(activeGoals);
-
-        // Collect completed goals
-        const finished = goals.filter((g) => {
-          return g.isCompleted || g.currentCount >= g.targetCount;
-        });
-        // Sort by most recently created first
-        finished.sort((a, b) => {
-          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bDate - aDate;
-        });
-        setCompletedGoals(finished);
+        // Store raw goals — filter/sort is handled by useMemo (currentGoals, completedGoals)
+        setRawGoals(goals);
 
         // If this callback is the result of a pull-to-refresh, end the spinner and confirm freshness
         if (isRefreshingRef.current) {
@@ -156,8 +158,7 @@ const GoalsScreen: React.FC = () => {
         setError(true);
         showError('Could not load goals. Please try again.');
         // Show whatever goals we can rather than crashing
-        setCurrentGoals([]);
-        setCompletedGoals([]);
+        setRawGoals([]);
         if (isRefreshingRef.current) {
           isRefreshingRef.current = false;
           setRefreshing(false);
@@ -182,8 +183,13 @@ const GoalsScreen: React.FC = () => {
     const runAutoApprove = async () => {
       for (const goal of currentGoals) {
         if (goal.approvalStatus === 'pending' && goal.approvalDeadline && !goal.giverActionTaken) {
+          // FIX 2: Convert Firestore Timestamp to Date before comparing — direct < comparison
+          // between a Timestamp object and a Date always evaluates incorrectly.
+          const deadlineDate = goal.approvalDeadline instanceof Date
+            ? goal.approvalDeadline
+            : (goal.approvalDeadline as any)?.toDate?.() ?? null;
           const now = new Date();
-          if (now >= goal.approvalDeadline) {
+          if (deadlineDate && now >= deadlineDate) {
             try {
               await goalService.checkAndAutoApprove(goal.id);
             } catch (error: unknown) {
@@ -212,47 +218,22 @@ const GoalsScreen: React.FC = () => {
     fetchStreak();
   }, [userId]);
 
-  const fabAnim = useRef(new Animated.Value(50)).current;
-  const fabOpacity = useRef(new Animated.Value(0)).current;
-  const [fabMenuOpen, setFabMenuOpen] = useState(false);
-  const fabRotation = useRef(new Animated.Value(0)).current;
-  const menuItem1 = useRef(new Animated.Value(0)).current;
-  const menuItem2 = useRef(new Animated.Value(0)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const streakBannerWeeklyDone = useMemo(
+    () => currentGoals.reduce((acc, g) => acc + (g.weeklyCount || 0), 0),
+    [currentGoals],
+  );
+  const streakBannerWeeklyTarget = useMemo(
+    () => currentGoals.reduce((acc, g) => acc + (g.sessionsPerWeek || 0), 0),
+    [currentGoals],
+  );
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(fabAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fabOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
 
   const toggleFabMenu = () => {
     const toOpen = !fabMenuOpen;
     setFabMenuOpen(toOpen);
-
-    if (toOpen) {
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      Animated.parallel([
-        Animated.spring(fabRotation, { toValue: 1, damping: 14, stiffness: 160, useNativeDriver: true }),
-        Animated.spring(menuItem1, { toValue: 1, damping: 14, stiffness: 140, useNativeDriver: true }),
-        Animated.spring(menuItem2, { toValue: 1, damping: 14, stiffness: 140, delay: 50, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.spring(fabRotation, { toValue: 0, damping: 14, stiffness: 160, useNativeDriver: true }),
-        Animated.timing(menuItem1, { toValue: 0, duration: 150, useNativeDriver: true }),
-        Animated.timing(menuItem2, { toValue: 0, duration: 150, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
+    if (toOpen && Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   };
 
@@ -274,7 +255,10 @@ const GoalsScreen: React.FC = () => {
       }
 
       // Standard goals: If a week just completed and whole goal is done, navigate
-      const experienceGift = await experienceGiftService.getExperienceGiftById(updatedGoal.experienceGiftId);
+      // H10: Guard against null/undefined experienceGiftId to avoid throwing
+      const experienceGift = updatedGoal.experienceGiftId
+        ? await experienceGiftService.getExperienceGiftById(updatedGoal.experienceGiftId)
+        : undefined;
 
       if (updatedGoal.isCompleted) {
         navigation.navigate('AchievementDetail', {
@@ -330,18 +314,14 @@ const GoalsScreen: React.FC = () => {
         ) : error && currentGoals.length === 0 && completedGoals.length === 0 ? (
           <ErrorRetry message="Could not load goals" onRetry={loadGoals} />
         ) : currentGoals.length === 0 && completedGoals.length === 0 ? (
-          /* ── Upgraded Empty State ── */
+          /* ── Empty State ── */
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>Your journey starts here</Text>
-            <Text style={styles.emptySubtitle}>
-              Set a goal, pick a dream reward, and challenge yourself to earn it.
-            </Text>
-            <Button
-              variant="primary"
-              title="Create Your First Goal"
-              icon={<Rocket color={colors.white} size={18} strokeWidth={2.5} />}
-              onPress={() => navigation.navigate('ChallengeSetup')}
-              style={styles.emptyCTA}
+            <EmptyState
+              icon="🎯"
+              title="Your journey starts here"
+              message="Set a goal, pick a dream reward, and challenge yourself to earn it."
+              actionLabel="Create Your First Goal"
+              onAction={() => navigation.navigate('ChallengeSetup')}
             />
           </View>
         ) : (
@@ -366,8 +346,8 @@ const GoalsScreen: React.FC = () => {
             ListHeaderComponent={currentGoals.length > 0 ? (
               <StreakBanner
                 streak={sessionStreak}
-                weeklyDone={currentGoals.reduce((acc, g) => acc + (g.weeklyCount || 0), 0)}
-                weeklyTarget={currentGoals.reduce((acc, g) => acc + (g.sessionsPerWeek || 0), 0)}
+                weeklyDone={streakBannerWeeklyDone}
+                weeklyTarget={streakBannerWeeklyTarget}
               />
             ) : null}
             ListEmptyComponent={
@@ -417,81 +397,101 @@ const GoalsScreen: React.FC = () => {
         </View>
 
         {/* ---------- FAB MENU ---------- */}
-        {fabMenuOpen && (
-          <Animated.View
-            style={[styles.fabBackdrop, { opacity: backdropOpacity }]}
-            pointerEvents={fabMenuOpen ? 'auto' : 'none'}
-          >
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={toggleFabMenu}
-            />
-          </Animated.View>
-        )}
+        <AnimatePresence>
+          {fabMenuOpen && (
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'timing', duration: 200 }}
+              style={styles.fabBackdrop}
+              pointerEvents="auto"
+            >
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={toggleFabMenu}
+              />
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         {/* Menu items (appear above the FAB) */}
-        <Animated.View
-          style={[
-            styles.fabMenuColumn,
-            {
-              bottom: 100 + FOOTER_HEIGHT + insets.bottom,
-              opacity: backdropOpacity,
-              transform: [{ translateY: backdropOpacity.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-            },
-          ]}
-          pointerEvents={fabMenuOpen ? 'auto' : 'none'}
-        >
-          <Animated.View style={{ opacity: menuItem1, transform: [{ scale: menuItem1 }] }}>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              activeOpacity={0.85}
-              onPress={() => {
-                toggleFabMenu();
-                if (currentGoals.length >= 3) {
-                  showInfo('You can have up to 3 active goals. Complete or remove a goal to create a new one.');
-                  return;
-                }
-                navigation.navigate('ChallengeSetup');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Create new goal"
+        <AnimatePresence>
+          {fabMenuOpen && (
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              exit={{ opacity: 0, translateY: 10 }}
+              transition={{ type: 'timing', duration: 200 }}
+              style={[
+                styles.fabMenuColumn,
+                { bottom: 100 + FOOTER_HEIGHT + insets.bottom },
+              ]}
+              pointerEvents="auto"
             >
-              <View style={[styles.fabMenuIconBg, { backgroundColor: colors.primarySurface }]}>
-                <Target color={colors.primary} size={20} strokeWidth={2.5} />
-              </View>
-              <Text style={styles.fabMenuText}>Create New Goal</Text>
-            </TouchableOpacity>
-          </Animated.View>
+              <MotiView
+                from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                transition={{ type: 'timing', duration: 150 }}
+              >
+                <TouchableOpacity
+                  style={styles.fabMenuItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    toggleFabMenu();
+                    if (currentGoals.length >= 3) {
+                      showInfo('You can have up to 3 active goals. Complete or remove a goal to create a new one.');
+                      return;
+                    }
+                    navigation.navigate('ChallengeSetup');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create new goal"
+                >
+                  <View style={[styles.fabMenuIconBg, { backgroundColor: colors.primarySurface }]}>
+                    <Target color={colors.primary} size={20} strokeWidth={2.5} />
+                  </View>
+                  <Text style={styles.fabMenuText}>Create New Goal</Text>
+                </TouchableOpacity>
+              </MotiView>
 
-          <Animated.View style={{ opacity: menuItem2, transform: [{ scale: menuItem2 }] }}>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              activeOpacity={0.85}
-              onPress={() => {
-                toggleFabMenu();
-                navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Redeem your Ernit coupon"
-            >
-              <View style={styles.fabMenuIconBg}>
-                <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} accessible={false} />
-              </View>
-              <Text style={styles.fabMenuText}>Redeem Your Ernit</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
+              <MotiView
+                from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                transition={{ type: 'timing', duration: 150, delay: 50 }}
+              >
+                <TouchableOpacity
+                  style={styles.fabMenuItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    toggleFabMenu();
+                    navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Redeem your Ernit coupon"
+                >
+                  <View style={styles.fabMenuIconBg}>
+                    <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} accessible={false} />
+                  </View>
+                  <Text style={styles.fabMenuText}>Redeem Your Ernit</Text>
+                </TouchableOpacity>
+              </MotiView>
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         {/* Main FAB button */}
-        <Animated.View
+        <MotiView
+          from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+          animate={{ opacity: 1, scale: 1, translateY: 0 }}
+          exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+          transition={{ type: 'timing', duration: 150 }}
           style={[
             styles.fabContainer,
-            {
-              bottom: 30 + FOOTER_HEIGHT + insets.bottom,
-              transform: [{ translateY: fabAnim }],
-              opacity: fabOpacity,
-            },
+            { bottom: 30 + FOOTER_HEIGHT + insets.bottom },
           ]}
         >
           <TouchableOpacity
@@ -501,15 +501,14 @@ const GoalsScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel={fabMenuOpen ? "Close menu" : "Open menu to create goal or redeem coupon"}
           >
-            <Animated.View style={{
-              transform: [{
-                rotate: fabRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }),
-              }],
-            }}>
+            <MotiView
+              animate={{ rotate: fabMenuOpen ? '45deg' : '0deg' }}
+              transition={{ type: 'timing', duration: 150 }}
+            >
               <Plus color={colors.white} size={28} strokeWidth={3} />
-            </Animated.View>
+            </MotiView>
           </TouchableOpacity>
-        </Animated.View>
+        </MotiView>
 
       </MainScreen>
     </ErrorBoundary>
@@ -583,28 +582,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   cardWrapper: {
     marginBottom: Spacing.lg,
   },
-  // ── Upgraded Empty State ──
+  // ── Empty State wrapper ──
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.huge,
     paddingBottom: Spacing.xxl,
-  },
-  emptyTitle: {
-    ...Typography.heading2,
-    color: colors.textPrimary,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    ...Typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: vh(24),
-  },
-  emptyCTA: {
-    paddingHorizontal: Spacing.xxl,
   },
   // ── Completed Goals Section ──
   completedSection: {

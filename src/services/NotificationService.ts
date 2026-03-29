@@ -14,6 +14,7 @@ import {
   getDoc,
   limit,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { Notification } from '../types';
 import { toDateSafe } from '../utils/GoalHelpers';
@@ -123,64 +124,65 @@ export class NotificationService {
     reactionType: 'muscle' | 'heart' | 'like'
   ): Promise<void> {
     try {
-      // Find existing notification for this post
+      // BUG-35 FIX: Use a deterministic document ID to eliminate the TOCTOU race
+      // where two concurrent reactions both see snapshot.empty=true and create duplicates.
+      // A single runTransaction with a known ref is atomic and idempotent.
       const notificationsRef = collection(db, 'notifications');
-      const q = query(
-        notificationsRef,
-        where('userId', '==', postOwnerId),
-        where('type', '==', 'post_reaction'),
-        where('data.postId', '==', postId),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
+      const notifId = `postReaction_${postOwnerId}_${postId}`;
+      const notifRef = doc(notificationsRef, notifId);
 
-      if (!snapshot.empty) {
-        // Update existing notification
-        const existingDoc = snapshot.docs[0];
-        const existingData = existingDoc.data();
-        const existingReactorNames: string[] = existingData.data?.reactorNames || [];
+      await runTransaction(db, async (transaction) => {
+        const existingSnap = await transaction.get(notifRef);
 
-        // Build updated reactor list (move reactor to front, cap at 5 stored names)
-        const filteredNames = existingReactorNames.filter((n: string) => n !== reactorName);
-        const updatedNames = [reactorName, ...filteredNames].slice(0, 5);
-        const existingTotal = existingData.data?.totalReactionCount || existingReactorNames.length;
-        const totalReactionCount = filteredNames.length < existingReactorNames.length
-          ? existingTotal  // Reactor already counted, just moved to front
-          : existingTotal + 1;  // New reactor
+        if (existingSnap.exists()) {
+          // Update existing notification inside the transaction
+          const existingData = existingSnap.data();
+          const existingReactorNames: string[] = existingData.data?.reactorNames || [];
 
-        const message = totalReactionCount === 1
-          ? `${updatedNames[0]} reacted to your post`
-          : totalReactionCount === 2
-            ? `${updatedNames[0]} and ${updatedNames[1]} reacted to your post`
-            : `${updatedNames[0]} and ${totalReactionCount - 1} others reacted to your post`;
+          // Build updated reactor list (move reactor to front, cap at 5 stored names)
+          const filteredNames = existingReactorNames.filter((n: string) => n !== reactorName);
+          const updatedNames = [reactorName, ...filteredNames].slice(0, 5);
+          const existingTotal = existingData.data?.totalReactionCount || existingReactorNames.length;
+          const totalReactionCount = filteredNames.length < existingReactorNames.length
+            ? existingTotal  // Reactor already counted, just moved to front
+            : existingTotal + 1;  // New reactor
 
-        await updateDoc(doc(db, 'notifications', existingDoc.id), {
-          message,
-          read: false,
-          createdAt: serverTimestamp(),
-          'data.reactorNames': updatedNames,
-          'data.totalReactionCount': totalReactionCount,
-          'data.mostRecentReaction': reactionType,
-          'data.reactorProfileImageUrl': reactorProfileImageUrl || existingData.data?.reactorProfileImageUrl,
-        });
-      } else {
-        // Create new notification
-        await this.createNotification(
-          postOwnerId,
-          'post_reaction',
-          'New Reaction',
-          `${reactorName} reacted to your post`,
-          {
-            postId,
-            reactorId,
-            reactorNames: [reactorName],
-            totalReactionCount: 1,
-            mostRecentReaction: reactionType,
-            reactorProfileImageUrl,
-          },
-          true
-        );
-      }
+          const message = totalReactionCount === 1
+            ? `${updatedNames[0]} reacted to your post`
+            : totalReactionCount === 2
+              ? `${updatedNames[0]} and ${updatedNames[1]} reacted to your post`
+              : `${updatedNames[0]} and ${totalReactionCount - 1} others reacted to your post`;
+
+          transaction.update(notifRef, {
+            message,
+            read: false,
+            createdAt: serverTimestamp(),
+            'data.reactorNames': updatedNames,
+            'data.totalReactionCount': totalReactionCount,
+            'data.mostRecentReaction': reactionType,
+            'data.reactorProfileImageUrl': reactorProfileImageUrl || existingData.data?.reactorProfileImageUrl,
+          });
+        } else {
+          // Create new notification with the deterministic ID
+          transaction.set(notifRef, {
+            userId: postOwnerId,
+            type: 'post_reaction',
+            title: 'New Reaction',
+            message: `${reactorName} reacted to your post`,
+            read: false,
+            clearable: true,
+            createdAt: serverTimestamp(),
+            data: {
+              postId,
+              reactorId,
+              reactorNames: [reactorName],
+              totalReactionCount: 1,
+              mostRecentReaction: reactionType,
+              reactorProfileImageUrl: reactorProfileImageUrl || null,
+            },
+          });
+        }
+      });
     } catch (error: unknown) {
       logger.error('❌ Error creating/updating post reaction notification:', error);
       throw error;
@@ -190,7 +192,10 @@ export class NotificationService {
   /** Listen for real-time updates for one user */
   listenToUserNotifications = (
     userId: string,
-    callback: (notifications: Notification[]) => void
+    callback: (notifications: Notification[]) => void,
+    // BUG-36 FIX: Optional error callback so callers can surface snapshot errors
+    // to the UI instead of leaving the screen in an infinite loading skeleton.
+    onError?: (error: Error) => void
   ) => {
     const q = query(
       collection(db, 'notifications'),
@@ -208,6 +213,7 @@ export class NotificationService {
       callback(notifications);
     }, (error) => {
       logger.error('[NotificationService] Notification snapshot error:', error.message);
+      onError?.(error);
     });
 
     return unsubscribe;
@@ -215,17 +221,22 @@ export class NotificationService {
 
   /** Mark all unread notifications as read for a user (batch write, max 500) */
   async markAllAsRead(userId: string): Promise<void> {
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId),
-      where('read', '==', false),
-      limit(500)
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return;
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => batch.update(d.ref, { read: true }));
-    await batch.commit();
+    try {
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        where('read', '==', false),
+        limit(500)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) return;
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.update(d.ref, { read: true }));
+      await batch.commit();
+    } catch (error) {
+      logger.error('markAllAsRead failed:', error);
+      throw error;
+    }
   }
 
   /** Mark as read */
@@ -245,14 +256,17 @@ export class NotificationService {
     }
     try {
       const ref = doc(db, 'notifications', notificationId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const notificationData = snap.data();
-        if (!force && notificationData.clearable === false) {
+      // BUG-34 FIX: Wrap check-then-delete in a transaction to eliminate the
+      // TOCTOU window between the clearable check and the actual delete.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const data = snap.data();
+        if (!force && data?.clearable === false) {
           throw new AppError('NOT_CLEARABLE', 'This notification cannot be cleared', 'business');
         }
-      }
-      await deleteDoc(ref);
+        tx.delete(ref);
+      });
     } catch (error: unknown) {
       if (error instanceof AppError) throw error; // Re-throw business logic errors
       logger.warn('Failed to delete notification:', error);
@@ -318,18 +332,21 @@ export class NotificationService {
       const snapshot = await getDocs(q);
 
       // Mark all goal_progress notifications for this goal as stale (non-actionable)
-      // This prevents givers from leaving hints on old session notifications
-      const updatePromises = snapshot.docs
-        .filter(doc => {
-          const data = doc.data();
-          // Mark notifications from sessions before the current one as stale
-          return data.data?.sessionNumber && data.data.sessionNumber < currentSessionNumber;
-        })
-        .map(doc => updateDoc(doc.ref, { isStale: true }));
+      // This prevents givers from leaving hints on old session notifications.
+      // Use a WriteBatch so all updates are sent in a single round-trip and succeed or fail together.
+      const docsToMark = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        // Mark notifications from sessions before the current one as stale
+        return data.data?.sessionNumber && data.data.sessionNumber < currentSessionNumber;
+      });
 
-      await Promise.all(updatePromises);
+      if (docsToMark.length > 0) {
+        const batch = writeBatch(db);
+        docsToMark.forEach(d => batch.update(doc(db, 'notifications', d.id), { isStale: true }));
+        await batch.commit();
+      }
 
-      logger.log(`✅ Marked ${updatePromises.length} old goal_progress notifications as stale for goal ${goalId}`);
+      logger.log(`✅ Marked ${docsToMark.length} old goal_progress notifications as stale for goal ${goalId}`);
     } catch (error: unknown) {
       logger.error('❌ Error invalidating old goal_progress notifications:', error);
       // Don't throw - this is a cleanup operation

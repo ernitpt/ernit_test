@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import { logger } from '../utils/logger';
@@ -30,6 +30,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
     const [isLoading, setIsLoading] = useState(false);
     const [position, setPosition] = useState(0);
     const mountedRef = useRef(true);
+    const isLoadingRef = useRef(false);
 
     useEffect(() => {
         return () => {
@@ -43,29 +44,35 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
         };
     }, [sound]);
 
-    const togglePlayback = async () => {
+    const togglePlayback = useCallback(async () => {
         try {
             if (!sound) {
+                if (isLoadingRef.current) return; // Prevent double-tap leak
+                isLoadingRef.current = true;
                 setIsLoading(true);
-                const { sound: newSound } = await Audio.Sound.createAsync({ uri });
-                if (!mountedRef.current) {
-                    newSound.unloadAsync();
-                    return;
-                }
-                setIsLoading(false);
-                setSound(newSound);
-                newSound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded) {
-                        setPosition(status.positionMillis);
-                        setIsPlaying(status.isPlaying);
-                        if (status.didJustFinish) {
-                            setIsPlaying(false);
-                            setPosition(0);
-                            newSound.setPositionAsync(0);
-                        }
+                try {
+                    const { sound: newSound } = await Audio.Sound.createAsync({ uri });
+                    if (!mountedRef.current) {
+                        newSound.unloadAsync();
+                        return;
                     }
-                });
-                await newSound.playAsync();
+                    setIsLoading(false);
+                    setSound(newSound);
+                    newSound.setOnPlaybackStatusUpdate((status) => {
+                        if (status.isLoaded) {
+                            setPosition(status.positionMillis);
+                            setIsPlaying(status.isPlaying);
+                            if (status.didJustFinish) {
+                                setIsPlaying(false);
+                                setPosition(0);
+                                newSound.setPositionAsync(0);
+                            }
+                        }
+                    });
+                    await newSound.playAsync();
+                } finally {
+                    isLoadingRef.current = false;
+                }
             } else {
                 if (isPlaying) {
                     await sound.pauseAsync();
@@ -78,7 +85,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
             logger.error("Error loading audio:", error);
             showError('Failed to load audio');
         }
-    };
+    }, [sound, uri, isPlaying]);
 
     const isPopup = variant === 'popup';
 

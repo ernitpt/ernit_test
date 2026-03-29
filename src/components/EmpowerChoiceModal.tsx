@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import {
     Text,
     StyleSheet,
@@ -42,22 +42,27 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
-    const setEmpowerContext = () => {
+    const pendingRef = useRef(false);
+
+    const setEmpowerContext = useCallback(() => {
         dispatch({
             type: 'SET_EMPOWER_CONTEXT',
             payload: { goalId, userId: goalUserId, userName },
         });
-    };
+    }, [dispatch, goalId, goalUserId, userName]);
 
-    const handleDirect = () => {
+    const handleDirect = useCallback(() => {
         if (!pledgedExperienceId) return;
+        if (pendingRef.current) return;
+        pendingRef.current = true;
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEmpowerContext();
         onClose();
         navigation.navigate('ExperienceCheckout', {
             cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
         });
-    };
+        setTimeout(() => { pendingRef.current = false; }, 500);
+    }, [pledgedExperienceId, setEmpowerContext, onClose, navigation]);
 
     const handleBrowse = () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

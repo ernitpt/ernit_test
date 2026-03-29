@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
+    Platform,
+    BackHandler,
 } from 'react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -20,6 +22,17 @@ interface HowItWorksModalProps {
 function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+
+    // Android hardware back button
+    useEffect(() => {
+        if (Platform.OS === 'web') return;
+        if (!visible) return;
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            onClose();
+            return true;
+        });
+        return () => subscription.remove();
+    }, [visible, onClose]);
 
     return (
         <BaseModal visible={visible} onClose={onClose} title="How Ernit Works" variant="bottom" noPadding>

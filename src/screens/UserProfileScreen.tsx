@@ -51,6 +51,7 @@ import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import { Avatar } from '../components/Avatar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MotiView } from 'moti';
 
 // =========================
 // Goal Card (Active goals)
@@ -78,9 +79,12 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (goal.empoweredBy) {
-      userService.getUserName(goal.empoweredBy).then(setEmpoweredName);
-    }
+    if (!goal.empoweredBy) return;
+    let mounted = true;
+    userService.getUserName(goal.empoweredBy)
+      .then(name => { if (mounted) setEmpoweredName(name); })
+      .catch(() => {});
+    return () => { mounted = false; };
   }, [goal.empoweredBy]);
 
   // Sessions this week
@@ -96,7 +100,8 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
     : Math.min(base + (finishedThisWeek ? 1 : 0), totalWeeks);
 
   const handlePress = useCallback(() => {
-    navigation.navigate('Journey', { goal });
+    // FIX 3b: Serialize Timestamps before navigation to avoid passing non-serializable objects
+    navigation.navigate('Journey', { goal: serializeNav(goal) });
   }, [navigation, goal]);
 
   return (
@@ -228,47 +233,52 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
     && effectiveDeadline && effectiveDeadline > new Date();
 
   useEffect(() => {
+    let mounted = true;
     const loadAchievementData = async () => {
       try {
         // Self-achievement or pledged: no remote data needed
         if (isSelfAchievement || hasPledgedExperience) {
-          setLoadingCard(false);
+          if (mounted) setLoadingCard(false);
           return;
         }
 
         // Standard goals
-        if (!goal.experienceGiftId) { setLoadingCard(false); return; }
+        if (!goal.experienceGiftId) { if (mounted) setLoadingCard(false); return; }
         try {
           const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
-          setGift(giftData);
           const exp = await experienceService.getExperienceById(giftData.experienceId);
-          setExperience(exp || null);
-          setPartnerName(exp?.subtitle || 'Partner')
+          if (mounted) {
+            setGift(giftData);
+            setExperience(exp || null);
+            setPartnerName(exp?.subtitle || 'Partner');
+          }
         } catch (dataErr: unknown) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
       } catch (err: unknown) {
         logger.error('Error loading achievement data:', err);
       } finally {
-        setLoadingCard(false);
+        if (mounted) setLoadingCard(false);
       }
     };
     loadAchievementData();
+    return () => { mounted = false; };
   }, [goal.experienceGiftId]);
 
   const weeks = goal.targetCount || 0;
   const sessions = (goal.targetCount || 0) * (goal.sessionsPerWeek || 0);
 
   const handlePress = useCallback(() => {
-    navigation.navigate('Journey', { goal });
+    // FIX 3b: Serialize Timestamps before navigation to avoid passing non-serializable objects
+    navigation.navigate('Journey', { goal: serializeNav(goal) });
   }, [navigation, goal]);
 
   // Completion date
   const completedAt = goal.completedAt
-    ? new Date(typeof goal.completedAt === 'object' && 'toDate' in goal.completedAt
-      ? (goal.completedAt as { toDate: () => Date }).toDate()
-      : goal.completedAt
-    ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? (goal.completedAt instanceof Date
+        ? goal.completedAt
+        : (goal.completedAt as any)?.toDate?.() ?? new Date()
+      ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
   // Self-achievement card
@@ -503,20 +513,33 @@ const UserProfileScreen: React.FC = () => {
 
   const userId = state.user?.id || '';
 
+  // FIX 3a: isMounted ref to guard against setState calls on unmounted component
+  const loadProfileMountedRef = useRef(true);
+  useEffect(() => {
+    loadProfileMountedRef.current = true;
+    return () => { loadProfileMountedRef.current = false; };
+  }, []);
+
+  // Always-current ref for state.user so rollbacks use fresh data, not a stale closure
+  const stateUserRef = useRef(state.user);
+  useEffect(() => { stateUserRef.current = state.user; }, [state.user]);
+
   const loadProfileAndGoals = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); setRefreshing(false); return; }
     try {
       setLoading(true);
       setError(false);
       const fetchedProfile = await userService.getUserProfile(userId);
+      if (!loadProfileMountedRef.current) return;
       setUserProfile(fetchedProfile);
 
       const userGoals = await goalService.getUserGoals(userId);
+      if (!loadProfileMountedRef.current) return;
       const active = userGoals.filter(
         (g) =>
           !g.isCompleted &&
           g.currentCount < g.targetCount &&
-          (!g.startDate || (toJSDate(g.startDate) ?? new Date(g.startDate as Date)) <= new Date())
+          (!g.startDate || (toJSDate(g.startDate) ?? new Date()) <= new Date())
       );
       const completed = userGoals.filter(
         (g) => {
@@ -528,13 +551,15 @@ const UserProfileScreen: React.FC = () => {
       setCompletedGoals(completed);
 
       const userWishlist = await userService.getWishlist(userId);
+      if (!loadProfileMountedRef.current) return;
       setWishlist(userWishlist || []);
     } catch (error: unknown) {
       logger.error('Error loading profile data:', error);
+      if (!loadProfileMountedRef.current) return;
       setError(true);
       showError('Could not load profile. Please try again.');
     } finally {
-      setLoading(false);
+      if (loadProfileMountedRef.current) setLoading(false);
     }
   }, [userId]);
 
@@ -717,18 +742,18 @@ const UserProfileScreen: React.FC = () => {
     try {
       await userService.updateUserProfile(userId, { profile: updatedProfile });
     } catch (error: unknown) {
-      // 7. Rollback on failure
+      // 7. Rollback on failure — use stateUserRef.current for always-fresh user data
       logger.error('Error updating profile:', error);
       setUserProfile(previousProfile);
-      if (state.user && previousProfile) {
-        const revertedUser: User = { ...state.user, profile: previousProfile };
+      if (stateUserRef.current && previousProfile) {
+        const revertedUser: User = { ...stateUserRef.current, profile: previousProfile };
         dispatch({ type: 'SET_USER', payload: revertedUser });
       }
       showError('Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, editFormData, userProfile, userId, state.user, dispatch]);
+  }, [isSaving, editFormData, userProfile, userId, state.user, dispatch, pendingImageBlob, pendingImageUri]);
 
   const handleRemoveFromWishlist = useCallback((experienceId: string) => {
     if (!state.user) {
@@ -744,9 +769,16 @@ const UserProfileScreen: React.FC = () => {
     if (!experienceId) return;
     setWishlistRemoveId(null);
 
+    // BUG-20: guard against null user to avoid doc(db, 'users', '') empty-string ref
+    const uid = state.user?.id;
+    if (!uid) { showError('Not logged in'); return; }
+
     try {
-      const userRef = doc(db, 'users', state.user?.id ?? "");
+      const userRef = doc(db, 'users', uid);
       await updateDoc(userRef, { wishlist: arrayRemove(experienceId) });
+
+      // BUG-19: guard against setState on unmounted component
+      if (!loadProfileMountedRef.current) return;
 
       // Update local state
       setWishlist((prev) => prev.filter((exp) => exp.id !== experienceId));
@@ -785,7 +817,7 @@ const UserProfileScreen: React.FC = () => {
       if (!activeGoals.length) {
         return (
           <View style={styles.emptyGoalsCenter}>
-            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ChallengeLanding' as never)} />
+            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ChallengeLanding')} />
           </View>
         );
       }
@@ -854,14 +886,21 @@ const UserProfileScreen: React.FC = () => {
                 name={userProfile?.name || state.user?.displayName}
                 size="xl"
               />
-              <TouchableOpacity
+              <MotiView
+                from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+                transition={{ type: 'timing', duration: 150 }}
                 style={styles.editIconButton}
-                onPress={openEditModal}
-                accessibilityRole="button"
-                accessibilityLabel="Edit profile"
               >
-                <Edit2 color={colors.secondary} size={18} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={openEditModal}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profile"
+                >
+                  <Edit2 color={colors.secondary} size={18} />
+                </TouchableOpacity>
+              </MotiView>
             </View>
 
             <Text style={styles.userName}>

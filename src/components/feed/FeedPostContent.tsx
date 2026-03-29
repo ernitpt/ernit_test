@@ -24,6 +24,18 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+
+    // P3-18: Array.from() moved out of render body into memoised values
+    const weeklyCapsules = useMemo(
+        () => Array.from({ length: post.sessionsPerWeek || 1 }, (_, i) => i),
+        [post.sessionsPerWeek]
+    );
+
+    const weeksCapsules = useMemo(
+        () => Array.from({ length: Math.min(Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1)), 20) }, (_, i) => i),
+        [post.totalSessions, post.sessionsPerWeek]
+    );
+
     return (
         <View style={styles.content}>
             {post.type === 'session_progress' && post.sessionNumber && post.totalSessions && (
@@ -36,7 +48,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                             </Text>
                         </View>
                         <View style={styles.capsuleRow}>
-                            {Array.from({ length: post.sessionsPerWeek || 1 }, (_, i) => (
+                            {weeklyCapsules.map((i) => (
                                 <View
                                     key={i}
                                     style={[
@@ -54,16 +66,16 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                         <View style={styles.progressHeader}>
                             <Text style={styles.progressLabel}>Weeks completed</Text>
                             <Text style={styles.progressText}>
-                                {Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))}/{Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1))}
+                                {Math.max(0, Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1)))}/{Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1))}
                             </Text>
                         </View>
                         <View style={styles.capsuleRow}>
-                            {Array.from({ length: Math.min(Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1)), 20) }, (_, i) => (
+                            {weeksCapsules.map((i) => (
                                 <View
                                     key={i}
                                     style={[
                                         styles.capsule,
-                                        i < Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1))
+                                        i < Math.max(0, Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1)))
                                             ? { backgroundColor: colors.secondary }
                                             : { backgroundColor: colors.border },
                                     ]}

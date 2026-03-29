@@ -26,7 +26,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { Heart, Search, X, Gift, MapPin } from 'lucide-react-native';
 import { MotiView, AnimatePresence } from 'moti';
@@ -345,6 +345,9 @@ const CategorySelectionScreen = () => {
   const currentCart = state.user?.cart || state.guestCart || [];
   const cartItemCount = useMemo(() => currentCart.reduce((total, item) => total + item.quantity, 0) || 0, [currentCart]);
 
+  // Prevents double-tap race on wishlist toggle
+  const wishlistUpdatingRef = useRef(false);
+
   // Save guest cart to local storage whenever it changes
   const prevCartRef = useRef<string>('');
   useEffect(() => {
@@ -357,22 +360,22 @@ const CategorySelectionScreen = () => {
     }
   }, [state.guestCart, state.user]);
 
-  // Load guest cart from storage on mount if not authenticated
+  // Load guest cart from storage when not authenticated
+  // Re-runs when auth state changes so a just-logged-in user doesn't accidentally restore a guest cart
   useEffect(() => {
+    if (state.user) return; // logged in — no guest cart to load
     const loadGuestCart = async () => {
-      if (!state.user) {
-        try {
-          const guestCart = await cartService.getGuestCart();
-          if (guestCart.length > 0) {
-            dispatch({ type: 'SET_CART', payload: guestCart });
-          }
-        } catch (error: unknown) {
-          logger.error('Error loading guest cart:', error);
+      try {
+        const guestCart = await cartService.getGuestCart();
+        if (guestCart.length > 0) {
+          dispatch({ type: 'SET_CART', payload: guestCart });
         }
+      } catch (error: unknown) {
+        logger.error('Error loading guest cart:', error);
       }
     };
     loadGuestCart();
-  }, []);
+  }, [state.user]); // re-check whenever auth state changes
 
   const handleCartPress = useCallback(() => {
     navigation.navigate('Cart');
@@ -387,7 +390,12 @@ const CategorySelectionScreen = () => {
     setError(false);
     setIsLoading(true);
     try {
-      const snapshot = await getDocs(collection(db, 'experiences'));
+      const q = query(
+        collection(db, 'experiences'),
+        where('status', '!=', 'draft'),
+        limit(100)
+      );
+      const snapshot = await getDocs(q);
       const allExperiences = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Experience));
 
       const validCategories = ['adventure', 'creative', 'wellness'];
@@ -482,10 +490,13 @@ const CategorySelectionScreen = () => {
     }
   };
 
-  const toggleWishlist = async (experienceId: string) => {
+  const toggleWishlist = useCallback(async (experienceId: string) => {
+    if (wishlistUpdatingRef.current) return;
+    wishlistUpdatingRef.current = true;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!user || !state.user) {
       showInfo('Please log in to use wishlist.');
+      wishlistUpdatingRef.current = false;
       return;
     }
 
@@ -503,8 +514,10 @@ const CategorySelectionScreen = () => {
     } catch (error: unknown) {
       logger.error('Error updating wishlist:', error);
       showError('Failed to update wishlist. Please try again.');
+    } finally {
+      wishlistUpdatingRef.current = false;
     }
-  };
+  }, [user, state.user, wishlist, showInfo, showError]);
 
   // Derive popular experiences for the hero carousel
   const popularExperiences = useMemo(() => {

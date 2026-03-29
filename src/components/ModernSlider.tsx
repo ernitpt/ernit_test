@@ -30,6 +30,8 @@ const ModernSlider = ({
     const trackPageX = useRef(0);
 
     const handlePress = (event: GestureResponderEvent) => {
+        // Guard: skip calculation if onLayout hasn't fired yet (trackPageX is still 0)
+        if (trackPageX.current === 0) return;
         const { pageX } = event.nativeEvent;
         const relativeX = pageX - trackPageX.current;
         const percentage = Math.max(0, Math.min(1, relativeX / trackWidth));
@@ -42,7 +44,12 @@ const ModernSlider = ({
     const displayUnit = unit && unitPlural ? (value === 1 ? unit : unitPlural) : '';
 
     return (
-        <View style={styles.sliderContainer}>
+        <View
+            style={styles.sliderContainer}
+            accessibilityRole="adjustable"
+            accessibilityLabel={label}
+            accessibilityValue={{ min, max, now: value }}
+        >
             <Text style={styles.sliderTitle}>{label}</Text>
             <View style={styles.sliderValueRow}>
                 <Text style={styles.sliderValue}>{value}</Text>

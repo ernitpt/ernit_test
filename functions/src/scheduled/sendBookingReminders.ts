@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 /**
  * Cloud Function: sendBookingReminders
@@ -55,7 +56,8 @@ export const sendBookingReminders = functions.onSchedule(
         try {
             logger.info("🔔 [PROD] Starting booking reminders check...");
 
-            const db = require("../index").dbProd;
+            // Get production db directly (avoids circular require("../index"))
+            const db = getFirestore();
             const now = new Date();
 
             // Query completed goals that have an experience gift attached

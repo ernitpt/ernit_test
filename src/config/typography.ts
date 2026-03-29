@@ -8,7 +8,9 @@
 
 import { Platform, TextStyle } from 'react-native';
 
-// Disable font scaling on native to prevent Android system font size from breaking layout
+// Disable font scaling on native to prevent Android system font size from breaking layouts.
+// The app is designed with fixed line-heights that do not reflow gracefully at larger sizes.
+// WCAG 1.4.4 note: this is a known trade-off — revisit with a full layout audit before enabling.
 const noScale: TextStyle = Platform.OS !== 'web' ? { allowFontScaling: false } : {};
 
 export const Typography: Record<string, TextStyle> = {

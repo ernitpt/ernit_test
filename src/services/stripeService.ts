@@ -26,7 +26,14 @@ export const stripeService = {
       quantity: number;
     }[],
     personalizedMessage?: string,
-    isMystery?: boolean
+    isMystery?: boolean,
+    challengeMeta?: {
+      challengeType?: 'solo' | 'shared';
+      revealMode?: 'secret' | 'revealed';
+      goalName?: string;
+      goalType?: string;
+      sameExperienceForBoth?: boolean;
+    }
   ): Promise<{ clientSecret: string; paymentIntentId: string }> => {
     try {
       // Get the current user's ID token
@@ -54,6 +61,7 @@ export const stripeService = {
             cart: cartItems,
             personalizedMessage: personalizedMessage || "",
             isMystery: isMystery || false,
+            ...(challengeMeta ?? {}),
           }),
           signal: controller.signal,
         });
@@ -69,7 +77,13 @@ export const stripeService = {
 
       // Extract payment intent ID from client secret
       // Format: pi_xxxxx_secret_yyyyy
-      const paymentIntentId = data.clientSecret.split("_secret_")[0];
+      const parts = data.clientSecret.split("_secret_");
+      if (parts.length !== 2 || !parts[0].startsWith("pi_")) {
+        throw new Error(
+          `Invalid clientSecret format: expected pi_xxx_secret_yyy, got ${String(data.clientSecret).substring(0, 20)}...`
+        );
+      }
+      const paymentIntentId = parts[0];
 
       return {
         clientSecret: data.clientSecret,

@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   SafeAreaView,
   KeyboardAvoidingView,
@@ -13,6 +12,7 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+import { TextInput } from '../../components/TextInput';
 import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { sanitizeText } from '../../utils/sanitization';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import Button from '../../components/Button';
+import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../../services/AnalyticsService';
 import { friendService } from '../../services/FriendService';
 import { Colors, useColors } from '../../config';
@@ -36,7 +37,6 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { Shadows } from '../../config/shadows';
-import { MotiView, AnimatePresence } from 'moti';
 
 type CouponEntryNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RecipientStackParamList, 'CouponEntry'>,
@@ -92,6 +92,9 @@ const CouponEntryScreen = () => {
   }, []);
 
   const triggerShake = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
     shakeAnim.setValue(0);
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
@@ -103,6 +106,31 @@ const CouponEntryScreen = () => {
   };
 
   const validateClaimCode = (code: string) => /^[A-Z0-9]{12}$/.test(code);
+
+  /**
+   * Serialize all Firestore Timestamp / Date fields on an ExperienceGift to ISO
+   * strings so the object survives React Navigation's serialization step.
+   * Without this, Timestamp instances crash or become empty objects in params.
+   */
+  const serializeGift = useCallback((gift: ExperienceGift): ExperienceGift => {
+    const toIso = (val: unknown): string | null => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toISOString();
+      if (typeof (val as { toDate?: () => Date }).toDate === 'function') {
+        return (val as { toDate: () => Date }).toDate().toISOString();
+      }
+      return String(val);
+    };
+    return {
+      ...gift,
+      createdAt: (toIso(gift.createdAt) ?? gift.createdAt) as Date,
+      expiresAt: gift.expiresAt != null ? (toIso(gift.expiresAt) as unknown as Date) : gift.expiresAt,
+      claimedAt: gift.claimedAt != null ? (toIso(gift.claimedAt) as unknown as Date) : gift.claimedAt,
+      completedAt: gift.completedAt != null ? (toIso(gift.completedAt) as unknown as Date) : gift.completedAt,
+      updatedAt: gift.updatedAt != null ? (toIso(gift.updatedAt) as unknown as Date) : gift.updatedAt,
+      deliveryDate: (toIso(gift.deliveryDate) ?? gift.deliveryDate) as Date,
+    };
+  }, []);
 
   const handleClaimCode = useCallback(async (codeOverride?: string) => {
     if (isLoading) return;
@@ -176,6 +204,10 @@ const CouponEntryScreen = () => {
       analyticsService.trackEvent('coupon_redeemed', 'conversion', { giftId: giftDoc.id }, 'CouponEntryScreen');
       dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: experienceGift });
 
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
       // Auto-add giver as friend on redeem
       if (experienceGift.giverId && state.user?.id && experienceGift.giverId !== state.user.id) {
         try {
@@ -201,7 +233,7 @@ const CouponEntryScreen = () => {
         // No message, proceed directly to GoalSetting (RootStack)
         navigation.dispatch(CommonActions.reset({
           index: 0,
-          routes: [{ name: 'GoalSetting', params: { experienceGift } }],
+          routes: [{ name: 'GoalSetting', params: { experienceGift: serializeGift(experienceGift) } }],
         }));
       }
     } catch (error: unknown) {
@@ -218,7 +250,7 @@ const CouponEntryScreen = () => {
       setIsLoading(false);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [isLoading, claimCode, state.user, navigation, dispatch, triggerShake]);
+  }, [isLoading, claimCode, state.user, navigation, dispatch, triggerShake, serializeGift]);
 
   const handleContinueFromMessage = () => {
     setShowPersonalizedMessage(false);
@@ -227,7 +259,7 @@ const CouponEntryScreen = () => {
       if (pendingExperienceGift) {
         navigation.dispatch(CommonActions.reset({
           index: 0,
-          routes: [{ name: 'GoalSetting', params: { experienceGift: pendingExperienceGift } }],
+          routes: [{ name: 'GoalSetting', params: { experienceGift: serializeGift(pendingExperienceGift) } }],
         }));
       }
     }, 200);
@@ -279,14 +311,7 @@ const CouponEntryScreen = () => {
                     ]}
                   >
                     <TextInput
-                      style={[
-                        styles.codeInput,
-                        errorMessage
-                          ? styles.codeInputError
-                          : styles.codeInputNormal,
-                      ]}
                       placeholder="ABC123DEF456"
-                      placeholderTextColor={colors.textMuted}
                       value={claimCode}
                       onChangeText={(text) => {
                         const clean = text.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -295,35 +320,23 @@ const CouponEntryScreen = () => {
 
                         // Auto-submit when 12 valid chars - pass the fresh code value
                         if (clean.length === 12 && validateClaimCode(clean) && !isLoading) {
-                          setTimeout(() => handleClaimCode(clean), 50);
+                          if (continueTimeoutRef.current) clearTimeout(continueTimeoutRef.current);
+                          continueTimeoutRef.current = setTimeout(() => handleClaimCode(clean), 50);
                         }
                       }}
+                      error={errorMessage || undefined}
                       maxLength={12}
                       autoCapitalize="characters"
                       autoCorrect={false}
                       autoFocus
-                      editable={!isLoading}
+                      disabled={isLoading}
                       returnKeyType="done"
                       onSubmitEditing={() => handleClaimCode()}
                       accessibilityLabel="Coupon code input"
+                      inputStyle={styles.codeInputText}
                     />
                   </Animated.View>
 
-                  {/* Error message (fade in/out via Moti) */}
-                  <AnimatePresence>
-                    {errorMessage ? (
-                      <MotiView
-                        key="error"
-                        from={{ opacity: 0, translateY: -8 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        exit={{ opacity: 0, translateY: -8 }}
-                        transition={{ type: 'timing', duration: 200 }}
-                        style={styles.errorContainer}
-                      >
-                        <Text style={styles.errorText}>{errorMessage}</Text>
-                      </MotiView>
-                    ) : null}
-                  </AnimatePresence>
 
                   <Button
                     variant="primary"
@@ -455,38 +468,12 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   animatedInputWrapper: {
     width: '100%',
   },
-  codeInput: {
-    backgroundColor: colors.white,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+  codeInputText: {
     ...Typography.heading3,
     textAlign: 'center',
     letterSpacing: 4,
-    color: colors.textPrimary,
-    width: '100%',
-  },
-  codeInputNormal: {
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  codeInputError: {
-    borderWidth: 2,
-    borderColor: colors.error,
   },
 
-  // ── Error message ───────────────────────────────────────────
-  errorContainer: {
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    marginTop: -Spacing.xs,
-    marginBottom: -Spacing.xs,
-  },
-  errorText: {
-    color: colors.error,
-    ...Typography.smallBold,
-    textAlign: 'center',
-  },
 
   // ── Info box ────────────────────────────────────────────────
   infoBox: {

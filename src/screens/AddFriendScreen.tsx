@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -53,35 +53,41 @@ const AddFriendScreen: React.FC = () => {
   const currentUserName = state.user?.displayName || state.user?.profile?.name || 'User';
   const currentUserProfileImageUrl = state.user?.profile?.profileImageUrl;
 
+  // C16: Generation counter — discards stale responses when a newer search is in flight
+  const searchGenRef = useRef(0);
+
+  const handleSearch = useCallback(async (query: string) => {
+    if (!currentUserId || query.length < 2) return;
+    const gen = ++searchGenRef.current;
+    try {
+      setIsSearching(true);
+      setSearchError(false);
+      const results = await friendService.searchUsers(sanitizeText(query, 100), currentUserId);
+      if (gen !== searchGenRef.current) return; // stale, discard
+      setSearchResults(results);
+    } catch (error: unknown) {
+      if (gen !== searchGenRef.current) return; // stale, discard
+      logger.error('Error searching users:', error);
+      setSearchError(true);
+      showError('Failed to search users. Please try again.');
+    } finally {
+      if (gen === searchGenRef.current) {
+        setIsSearching(false);
+      }
+    }
+  }, [currentUserId, showError]);
 
   useEffect(() => {
     if (searchTerm.length >= 2) {
       const timeoutId = setTimeout(() => {
-        handleSearch();
+        handleSearch(searchTerm);
       }, 500);
 
       return () => clearTimeout(timeoutId);
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm]);
-
-  const handleSearch = useCallback(async () => {
-    if (!currentUserId || searchTerm.length < 2) return;
-
-    try {
-      setIsSearching(true);
-      setSearchError(false);
-      const results = await friendService.searchUsers(sanitizeText(searchTerm, 100), currentUserId);
-      setSearchResults(results);
-    } catch (error: unknown) {
-      logger.error('Error searching users:', error);
-      setSearchError(true);
-      showError('Failed to search users. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  }, [currentUserId, searchTerm]);
+  }, [searchTerm, handleSearch]);
 
   const handleSendFriendRequest = useCallback(async (user: UserSearchResult) => {
     if (!currentUserId) return;
@@ -187,7 +193,7 @@ const AddFriendScreen: React.FC = () => {
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
-          onSubmitEditing={handleSearch}
+          onSubmitEditing={() => handleSearch(searchTerm)}
           accessibilityLabel="Search for friends by name or email"
           leftIcon={<Search size={18} color={colors.textMuted} />}
           containerStyle={{ marginBottom: 0 }}
@@ -209,7 +215,7 @@ const AddFriendScreen: React.FC = () => {
         )}
 
         {searchError && !isSearching && searchTerm.length >= 2 && (
-          <ErrorRetry message="Could not search users" onRetry={handleSearch} />
+          <ErrorRetry message="Could not search users" onRetry={() => handleSearch(searchTerm)} />
         )}
 
         {!searchError && searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (

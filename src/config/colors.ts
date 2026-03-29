@@ -8,6 +8,7 @@
 export const Colors = {
     // ─── Primary brand color ────────────────────────────────────────────
     primary: '#059669',       // emerald-600  — was #7C3AED
+    primaryText: '#047857',   // emerald-700  — use for primary-colored text (4.3:1 vs white, WCAG AA for large/bold)
     primaryDark: '#047857',   // emerald-700  — was #9333EA
     primaryDeep: '#065F46',   // emerald-900  — was #6D28D9
     primaryDeeper: '#064E3B', // emerald-950  — was #5B21B6
@@ -43,7 +44,7 @@ export const Colors = {
     errorDark: '#991B1B',
     textPrimary: '#111827',
     textSecondary: '#6B7280',
-    textMuted: '#9CA3AF',
+    textMuted: '#6B7280',    // gray-500 — upgraded from #9CA3AF to meet WCAG AA (4.6:1 vs white)
     border: '#E5E7EB',
     surface: '#F9FAFB',
     backgroundLight: '#F3F4F6',
@@ -78,6 +79,7 @@ export const Colors = {
 
     // ─── Success / green ──────────────────────────────────────────────
     success: '#22C55E',
+    successText: '#16A34A',   // green-600 — use for success-state text (4.5:1 vs white, WCAG AA)
     successLight: '#DCFCE7',
     successLighter: '#F0FDF4',  // green-50
     successMedium: '#16A34A',   // green-600
@@ -160,6 +162,16 @@ export const Colors = {
     // ─── Additional alpha variants ──────────────────────────────────
     whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
     whiteAlpha08: 'rgba(255, 255, 255, 0.08)',
+    whiteAlpha06: 'rgba(255, 255, 255, 0.06)',
+
+    // ─── Primary alpha variants ───────────────────────────────────────
+    primaryAlpha10: 'rgba(16, 185, 129, 0.1)',   // emerald-500 at 10% — badge bg tint
+    primaryAlpha30: 'rgba(16, 185, 129, 0.3)',   // emerald-500 at 30% — badge border
+    primaryAlpha40: 'rgba(16, 185, 129, 0.4)',   // emerald-500 at 40% — text glow
+
+    // ─── Warning alpha variants ───────────────────────────────────────
+    warningAlpha10: 'rgba(245, 158, 11, 0.1)',   // amber-500 at 10% — badge bg tint
+    warningAlpha30: 'rgba(245, 158, 11, 0.3)',   // amber-500 at 30% — badge border
 
     // ─── Disabled state ───────────────────────────────────────────────
     disabled: '#D1D5DB',
@@ -190,6 +202,7 @@ export default Colors;
 export const DarkColors = {
     // ─── Primary brand color (brightened for dark surface contrast) ────
     primary: '#10B981',       // emerald-500
+    primaryText: '#34D399',   // emerald-400 — bright enough for text on dark surfaces
     primaryDark: '#059669',   // emerald-600
     primaryDeep: '#047857',   // emerald-700
     primaryDeeper: '#065F46', // emerald-900
@@ -258,6 +271,7 @@ export const DarkColors = {
 
     // ─── Success / green ────────────────────────────────────────────
     success: '#4ADE80',
+    successText: '#86EFAC',   // green-300 — bright enough for success text on dark surfaces
     successLight: 'rgba(34, 197, 94, 0.15)',
     successLighter: 'rgba(34, 197, 94, 0.08)',
     successMedium: '#22C55E',
@@ -340,6 +354,16 @@ export const DarkColors = {
     // ─── Additional alpha variants ──────────────────────────────────
     whiteAlpha70: 'rgba(255, 255, 255, 0.7)',
     whiteAlpha08: 'rgba(255, 255, 255, 0.08)',
+    whiteAlpha06: 'rgba(255, 255, 255, 0.06)',
+
+    // ─── Primary alpha variants ───────────────────────────────────────
+    primaryAlpha10: 'rgba(16, 185, 129, 0.15)',  // slightly brighter on dark
+    primaryAlpha30: 'rgba(16, 185, 129, 0.35)',
+    primaryAlpha40: 'rgba(16, 185, 129, 0.4)',
+
+    // ─── Warning alpha variants ───────────────────────────────────────
+    warningAlpha10: 'rgba(245, 158, 11, 0.15)',
+    warningAlpha30: 'rgba(245, 158, 11, 0.35)',
 
     // ─── Disabled state ─────────────────────────────────────────────
     disabled: '#3D4556',

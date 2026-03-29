@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Gift, Heart } from 'lucide-react-native';
@@ -27,18 +27,18 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
     const empowerScale = useRef(new Animated.Value(1)).current;
     const motivateScale = useRef(new Animated.Value(1)).current;
 
-    const handleEmpowerPressIn = () => {
+    const handleEmpowerPressIn = useCallback(() => {
         Animated.spring(empowerScale, { toValue: 0.97, ...Animations.springs.bouncy, useNativeDriver: true }).start();
-    };
-    const handleEmpowerPressOut = () => {
+    }, [empowerScale]);
+    const handleEmpowerPressOut = useCallback(() => {
         Animated.spring(empowerScale, { toValue: 1, ...Animations.springs.bouncy, useNativeDriver: true }).start();
-    };
-    const handleMotivatePressIn = () => {
+    }, [empowerScale]);
+    const handleMotivatePressIn = useCallback(() => {
         Animated.spring(motivateScale, { toValue: 0.97, ...Animations.springs.bouncy, useNativeDriver: true }).start();
-    };
-    const handleMotivatePressOut = () => {
+    }, [motivateScale]);
+    const handleMotivatePressOut = useCallback(() => {
         Animated.spring(motivateScale, { toValue: 1, ...Animations.springs.bouncy, useNativeDriver: true }).start();
-    };
+    }, [motivateScale]);
 
     return (
         <>

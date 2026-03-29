@@ -42,6 +42,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     const [alreadySentMotivation, setAlreadySentMotivation] = useState(false);
     const [goalIsCompleted, setGoalIsCompleted] = useState(false);
     const [targetSession, setTargetSession] = useState<number>(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const isMounted = useRef(true);
 
     const data = notification.data || {};
@@ -81,10 +82,15 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     }, [data.goalId, state.user?.id]);
 
     const handleClear = async () => {
+        // BUG-11: prevent double-submission if tap fires again while in flight
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             await notificationService.deleteNotification(notification.id!);
         } catch (error: unknown) {
+            // BUG-10: guard setState-path (logErrorToFirestore) against unmounted component
+            if (!isMounted.current) return;
             logger.error('Error clearing notification:', error);
             await logErrorToFirestore(error, {
                 screenName: 'FreeGoalNotification',
@@ -92,6 +98,9 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 userId: 'system',
                 additionalData: { notificationId: notification.id },
             });
+        } finally {
+            // BUG-11: always reset so the button becomes tappable again on error
+            if (isMounted.current) setIsSubmitting(false);
         }
     };
 
@@ -106,6 +115,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                 <TouchableOpacity
                     style={styles.clearButton}
                     onPress={handleClear}
+                    disabled={isSubmitting}
                     activeOpacity={0.7}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     accessibilityRole="button"

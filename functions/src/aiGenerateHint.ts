@@ -8,7 +8,7 @@ import {
   HintCategory,
   HintCategoryDefinition,
 } from './hintCategories';
-import { Firestore } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { allowedOrigins } from "./cors";
 
 type HintStyle = "neutral" | "personalized" | "motivational";
@@ -305,66 +305,11 @@ Output: Plain text only. No quotes, tags, or formatting.`,
   return out.replace(/\n+/g, " ").trim();
 }
 
-async function callOpenAI(prompt: string): Promise<string> {
-  // OpenAI implementation not currently in use
-  // Uncomment and configure secrets when ready to enable
-  /*
-  const key = OPENAI_KEY.value();
-  const model = OPENAI_MODEL.value() || "gpt-4-turbo";
-  */
-
-  throw new HttpsError('unimplemented', 'OpenAI provider not configured');
-
-  /* Commented out until OpenAI secrets are configured
-  const key = OPENAI_KEY.value();
-  const model = OPENAI_MODEL.value() || "gpt-4-turbo";
-
-  if (!key) throw new Error("OpenAI key missing.");
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-    {
-      role: "system",
-      content: `You're creating hints for surprise experiences. Keep them mysterious but exciting.
-
-TONE: Casual and conversational. Talk like you're texting a friend about plans.
-
-RULES (never break):
-1. NO brand names, business names, addresses, or specific locations ever
-2. NO phrases: "you're going to", "will be", "imagine", "picture yourself", "await"
-3. Keep it SUBTLE—don't reveal too much. Build curiosity, not clarity.
-4. Keep it CASUAL—no poetic or mystical language. Stay grounded and realistic.
-5. Keep it SHORT—1-2 sentences max, under 180 characters
-
-Think: "Hey, bring comfortable shoes" not "Imagine your feet dancing upon clouds"
-
-Output: Plain text only. No quotes, tags, or formatting.`,
-    }
-    ,
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.9,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`OpenAI error ${res.status}: ${text}`);
-  }
-
-  const json: any = await res.json();
-  const out = json?.choices?.[0]?.message?.content?.trim();
-  if (!out) throw new Error("OpenAI returned empty content.");
-  return out.replace(/\n+/g, " ").trim();
-  */
-}
+// OpenAI provider is not currently configured (secrets OPENAI_KEY / OPENAI_MODEL are not enabled).
+// The function is intentionally absent. If LLM_PROVIDER is set to "openai" at runtime,
+// the callOpenRouter fallback in the main handler will be used instead.
+// To enable OpenAI: uncomment OPENAI_KEY / OPENAI_MODEL defineSecret calls above,
+// add them to the secrets array on onCall, and restore this function.
 
 // ------------------------------------------------------
 // Cloud Function
@@ -396,44 +341,34 @@ export const aiGenerateHint = onCall(
     const oneHourAgo = now - (60 * 60 * 1000);
     const RATE_LIMIT = 20; // Maximum hints per hour per user
 
-    // Import production db from index
-    let db: Firestore;
-    try {
-      const indexModule = await import('./index.js');
-      db = indexModule.dbProd;
-    } catch (importError: unknown) {
-      logger.error('Failed to import db from index.js:', importError);
-      throw new HttpsError('internal', 'Service initialization failed');
-    }
+    // Get production db directly (avoids circular import via index.ts)
+    const db = getFirestore();
 
     // Check rate limit using Firestore (non-blocking: proceed if rate-limit check fails)
+    // Atomic transaction prevents TOCTOU race where concurrent requests both
+    // pass the count check before either has written the updated counter.
     try {
       const rateLimitRef = db.collection('rateLimits').doc(`hints_${userId}`);
-      const rateLimitDoc = await rateLimitRef.get();
+      const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-      if (rateLimitDoc.exists) {
-        const rateLimitData = rateLimitDoc.data();
-        const recentRequests = (rateLimitData?.requests || []).filter(
-          (timestamp: number) => timestamp > oneHourAgo
-        );
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(rateLimitRef);
+        const data = snap.data() || { count: 0, windowStart: now };
+        const windowExpired = now - (data.windowStart || 0) > RATE_WINDOW_MS;
+        const currentCount = windowExpired ? 0 : (data.count || 0);
 
-        if (recentRequests.length >= RATE_LIMIT) {
+        if (currentCount >= RATE_LIMIT) {
           logger.warn(`⚠️ Rate limit exceeded for user ${userId}`);
           throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please try again later.');
         }
 
-        // Update with new request
-        await rateLimitRef.set({
-          requests: [...recentRequests, now],
-          lastRequest: now,
-        });
-      } else {
-        // Create new rate limit document
-        await rateLimitRef.set({
-          requests: [now],
-          lastRequest: now,
-        });
-      }
+        transaction.set(rateLimitRef, {
+          count: windowExpired ? 1 : (currentCount + 1),
+          windowStart: windowExpired ? now : data.windowStart,
+          userId,
+          updatedAt: new Date().toISOString(),
+        }, { merge: !windowExpired });
+      });
     } catch (rateLimitError: unknown) {
       // Re-throw HttpsError (e.g. resource-exhausted) — that's an intentional gate.
       // For unexpected Firestore errors, warn and allow the request to proceed.
@@ -602,14 +537,30 @@ export const aiGenerateHint = onCall(
       assignedCategory,
     });
 
+    // Sanitize user-controlled fields before interpolating into the LLM prompt
+    // to prevent prompt injection via backticks, quotes, or backslashes.
+    const safeExperienceType = experienceType.replace(/[`"\\]/g, '').substring(0, 100);
+    const safeExperienceDescription = experienceDescription
+      ? experienceDescription.replace(/[`"\\]/g, '').substring(0, 500)
+      : undefined;
+    const safeExperienceCategory = experienceCategory
+      ? experienceCategory.replace(/[`"\\]/g, '').substring(0, 100)
+      : undefined;
+    const safeExperienceSubtitle = experienceSubtitle
+      ? experienceSubtitle.replace(/[`"\\]/g, '').substring(0, 200)
+      : undefined;
+    const safeUserName = userName
+      ? userName.replace(/[`"\\]/g, '').substring(0, 100)
+      : userName;
+
     const prompt = buildUserPrompt({
-      experienceType,
-      experienceDescription,
-      experienceCategory,
-      experienceSubtitle,
+      experienceType: safeExperienceType,
+      experienceDescription: safeExperienceDescription,
+      experienceCategory: safeExperienceCategory,
+      experienceSubtitle: safeExperienceSubtitle,
       sessionNumber,
       totalSessions,
-      userName,
+      userName: safeUserName,
       style: validatedStyle,
       previousHints: sanitizedHints,
       hintCategory: assignedCategory, // NEW
@@ -618,11 +569,13 @@ export const aiGenerateHint = onCall(
 
     const provider = (LLM_PROVIDER.value() || "openrouter").toLowerCase();
 
+    if (provider === "openai") {
+      logger.warn("LLM_PROVIDER=openai is not configured; falling back to openrouter");
+    }
+
     try {
-      const hint =
-        provider === "openai"
-          ? await callOpenAI(prompt)
-          : await callOpenRouter(prompt);
+      // OpenAI provider is not yet implemented — always use OpenRouter
+      const hint = await callOpenRouter(prompt);
 
       const cleaned = hint
         // Remove anything inside [] or <>

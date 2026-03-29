@@ -21,6 +21,8 @@ const DEV_ORIGINS = [
 const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
 
 /** CORS origins to use in all Cloud Functions.
- * Dev origins (localhost) are always included — they cannot be spoofed
- * remotely and are needed for local dev against deployed functions. */
-export const allowedOrigins: string[] = [...DEV_ORIGINS, ...PRODUCTION_ORIGINS];
+ * Dev origins (localhost) are only included when running in the Firebase emulator
+ * to prevent localhost from being a valid origin in production deployments. */
+export const allowedOrigins: string[] = isEmulator
+  ? [...PRODUCTION_ORIGINS, ...DEV_ORIGINS]
+  : PRODUCTION_ORIGINS;

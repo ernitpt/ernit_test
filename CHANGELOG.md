@@ -98,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - rewrite FreeGoalCompletionScreen with hero header, tilted share card, streak CTA, and image capture sharing
 - remake FreeGoalCompletionScreen with full stats, hero share card, streak, and what's next CTA
 - unified AchievementDetailScreen handles both completion and review modes
+- add GDPR onUserDeleted Auth trigger for full user data cleanup on account deletion
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -380,6 +381,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - reduce confetti particle count by 40% on Android to prevent frame drops
 - Android DetailedGoalCard uses solid surface bg + elevation instead of glassmorphism border
 - unify 3 completion screens into single AchievementDetailScreen with mode param
+- add cursor-based pagination (PAGE_SIZE=500) to all 4 scheduled Cloud Functions to prevent OOM/timeout at scale
+- fix React.memo defeats — memoize inline styles, Array.from, useCallback for handlers; add feed goal_progress filter and composite accessibilityLabel
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -877,6 +880,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - surface onSnapshot errors, add fetch cache, defer profile image upload, add isMounted guards, deduplicate navigator routes
 - add failedCharges reconciliation, webhookFailures alerting, retryFailedCharges scheduler, and gift state machine
 - 36-issue master bug fix — crash fixes, broken flows, data integrity, performance
+- C9 claim codes atomic in transaction, C10 transaction.get for gift reads, C11a/b typed gift docs with number guard, C12 Stripe verify before paid, C14 abort charge if partner goal deleted
+- S1 gift enumeration, S2 fake friendship, M19 goal read, S3+C18 goal limit race, M17 notification race, M18 cart duplicate
+- giver-flow bug fixes — Stripe key guard, guest-cart auth deps, empower primitive deps, confetti cleanup, isMounted guards, double-tap guard, MysteryChoice null guard, ChallengeLanding error handling
+- auth stale closure, isMounted guards, timer cleanups, null-assertion safety
+- race conditions, stale closures, and Timestamp handling in social and notification screens
+- useCallback processHintAfterSession, isMounted guards, ErrorBoundary resetAttempts, stale closure pendingImageBlob, session start error toast, debug __DEV__ guard, BaseModal keyboardShouldPersistTaps
+- atomicity bugs in GoalService — approveGoal, suggestGoalChange, appendHint, checkAndAutoApprove
+- resolve 78 confirmed bugs from second exhaustive audit — critical Cloud Function transaction safety (claim codes, atomicity), Stripe charge validation, typed gift documents, security rules (gift enumeration, fake friendship, goal read exposure), service-layer race conditions, isMounted guards, stale closures, double-tap guards, and medium UX fixes across all screens
+- critical race conditions in chargeDeferredGift, retryFailedCharges, stripeWebhook, and deleteGoal Cloud Functions
+- stale partnerProfile closure, discovery persistence, Timestamp expiry, checkAndAutoApprove race, confetti leak, copy ref collision
+- atomic service layer - transactional removeFromCart, approveGoal return values, CouponService transaction.get, ExperienceService TTL cache, AIHintService race condition, FCM token rotation, FriendService rate limit, notification batch writes, sweepExpiredWeeks transaction
+- mounted guard, navTimerRef, race condition, push listener, stale userId bugs
+- stale deps, animation resets, mutation, auth checks, currency locale
+- atomic rate limit transactions and race condition fixes in Cloud Functions
+- 12 medium severity bugs across feed, modals, screens, and components
+- resolve second wave of 80+ bugs from third exhaustive audit — Cloud Function atomicity (b2b flows, rate limits, free gift idempotency, deleteGoal batch), payment flow orphaned SetupIntents, double PaymentIntent on native, auth mounted-guard dead code, AppNavigator polling leak, double profile creation race, service-layer transactions (removeFromCart, CouponService, GoalSessionService, PushNotification token rotation), ExperienceService TTL cache, AIHintService race, stale closure fixes, isMounted guards across giver/recipient screens, and component-level fixes (AudioPlayer, StreakBanner, FeedPost, BaseModal, PWAInstaller)
+- security — auth-gate errors collection, scope gift reads, add challenge list ownership, block session/hint deletes, fix likedBy uid check, restrict storage paths, add storage rules deploy config, soften firebase config validation
+- TOCTOU race in removeReaction, clientSecret validation in stripeService, sessionsPerWeek null guard, AnalyticsService destroy method, ExperienceGiftService pagination, serverTimestamp in DiscoveryService
+- guard test function exports and ernitclone2 DB behind emulator flag, fix Stripe TOCTOU race condition, fix deleteExperience operation order, add updateExperience field allowlist, sanitize claimUrl in gift email template
+- SET_GOALS action, ADD_TO_CART cap, authSuccess timer leak, token health check dep, firebase dynamic imports, saveTimers stale closure, loadTimers mutation, mountedRef strict mode, ToastContext split contexts, useMediaComposer interval accumulation and sound leak, useNetworkStatus subscription churn
+- WCAG font scaling, goal approval default, progress NaN guard, stale categories, time clamp, email regex, slash escape
+- isMounted guards, off-by-one session number, prop-to-state sync, env safety, slider accessibility
+- TDZ ordering, null assertions, Timestamp comparisons, isMounted guard, nav serialization
+- circular imports, dead callOpenAI, prompt injection, null guards, idempotency keys, email regex, slug uniqueness, timezone crash, ISO week number in Cloud Functions
+- fourth audit round — security rules hardening, Cloud Functions TOCTOU fixes, context/hook memory leaks, screen Timestamp bugs, service race conditions, component isMounted guards, config/utils correctness
+- revert three false-positive fixes — goals read rule (breaks friend profiles), approvalStatus default (breaks existing goals), typography noScale (intentional layout constraint)
+- correct invalid resource.data usage in list rules and fragile friends/errors rules in firestore.rules
+- decrement goalCount counter on goal deletion and completion
+- claim code collision detection, Stripe sentinel null-overwrite, and test db export regression
+- regression review — revert 5 firestore.rules issues (resource.data in list rules, friends get() in transaction, errors unauthenticated write), fix goalCount missing decrements on goal completion and deletion, fix stripeWebhook claim code collision detection, fix stripeCustomer sentinel cleanup
+- bare return exits tickWeeklySession, goalCount decrement outside transaction, addDoc outside transaction in GoalService, circular import of dbProd in searchUsers and onNotificationCreated
+- targetCount weeks*sessionsPerWeek, stale date in booking handlers, defensive goal date coercion, weekStartAt Timestamp, feed cursor reset, AuthGuard uid->id
+- MIME inference for native uploads, CartScreen infinite loop, completeSessionFlow ordering, Timestamp serialization in CouponEntry, isMounted guard on retry
+- 6 high-severity bugs in Cloud Functions (chargeDeferredGift, deleteGoal, stripeWebhook, createDeferredGift)
+- goal prop sync fields, discovery write order, stale session ref, modal reset, reminder rollback, mic cleanup, feed truncation warning
+- fifth audit round — critical StorageService MIME validation (native uploads broken), DetailedGoalCard stale closure on completeSessionFlow, CartScreen infinite re-render, CouponEntry Timestamp serialization, GoalSessionService bare return skipping notifications, goalCount atomic transaction, chargeDeferredGift goals unlocked on retry fail, targetCount weeks*sessions fix, AchievementDetailScreen stale preferredDate and premature redirect, FeedScreen cursor reset, AuthGuardContext uid→id, onNotificationCreated circular require, stripeWebhook experience snapshot, SideMenu rollback, PersonalizedHintModal state reset, useMediaComposer stopAndUnload
+- revert targetCount to weeks (not weeks*sessionsPerWeek) and fix week window off-by-one (+6 not +7)
+- wrap respondToGoalSuggestion, approveGoalEditRequest, selfEditGoal in runTransaction to prevent TOCTOU races
+- enforce else-if guard on giftRef writes in deleteGoal transaction (BUG-11)
+- null guard for claimCode in ConfirmationMultipleScreen copy/share handlers (BUG-14)
+- add isMounted guards to useFocusEffect in GoalDetailScreen (BUG-22/23)
+- add isMounted guards to sessions, streak, and motivations useEffects in AchievementDetailScreen
+- idempotency guard on payment_intent.payment_failed webhook handler
+- BUG-13 cross-check paymentIntentId and payment status before retry update in retryFailedCharges
+- add isSubmitting guard and isMounted check to FreeGoalNotification handleClear
+- BUG-28 add null guards to PartnerService Firestore document field access
+- wrap b2bCreateGoal reads+writes in runTransaction to close TOCTOU duplicate-goal race (BUG-16)
+- add TOCTOU transaction wrapping to b2bCreateGoal, idempotency guards to stripeWebhook payment_failed, metadata cross-check to retryFailedCharges, isMounted guards to AchievementDetailScreen/GoalDetailScreen, null guards to PartnerService, double-submit guard to FreeGoalNotification, deleteGoal else-if branch, ConfirmationMultipleScreen claimCode null guard, GoalService respondToGoalSuggestion/approveGoalEditRequest/selfEditGoal transactional TOCTOU fixes
+- approveGoalEditRequest now accepts approved goals with a pendingEditRequest
+- correct stripeWebhook admin SDK imports (getDoc/doc are client SDK only), widen approveGoalEditRequest status guard to accept approved+pending goals with edit requests
+- BUG-31 SET_USER null clears auth state, BUG-30 RESET_STATE spreads initialState, BUG-34 goal progress syncs goals array
+- guard null user, unmounted setState, and unsafe casts in UserProfileScreen
+- BUG-25/26/27/28/30 GoalApprovalNotification mutex, recipientId guard, getUserName ordering, notifId check, parseInt radix
+- mounted guard, auth error dispatch, cart comparison, interval leak, and nav ref timing in AppNavigator
+- stale preferredDate in booking callback, dollar sign currency, FCM object serialization, post_reaction missing postId
+- BUG-34/35/36 — atomic deleteNotification, idempotent post reaction notification, listenToUserNotifications onError callback
+- AppContext SET_USER(null) clears auth state, RESET_STATE returns fresh copy, UPDATE_GOAL_PROGRESS syncs goals array; UserProfileScreen null guard on wishlist remove, loading reset on empty userId, mounted guards, unsafe cast fixes; GoalApprovalNotification mutual exclusion, recipientId guard, getUserName before mutation, notifId check; AppNavigator mounted guards, auth error dispatch, cart merge comparison, interval cleanup, setNavigationRef in onReady; NotificationService deleteNotification atomic transaction, postReaction deterministic ID, snapshot error propagation; JourneyScreen stale preferredDate booking fix, euro symbol fix; notificationSender JSON.stringify for objects, post_reaction deep-link with postId
+- reset global loading state after successful auth and guard handleAuth against double invocation
+- BUG-32 guest cart no longer overwrites authenticated user cart on mount; BUG-01 idempotency guard prevents duplicate FCM push on Cloud Function retry
+- BUG-14/16/17/18 tappingRef comment, URL validation, silent goal null, outer catch in handlePress
+- isMounted guard in loadSessions and stale closure in handleSaveProfile rollback
+- BUG-11 web retry omits isMystery, BUG-12 processingRef reset on success, BUG-13 float rounding before Stripe call
+- AuthScreen handleAuth double-invocation guard and isLoading always reset on auth; AppContext guest cart restore guarded against overwriting logged-in user cart; onNotificationCreated idempotency via pushSentAt; NotificationsScreen URL validation, silent goal-null handling, outer catch; ExperienceCheckoutScreen initCheckout extracted, processingRef not reset on success, float rounding before Stripe; JourneyScreen loadSessions isMounted guard; UserProfileScreen rollback uses stateUserRef not stale closure
+- patch 5 Firestore security rules bugs (meta subcollection, friends requestId, notification types, comment unlike, experiences/categories write scope)
+- P0-6 field guards in updateGoal, P1-7 requestGoalEdit TOCTOU fix, P1-6 isCompleted guard in tickWeeklySession
+- add navigation for goal_progress, free_goal_milestone, inactivity_nudge notifications; fix goal_completed to navigate AchievementDetail; add catch to HeroPreviewScreen getAllExperiences
+- Android notification channel, safe area insets, and revealMode in category gift path
+- add GestureHandlerRootView wrapper, guest cart catch, replace post-payment navigate, extract challenge metadata in checkout
+- P2 fixes — GoalCore type, normalizeGoal clamps, Timestamp cast, haptics, markAllAsRead error handling, Firebase Functions error codes, CORS localhost-in-prod, feed snapshot error propagation
+- optional experienceId, goalType propagation, challenge metadata on PaymentIntent/webhook, goal notification cleanup, session reminders N+1 query
+- comprehensive audit fixes — Firestore rules security (meta subcollection, notification types, comment unlike), GestureHandlerRootView for Android gestures, payment navigation replace, Android notification channels, goal data integrity guards, notification tap handlers, deep link crash guard, Cloud Functions metadata propagation and N+1 query fix
+- P0-7 idempotency keys on createFreeGift and createDeferredGift; P1-13 transactional weekly recap guard; P1-16 transactional status check in retryFailedCharges
+- replace ActivityIndicator spinners with Button loading states and inline validation (P2-4, P2-5, P2-6)
+- idempotency keys on createFreeGift/createDeferredGift, sendWeeklyRecap and retryFailedCharges race conditions, GDPR onUserDeleted trigger, cursor-based pagination for 4 scheduled functions, Firestore composite index for sendInactivityNudges
+- ActivityIndicator violations replaced with Button loading states (ExperienceCheckoutScreen, DeferredSetupScreen, AuthScreen), inline form validation on GoalSettingScreen and ChallengeSetupScreen, GoalsScreen FAB migrated from Animated API to MotiView per CLAUDE.md standard pattern
+- wrap DeferredSetup in ProtectedRoute, remove dead PROTECTED_ROUTES array, remove phantom GiverStack types, annotate unimplemented UserProfile counter fields
+- Android UX — KAV behavior, BackHandler in modals, touch targets, accessibilityViewIsModal
+- GoalDetailScreen entry animation, toDateSafe timestamp, day-letter a11y; GoalsScreen reduce useMemo, snapshot useMemo, EmptyState component
+- P2-20 to P3-24 — accessibility and WCAG AA color contrast fixes
+- P3-28 through P4 — recipientId field, validateGiftTransition, dedup race, batch error handling, email validation, Stripe metadata limits, subject escaping, AIHintService catch blocks, events userId ownership, dead rules TODOs
+- inline email validation, shared TextInput migration, haptic feedback, Moti entrance animations, BookingCalendar BaseModal migration
+- design token violations — replace hardcoded rgba/borderRadius/spacing values with config tokens
+- P3/P4 audit sweep — GoalDetailScreen/GoalsScreen Moti entry + useMemo performance, FeedPost memo + accessibilityLabel, CommentSection/BookingCalendar useCallback, BackHandler for 3 modals, AuthScreen inline email validation, CouponEntryScreen shared TextInput, FriendProfile/UserProfile Moti buttons, textMuted/success/primary WCAG contrast tokens, Button accessibilityLabel, progress bar roles, ErrorRetry alert role, chargeDeferredGift recipientId fix, validateGiftTransition in deleteGoal/retryFailedCharges, events userId ownership rule, design token sweep across AchievementDetailScreen/SkeletonLoader/ChallengeLandingScreen/HeroPreviewScreen, AuthScreen Card glassmorphism variant, PROTECTED_ROUTES dead code removed, DeferredSetup ProtectedRoute added, GiverStackParamList phantom routes removed
+- type audit — align pendingEditRequest shape to GoalService runtime (requestedTargetCount/requestedSessionsPerWeek/requestedBy), add payment_cancelled and shared_partner_removed to Notification.type union, fix MotivationService dropping imageUrl/audioUrl/type/audioDuration on read, consolidate PartnerCoupon type (remove duplicate in CouponService), remove unsafe Record casts from GoalService now that types align
 
 ### Added
 - Automatic changelog system with `npm run log` script

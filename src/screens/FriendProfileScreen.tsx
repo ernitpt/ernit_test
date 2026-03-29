@@ -355,28 +355,32 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
   const canEmpowerSelf = isSelfAchievement && withinDeadline;
 
   useEffect(() => {
+    let mounted = true;
     const loadAchievementData = async () => {
       try {
         if (isSelfAchievement || hasPledgedNotBought) {
-          setLoadingCard(false);
+          if (mounted) setLoadingCard(false);
           return;
         }
-        if (!goal.experienceGiftId) { setLoadingCard(false); return; }
+        if (!goal.experienceGiftId) { if (mounted) setLoadingCard(false); return; }
         try {
           const giftData = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
           const exp = await experienceService.getExperienceById(giftData.experienceId);
-          setExperience(exp || null);
-          setPartnerName(exp?.subtitle || 'Partner');
+          if (mounted) {
+            setExperience(exp || null);
+            setPartnerName(exp?.subtitle || 'Partner');
+          }
         } catch (dataErr: unknown) {
           logger.warn('Error fetching gift/experience data:', dataErr);
         }
       } catch (err: unknown) {
         logger.error("Error loading achievement data:", err);
       } finally {
-        setLoadingCard(false);
+        if (mounted) setLoadingCard(false);
       }
     };
     loadAchievementData();
+    return () => { mounted = false; };
   }, [goal.experienceGiftId]);
 
   const weeks = goal.targetCount || 0;
@@ -633,42 +637,7 @@ const FriendProfileScreen: React.FC = () => {
     }
   }, [userId, navigation]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      isMountedRef.current = true;
-      if (userId) {
-        loadFriendProfile();
-      }
-      return () => { isMountedRef.current = false; };
-    }, [userId, loadFriendProfile])
-  );
-
-  if (!userId) return null; // Early return AFTER all hooks
-
-  if (error && !isLoading) {
-    return (
-      <ErrorRetry
-        message="Could not load profile"
-        onRetry={() => { setError(false); loadFriendProfile(); }}
-      />
-    );
-  }
-
-  const openRemovePopup = () => {
-    setShowRemovePopup(true);
-    Animated.parallel([
-      Animated.timing(removeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.spring(removeScale, { toValue: 1, friction: 5, useNativeDriver: true }),
-    ]).start();
-  };
-
-  const closeRemovePopup = () => {
-    Animated.parallel([
-      Animated.timing(removeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-      Animated.timing(removeScale, { toValue: 0.9, duration: 150, useNativeDriver: true }),
-    ]).start(() => setShowRemovePopup(false));
-  };
-
+  // FIX 1a: Define loadFriendProfile BEFORE useFocusEffect to avoid temporal dead zone
   const loadFriendProfile = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -726,6 +695,43 @@ const FriendProfileScreen: React.FC = () => {
       if (isMountedRef.current) setIsLoading(false);
     }
   }, [userId, currentUserId]);
+
+  // FIX 1a: useFocusEffect placed AFTER loadFriendProfile definition to avoid temporal dead zone
+  useFocusEffect(
+    React.useCallback(() => {
+      isMountedRef.current = true;
+      if (userId) {
+        loadFriendProfile();
+      }
+      return () => { isMountedRef.current = false; };
+    }, [userId, loadFriendProfile])
+  );
+
+  if (!userId) return null; // Early return AFTER all hooks
+
+  if (error && !isLoading) {
+    return (
+      <ErrorRetry
+        message="Could not load profile"
+        onRetry={() => { setError(false); loadFriendProfile(); }}
+      />
+    );
+  }
+
+  const openRemovePopup = () => {
+    setShowRemovePopup(true);
+    Animated.parallel([
+      Animated.timing(removeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(removeScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const closeRemovePopup = () => {
+    Animated.parallel([
+      Animated.timing(removeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(removeScale, { toValue: 0.9, duration: 150, useNativeDriver: true }),
+    ]).start(() => setShowRemovePopup(false));
+  };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -802,17 +808,24 @@ const FriendProfileScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={[styles.header, { top: insets.top + Spacing.md }]}>
-          <TouchableOpacity
-            onPress={() => {
-              if (navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('FriendsList');
-            }}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
+          <MotiView
+            from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+            transition={{ type: 'timing', duration: 150 }}
           >
-            <ChevronLeft color={colors.textPrimary} size={24} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (navigation.canGoBack()) navigation.goBack();
+                else navigation.navigate('FriendsList');
+              }}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <ChevronLeft color={colors.textPrimary} size={24} />
+            </TouchableOpacity>
+          </MotiView>
           <View style={{ width: 40 }} />
         </View>
 
@@ -851,58 +864,67 @@ const FriendProfileScreen: React.FC = () => {
           </View>
 
           {/* Friend Buttons */}
-          <View style={styles.friendButtonContainer}>
-            {isFriend ? (
-              <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: colors.errorLight }]}
-                onPress={openRemovePopup}
-                disabled={isActionLoading}
-                accessibilityRole="button"
-                accessibilityLabel="Remove friend"
-              >
-                <UserMinus color={colors.errorDark} size={16} />
-                <Text style={[styles.friendButtonText, { color: colors.errorDark }]}>
-                  {isActionLoading ? "Removing..." : "Remove"}
-                </Text>
-              </TouchableOpacity>
-            ) : hasPendingRequest ? (
-              <View style={[styles.friendButton, { backgroundColor: colors.warning }]}>
-                <Clock color={colors.white} size={16} />
-                <Text style={styles.friendButtonText}>Sent</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.friendButton, { backgroundColor: colors.secondary }]}
-                onPress={async () => {
-                  setIsActionLoading(true);
-                  try {
-                    await friendService.sendFriendRequest(
-                      currentUserId!,
-                      currentUserName,
-                      userId,
-                      userProfile?.name,
-                      state.user?.profile?.country,
-                      currentUserProfileImageUrl
-                    );
-                    setHasPendingRequest(true);
-                  } catch (error: unknown) {
-                    logger.error('Friend request failed:', error);
-                    showError('Could not send friend request. Please try again.');
-                  } finally {
-                    setIsActionLoading(false);
-                  }
-                }}
-                disabled={isActionLoading}
-                accessibilityRole="button"
-                accessibilityLabel="Add friend"
-              >
-                <UserPlus color={colors.white} size={16} />
-                <Text style={styles.friendButtonText}>
-                  {isActionLoading ? "Sending..." : "Add"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <MotiView
+            from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+            transition={{ type: 'timing', duration: 150 }}
+          >
+            <View style={styles.friendButtonContainer}>
+              {isFriend ? (
+                <TouchableOpacity
+                  style={[styles.friendButton, { backgroundColor: colors.errorLight }]}
+                  onPress={openRemovePopup}
+                  disabled={isActionLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove friend"
+                >
+                  <UserMinus color={colors.errorDark} size={16} />
+                  <Text style={[styles.friendButtonText, { color: colors.errorDark }]}>
+                    {isActionLoading ? "Removing..." : "Remove"}
+                  </Text>
+                </TouchableOpacity>
+              ) : hasPendingRequest ? (
+                <View style={[styles.friendButton, { backgroundColor: colors.warning }]}>
+                  <Clock color={colors.white} size={16} />
+                  <Text style={styles.friendButtonText}>Sent</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.friendButton, { backgroundColor: colors.secondary }]}
+                  onPress={async () => {
+                    // FIX 1b: guard against undefined currentUserId before use
+                    if (!currentUserId) return;
+                    setIsActionLoading(true);
+                    try {
+                      await friendService.sendFriendRequest(
+                        currentUserId,
+                        currentUserName,
+                        userId,
+                        userProfile?.name,
+                        state.user?.profile?.country,
+                        currentUserProfileImageUrl
+                      );
+                      setHasPendingRequest(true);
+                    } catch (error: unknown) {
+                      logger.error('Friend request failed:', error);
+                      showError('Could not send friend request. Please try again.');
+                    } finally {
+                      setIsActionLoading(false);
+                    }
+                  }}
+                  disabled={isActionLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add friend"
+                >
+                  <UserPlus color={colors.white} size={16} />
+                  <Text style={styles.friendButtonText}>
+                    {isActionLoading ? "Sending..." : "Add"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </MotiView>
         </View>
 
         {/* Tabs */}
@@ -997,9 +1019,11 @@ const FriendProfileScreen: React.FC = () => {
 
               <TouchableOpacity
                 onPress={async () => {
+                  // FIX 1b: guard against undefined currentUserId before use
+                  if (!currentUserId) return;
                   setIsActionLoading(true);
                   try {
-                    await friendService.removeFriend(currentUserId!, userId);
+                    await friendService.removeFriend(currentUserId, userId);
                     setIsFriend(false);
                   } catch (error: unknown) {
                     logger.error('Remove friend failed:', error);

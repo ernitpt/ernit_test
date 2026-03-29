@@ -10,8 +10,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import { ChevronLeft, HelpCircle, MapPin } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../services/firebase';
 import {
   Experience,
 } from '../../types';
@@ -23,7 +21,6 @@ import HowItWorksModal from '../../components/HowItWorksModal';
 import { partnerService } from '../../services/PartnerService';
 import { PartnerUser } from '../../types';
 import { logger } from '../../utils/logger';
-import { config } from '../../config/environment';
 import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
 import { getUserMessage } from '../../utils/AppError';
@@ -43,7 +40,7 @@ export default function ExperienceDetailsScreen() {
   const routeParams = route.params as { experience?: Experience } | undefined;
   const experience = routeParams?.experience;
 
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const { showError } = useToast();
 
   const [personalizedMessage, setPersonalizedMessage] = useState('');
@@ -64,12 +61,18 @@ export default function ExperienceDetailsScreen() {
   }, [experience, navigation]);
 
   useEffect(() => {
+    let mounted = true;
     const loadPartner = async () => {
       if (!experience?.partnerId) return;
-      const p = await partnerService.getPartnerById(experience.partnerId);
-      setPartner(p);
+      try {
+        const p = await partnerService.getPartnerById(experience.partnerId);
+        if (mounted) setPartner(p);
+      } catch {
+        // Non-critical — partner info is decorative; silently ignore
+      }
     };
     loadPartner();
+    return () => { mounted = false; };
   }, [experience?.partnerId]);
 
   // Early return if data is invalid
@@ -97,41 +100,24 @@ export default function ExperienceDetailsScreen() {
     setIsSubmitting(true);
 
     try {
-      // SECURITY FIX: Native client-side gift creation is blocked by Firestore rules
-      // (allow create: if false). Redirect to the web checkout flow which uses a
-      // Cloud Function to create gifts server-side after payment confirmation.
-      const createIntent = httpsCallable(functions, config.stripeFunctions.createPaymentIntent);
-      const cartMetadata = [{
-        experienceId: experience.id,
-        partnerId: experience.partnerId || '',
-        quantity: 1,
-      }];
-      const sanitizedMessage = sanitizeText(personalizedMessage.trim(), 500);
-      const result = await createIntent({
-        amount: experience.price,
-        giverId: state.user?.id,
-        giverName: state.user?.displayName || '',
-        partnerId: experience.partnerId || '',
-        cartMetadata,
-        personalizedMessage: sanitizedMessage,
-      });
-      const data = result.data as { clientSecret: string };
-
-      // Hand off to the checkout flow — gift creation happens server-side
-      // via the stripeWebhook Cloud Function after payment succeeds.
+      // Do NOT create a PaymentIntent here. ExperienceCheckout creates its own
+      // PaymentIntent on mount — pre-creating one here would result in two
+      // abandoned PaymentIntents (a financial leak / Stripe billing bug).
+      // Pass only cart metadata; ExperienceCheckout owns PaymentIntent lifecycle.
+      // TODO: ExperienceCheckout route type needs to accept these params - tracked as tech debt
       navigation.navigate('ExperienceCheckout', {
         cartItems: [{ experienceId: experience.id, quantity: 1 }],
         goalId: state.empowerContext?.goalId,
-        clientSecret: data.clientSecret,
+        personalizedMessage: sanitizeText(personalizedMessage.trim(), 500),
       } as never);
     } catch (err: unknown) {
-      logger.error('❌ Payment error:', err);
+      logger.error('❌ Navigation error:', err);
       showError(getUserMessage(err, 'Could not process your request. Please try again.'));
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [experience, isSubmitting, personalizedMessage, state.user, navigation, showError]);
+  }, [experience, isSubmitting, personalizedMessage, state.user, state.empowerContext?.goalId, navigation, showError]);
 
   return (
     <ErrorBoundary screenName="ExperienceDetailsScreen" userId={state.user?.id}>

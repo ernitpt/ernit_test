@@ -12,6 +12,8 @@ import {
   getDoc,
   serverTimestamp,
   runTransaction,
+  setDoc,
+  increment,
   Timestamp,
 } from 'firebase/firestore';
 import type { Goal } from '../types';
@@ -113,33 +115,52 @@ export class GoalSessionService {
       g.weekStartAt = anchor;
       const ref = doc(db, 'goals', g.id);
 
-      // Re-read to avoid concurrent sweep conflict (e.g. multiple tabs)
-      const freshSnap = await getDoc(ref);
-      if (freshSnap.exists()) {
+      // Use a transaction so the concurrent-sweep check and the write are atomic.
+      // This prevents two tabs from both reading the same stale weekStartAt and both writing.
+      const anotherTabSwept = await runTransaction(db, async (transaction) => {
+        const freshSnap = await transaction.get(ref);
+        if (!freshSnap.exists()) return false;
+
         const freshData = freshSnap.data();
         const freshWeekStartAt = freshData.weekStartAt?.toDate?.() ?? (freshData.weekStartAt ? new Date(freshData.weekStartAt) : null);
         const originalWeekStartAt = goal.weekStartAt ? new Date(goal.weekStartAt) : null;
         if (freshWeekStartAt && originalWeekStartAt && freshWeekStartAt.getTime() !== originalWeekStartAt.getTime()) {
-          // Another tab/instance already swept — use fresh data
-          return normalizeGoal({ id: freshSnap.id, ...freshData });
+          // Another tab/instance already swept — signal the caller to use fresh data
+          return true;
         }
-      }
 
-      const sweepUpdate: Record<string, unknown> = {
-        currentCount: g.currentCount,
-        weekStartAt: anchor,
-        weeklyCount: g.weeklyCount,
-        weeklyLogDates: [],
-        isWeekCompleted: false,
-        isCompleted: !!g.isCompleted,
-        isReadyToComplete: !!g.isReadyToComplete,
-        lastNudgeLevel: 0,
-        updatedAt: serverTimestamp(),
-      };
-      if (g.isCompleted) {
-        sweepUpdate.completedAt = serverTimestamp();
+        const sweepUpdate: Record<string, unknown> = {
+          currentCount: g.currentCount,
+          weekStartAt: anchor,
+          weeklyCount: g.weeklyCount,
+          weeklyLogDates: [],
+          isWeekCompleted: false,
+          isCompleted: !!g.isCompleted,
+          isReadyToComplete: !!g.isReadyToComplete,
+          lastNudgeLevel: 0,
+          updatedAt: serverTimestamp(),
+        };
+        if (g.isCompleted) {
+          sweepUpdate.completedAt = serverTimestamp();
+        }
+        transaction.update(ref, sweepUpdate);
+
+        // Decrement goalCount atomically inside the same transaction so a crash
+        // between the goal-complete write and the counter update cannot leave the
+        // counter permanently wrong.
+        if (g.isCompleted && g.userId) {
+          const goalCountRef = doc(db, 'users', g.userId, 'meta', 'goalCount');
+          transaction.set(goalCountRef, { active: increment(-1) }, { merge: true });
+        }
+
+        return false;
+      });
+
+      if (anotherTabSwept) {
+        // Another instance already swept — fetch fresh state and return it
+        const freshSnap = await getDoc(ref);
+        return normalizeGoal({ id: freshSnap.id, ...freshSnap.data() });
       }
-      await updateDoc(ref, sweepUpdate);
 
       // Single-goal users: reset streak if weekly target was missed
       if (hadIncompleteSweep && g.userId) {
@@ -173,6 +194,11 @@ export class GoalSessionService {
       if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
 
       let g = normalizeGoal({ id: snap.id, ...snap.data() });
+
+      // Guard: cannot log session on a completed goal
+      if (g.isCompleted) {
+        throw new AppError('GOAL_COMPLETE', 'This goal is already completed.', 'business');
+      }
 
       // If it's the user's first session
       if (!g.weekStartAt) {
@@ -285,6 +311,14 @@ export class GoalSessionService {
       }
       transaction.update(ref, updateData);
 
+      // Decrement goalCount atomically inside the same transaction so a crash
+      // between the goal-complete write and the counter update cannot leave the
+      // counter permanently wrong.
+      if (g.isCompleted && g.userId) {
+        const goalCountRef = doc(db, 'users', g.userId, 'meta', 'goalCount');
+        transaction.set(goalCountRef, { active: increment(-1) }, { merge: true });
+      }
+
       return { goal: g, didIncrement: true, hadIncompleteSweep, previousWeeklyCount, totalCompletedSessions, totalSessions, progressPercentage };
     });
 
@@ -379,15 +413,16 @@ export class GoalSessionService {
               const experienceGift = await experienceGiftService.getExperienceGiftById(g.experienceGiftId);
               if (!experienceGift) {
                 logger.warn(`Experience gift ${g.experienceGiftId} not found for goal ${g.id}`);
-                return;
-              }
-              const experience = experienceGift.experienceId
-                ? await experienceService.getExperienceById(experienceGift.experienceId)
-                : null;
+                // continue without experience details — downstream fields remain undefined
+              } else {
+                const experience = experienceGift.experienceId
+                  ? await experienceService.getExperienceById(experienceGift.experienceId)
+                  : null;
 
-              experienceTitle = experience?.title;
-              experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
-              partnerName = experience?.subtitle;
+                experienceTitle = experience?.title;
+                experienceImageUrl = experience?.coverImageUrl || (experience?.imageUrl?.[0]);
+                partnerName = experience?.subtitle;
+              }
             } catch (expError: unknown) {
               logger.warn('Could not fetch experience details for feed post:', expError);
             }

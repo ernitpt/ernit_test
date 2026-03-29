@@ -9,21 +9,55 @@ export type ToastMessage = {
   duration: number;
 };
 
-type ToastContextType = {
+type ToastActionsContextType = {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
   showInfo: (message: string) => void;
   showWarning: (message: string) => void;
   removeToast: (id: string) => void;
+};
+
+type ToastStateContextType = {
   toasts: ToastMessage[];
 };
 
-const ToastContext = createContext<ToastContextType | null>(null);
+// Stable actions context — only changes when functions change (never after mount)
+const ToastActionsContext = createContext<ToastActionsContextType | null>(null);
 
+// State context — changes on every toast add/remove, consumed only by the renderer
+const ToastStateContext = createContext<ToastStateContextType | null>(null);
+
+/**
+ * useToast — returns stable action functions plus the current toasts list.
+ * Consumers that only call show/remove functions will NOT re-render when toasts change
+ * because the actions context is stable. Only callers that read `toasts` will re-render.
+ */
 export const useToast = () => {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used within ToastProvider');
-  return ctx;
+  const actions = useContext(ToastActionsContext);
+  const stateCtx = useContext(ToastStateContext);
+  if (!actions || !stateCtx) throw new Error('useToast must be used within ToastProvider');
+  return { ...actions, toasts: stateCtx.toasts };
+};
+
+/**
+ * useToastActions — returns only the stable action functions.
+ * Components that only trigger toasts (showError etc.) should prefer this hook
+ * so they are never re-rendered by toast queue changes.
+ */
+export const useToastActions = () => {
+  const actions = useContext(ToastActionsContext);
+  if (!actions) throw new Error('useToastActions must be used within ToastProvider');
+  return actions;
+};
+
+/**
+ * useToastState — returns only the current toast list.
+ * Intended for the toast renderer component.
+ */
+export const useToastState = () => {
+  const stateCtx = useContext(ToastStateContext);
+  if (!stateCtx) throw new Error('useToastState must be used within ToastProvider');
+  return stateCtx;
 };
 
 const DURATION = {
@@ -52,13 +86,19 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const showInfo = useCallback((msg: string) => addToast('info', msg), [addToast]);
   const showWarning = useCallback((msg: string) => addToast('warning', msg), [addToast]);
 
-  const contextValue = useMemo(() => ({
-    showSuccess, showError, showInfo, showWarning, removeToast, toasts,
-  }), [showSuccess, showError, showInfo, showWarning, removeToast, toasts]);
+  // Stable actions value — only the functions, no toast state. Never rebuilds after mount.
+  const actionsValue = useMemo(() => ({
+    showSuccess, showError, showInfo, showWarning, removeToast,
+  }), [showSuccess, showError, showInfo, showWarning, removeToast]);
+
+  // State value — rebuilds on every toast change, but only consumed by the renderer
+  const stateValue = useMemo(() => ({ toasts }), [toasts]);
 
   return (
-    <ToastContext.Provider value={contextValue}>
-      {children}
-    </ToastContext.Provider>
+    <ToastActionsContext.Provider value={actionsValue}>
+      <ToastStateContext.Provider value={stateValue}>
+        {children}
+      </ToastStateContext.Provider>
+    </ToastActionsContext.Provider>
   );
 };

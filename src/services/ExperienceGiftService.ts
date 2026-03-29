@@ -1,5 +1,5 @@
 ﻿import { db } from './firebase';
-import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, startAfter, type DocumentSnapshot } from 'firebase/firestore';
 import { ExperienceGift } from '../types';
 import { toDateSafe } from '../utils/GoalHelpers';
 import { logger } from '../utils/logger';
@@ -49,13 +49,31 @@ export class ExperienceGiftService {
     }
   }
 
-  async getExperienceGiftsByUser(userId: string): Promise<ExperienceGift[]> {
+  async getExperienceGiftsByUser(
+    userId: string,
+    pageLimit = 10,
+    lastDoc?: DocumentSnapshot,
+  ): Promise<{ gifts: ExperienceGift[]; lastDoc: DocumentSnapshot | undefined }> {
     try {
       const ref = collection(db, 'experienceGifts');
-      const q = query(ref, where('giverId', '==', userId), orderBy('createdAt', 'desc'), limit(10));
+      let q = query(
+        ref,
+        where('giverId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(pageLimit),
+      );
+      if (lastDoc) {
+        q = query(
+          ref,
+          where('giverId', '==', userId),
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDoc),
+          limit(pageLimit),
+        );
+      }
       const snap = await getDocs(q);
 
-      return snap.docs.map((doc) => {
+      const gifts = snap.docs.map((doc) => {
         const data = doc.data() as ExperienceGift;
         return {
           ...data,
@@ -64,6 +82,11 @@ export class ExperienceGiftService {
           deliveryDate: toDateSafe(data.deliveryDate),
         };
       });
+
+      return {
+        gifts,
+        lastDoc: snap.docs[snap.docs.length - 1],
+      };
     } catch (error: unknown) {
       logger.error('Error fetching gifts by user:', error);
       await logErrorToFirestore(error, {
@@ -71,7 +94,7 @@ export class ExperienceGiftService {
         feature: 'GetGiftsByUser',
         additionalData: { userId }
       });
-      return [];
+      return { gifts: [], lastDoc: undefined };
     }
   }
 

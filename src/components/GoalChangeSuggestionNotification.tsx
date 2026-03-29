@@ -12,6 +12,7 @@ import GoalChangeSuggestionModal from './GoalChangeSuggestionModal';
 import { logger } from '../utils/logger';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import Button from './Button';
+import { useApp } from '../context/AppContext';
 
 interface GoalChangeSuggestionNotificationProps {
   notification: Notification;
@@ -28,12 +29,15 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   const [goal, setGoal] = useState<Goal | null>(null);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { state } = useApp();
+  const currentUserId = state.user?.id;
 
   const suggestedWeeks = notification.data?.suggestedTargetCount || 0;
   const suggestedSessions = notification.data?.suggestedSessionsPerWeek || 0;
 
   const handleAcceptSuggestion = async () => {
     if (!notification.data?.goalId || !notification.id) return;
+    if (!currentUserId) return;
     setError(null);
     setLoading(true);
 
@@ -56,6 +60,14 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       // Verify user is the goal recipient before accepting
       if (!currentGoal.userId) {
         setError('Goal is missing user information. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Ownership check: only the goal recipient or the giver may accept a suggestion
+      if (currentGoal.userId !== currentUserId && currentGoal.giverId !== currentUserId) {
+        logger.warn('Unauthorized attempt to accept goal suggestion');
+        setError('You are not authorized to accept this suggestion.');
         setLoading(false);
         return;
       }

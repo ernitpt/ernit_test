@@ -63,26 +63,30 @@ export default function CartScreen() {
   // Get cart from user or guest cart
   const currentCart = state.user?.cart || state.guestCart || [];
 
+  // Stable string key from cart IDs — prevents the `|| []` new-array-reference from
+  // recreating loadItems on every render and causing an infinite useEffect loop.
+  const cartKey = currentCart.map(i => i.experienceId).sort().join(',');
+
   useEffect(() => {
     loadItems();
-  }, []); // Only load once on mount
+  }, [loadItems]); // Use loadItems as dep so it re-runs with latest version
 
-  // Load guest cart from storage on mount if not authenticated
+  // Load guest cart from storage when not authenticated
+  // Re-runs when auth state changes so a just-logged-in user doesn't accidentally restore a guest cart
   useEffect(() => {
+    if (state.user) return; // logged in — no guest cart to load
     const loadGuestCart = async () => {
-      if (!state.user) {
-        try {
-          const guestCart = await cartService.getGuestCart();
-          if (guestCart.length > 0) {
-            dispatch({ type: 'SET_CART', payload: guestCart });
-          }
-        } catch (error: unknown) {
-          logger.error('Error loading guest cart:', error);
+      try {
+        const guestCart = await cartService.getGuestCart();
+        if (guestCart.length > 0) {
+          dispatch({ type: 'SET_CART', payload: guestCart });
         }
+      } catch (error: unknown) {
+        logger.error('Error loading guest cart:', error);
       }
     };
     loadGuestCart();
-  }, []);
+  }, [state.user]); // re-check whenever auth state changes
 
   // Watch for cart changes (additions/removals only, not quantity updates)
   useEffect(() => {
@@ -112,15 +116,20 @@ export default function CartScreen() {
   const loadItems = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
+    // Snapshot cart at call time so the callback body doesn't close over a
+    // stale reference if the cart changes mid-fetch.
+    const cart = state.user?.cart || state.guestCart || [];
     try {
-      const list: Experience[] = [];
-      const ids: string[] = [];
+      const ids = cart.map(item => item.experienceId);
 
-      for (const item of currentCart) {
-        ids.push(item.experienceId);
-        const exp = await experienceService.getExperienceById(item.experienceId);
-        if (exp) list.push(exp);
-      }
+      const experiences = await Promise.all(
+        cart.map(item => experienceService.getExperienceById(item.experienceId))
+      );
+
+      const list: Experience[] = [];
+      cart.forEach((item, i) => {
+        if (experiences[i]) list.push(experiences[i]!);
+      });
 
       setCartExperiences(list);
       loadedExperienceIds.current = ids;
@@ -130,7 +139,7 @@ export default function CartScreen() {
     } finally {
       setLoading(false);
     }
-  }, [currentCart]);
+  }, [cartKey]); // stable string dep — avoids infinite loop from `|| []` new-array-reference
 
   const updateQuantity = async (experienceId: string, newQty: number) => {
     if (newQty < 1) {

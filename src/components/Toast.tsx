@@ -75,7 +75,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
       </Text>
       <TouchableOpacity
         onPress={() => onDismiss(toast.id)}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
         accessibilityLabel="Dismiss"
         accessibilityRole="button"
       >

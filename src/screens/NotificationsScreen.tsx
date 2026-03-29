@@ -164,6 +164,13 @@ const NotificationsScreen = () => {
           setRefreshing(false);
           showInfo('Notifications are up to date');
         }
+      }, (error) => {
+        // BUG-36 FIX: Surface snapshot errors so the UI exits the loading skeleton
+        // and shows the error/retry state instead of hanging indefinitely.
+        if (isCancelled) return;
+        logger.error('[NotificationsScreen] Notification listener error:', error.message);
+        setError(true);
+        setLoading(false);
       });
 
       if (isCancelled) {
@@ -218,6 +225,10 @@ const NotificationsScreen = () => {
 
   const handlePress = useCallback(async (n: Notification) => {
     if (!userId) return;
+    // BUG-14: tappingRef guard prevents double-tap / concurrent invocations from both
+    // reaching the async body. This is the UI-layer defence for the TOCTOU on
+    // giftAttachedAt. The definitive fix is an idempotency check inside
+    // goalService.attachGiftToGoal (server/service layer).
     if (tappingRef.current) return;
     tappingRef.current = true;
     try {
@@ -288,9 +299,13 @@ const NotificationsScreen = () => {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
           navigation.navigate('Journey', { goal });
+        } else {
+          // BUG-17: show error when goal is null instead of silently doing nothing
+          showError('Could not open — data unavailable');
         }
       } catch (error: unknown) {
         logger.error('Error navigating from reminder notification:', error);
+        showError('Could not open — data unavailable');
       }
     }
 
@@ -299,9 +314,13 @@ const NotificationsScreen = () => {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
           navigation.navigate('Journey', { goal });
+        } else {
+          // BUG-17: show error when goal is null instead of silently doing nothing
+          showError('Could not open — data unavailable');
         }
       } catch (error: unknown) {
         logger.error('Error navigating from motivation notification:', error);
+        showError('Could not open — data unavailable');
       }
     }
 
@@ -320,7 +339,18 @@ const NotificationsScreen = () => {
                 if (!existingGoal?.giftAttachedAt) {
                   await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
                 }
-                const goal = existingGoal?.giftAttachedAt ? existingGoal : await goalService.getGoalById(n.data.goalId);
+                // H9: getGoalById after attach is wrapped in its own try/catch with fallback navigation
+                let goal = existingGoal?.giftAttachedAt ? existingGoal : null;
+                if (!goal) {
+                  try {
+                    goal = await goalService.getGoalById(n.data.goalId);
+                  } catch (fetchError: unknown) {
+                    logger.error('Failed to fetch goal after gift attachment:', fetchError);
+                    showError('Something went wrong. Please check your goals.');
+                    navigation.navigate('Goals');
+                    return;
+                  }
+                }
                 if (n.data.isMystery) {
                   showSuccess(`${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`);
                 } else {
@@ -328,10 +358,13 @@ const NotificationsScreen = () => {
                 }
                 if (goal) {
                   navigation.navigate('Journey', { goal });
+                } else {
+                  navigation.navigate('Goals');
                 }
               } catch (error: unknown) {
                 logger.error('Error attaching empowered gift:', error);
                 showError('Could not attach the gift. Please try again.');
+                navigation.navigate('Goals'); // H9: fallback navigation so user is never stranded
               }
             },
           },
@@ -377,7 +410,13 @@ const NotificationsScreen = () => {
 
     if (n.type === 'payment_failed') {
       if (n.data?.recoveryUrl) {
-        Linking.openURL(n.data.recoveryUrl);
+        // BUG-16: validate URL before opening to prevent opening non-https or malformed URLs
+        const url = n.data?.recoveryUrl;
+        if (!url || !url.startsWith('https://')) {
+          showError('Invalid recovery URL');
+          return;
+        }
+        Linking.openURL(url);
       } else {
         navigation.navigate('PurchasedGifts');
       }
@@ -391,18 +430,37 @@ const NotificationsScreen = () => {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
     }
 
-    if (n.type === 'goal_completed' && n.data?.goalId) {
+    if ((n.type === 'goal_progress' || n.type === 'free_goal_milestone' || n.type === 'inactivity_nudge') && n.data?.goalId) {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+    }
+
+    if (n.type === 'goal_completed' && n.data?.goalId) {
+      try {
+        const goal = await goalService.getGoalById(n.data.goalId);
+        if (goal) {
+          navigation.navigate('AchievementDetail', { goal, mode: 'completion' });
+        } else {
+          showError('Could not open — data unavailable');
+        }
+      } catch (error: unknown) {
+        logger.error('Error navigating from goal_completed notification:', error);
+        showError('Could not open — data unavailable');
+      }
       return;
     }
 
     if ((n.type === 'valentine_partner_progress' || n.type === 'valentine_start' || n.type === 'valentine_unlock' || n.type === 'valentine_completion') && n.data?.goalId) {
       navigation.navigate('GoalDetail', { goalId: n.data.goalId });
     }
+    } catch (e) {
+      // BUG-18: catch unexpected errors (navigation failures, network errors, etc.)
+      // that are not handled by the individual notification type blocks
+      logger.error('handlePress error:', e);
+      showError('Something went wrong, please try again.');
     } finally {
       setTimeout(() => { tappingRef.current = false; }, 500);
     }
-  }, [userId, navigation, userGoals]);
+  }, [userId, navigation, userGoals, showError]);
 
 
   const handleFriendRequestHandled = useCallback(() => {
@@ -1227,7 +1285,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderColor: colors.success,
   },
   markAllReadButtonText: {
-    color: colors.success,
+    color: colors.successText,
     ...Typography.smallBold,
   },
   clearAllButton: {

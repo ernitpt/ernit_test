@@ -66,6 +66,22 @@ export const deleteExperience = onCall(
             const experienceData = experienceSnap.data();
             const imageUrls = experienceData?.imageUrl || [];
 
+            // ✅ CHECK FOR ACTIVE GIFT REFERENCES before deleting anything
+            // This guard must run first so that no Storage images are deleted
+            // when the experience cannot be removed due to active gifts.
+            const activeGifts = await db.collection('experienceGifts')
+                .where('experienceId', '==', experienceId)
+                .where('status', 'in', ['pending', 'claimed'])
+                .limit(1)
+                .get();
+
+            if (!activeGifts.empty) {
+                throw new HttpsError(
+                    'failed-precondition',
+                    'Cannot delete experience: it has active or claimed gifts. Please resolve them first.'
+                );
+            }
+
             logger.info(`📸 Found ${imageUrls.length} images to delete`);
 
             // ✅ DELETE IMAGES from Firebase Storage
@@ -105,20 +121,6 @@ export const deleteExperience = onCall(
                     // Don't fail the entire deletion if an image is already deleted or inaccessible
                     logger.warn(`⚠️ Failed to delete image ${i + 1}: ${(imageError as Error).message ?? String(imageError)}`);
                 }
-            }
-
-            // ✅ CHECK FOR ACTIVE GIFT REFERENCES before deleting
-            const activeGifts = await db.collection('experienceGifts')
-                .where('experienceId', '==', experienceId)
-                .where('status', 'in', ['pending', 'claimed'])
-                .limit(1)
-                .get();
-
-            if (!activeGifts.empty) {
-                throw new HttpsError(
-                    'failed-precondition',
-                    'Cannot delete experience: it has active or claimed gifts. Please resolve them first.'
-                );
             }
 
             // ✅ DELETE EXPERIENCE DOCUMENT from Firestore

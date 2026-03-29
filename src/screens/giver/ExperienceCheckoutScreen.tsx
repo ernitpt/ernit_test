@@ -9,7 +9,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
@@ -51,8 +50,13 @@ import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePaymentSheet } from '../../hooks/useNativePaymentSheet';
 
-const stripePromise = Platform.OS === 'web' ? loadStripe(process.env.EXPO_PUBLIC_STRIPE_PK!) : null;
+const _stripePk = process.env.EXPO_PUBLIC_STRIPE_PK;
+if (Platform.OS === 'web' && !_stripePk) {
+  console.error('Stripe public key not configured: EXPO_PUBLIC_STRIPE_PK is missing');
+}
+const stripePromise = Platform.OS === 'web' && _stripePk ? loadStripe(_stripePk) : null;
 
 type NavigationProp = NativeStackNavigationProp<GiverStackParamList, "ExperienceCheckout">;
 
@@ -122,11 +126,24 @@ const checkGiftCreation = async (paymentIntentId: string): Promise<ExperienceGif
     const gifts = await response.json();
     if (!Array.isArray(gifts)) return [];
 
+    const safeDate = (val: unknown): Date | undefined => {
+      if (!val) return undefined;
+      if (val instanceof Date) return val;
+      if (typeof val === 'object' && val !== null && 'toDate' in val && typeof (val as { toDate: unknown }).toDate === 'function') {
+        return (val as { toDate(): Date }).toDate();
+      }
+      if (typeof val === 'object' && val !== null && 'seconds' in val && typeof (val as { seconds: unknown }).seconds === 'number') {
+        return new Date((val as { seconds: number }).seconds * 1000);
+      }
+      const d = new Date(val as string | number);
+      return isNaN(d.getTime()) ? undefined : d;
+    };
+
     return gifts.map((gift: ExperienceGift) => ({
       ...gift,
-      createdAt: new Date(gift.createdAt),
-      deliveryDate: new Date(gift.deliveryDate),
-      updatedAt: new Date(gift.updatedAt),
+      createdAt: safeDate(gift.createdAt),
+      deliveryDate: safeDate(gift.deliveryDate),
+      updatedAt: safeDate(gift.updatedAt),
     }));
   } catch (error: unknown) {
     logger.error("Error checking gifts:", error);
@@ -269,7 +286,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showSuccess("Your payment was processed successfully!");
-            navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
+            navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
             await clearCartEverywhere();
             await removeStorageItem(`pending_payment_${clientSecret}`);
@@ -277,7 +294,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               window.history.replaceState({}, document.title, window.location.pathname);
             }
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
+            navigation.replace("ConfirmationMultiple", { experienceGifts: gifts });
           } else {
             logger.warn("⚠️ Gifts not found after polling");
             dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
@@ -358,12 +375,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           await removeStorageItem(`pending_payment_${clientSecret}`);
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           showSuccess("Your payment was processed successfully!");
-          navigation.navigate("Confirmation", { experienceGift: gifts[0], goalId });
+          navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          navigation.navigate("ConfirmationMultiple", { experienceGifts: gifts });
+          navigation.replace("ConfirmationMultiple", { experienceGifts: gifts });
         } else {
           logger.warn("⚠️ Gifts not found after polling");
           dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
@@ -391,7 +408,9 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
       showError(errorMessage);
       logger.error("Payment error:", err);
-    } finally {
+      // BUG-12 FIX: Only reset processing state on failure.
+      // On success the component navigates away and will unmount — resetting here
+      // would briefly re-enable the purchase button during the navigation transition.
       processingRef.current = false;
       setIsProcessing(false);
     }
@@ -423,15 +442,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               <Lock color={colors.secondary} size={20} />
             </View>
           </View>
-
-          {(isCheckingRedirect || isProcessing) && (
-            <View style={styles.processingOverlay}>
-              <ActivityIndicator color={colors.secondary} size="large" />
-              <Text style={styles.processingText}>
-                {isCheckingRedirect ? "Verifying payment..." : "Processing payment..."}
-              </Text>
-            </View>
-          )}
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             {/* Summary */}
@@ -509,7 +519,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
 // ========== NATIVE CHECKOUT (uses @stripe/stripe-react-native PaymentSheet) ==========
 const NativeCheckoutScreen: React.FC = () => {
-  const { usePaymentSheet } = require('../../hooks/useNativePaymentSheet');
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute();
@@ -519,10 +528,16 @@ const NativeCheckoutScreen: React.FC = () => {
   const { showError, showSuccess, showInfo } = useToast();
   const insets = useSafeAreaInsets();
 
-  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean } | undefined;
+  // @ts-ignore — additional challenge params not yet in navigation type
+  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; challengeType?: string; revealMode?: string; goalName?: string; goalType?: string; sameExperienceForBoth?: boolean } | undefined;
   const cartItems = routeParams?.cartItems || [];
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
   const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
+  const challengeType = routeParams?.challengeType;
+  const revealMode = routeParams?.revealMode;
+  const goalName = routeParams?.goalName;
+  const goalType = routeParams?.goalType;
+  const sameExperienceForBoth = routeParams?.sameExperienceForBoth;
 
   const [loading, setLoading] = useState(true);
   const [cartExperiences, setCartExperiences] = useState<Experience[]>([]);
@@ -563,12 +578,17 @@ const NativeCheckoutScreen: React.FC = () => {
         if (!cartItems || cartItems.length === 0) return;
         initRef.current = true;
 
+        const nativeExpResults = await Promise.all(
+          cartItems.map(item => experienceService.getExperienceById(item.experienceId))
+        );
         const list: Experience[] = [];
         let total = 0;
-        for (const item of cartItems) {
-          const exp = await experienceService.getExperienceById(item.experienceId);
+        cartItems.forEach((item, i) => {
+          const exp = nativeExpResults[i];
           if (exp) { list.push(exp); total += exp.price * item.quantity; }
-        }
+        });
+        // BUG-13 FIX: Eliminate floating-point artifacts before passing to Stripe.
+        total = Math.round(total * 100) / 100;
         if (list.length === 0) {
           showError("Could not load experiences for checkout.");
           initRef.current = false;
@@ -585,9 +605,19 @@ const NativeCheckoutScreen: React.FC = () => {
           return { experienceId: item.experienceId, partnerId: exp?.partnerId || firstExp.partnerId, quantity: item.quantity };
         });
 
+        // Pass challenge metadata alongside the payment intent
+        const challengeMeta = {
+          challengeType: challengeType ?? 'solo',
+          revealMode: revealMode ?? 'revealed',
+          goalName: goalName ?? '',
+          goalType: goalType ?? 'custom',
+          sameExperienceForBoth: sameExperienceForBoth ?? false,
+        };
+
         const response = await stripeService.createPaymentIntent(
           total, state.user?.id || '', state.user?.displayName || '',
-          firstExp.partnerId, cartMetadata, '', isMystery
+          firstExp.partnerId, cartMetadata, '', isMystery,
+          challengeMeta
         );
         setPaymentIntentId(response.paymentIntentId);
 
@@ -648,11 +678,11 @@ const NativeCheckoutScreen: React.FC = () => {
           dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: gifts[0] });
           dispatch({ type: 'CLEAR_CART' });
           showSuccess('Your payment was processed successfully!');
-          navigation.navigate('Confirmation', { experienceGift: gifts[0], goalId });
+          navigation.replace('Confirmation', { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: 'CLEAR_CART' });
           showSuccess('Your payment was processed successfully!');
-          navigation.navigate('ConfirmationMultiple', { experienceGifts: gifts });
+          navigation.replace('ConfirmationMultiple', { experienceGifts: gifts });
         } else {
           dispatch({ type: 'CLEAR_CART' });
           showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
@@ -718,13 +748,6 @@ const NativeCheckoutScreen: React.FC = () => {
     <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
       <MainScreen activeRoute="Home">
         <View style={styles.container}>
-          {isProcessing && (
-            <View style={styles.processingOverlay}>
-              <ActivityIndicator color={colors.secondary} size="large" />
-              <Text style={styles.processingText}>Processing payment...</Text>
-            </View>
-          )}
-
           <View style={styles.header}>
             <TouchableOpacity
               style={[styles.backButton, isProcessing && styles.backButtonDisabled]}
@@ -802,10 +825,16 @@ const WebCheckoutScreen: React.FC = () => {
   const { showError } = useToast();
 
   // Handle case where route params might be undefined on browser refresh
-  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean } | undefined;
+  // @ts-ignore — additional challenge params not yet in navigation type
+  const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; challengeType?: string; revealMode?: string; goalName?: string; goalType?: string; sameExperienceForBoth?: boolean } | undefined;
   const cartItems = routeParams?.cartItems || [];
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
   const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
+  const challengeType = routeParams?.challengeType;
+  const revealMode = routeParams?.revealMode;
+  const goalName = routeParams?.goalName;
+  const goalType = routeParams?.goalType;
+  const sameExperienceForBoth = routeParams?.sameExperienceForBoth;
 
   // ✅ All useState hooks MUST be called unconditionally at the top (React Rules of Hooks)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -844,87 +873,102 @@ const WebCheckoutScreen: React.FC = () => {
   // Ref to ensure initialization only happens once
   const initRef = React.useRef(false);
 
+  // BUG-11 FIX: Extracted into a named function so that both the initial useEffect
+  // and the retry handler share the same logic, including the `isMystery` parameter.
+  const initCheckout = React.useCallback(async () => {
+    try {
+      if (!cartItems || cartItems.length === 0) return;
+
+      initRef.current = true;
+      analyticsService.trackEvent('checkout_started', 'conversion', { itemCount: cartItems.length }, 'ExperienceCheckoutScreen');
+
+      // Load all experiences in cart concurrently
+      const cartExperienceResults = await Promise.all(
+        cartItems.map(item => experienceService.getExperienceById(item.experienceId))
+      );
+
+      const list: Experience[] = [];
+      let total = 0;
+      cartItems.forEach((item, i) => {
+        const exp = cartExperienceResults[i];
+        if (exp) {
+          list.push(exp);
+          total += exp.price * item.quantity;
+        }
+      });
+      // BUG-13 FIX: Eliminate floating-point artifacts before passing to Stripe.
+      total = Math.round(total * 100) / 100;
+
+      if (list.length === 0) {
+        showError("Could not load experiences for checkout.");
+        initRef.current = false;
+        if (navigation.canGoBack()) navigation.goBack();
+        else navigation.navigate('CategorySelection');
+        return;
+      }
+
+      setCartExperiences(list);
+      setTotalAmount(total);
+
+      const firstExp = list[0];
+
+      // Build cart metadata for backend
+      const cartMetadata = cartItems.map((item) => {
+        const exp = list.find((e) => e.id === item.experienceId);
+        return {
+          experienceId: item.experienceId,
+          partnerId: exp?.partnerId || firstExp.partnerId,
+          quantity: item.quantity,
+        };
+      });
+
+      // Pass challenge metadata alongside the payment intent
+      const challengeMeta = {
+        challengeType: challengeType ?? 'solo',
+        revealMode: revealMode ?? 'revealed',
+        goalName: goalName ?? '',
+        goalType: goalType ?? 'custom',
+        sameExperienceForBoth: sameExperienceForBoth ?? false,
+      };
+
+      // Create PaymentIntent with full metadata & aggregated total (isMystery included)
+      const response = await stripeService.createPaymentIntent(
+        total,
+        state.user?.id || "",
+        state.user?.displayName || "",
+        firstExp.partnerId,
+        cartMetadata,
+        "", // personalized message will be added on confirmation screen
+        isMystery,
+        challengeMeta
+      );
+
+      setClientSecret(response.clientSecret);
+      setPaymentIntentId(response.paymentIntentId);
+    } catch (err: unknown) {
+      logger.error("Error creating payment intent:", err);
+      await logErrorToFirestore(err, {
+        screenName: 'ExperienceCheckoutScreen',
+        feature: 'InitCheckout',
+        userId: state.user?.id,
+        additionalData: {
+          itemCount: cartItems.length
+        }
+      });
+      showError(getUserMessage(err, 'Could not set up payment. Please check your connection and try again.'));
+      initRef.current = false;
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.navigate('CategorySelection');
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Stable ref: cartItems/state captured at mount, same as the original useEffect
+
   useEffect(() => {
     // Prevent re-initialization - Stripe Elements doesn't allow clientSecret to change
     if (initRef.current) return;
-
-    const init = async () => {
-      try {
-        // Validation handled by early return/redirect above, but keeping safety check
-        if (!cartItems || cartItems.length === 0) return;
-
-        // Mark as initialized before async work to prevent race conditions
-        initRef.current = true;
-        analyticsService.trackEvent('checkout_started', 'conversion', { itemCount: cartItems.length }, 'ExperienceCheckoutScreen');
-
-        // Load all experiences in cart
-        const list: Experience[] = [];
-        let total = 0;
-
-        for (const item of cartItems) {
-          const exp = await experienceService.getExperienceById(item.experienceId);
-          if (exp) {
-            list.push(exp);
-            total += exp.price * item.quantity;
-          }
-        }
-
-        if (list.length === 0) {
-          showError("Could not load experiences for checkout.");
-          initRef.current = false; // Allow retry
-          if (navigation.canGoBack()) navigation.goBack();
-          else navigation.navigate('CategorySelection');
-          return;
-        }
-
-        setCartExperiences(list);
-        setTotalAmount(total);
-
-        const firstExp = list[0];
-
-        // Build cart metadata for backend
-        const cartMetadata = cartItems.map((item) => {
-          const exp = list.find((e) => e.id === item.experienceId);
-          return {
-            experienceId: item.experienceId,
-            partnerId: exp?.partnerId || firstExp.partnerId,
-            quantity: item.quantity,
-          };
-        });
-
-        // Create PaymentIntent with full metadata & aggregated total
-        const response = await stripeService.createPaymentIntent(
-          total,
-          state.user?.id || "",
-          state.user?.displayName || "",
-          firstExp.partnerId,
-          cartMetadata,
-          "", // personalized message will be added on confirmation screen
-          isMystery
-        );
-
-        setClientSecret(response.clientSecret);
-        setPaymentIntentId(response.paymentIntentId);
-      } catch (err: unknown) {
-        logger.error("Error creating payment intent:", err);
-        await logErrorToFirestore(err, {
-          screenName: 'ExperienceCheckoutScreen',
-          feature: 'InitCheckout',
-          userId: state.user?.id,
-          additionalData: {
-            itemCount: cartItems.length
-          }
-        });
-        showError(getUserMessage(err, 'Could not set up payment. Please check your connection and try again.'));
-        initRef.current = false; // Allow retry
-        if (navigation.canGoBack()) navigation.goBack();
-        else navigation.navigate('CategorySelection');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
+    initCheckout();
   }, []); // Empty deps - only run once on mount
 
   // Early return AFTER all hooks are called
@@ -990,48 +1034,12 @@ const WebCheckoutScreen: React.FC = () => {
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <TouchableOpacity
               onPress={() => {
-                // Retry: reset init flag and re-attempt initialization
+                // BUG-11 FIX: Use shared initCheckout so isMystery is always forwarded.
                 initRef.current = false;
                 setLoading(true);
                 setClientSecret(null);
                 setPaymentIntentId(null);
-                const retry = async () => {
-                  try {
-                    if (!cartItems || cartItems.length === 0) return;
-                    initRef.current = true;
-                    const list: Experience[] = [];
-                    let total = 0;
-                    for (const item of cartItems) {
-                      const exp = await experienceService.getExperienceById(item.experienceId);
-                      if (exp) { list.push(exp); total += exp.price * item.quantity; }
-                    }
-                    if (list.length === 0) {
-                      showError('Could not load experiences for checkout.');
-                      initRef.current = false;
-                      return;
-                    }
-                    setCartExperiences(list);
-                    setTotalAmount(total);
-                    const firstExp = list[0];
-                    const cartMetadata = cartItems.map((item) => {
-                      const exp = list.find((e) => e.id === item.experienceId);
-                      return { experienceId: item.experienceId, partnerId: exp?.partnerId || firstExp.partnerId, quantity: item.quantity };
-                    });
-                    const response = await stripeService.createPaymentIntent(
-                      total, state.user?.id || '', state.user?.displayName || '',
-                      firstExp.partnerId, cartMetadata, ''
-                    );
-                    setClientSecret(response.clientSecret);
-                    setPaymentIntentId(response.paymentIntentId);
-                  } catch (err: unknown) {
-                    logger.error('Retry init failed:', err);
-                    showError(getUserMessage(err, 'Payment setup failed. Please try again or use a different method.'));
-                    initRef.current = false;
-                  } finally {
-                    setLoading(false);
-                  }
-                };
-                retry();
+                initCheckout();
               }}
               style={styles.retryButton}
             >
@@ -1256,16 +1264,4 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   retryButtonText: { color: colors.white, ...Typography.subheading, fontWeight: "600" },
-  processingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surfaceFrosted,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  processingText: { marginTop: Spacing.md, ...Typography.subheading, color: colors.textSecondary, fontWeight: "500" },
 });

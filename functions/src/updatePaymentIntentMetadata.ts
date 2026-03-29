@@ -91,10 +91,11 @@ export const updatePaymentIntentMetadata = onRequest(
             }
 
             // ✅ Update payment intent metadata
+            // Use giverId (not userId) to match the key expected by the webhook handler
             await stripe.paymentIntents.update(paymentIntentId, {
                 metadata: {
                     personalizedMessage: personalizedMessage || "",
-                    userId: userId,
+                    giverId: userId,
                 },
             });
 

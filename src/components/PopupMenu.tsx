@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { MoreVertical } from 'lucide-react-native';
@@ -30,6 +31,10 @@ interface PopupMenuProps {
   accessibilityLabel?: string;
 }
 
+// Estimated menu dimensions for clamping — keeps popup on-screen
+const MENU_HEIGHT = 200;
+const MENU_WIDTH = 160;
+
 export const PopupMenu = React.memo<PopupMenuProps>(({
   items,
   triggerSize = 18,
@@ -40,9 +45,13 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
   const [visible, setVisible] = useState(false);
   const [triggerPosition, setTriggerPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const triggerRef = React.useRef<View>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => () => { isMounted.current = false; }, []);
 
   const openMenu = useCallback(() => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {
+      if (!isMounted.current) return;
       setTriggerPosition({ x, y, width, height });
       setVisible(true);
     });
@@ -94,10 +103,14 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
                 transition={{ type: 'timing', duration: 150 }}
                 style={[
                   styles.dropdown,
-                  {
-                    top: triggerPosition.y + triggerPosition.height + 4,
-                    left: Math.max(8, triggerPosition.x - 140 + triggerPosition.width),
-                  },
+                  (() => {
+                    const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+                    const rawTop = triggerPosition.y + triggerPosition.height + 4;
+                    const rawLeft = Math.max(8, triggerPosition.x - 140 + triggerPosition.width);
+                    const clampedTop = Math.min(rawTop, SCREEN_HEIGHT - MENU_HEIGHT - 20);
+                    const clampedLeft = Math.min(rawLeft, SCREEN_WIDTH - MENU_WIDTH - 20);
+                    return { top: clampedTop, left: clampedLeft };
+                  })(),
                 ]}
               >
                 {items.map((item, index) => (

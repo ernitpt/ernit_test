@@ -2,21 +2,14 @@ import { db, auth } from './firebase';
 import {
   doc,
   collection,
-  getDoc,
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
+import type { PartnerCoupon } from '../types';
 
-export interface PartnerCoupon {
-  code: string;
-  status: 'active' | 'redeemed' | 'expired';
-  userId: string;
-  validUntil: Date;
-  partnerId: string;
-  goalId: string;
-}
+export type { PartnerCoupon };
 
 /** Generate a unique 12-character alphanumeric code using a CSPRNG with rejection sampling */
 function generateUniqueCode(): string {
@@ -60,7 +53,8 @@ export async function generateCouponForGoal(
 
       // Verify payment is confirmed for deferred gifts before issuing a coupon
       if (goalData.experienceGiftId) {
-        const giftSnap = await getDoc(doc(db, 'experienceGifts', goalData.experienceGiftId));
+        const giftRef = doc(db, 'experienceGifts', goalData.experienceGiftId);
+        const giftSnap = await transaction.get(giftRef);
         const giftPayment = giftSnap.data()?.payment;
         if (giftPayment === 'deferred' || giftPayment === 'processing') {
           throw new AppError('PAYMENT_PENDING', 'Coupon cannot be issued until payment is confirmed', 'business');

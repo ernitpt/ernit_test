@@ -33,9 +33,9 @@ export interface UserProfile {
   country: string;
   description?: string; // max 300 characters
   profileImageUrl?: string;
-  activityCount: number;
-  followersCount: number;
-  followingCount: number;
+  activityCount: number; // TODO: not yet implemented — field is declared but never read or written in client code
+  followersCount: number; // TODO: not yet implemented — field is declared but never read or written in client code
+  followingCount: number; // TODO: not yet implemented — field is declared but never read or written in client code
   createdAt: Date;
   updatedAt: Date;
   badges?: ('founder' | 'pioneer')[];
@@ -199,6 +199,13 @@ export interface GoalCore {
   venueName?: string;
   venueLocation?: { lat: number; lng: number };
   claimCode?: string;
+  pendingEditRequest?: {
+    requestedTargetCount: number;
+    requestedSessionsPerWeek: number;
+    requestedAt: Date;
+    requestedBy: string;
+    message?: string;
+  };
 }
 
 /** Weekly session tracking fields */
@@ -484,7 +491,9 @@ export interface Notification {
     // Together/Shared challenge notification types
     | 'shared_start' | 'shared_unlock' | 'shared_completion' | 'shared_session'
     // Payment notification types
-    | 'payment_charged' | 'payment_failed'
+    | 'payment_charged' | 'payment_failed' | 'payment_cancelled'
+    // Shared challenge removal
+    | 'shared_partner_removed'
     | 'motivation_received' | 'session_reminder' | 'weekly_recap' | 'experience_booking_reminder'
     | 'valentine_partner_progress';
   read: boolean;
@@ -593,6 +602,7 @@ export interface PartnerCoupon {
   partnerId: string;
   goalId?: string;
   redeemedAt?: Date;
+  createdAt?: Date;
 }
 
 // Challenge setup prefill data (from auth redirect)
@@ -688,9 +698,6 @@ export type GiverStackParamList = {
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; giftId?: string };
   Confirmation: { experienceGift: ExperienceGift; goalId?: string };
   Cart: undefined;
-  ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
-  MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
-  PurchasedGifts: undefined;
 };
 
 export type RecipientStackParamList = {

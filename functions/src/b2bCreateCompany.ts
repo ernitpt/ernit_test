@@ -33,17 +33,32 @@ export const b2bCreateCompany = onCall(
 
     const sanitizedName = companyName.trim().slice(0, 100);
     const sanitizedIndustry = typeof industry === "string" ? industry.trim().slice(0, 100) : undefined;
-    const sanitizedBillingEmail = typeof billingEmail === "string" && billingEmail.includes("@")
-      ? billingEmail.trim().toLowerCase().slice(0, 200)
-      : email;
+
+    // Validate billing email with a proper regex instead of a weak includes("@") check
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    let resolvedBillingEmail = email;
+    if (typeof billingEmail === "string" && billingEmail.trim().length > 0) {
+      const trimmedBilling = billingEmail.trim().toLowerCase().slice(0, 200);
+      if (!EMAIL_REGEX.test(trimmedBilling)) {
+        throw new HttpsError("invalid-argument", "Invalid billing email address.");
+      }
+      resolvedBillingEmail = trimmedBilling;
+    }
+    const sanitizedBillingEmail = resolvedBillingEmail;
 
     // Generate slug from company name
-    const slug = sanitizedName
+    let slug = sanitizedName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
     const b2bDb = getB2bDb();
+
+    // Check slug uniqueness; append a short random suffix if it already exists
+    const existingSlug = await b2bDb.collection("b2bCompanies").where("slug", "==", slug).limit(1).get();
+    if (!existingSlug.empty) {
+      slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
+    }
 
     // Use a batch to create company + member + update user atomically
     const batch = b2bDb.batch();

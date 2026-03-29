@@ -18,7 +18,7 @@ const ErrorRetry: React.FC<ErrorRetryProps> = ({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <AlertCircle size={32} color={colors.textMuted} />
       <Text style={styles.message}>{message}</Text>
       <Button

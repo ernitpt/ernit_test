@@ -33,6 +33,7 @@ export interface ButtonProps {
   activeOpacity?: number;
   fullWidth?: boolean;
   gradient?: boolean;
+  accessibilityLabel?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -49,6 +50,7 @@ const Button: React.FC<ButtonProps> = ({
   activeOpacity = 0.8,
   fullWidth = false,
   gradient = false,
+  accessibilityLabel,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -240,7 +242,7 @@ const Button: React.FC<ButtonProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled || loading}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ disabled: disabled || loading }}
     >
       <Animated.View style={[containerStyle, { transform: [{ scale: scaleAnim }] }]}>

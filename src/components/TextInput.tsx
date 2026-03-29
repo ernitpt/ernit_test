@@ -149,7 +149,7 @@ const createStyles = (colors: typeof Colors) =>
     } as TextStyle,
     successText: {
       ...Typography.caption,
-      color: colors.success,
+      color: colors.successText,
       marginTop: Spacing.xs,
     } as TextStyle,
     helperText: {

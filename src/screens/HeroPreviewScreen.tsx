@@ -33,6 +33,7 @@ import { vh, VH } from '../utils/responsive';
 import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
 import { experienceService } from '../services/ExperienceService';
+import { logger } from '../utils/logger';
 
 // ─── Constants ────────────────────────────────────────────────────
 const WORD_SLOT_HEIGHT = vh(58);
@@ -387,7 +388,7 @@ const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
         zIndex: 5,
     },
     labelPill: {
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: Colors.overlay,
         borderRadius: BorderRadius.sm,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,
@@ -432,6 +433,8 @@ export default function HeroPreviewScreen() {
             if (covers.length >= 2) {
                 setRewardImages(shuffleNoRepeat(covers));
             }
+        }).catch((e) => {
+            logger.error('Failed to load experiences in HeroPreviewScreen:', e);
         });
     }, []);
 
@@ -557,11 +560,11 @@ export default function HeroPreviewScreen() {
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(16, 185, 129, 0.1)', 'rgba(245, 158, 11, 0.1)'],
+        outputRange: [Colors.primaryAlpha10, Colors.warningAlpha10],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(16, 185, 129, 0.3)', 'rgba(245, 158, 11, 0.3)'],
+        outputRange: [Colors.primaryAlpha30, Colors.warningAlpha30],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -1204,7 +1207,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         left: '10%',
         right: '10%',
         bottom: '10%',
-        borderRadius: 999,
+        borderRadius: BorderRadius.circle,
         opacity: 0.15,
         ...Platform.select({
             web: { filter: 'blur(40px)' },
@@ -1250,7 +1253,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         textAlign: 'center',
         ...Platform.select({
             default: {
-                textShadowColor: 'rgba(16, 185, 129, 0.4)',
+                textShadowColor: Colors.primaryAlpha40,
                 textShadowOffset: { width: 0, height: 0 },
                 textShadowRadius: 8,
             },
@@ -1538,7 +1541,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         borderRadius: BorderRadius.pill,
         marginBottom: Spacing.lg,
         borderWidth: 3,
-        borderColor: 'rgba(255,255,255,0.15)',
+        borderColor: Colors.whiteAlpha15,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 8,
@@ -1562,7 +1565,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         gap: Spacing.sm,
         paddingHorizontal: Spacing.xl,
         paddingVertical: Spacing.md,
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: Colors.whiteAlpha06,
         borderRadius: BorderRadius.xxl,
         borderWidth: 1,
         ...Shadows.sm,

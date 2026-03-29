@@ -89,9 +89,14 @@ const MysteryChoiceScreen = () => {
             });
         }
 
+        if (!isCartFlow && !experience?.id) {
+            console.warn('MysteryChoiceScreen: experience missing, cannot navigate to checkout');
+            return;
+        }
+
         const checkoutCartItems = isCartFlow
-            ? cartItems!
-            : [{ experienceId: experience?.id ?? "", quantity: 1 }];
+            ? (cartItems ?? [])
+            : [{ experienceId: experience!.id, quantity: 1 }];
 
         navigation.navigate('ExperienceCheckout', {
             cartItems: checkoutCartItems,

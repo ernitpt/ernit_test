@@ -219,9 +219,17 @@ class FeedService {
             // NOTE: Firestore 'in' queries support up to 30 values.
             // If the user has more than 29 friends, only the first 29 are included here
             // (plus the user's own posts = 30 total). For larger friend lists, use getFriendsFeed.
+            if (allowedUserIds.length > 30) {
+                logger.warn(
+                    `FeedService.listenToFeed: truncating ${allowedUserIds.length} friend IDs to 30 ` +
+                    `due to Firestore 'in' operator limit. Users beyond 30 friends will have ` +
+                    `incomplete real-time feeds. Use getFriendsFeed for full paginated access.`
+                );
+            }
+            const limitedIds = allowedUserIds.slice(0, 30);
             const q = query(
                 this.feedPostsCollection,
-                where('userId', 'in', allowedUserIds.slice(0, 30)),
+                where('userId', 'in', limitedIds),
                 orderBy('createdAt', 'desc'),
                 limit(100)
             );
@@ -244,6 +252,8 @@ class FeedService {
                 callback(posts.slice(0, limitCount));
             }, (error) => {
                 logger.error('[FeedService] Feed snapshot error:', error.message);
+                // Signal empty so UI exits the loading state rather than hanging indefinitely
+                callback([]);
             });
         }).catch(error => {
             logger.error('❌ Error setting up feed listener:', error);

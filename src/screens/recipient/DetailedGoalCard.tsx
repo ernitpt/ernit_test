@@ -13,7 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, ExperienceGift, PersonalizedHint, isSelfGifted } from '../../types';
 import { db } from '../../services/firebase';
-import { addDoc, collection, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { normalizeGoal } from '../../services/GoalService';
 import { goalService } from '../../services/GoalService';
 import { userService } from '../../services/userService';
@@ -94,6 +94,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [showHint, setShowHint] = useState(false);
   const [lastHint, setLastHint] = useState<HintObject | string | null>(null);
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
+  // Ref keeps lastSessionNumber readable synchronously — state updates are async
+  // so handlePostToFeed uses this ref instead of stale state
+  const lastSessionNumberRef = useRef<number>(0);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -148,7 +151,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Partner goal state for shared/together challenges
   const [partnerGoalData, setPartnerGoalData] = useState<PartnerGoalData | null>(null);
-  const [partnerProfile, setPartnerProfile] = useState<{ name: string; photoURL?: string } | null>(null);
+  const [partnerProfile, _setPartnerProfile] = useState<{ name: string; photoURL?: string } | null>(null);
+  const partnerProfileRef = useRef<{ name: string; photoURL?: string } | null>(null);
+  const setPartnerProfile = useCallback((profile: { name: string; photoURL?: string } | null) => {
+    partnerProfileRef.current = profile;
+    _setPartnerProfile(profile);
+  }, []);
   const [selectedView, setSelectedView] = useState<'user' | 'partner'>('user');
   const viewFadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -263,7 +271,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   useEffect(() => {
     if (!currentGoal.partnerGoalId) {
       setPartnerGoalData(null);
-      setPartnerProfile(null);
+      setPartnerProfile(null); // also clears partnerProfileRef via the wrapper
       return;
     }
 
@@ -289,7 +297,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           title: raw.title,
         });
         // Fetch partner profile (name + photo) for avatar display
-        if (raw.userId && !partnerProfile) {
+        if (raw.userId && !partnerProfileRef.current) {
           Promise.all([
             userService.getUserProfile(raw.userId),
             userService.getUserName(raw.userId),
@@ -312,17 +320,22 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   // Sync goal prop changes from parent (JourneyScreen owns the onSnapshot listener)
   useEffect(() => {
-    // Skip update if key data hasn't changed to prevent render loops
-    if (
-      goal.weeklyCount === currentGoal.weeklyCount &&
-      goal.currentCount === currentGoal.currentCount &&
-      goal.isCompleted === currentGoal.isCompleted &&
-      goal.empoweredBy === currentGoal.empoweredBy &&
-      goal.experienceGiftId === currentGoal.experienceGiftId
-    ) {
-      return;
-    }
-    setCurrentGoal(goal);
+    if (!goal) return;
+    // Always sync important display fields — check all fields that affect UI
+    setCurrentGoal(prev => {
+      if (!prev) return normalizeGoal(goal);
+      const changed =
+        prev.weeklyCount !== goal.weeklyCount ||
+        prev.currentCount !== goal.currentCount ||
+        prev.isCompleted !== goal.isCompleted ||
+        prev.isWeekCompleted !== goal.isWeekCompleted ||
+        prev.approvalStatus !== goal.approvalStatus ||
+        prev.personalizedNextHint !== goal.personalizedNextHint ||
+        prev.discoveredExperience !== goal.discoveredExperience ||
+        prev.empoweredBy !== goal.empoweredBy ||
+        prev.experienceGiftId !== goal.experienceGiftId;
+      return changed ? normalizeGoal(goal) : prev;
+    });
   }, [goal]);
 
   // Background timer awareness — notify when app becomes visible and timer running
@@ -596,11 +609,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         logger.log(`Scheduled session notification with ID: ${notifId} for ${goalSeconds}s`);
       }
     } catch (err: unknown) {
-      logger.warn('Session start failed:', err);
+      logger.error('Failed to start session:', err);
+      showError('Failed to start session. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer]);
+  }, [isTimerRunning, loading, currentGoal, empoweredName, startTimer, debugMode]);
 
   // Resume session start after venue selection (avoids stale closure)
   useEffect(() => {
@@ -614,167 +628,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const hintGeneratingRef = useRef(false);
   const ctaTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const handleFinish = useCallback(async () => {
-    if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
-    finishLock.current = true;
-    const goalId = currentGoal.id;
-    if (!goalId) { finishLock.current = false; return; }
-
-    // Approval checks
-    if (isGoalLocked(currentGoal)) {
-      const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
-      if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
-        const message = currentGoal.approvalStatus === 'suggested_change'
-          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
-          : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
-        showError(message);
-        finishLock.current = false;
-        return;
-      }
-      if (sessionsDoneBeforeFinish >= 1) {
-        const message = currentGoal.approvalStatus === 'suggested_change'
-          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
-          : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
-        showError(message);
-        finishLock.current = false;
-        return;
-      }
-    }
-
-    setLoading(true);
-
-    try {
-      // Pass session start time for cross-midnight/cross-day protection
-      const sessionStartDate = timerState?.startTime ? new Date(timerState.startTime) : undefined;
-      const updated = await goalService.tickWeeklySession(goalId, sessionStartDate);
-      // Store session timestamp for interval validation
-      await AsyncStorage.setItem(`lastSession_${goalId}`, String(Date.now()));
-
-      setCurrentGoal(updated);
-
-      let gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null = null;
-      let experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null = null;
-
-      // For mystery gifts, only fetch experience on completion (reveal time)
-      // For non-mystery gifts, always fetch for notifications and feed
-      if (updated.experienceGiftId && (!updated.isMystery || updated.isCompleted)) {
-        gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
-        if (gift.experienceId) {
-          experience = await experienceService.getExperienceById(gift.experienceId);
-        }
-      }
-
-      const recipientName = await userService.getUserName(updated.userId);
-      const totalSessionsDone = (updated.currentCount * updated.sessionsPerWeek) + updated.weeklyCount;
-      setLastSessionNumber(totalSessionsDone);
-
-      stopTimer(currentGoal.id);
-      await clearTimerState();
-      await pushNotificationService.cancelSessionNotification(goalId);
-
-      if (updated.isCompleted) {
-        // GOAL COMPLETION — create session record, then navigate.
-        //
-        // S-12 (INTENTIONAL NON-ATOMICITY): tickWeeklySession (above) runs as a
-        // Firestore transaction that atomically updates the goal counter and triggers
-        // the deferred-charge Cloud Function. The session record written here is
-        // supplementary audit data only — if it fails, the goal counter and charge
-        // trigger are already committed and correct. Navigation proceeds regardless.
-        try {
-          await sessionService.createSessionRecord(goalId, {
-            goalId, userId: updated.userId, timestamp: new Date(),
-            duration: Math.min(timeElapsed, MAX_SESSION_SECONDS), sessionNumber: totalSessionsDone,
-            weekNumber: updated.currentCount,
-          });
-        } catch (err: unknown) {
-          // Non-critical: goal progress and charge trigger are already committed
-          logger.warn('Failed to save final session record (non-critical):', err);
-        }
-
-        // Free goals without attached gift: navigate to FreeGoalCompletion
-        // Pay-on-completion: route to ExperienceCheckout instead of FreeGoalCompletion
-        if (updated.isFreeGoal && !gift && updated.paymentCommitment === 'payOnCompletion' && updated.pledgedExperience) {
-          navigation.navigate('ExperienceCheckout', {
-            cartItems: [{
-              experienceId: updated.pledgedExperience.experienceId,
-              quantity: 1,
-            }],
-            goalId: updated.id,
-          });
-          return;
-        }
-        if (updated.isFreeGoal && !gift) {
-          // Discovery engine: if experience was discovered but not yet revealed, show reveal first
-          if (updated.discoveredExperience && !updated.experienceRevealed) {
-            setShowExperienceReveal(true);
-            // After reveal is dismissed, onClose will mark as revealed.
-            // The user can claim from the reveal modal or navigate to FreeGoalCompletion manually.
-            return;
-          }
-          navigation.navigate('AchievementDetail', {
-            goal: serializeNav(updated),
-            mode: 'completion',
-          });
-        } else if (gift) {
-          if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
-            await notificationService.createNotification(
-              updated.empoweredBy,
-              'goal_completed',
-              `${recipientName} just earned ${experience.title}`,
-              `Goal completed: ${updated.description}`,
-              {
-                goalId: updated.id,
-                giftId: updated.experienceGiftId,
-                giverId: updated.empoweredBy,
-                recipientId: updated.userId,
-                experienceTitle: experience.title,
-              }
-            );
-          }
-          navigation.navigate('AchievementDetail', {
-            goal: serializeNav(updated),
-            experienceGift: serializeNav(gift),
-            mode: 'completion',
-          });
-        }
-      } else {
-        // SESSION COMPLETE (not goal complete) — show media prompt first
-        setPendingFinishData({
-          updated,
-          totalSessionsDone,
-          experience,
-          recipientName,
-          gift,
-        });
-
-        // If no media captured during timer, show prompt; otherwise go straight to completion flow
-        if (!sessionMediaUri) {
-          setShowMediaPrompt(true);
-        } else {
-          // Media already captured during timer — proceed directly
-          await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
-        }
-      }
-    } catch (err: unknown) {
-      logger.error(err);
-      await logErrorToFirestore(err, {
-        screenName: 'DetailedGoalCard',
-        feature: 'UpdateGoalProgress',
-        additionalData: { goalId: currentGoal.id },
-      });
-      const errWithCode = err as Error & { code?: string };
-      if (errWithCode?.code === 'unavailable' || errWithCode?.message?.includes('network') || errWithCode?.message?.includes('offline')) {
-        showError('You appear to be offline. Your session is saved — please try again when connected.');
-      } else {
-        showError('Could not update goal progress. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-      finishLock.current = false;
-    }
-  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, sessionMediaUri, timeElapsed]);
-
   // ─── Complete session flow (after media prompt resolves) ─────────
+  // Defined BEFORE handleFinish so it can be referenced in handleFinish's body
+  // and included in its dependency array.
 
   const completeSessionFlow = useCallback(async (
     updated: Goal,
@@ -907,22 +763,34 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             updated.discoveryPreferences || {}
           );
           if (matched) {
-            setCurrentGoal(prev => ({
-              ...prev,
-              discoveredExperience: {
-                experienceId: matched.id,
-                title: matched.title,
-                subtitle: matched.subtitle,
-                description: matched.description,
-                category: matched.category,
-                price: matched.price,
-                coverImageUrl: matched.coverImageUrl,
-                imageUrl: matched.imageUrl,
-                partnerId: matched.partnerId,
-                location: matched.location,
-              },
-              discoveredAt: new Date(),
-            }));
+            const discoveredExperience = {
+              experienceId: matched.id,
+              title: matched.title,
+              subtitle: matched.subtitle,
+              description: matched.description,
+              category: matched.category,
+              price: matched.price,
+              coverImageUrl: matched.coverImageUrl,
+              imageUrl: matched.imageUrl,
+              partnerId: matched.partnerId,
+              location: matched.location,
+            };
+            const discoveredAt = new Date();
+            // Persist to Firestore first — only update local state after confirmed write
+            try {
+              await updateDoc(doc(db, 'goals', updated.id), {
+                discoveredExperience,
+                discoveredAt,
+              });
+              setCurrentGoal(prev => ({
+                ...prev,
+                discoveredExperience,
+                discoveredAt,
+              }));
+            } catch (e) {
+              logger.error('Failed to persist discovery:', e);
+              showError('Failed to save your discovery. Please try again.');
+            }
           }
         } catch (err: unknown) {
           logger.warn('Discovery matching failed:', err);
@@ -968,6 +836,171 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   }, [isSelfGift, sessionMediaUri, sessionMediaType, timeElapsed, onFinish, partnerGoalData, appState.user]);
 
+  const handleFinish = useCallback(async () => {
+    if (!isTimerRunning || !canFinish || loading || finishLock.current) return;
+    finishLock.current = true;
+    const goalId = currentGoal.id;
+    if (!goalId) { finishLock.current = false; return; }
+
+    // Approval checks
+    if (isGoalLocked(currentGoal)) {
+      const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
+      if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
+          : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
+        showError(message);
+        finishLock.current = false;
+        return;
+      }
+      if (sessionsDoneBeforeFinish >= 1) {
+        const message = currentGoal.approvalStatus === 'suggested_change'
+          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
+          : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
+        showError(message);
+        finishLock.current = false;
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      // Pass session start time for cross-midnight/cross-day protection
+      const sessionStartDate = timerState?.startTime ? new Date(timerState.startTime) : undefined;
+      const updated = await goalService.tickWeeklySession(goalId, sessionStartDate);
+      // Store session timestamp for interval validation
+      await AsyncStorage.setItem(`lastSession_${goalId}`, String(Date.now()));
+
+      setCurrentGoal(updated);
+
+      let gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null = null;
+      let experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null = null;
+
+      // For mystery gifts, only fetch experience on completion (reveal time)
+      // For non-mystery gifts, always fetch for notifications and feed
+      if (updated.experienceGiftId && (!updated.isMystery || updated.isCompleted)) {
+        gift = await experienceGiftService.getExperienceGiftById(updated.experienceGiftId);
+        if (gift.experienceId) {
+          experience = await experienceService.getExperienceById(gift.experienceId);
+        }
+      }
+
+      const recipientName = await userService.getUserName(updated.userId);
+      const totalSessionsDone = (updated.currentCount * updated.sessionsPerWeek) + updated.weeklyCount;
+      // Update ref synchronously so handlePostToFeed reads the correct value
+      // even before the async state update propagates
+      lastSessionNumberRef.current = totalSessionsDone;
+      setLastSessionNumber(totalSessionsDone);
+
+      stopTimer(currentGoal.id);
+      await clearTimerState();
+      await pushNotificationService.cancelSessionNotification(goalId);
+
+      if (updated.isCompleted) {
+        // GOAL COMPLETION — create session record, then navigate.
+        //
+        // S-12 (INTENTIONAL NON-ATOMICITY): tickWeeklySession (above) runs as a
+        // Firestore transaction that atomically updates the goal counter and triggers
+        // the deferred-charge Cloud Function. The session record written here is
+        // supplementary audit data only — if it fails, the goal counter and charge
+        // trigger are already committed and correct. Navigation proceeds regardless.
+        try {
+          await sessionService.createSessionRecord(goalId, {
+            goalId, userId: updated.userId, timestamp: new Date(),
+            duration: Math.min(timeElapsed, MAX_SESSION_SECONDS), sessionNumber: totalSessionsDone,
+            weekNumber: updated.currentCount,
+          });
+        } catch (err: unknown) {
+          // Non-critical: goal progress and charge trigger are already committed
+          logger.warn('Failed to save final session record (non-critical):', err);
+        }
+
+        // Free goals without attached gift: navigate to FreeGoalCompletion
+        // Pay-on-completion: route to ExperienceCheckout instead of FreeGoalCompletion
+        if (updated.isFreeGoal && !gift && updated.paymentCommitment === 'payOnCompletion' && updated.pledgedExperience) {
+          navigation.navigate('ExperienceCheckout', {
+            cartItems: [{
+              experienceId: updated.pledgedExperience.experienceId,
+              quantity: 1,
+            }],
+            goalId: updated.id,
+          });
+          return;
+        }
+        if (updated.isFreeGoal && !gift) {
+          // Discovery engine: if experience was discovered but not yet revealed, show reveal first
+          if (updated.discoveredExperience && !updated.experienceRevealed) {
+            setShowExperienceReveal(true);
+            // After reveal is dismissed, onClose will mark as revealed.
+            // The user can claim from the reveal modal or navigate to FreeGoalCompletion manually.
+            return;
+          }
+          navigation.navigate('AchievementDetail', {
+            goal: serializeNav(updated),
+            mode: 'completion',
+          });
+        } else if (gift) {
+          if (updated.empoweredBy && updated.empoweredBy !== updated.userId && experience) {
+            await notificationService.createNotification(
+              updated.empoweredBy,
+              'goal_completed',
+              `${recipientName} just earned ${experience.title}`,
+              `Goal completed: ${updated.description}`,
+              {
+                goalId: updated.id,
+                giftId: updated.experienceGiftId,
+                giverId: updated.empoweredBy,
+                recipientId: updated.userId,
+                experienceTitle: experience.title,
+              }
+            );
+          }
+          navigation.navigate('AchievementDetail', {
+            goal: serializeNav(updated),
+            experienceGift: serializeNav(gift),
+            mode: 'completion',
+          });
+        }
+      } else {
+        // SESSION COMPLETE (not goal complete) — show media prompt first
+        setPendingFinishData({
+          updated,
+          totalSessionsDone,
+          experience,
+          recipientName,
+          gift,
+        });
+
+        // If no media captured during timer, show prompt; otherwise go straight to completion flow
+        if (!sessionMediaUri) {
+          setShowMediaPrompt(true);
+        } else {
+          // Media already captured during timer — proceed directly
+          await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
+        }
+      }
+    } catch (err: unknown) {
+      logger.error(err);
+      await logErrorToFirestore(err, {
+        screenName: 'DetailedGoalCard',
+        feature: 'UpdateGoalProgress',
+        additionalData: { goalId: currentGoal.id },
+      });
+      const errWithCode = err as Error & { code?: string };
+      if (errWithCode?.code === 'unavailable' || errWithCode?.message?.includes('network') || errWithCode?.message?.includes('offline')) {
+        showError('You appear to be offline. Your session is saved — please try again when connected.');
+      } else {
+        showError('Could not update goal progress. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+      finishLock.current = false;
+    }
+  }, [isTimerRunning, canFinish, loading, currentGoal, empoweredName, isSelfGift, stopTimer, clearTimerState, navigation, onFinish, sessionMediaUri, timeElapsed, timerState, completeSessionFlow]);
+
+
+
   // ─── Media prompt handlers ────────────────────────────────────────
 
   const handleMediaPromptSkip = useCallback(async () => {
@@ -1003,11 +1036,12 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         goalId: currentGoal.id,
         goalDescription: currentGoal.description || currentGoal.title,
         type: 'session_progress',
-        sessionNumber: lastSessionNumber,
+        // Use ref to avoid reading stale state — setLastSessionNumber is async
+        sessionNumber: lastSessionNumberRef.current,
         totalSessions,
         weeklyCount: currentGoal.weeklyCount,
         sessionsPerWeek: currentGoal.sessionsPerWeek,
-        progressPercentage: Math.round((lastSessionNumber / totalSessions) * 100),
+        progressPercentage: Math.round((lastSessionNumberRef.current / totalSessions) * 100),
         isFreeGoal: currentGoal.isFreeGoal,
         pledgedExperienceId: currentGoal.pledgedExperience?.experienceId,
         pledgedExperiencePrice: currentGoal.pledgedExperience?.price,
@@ -1017,15 +1051,15 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         mediaType: lastSessionMediaType || undefined,
         createdAt: new Date(),
       });
-      logger.log('Feed post created for session', lastSessionNumber);
+      logger.log('Feed post created for session', lastSessionNumberRef.current);
     } catch (err: unknown) {
       logger.warn('Failed to create feed post:', err);
     }
-  }, [currentGoal, lastSessionNumber, lastSessionMediaUrl, lastSessionMediaType]);
+  }, [currentGoal, lastSessionMediaUrl, lastSessionMediaType]);
 
   // ─── Hint processing (extracted for readability) ──────────────────
 
-  const processHintAfterSession = async (
+  const processHintAfterSession = useCallback(async (
     updated: Goal,
     totalSessionsDone: number,
     experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null,
@@ -1084,7 +1118,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
 
       setLastHint(hintObj);
-      updated.hints = [...(updated.hints || []), hintObj];
     } else {
       const aiHintSessionNumber = totalSessionsDone + 1;
 
@@ -1106,7 +1139,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             ...prev,
             hints: [...(prev.hints || []), hintObj as Goal['hints'] extends (infer U)[] | undefined ? U : never],
           }));
-          updated.hints = [...(updated.hints || []), hintObj];
         }
       } catch (err: unknown) {
         logger.warn('Failed to retrieve/save AI hint:', err);
@@ -1114,7 +1146,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
       setLastHint(hintToShow);
     }
-  };
+  }, []);
 
   // ─── Cancel session ───────────────────────────────────────────────
 
@@ -1241,7 +1273,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       variant: 'danger' as const,
       disabled: isTimerRunning,
     },
-  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id, colors.primary, colors.textMuted, colors.error]);
+  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id]);
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -1403,7 +1435,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                       challengeType: 'shared',
                       isCategory: !currentGoal.experienceGiftId || !giftData?.experienceId,
                       preferredRewardCategory: currentGoal.preferredRewardCategory,
-                    } as { experienceGift: ExperienceGift });
+                    });
                   } catch (err: unknown) {
                     logger.warn('Navigate to share screen failed:', err);
                   }
@@ -1452,7 +1484,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       </Pressable>
 
       {/* Debug Controls */}
-      {debugMode && (
+      {__DEV__ && debugMode && (
         <View style={styles.debugContainer}>
           <Text style={styles.debugTitle}>Debug Tools</Text>
           <View style={styles.debugButtonsRow}>
@@ -1628,23 +1660,35 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                   { ...currentGoal.discoveryPreferences, [questionId]: answer }
                 );
                 if (matched) {
-                  setCurrentGoal(prev => ({
-                    ...prev,
-                    discoveredExperience: {
-                      experienceId: matched.id,
-                      title: matched.title,
-                      subtitle: matched.subtitle,
-                      description: matched.description,
-                      category: matched.category,
-                      price: matched.price,
-                      coverImageUrl: matched.coverImageUrl,
-                      imageUrl: matched.imageUrl,
-                      partnerId: matched.partnerId,
-                      location: matched.location,
-                    },
-                    discoveredAt: new Date(),
-                  }));
-                  showSuccess('We found the perfect experience for you!');
+                  const discoveredExperience = {
+                    experienceId: matched.id,
+                    title: matched.title,
+                    subtitle: matched.subtitle,
+                    description: matched.description,
+                    category: matched.category,
+                    price: matched.price,
+                    coverImageUrl: matched.coverImageUrl,
+                    imageUrl: matched.imageUrl,
+                    partnerId: matched.partnerId,
+                    location: matched.location,
+                  };
+                  const discoveredAt = new Date();
+                  // Persist to Firestore first — only update local state after confirmed write
+                  try {
+                    await updateDoc(doc(db, 'goals', currentGoal.id), {
+                      discoveredExperience,
+                      discoveredAt,
+                    });
+                    setCurrentGoal(prev => ({
+                      ...prev,
+                      discoveredExperience,
+                      discoveredAt,
+                    }));
+                    showSuccess('We found the perfect experience for you!');
+                  } catch (e) {
+                    logger.error('Failed to persist discovery:', e);
+                    showError('Failed to save your discovery. Please try again.');
+                  }
                 }
               }
             } catch (err: unknown) {

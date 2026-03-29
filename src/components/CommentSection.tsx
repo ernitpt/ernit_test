@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Heart } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +33,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     const { state } = useApp();
     const currentUserId = state.user?.id || '';
 
-    const handleLike = async (comment: CommentType) => {
+    // P3-19: wrapped in useCallback so CommentSection (React.memo) doesn't re-render on FeedPost rerenders
+    const handleLike = useCallback(async (comment: CommentType) => {
         if (!currentUserId) return;
         const isLiked = comment.likedBy?.includes(currentUserId);
 
@@ -60,7 +61,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         } catch (error: unknown) {
             logger.error('Error toggling comment like:', error);
         }
-    };
+    }, [comments, currentUserId, postId, onCommentsUpdate]);
 
     if (totalComments === 0) {
         return null;

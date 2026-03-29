@@ -78,15 +78,17 @@ export function normalizeGoal<T extends { id: string }>(input: T): Goal {
     endDate,
     weekStartAt: weekStartAt ?? null,
     plannedStartDate: plannedStartDate ?? null,
-    targetCount: typeof g.targetCount === 'number' ? g.targetCount : 1,
+    targetCount: Math.max(1, typeof g.targetCount === 'number' ? g.targetCount : 1),
     weeklyCount: typeof g.weeklyCount === 'number' ? g.weeklyCount : 0,
     weeklyLogDates: Array.isArray(g.weeklyLogDates) ? g.weeklyLogDates : [],
     currentCount: typeof g.currentCount === 'number' ? g.currentCount : 0,
-    sessionsPerWeek: typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1,
+    sessionsPerWeek: Math.max(1, typeof g.sessionsPerWeek === 'number' ? g.sessionsPerWeek : 1),
     isCompleted: !!g.isCompleted,
     isWeekCompleted: !!g.isWeekCompleted,
     updatedAt: toJSDate(g.updatedAt) ?? DateHelper.now(),
     // Approval fields
+    // Default to 'approved' for goals that predate the approval system (no field stored).
+    // Goals created after approval was introduced will always have this field set explicitly.
     approvalStatus: g.approvalStatus ?? 'approved',
     initialTargetCount:
       typeof g.initialTargetCount === 'number' ? g.initialTargetCount : g.targetCount,
@@ -112,5 +114,5 @@ export function normalizeGoal<T extends { id: string }>(input: T): Goal {
     // Discovery engine fields
     discoveredAt: toJSDate(g.discoveredAt) ?? null,
     experienceRevealedAt: toJSDate(g.experienceRevealedAt) ?? null,
-  } as unknown as Goal;
+  } as Goal;
 }

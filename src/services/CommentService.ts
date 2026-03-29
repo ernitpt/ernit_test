@@ -172,6 +172,9 @@ class CommentService {
      * Like a comment
      */
     async likeComment(postId: string, commentId: string, userId: string): Promise<void> {
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            throw new AppError('UNAUTHORIZED', 'Unauthorized: userId does not match authenticated user', 'auth');
+        }
         try {
             const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
             await updateDoc(commentRef, {
@@ -187,6 +190,9 @@ class CommentService {
      * Unlike a comment
      */
     async unlikeComment(postId: string, commentId: string, userId: string): Promise<void> {
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            throw new AppError('UNAUTHORIZED', 'Unauthorized: userId does not match authenticated user', 'auth');
+        }
         try {
             const commentRef = doc(db, 'feedPosts', postId, 'comments', commentId);
             await updateDoc(commentRef, {

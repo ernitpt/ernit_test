@@ -5,7 +5,8 @@
   updateDoc,
   arrayUnion,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -38,7 +39,7 @@ export class UserService {
         createdAt: user.createdAt.toISOString(),
         updatedAt: new Date().toISOString(),
         cart: user.cart ?? [],
-      });
+      }, { merge: true }); // merge: true makes concurrent creation calls idempotent (no race overwrite)
     } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('createUserProfile failed'), {
         screenName: 'userService',
@@ -247,9 +248,20 @@ export class UserService {
   async addToCart(userId: string, cartItem: CartItem): Promise<void> {
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        cart: arrayUnion(cartItem),
-        updatedAt: serverTimestamp(),
+      // SECURITY FIX (M18): Use a transaction to read the current cart, remove any existing
+      // entry with the same experienceId, then write back the deduped cart with the new item.
+      // arrayUnion was not sufficient because it performs equality checks on the whole object,
+      // so adding the same experience with a different quantity created duplicate cart entries.
+      await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        const currentCart: CartItem[] = userSnap.exists() ? (userSnap.data().cart ?? []) : [];
+        const filteredCart = currentCart.filter(
+          (item: CartItem) => item.experienceId !== cartItem.experienceId
+        );
+        transaction.update(userRef, {
+          cart: [...filteredCart, cartItem],
+          updatedAt: serverTimestamp(),
+        });
       });
     } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('addToCart failed'), {
@@ -264,18 +276,12 @@ export class UserService {
   async removeFromCart(userId: string, experienceId: string): Promise<void> {
     try {
       const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) throw new AppError('USER_NOT_FOUND', 'User not found', 'not_found');
-
-      const currentCart = (userSnap.data().cart as CartItem[]) || [];
-      const newCart = currentCart.filter(
-        (item) => item.experienceId !== experienceId
-      );
-
-      await updateDoc(userRef, {
-        cart: newCart,
-        updatedAt: new Date().toISOString(),
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(userRef);
+        if (!snap.exists()) return;
+        const currentCart: CartItem[] = snap.data()?.cart || [];
+        const updatedCart = currentCart.filter(item => item.experienceId !== experienceId);
+        transaction.update(userRef, { cart: updatedCart, updatedAt: new Date().toISOString() });
       });
     } catch (error: unknown) {
       logErrorToFirestore(error instanceof Error ? error : new Error('removeFromCart failed'), {

@@ -59,8 +59,10 @@ class MotivationService {
     }
 
     // Calculate effective target session
+    // safeSessionsPerWeek guards against 0, null, and undefined to prevent NaN/Infinity propagation
+    const safeSessionsPerWeek = Math.max(1, goalData.sessionsPerWeek || 1);
     const currentSessionsDone =
-      (goalData.currentCount || 0) * (goalData.sessionsPerWeek || 1) +
+      (goalData.currentCount || 0) * safeSessionsPerWeek +
       (goalData.weeklyCount || 0);
     const nextSession = currentSessionsDone + 1;
     const effectiveTargetSession = targetSession || nextSession;
@@ -186,6 +188,10 @@ class MotivationService {
             targetSession: data.targetSession,
             createdAt: toDateSafe(data.createdAt),
             seen: data.seen,
+            type: data.type,
+            imageUrl: data.imageUrl,
+            audioUrl: data.audioUrl,
+            audioDuration: data.audioDuration,
           });
         }
       });
@@ -238,6 +244,10 @@ class MotivationService {
           targetSession: data.targetSession,
           createdAt: toDateSafe(data.createdAt),
           seen: data.seen,
+          type: data.type,
+          imageUrl: data.imageUrl,
+          audioUrl: data.audioUrl,
+          audioDuration: data.audioDuration,
         });
       });
 

@@ -15,7 +15,6 @@ import {
   ScrollView,
   Image,
   Animated,
-  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,11 +51,21 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 import { analyticsService } from '../services/AnalyticsService';
 import { TextInput } from '../components/TextInput';
 import Button from '../components/Button';
+import { Card } from '../components/Card';
 
 
 WebBrowser.maybeCompleteAuthSession();
 
 type AuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
+
+// Pure function outside component — stable reference, never causes useCallback re-creation
+const computePasswordChecks = (pwd: string) => ({
+  minLength: pwd.length >= 8,
+  hasUpperCase: /[A-Z]/.test(pwd),
+  hasLowerCase: /[a-z]/.test(pwd),
+  hasNumber: /[0-9]/.test(pwd),
+  hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+});
 
 const AuthScreen = () => {
   const colors = useColors();
@@ -71,18 +80,19 @@ const AuthScreen = () => {
   const routeParams = route.params as { mode?: 'signin' | 'signup'; fromModal?: boolean };
   const [isLogin, setIsLogin] = useState(routeParams?.mode !== 'signup');
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const showSuccessOverlayRef = useRef(false);
 
   // Success animation
   const successScaleAnim = useRef(new Animated.Value(0)).current;
   const successOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Input refs for keyboard navigation
-  const emailRef = useRef<RNTextInput>(null);
   const passwordRef = useRef<RNTextInput>(null);
   const confirmPasswordRef = useRef<RNTextInput>(null);
 
   // Timer management for memory leak prevention
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -161,9 +171,10 @@ const AuthScreen = () => {
     };
   }, []);
 
-  // Cleanup navigation timer on unmount
+  // Cleanup navigation timer and mount ref on unmount
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
     };
   }, []);
@@ -244,7 +255,16 @@ const AuthScreen = () => {
   });
 
   useEffect(() => {
-    if (response?.type === 'success') {
+    if (response?.type !== 'success') {
+      if (response?.type === 'error') {
+        showError('The sign-in process was canceled or failed.');
+      }
+      return;
+    }
+
+    let mounted = true;
+
+    const handleGoogle = async () => {
       setIsLoading(true);
       const { id_token } = response.params;
       const credential = GoogleAuthProvider.credential(id_token);
@@ -286,6 +306,7 @@ const AuthScreen = () => {
           analyticsService.trackEvent('login_completed', 'conversion', { method: 'google' });
 
           // Show success animation
+          showSuccessOverlayRef.current = true;
           setShowSuccessOverlay(true);
           Animated.parallel([
             Animated.spring(successScaleAnim, {
@@ -303,6 +324,7 @@ const AuthScreen = () => {
 
           // After success animation, navigate to pending route or default
           navTimerRef.current = setTimeout(async () => {
+            if (!isMountedRef.current) return;
             // Check for pending gift flow
             try {
               const giftData = await getStorageItem('pending_gift_flow');
@@ -370,6 +392,7 @@ const AuthScreen = () => {
                     },
                   });
 
+                  showSuccessOverlayRef.current = true;
                   setShowSuccessOverlay(true);
                   Animated.parallel([
                     Animated.spring(successScaleAnim, {
@@ -386,6 +409,7 @@ const AuthScreen = () => {
                   ]).start();
 
                   navTimerRef.current = setTimeout(async () => {
+                    if (!isMountedRef.current) return;
                     // Check for pending gift flow
                     try {
                       const giftData = await getStorageItem('pending_gift_flow');
@@ -431,28 +455,25 @@ const AuthScreen = () => {
             additionalData: { errorCode: error.code }
           });
 
-          showError('Unable to sign in with Google. Please try again.');
-          setIsLoading(false);
+          if (mounted) {
+            showError('Unable to sign in with Google. Please try again.');
+            setIsLoading(false);
+          }
         })
-        .finally(() => { if (!showSuccessOverlay) setIsLoading(false); });
-    } else if (response?.type === 'error') {
-      showError('The sign-in process was canceled or failed.');
-    }
+        .finally(() => { if (mounted && !showSuccessOverlayRef.current) setIsLoading(false); });
+    };
+
+    handleGoogle();
+    return () => { mounted = false; };
   }, [response]);
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const validatePasswordStrength = (pwd: string) => {
-    const checks = {
-      minLength: pwd.length >= 8,
-      hasUpperCase: /[A-Z]/.test(pwd),
-      hasLowerCase: /[a-z]/.test(pwd),
-      hasNumber: /[0-9]/.test(pwd),
-      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
-    };
+  const validatePasswordStrength = useCallback((pwd: string) => {
+    const checks = computePasswordChecks(pwd);
     setPasswordChecks(checks);
     return Object.values(checks).every(check => check === true);
-  };
+  }, []);
 
   const isPasswordValid = () => {
     return Object.values(passwordChecks).every(check => check === true);
@@ -463,15 +484,17 @@ const AuthScreen = () => {
   // in Firebase Auth v10+ because auth/invalid-credential is now returned for ALL
   // failed sign-ins, making every email appear "already in use."
 
-  const handleEmailChange = useCallback(async (text: string) => {
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleEmailChange = useCallback((text: string) => {
     const sanitized = sanitizeText(text, 254);
     setEmail(sanitized);
-    // Clear email error when user starts typing
-    if (emailError) {
+    if (sanitized && !EMAIL_REGEX.test(sanitized)) {
+      setEmailError('Please enter a valid email address');
+    } else {
       setEmailError('');
     }
-
-  }, [emailError]);
+  }, []);
 
   const handlePasswordChange = useCallback((text: string) => {
     // SECURITY: Never sanitize passwords — they must reach Firebase Auth unmodified
@@ -482,7 +505,7 @@ const AuthScreen = () => {
     if (!isLogin) {
       validatePasswordStrength(text);
     }
-  }, [passwordError, isLogin, validatePasswordStrength]);
+  }, [passwordError, isLogin]);
 
   const handleDisplayNameChange = useCallback((text: string) => {
     const sanitized = sanitizeText(text, 30); // Limit username to 30 characters
@@ -490,6 +513,7 @@ const AuthScreen = () => {
   }, []);
 
   const handleAuth = async () => {
+    if (isLoading) return;
     const sanitizedEmail = sanitizeText(email, 254);
     const sanitizedDisplayName = sanitizeText(displayName, 30);
     // Passwords must NEVER be modified before being sent to Firebase Auth
@@ -580,6 +604,7 @@ const AuthScreen = () => {
       }
 
       // Show success animation
+      showSuccessOverlayRef.current = true;
       setShowSuccessOverlay(true);
       Animated.parallel([
         Animated.spring(successScaleAnim, {
@@ -719,9 +744,11 @@ const AuthScreen = () => {
         showError(errorMessage);
       }
     } finally {
-      if (!showSuccessOverlay) {
+      // Always reset global context loading state so screens don't get stuck showing a spinner
+      dispatch({ type: 'SET_LOADING', payload: false });
+      // Only reset local loading state when the success overlay is not shown (overlay handles its own animation)
+      if (!showSuccessOverlayRef.current) {
         setIsLoading(false);
-        dispatch({ type: 'SET_LOADING', payload: false });
       }
     }
   };
@@ -830,16 +857,7 @@ const AuthScreen = () => {
 
               {/* Form Card */}
               <View style={{ width: '100%', maxWidth: Math.min(400, screenWidth - 40) }}>
-                <View style={{
-                  backgroundColor: colors.surfaceFrosted,
-                  borderRadius: BorderRadius.xxl,
-                  padding: Spacing.xxl,
-                  shadowColor: colors.black,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 12,
-                  elevation: 8,
-                }}>
+                <Card variant="glassmorphism" noPadding style={{ padding: Spacing.xxl }}>
                   {/* Google Sign-In Button - Primary Option */}
                   <Button
                     variant="secondary"
@@ -874,23 +892,14 @@ const AuthScreen = () => {
                         autoCapitalize="words"
                         accessibilityLabel="Username"
                         returnKeyType="next"
-                        onSubmitEditing={() => emailRef.current?.focus()}
+                        onSubmitEditing={() => passwordRef.current?.focus()}
                       />
                     </View>
                   )}
 
                   <View style={{ marginBottom: Spacing.xl }}>
-                    <RNTextInput
-                      ref={emailRef}
-                      style={{
-                        backgroundColor: colors.surface,
-                        borderRadius: BorderRadius.md,
-                        paddingHorizontal: Spacing.lg,
-                        paddingVertical: Spacing.md,
-                        ...Typography.subheading,
-                        borderWidth: 1,
-                        borderColor: emailError ? colors.error : colors.border,
-                      }}
+                    <TextInput
+                      label="Email address"
                       placeholder="Email address"
                       placeholderTextColor={colors.textMuted}
                       maxLength={254}
@@ -901,12 +910,8 @@ const AuthScreen = () => {
                       accessibilityLabel="Email address"
                       returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()}
+                      error={emailError || undefined}
                     />
-                    {emailError && (
-                      <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
-                        {emailError}
-                      </Text>
-                    )}
                   </View>
 
                   <View style={{ marginBottom: Spacing.lg }}>
@@ -1158,9 +1163,16 @@ const AuthScreen = () => {
                               </Text>
                             </Animated.View>
                           ) : isLoading ? (
-                            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxs }}>
-                              <ActivityIndicator size="small" color={colors.white} />
-                            </View>
+                            <Text
+                              style={{
+                                ...Typography.heading3,
+                                color: colors.white,
+                                textAlign: 'center',
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              {isLogin ? 'Signing in...' : 'Creating account...'}
+                            </Text>
                           ) : (
                             <Text
                               style={{
@@ -1202,7 +1214,7 @@ const AuthScreen = () => {
                     style={{ alignSelf: 'center' }}
                     textStyle={{ ...Typography.subheading, color: colors.primary }}
                   />
-                </View>
+                </Card>
               </View>
             </View>
           </ScrollView>

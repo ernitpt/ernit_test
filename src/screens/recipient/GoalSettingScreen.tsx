@@ -129,6 +129,9 @@ const GoalSettingScreen = () => {
   const [displayMinutes, setDisplayMinutes] = useState(30);
   const animFrameRef = useRef<number | null>(null);
 
+  // Timer ref for step-advance and hint timeouts — cleared on unmount
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Clock dial web-compat refs
   const clockRef = useRef<View>(null);
   const clockLayout = useRef({ x: 0, y: 0, width: 0, height: 0 });
@@ -170,10 +173,22 @@ const GoalSettingScreen = () => {
 
   useEffect(() => {
     if (experienceGift?.expiresAt) {
-      const expiresAt = experienceGift.expiresAt instanceof Date
-        ? experienceGift.expiresAt
-        : new Date(experienceGift.expiresAt as string | number);
-      if (expiresAt < new Date()) {
+      // expiresAt may arrive as a Date, a Firestore Timestamp (with .toDate()),
+      // or a plain serialized {seconds, nanoseconds} object from route params.
+      const toJSDate = (value: unknown): Date | null => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: unknown }).toDate === 'function') {
+          return (value as { toDate: () => Date }).toDate();
+        }
+        if (typeof value === 'object' && value !== null && 'seconds' in value && (value as { seconds: unknown }).seconds != null) {
+          return new Date((value as { seconds: number }).seconds * 1000);
+        }
+        const d = new Date(value as string | number);
+        return isNaN(d.getTime()) ? null : d;
+      };
+      const expiresAt = toJSDate(experienceGift.expiresAt);
+      if (expiresAt && expiresAt < new Date()) {
         showError('This gift has expired and can no longer be claimed.');
         navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'RecipientFlow' }] }));
       }
@@ -238,6 +253,13 @@ const GoalSettingScreen = () => {
       pulseAnim.setValue(1);
     }
   }, [isSubmitting]);
+
+  // Cleanup step-advance and hint timers on unmount
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
 
   // Pre-generate first AI hint when reaching the calendar step
   useEffect(() => {
@@ -366,8 +388,8 @@ const GoalSettingScreen = () => {
       }
 
       const finalCategory = selectedCategory === 'Add your own' ? sanitizeText(customCategory.trim(), 50) : selectedCategory;
-      const hoursNum = showCustomTime ? parseInt(hours || '0') : Math.floor(sessionMinutes / 60);
-      const minutesNum = showCustomTime ? parseInt(minutes || '0') : sessionMinutes % 60;
+      const hoursNum = showCustomTime ? parseInt(hours || '0', 10) : Math.floor(sessionMinutes / 60);
+      const minutesNum = showCustomTime ? parseInt(minutes || '0', 10) : sessionMinutes % 60;
       const now = new Date();
       const durationInDays = weeks * 7;
       const endDate = new Date(now);
@@ -659,7 +681,8 @@ const GoalSettingScreen = () => {
       }
     }
     // Auto-advance through all steps
-    setTimeout(() => {
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => {
       setCurrentStep(4);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 300);
@@ -842,7 +865,8 @@ const GoalSettingScreen = () => {
                 setValidationErrors(prev => ({ ...prev, category: false }));
                 if (goal.name !== 'Add your own') {
                   setCustomCategory('');
-                  setTimeout(() => {
+                  if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+                  hintTimerRef.current = setTimeout(() => {
                     setCurrentStep(prev => prev + 1);
                     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
                   }, 250);
@@ -895,18 +919,16 @@ const GoalSettingScreen = () => {
               setCustomCategory(text);
               if (validationErrors.category && text.trim()) {
                 setValidationErrors(prev => ({ ...prev, category: false }));
+              } else if (!text.trim()) {
+                setValidationErrors(prev => ({ ...prev, category: true }));
               }
             }}
+            error={validationErrors.category && customCategory.trim() === '' ? 'Please enter a custom goal' : undefined}
             maxLength={50}
             autoFocus
             accessibilityLabel="Custom goal category"
             containerStyle={{ marginBottom: 0 }}
           />
-          {validationErrors.category && customCategory.trim() === '' && (
-            <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs }}>
-              Please enter a custom goal
-            </Text>
-          )}
         </View>
       )}
     </View>

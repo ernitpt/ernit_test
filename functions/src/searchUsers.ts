@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { allowedOrigins } from "./cors";
+import { getFirestore } from "firebase-admin/firestore";
 
 export const searchUsers = onCall(
   {
@@ -40,11 +41,11 @@ export const searchUsers = onCall(
     const oneMinuteAgo = now - (60 * 1000);
     const RATE_LIMIT = 10; // Maximum searches per minute per user
 
-    // Import production db from index
-    const { dbProd } = await import('./index.js');
+    // Use getFirestore() directly — avoids a circular import through index.js
+    const db = getFirestore();
 
     // Check rate limit using Firestore
-    const rateLimitRef = dbProd.collection('rateLimits').doc(`search_${userId}`);
+    const rateLimitRef = db.collection('rateLimits').doc(`search_${userId}`);
     const rateLimitDoc = await rateLimitRef.get();
 
     if (rateLimitDoc.exists) {
@@ -75,20 +76,21 @@ export const searchUsers = onCall(
       // 🔍 SEARCH LOGIC
       const searchLower = trimmedSearchTerm.toLowerCase();
 
-      // CF-01 KNOWN LIMITATION: This is a full-collection scan up to 100 docs.
-      // It performs client-side substring filtering which will miss users outside
-      // the first 100. For production scale, replace with Algolia or Typesense,
-      // or add a Firestore composite index on `displayNameLower` with prefix queries:
+      // TODO: Implement proper search index (Algolia/Typesense) for scalable user search.
+      // Current implementation: server-side filter over first 500 users — will miss
+      // users beyond position 500. For prefix search via Firestore without a third-party
+      // index, add a `displayNameLower` field and deploy a composite index, then use:
       //   .where('displayNameLower', '>=', searchLower)
       //   .where('displayNameLower', '<=', searchLower + '\uf8ff')
-      // That requires a Firestore index deployment (firebase deploy --only firestore:indexes).
-      const usersSnapshot = await dbProd.collection('users').limit(100).get();
+      //   .limit(20)
+      // (firebase deploy --only firestore:indexes)
+      const usersSnapshot = await db.collection('users').limit(500).get();
 
       // Fetch current user's friends and pending requests
       const [friendsSnapshot, sentRequestsSnapshot, receivedRequestsSnapshot] = await Promise.all([
-        dbProd.collection('friends').where('userId', '==', userId).get(),
-        dbProd.collection('friendRequests').where('senderId', '==', userId).get(),
-        dbProd.collection('friendRequests').where('recipientId', '==', userId).get(),
+        db.collection('friends').where('userId', '==', userId).get(),
+        db.collection('friendRequests').where('senderId', '==', userId).get(),
+        db.collection('friendRequests').where('recipientId', '==', userId).get(),
       ]);
 
       // Build friend and pending request sets

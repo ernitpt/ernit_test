@@ -33,6 +33,8 @@ import { vh, VH } from '../utils/responsive';
 import * as Haptics from 'expo-haptics';
 import { analyticsService } from '../services/AnalyticsService';
 import { experienceService } from '../services/ExperienceService';
+import { logger } from '../utils/logger';
+import ErrorRetry from '../components/ErrorRetry';
 
 // ─── Constants ────────────────────────────────────────────────────
 const WORD_SLOT_HEIGHT = vh(58);
@@ -387,7 +389,7 @@ const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
         zIndex: 5,
     },
     labelPill: {
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: Colors.overlay,
         borderRadius: BorderRadius.sm,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xxs,
@@ -421,18 +423,32 @@ export default function ChallengeLandingScreen() {
     const [wordIndex, setWordIndex] = useState(0);
     const [toggleBarWidth, setToggleBarWidth] = useState(0);
     const [rewardImages, setRewardImages] = useState<string[]>(FALLBACK_REWARD_IMAGES);
+    const [rewardImagesLoading, setRewardImagesLoading] = useState(true);
+    const [rewardImagesLoadError, setRewardImagesLoadError] = useState(false);
     const lastRewardRef = useRef<string | undefined>(undefined);
 
     // Fetch experience cover images for reward card
     useEffect(() => {
-        experienceService.getAllExperiences().then((experiences) => {
-            const covers = experiences
-                .map(e => e.coverImageUrl)
-                .filter((url): url is string => !!url);
-            if (covers.length >= 2) {
-                setRewardImages(shuffleNoRepeat(covers));
-            }
-        });
+        let mounted = true;
+        setRewardImagesLoadError(false);
+        experienceService.getAllExperiences()
+            .then((experiences) => {
+                if (!mounted) return;
+                const covers = experiences
+                    .map(e => e.coverImageUrl)
+                    .filter((url): url is string => !!url);
+                if (covers.length >= 2) {
+                    setRewardImages(shuffleNoRepeat(covers));
+                }
+            })
+            .catch((e) => {
+                logger.error('Failed to load experiences:', e);
+                if (mounted) setRewardImagesLoadError(true);
+            })
+            .finally(() => {
+                if (mounted) setRewardImagesLoading(false);
+            });
+        return () => { mounted = false; };
     }, []);
 
     // Animation values
@@ -557,11 +573,11 @@ export default function ChallengeLandingScreen() {
     });
     const animBadgeBg = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(16, 185, 129, 0.1)', 'rgba(245, 158, 11, 0.1)'],
+        outputRange: [Colors.primaryAlpha10, Colors.warningAlpha10],
     });
     const animBadgeBorder = sliderAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(16, 185, 129, 0.3)', 'rgba(245, 158, 11, 0.3)'],
+        outputRange: [Colors.primaryAlpha30, Colors.warningAlpha30],
     });
     const animBadgeText = sliderAnim.interpolate({
         inputRange: [0, 1],
@@ -794,6 +810,27 @@ export default function ChallengeLandingScreen() {
                                                 cardH={cardH}
                                             />
                                         </View>
+                                        {rewardImagesLoadError && !rewardImagesLoading && (
+                                            <ErrorRetry
+                                                onRetry={() => {
+                                                    setRewardImagesLoadError(false);
+                                                    setRewardImagesLoading(true);
+                                                    experienceService.getAllExperiences()
+                                                        .then((experiences) => {
+                                                            const covers = experiences
+                                                                .map(e => e.coverImageUrl)
+                                                                .filter((url): url is string => !!url);
+                                                            if (covers.length >= 2) setRewardImages(shuffleNoRepeat(covers));
+                                                        })
+                                                        .catch((e) => {
+                                                            logger.error('Failed to reload experiences:', e);
+                                                            setRewardImagesLoadError(true);
+                                                        })
+                                                        .finally(() => setRewardImagesLoading(false));
+                                                }}
+                                                message="Could not load reward images."
+                                            />
+                                        )}
                                     </View>
                                 </View>
                             </MotiView>
@@ -1204,7 +1241,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         left: '10%',
         right: '10%',
         bottom: '10%',
-        borderRadius: 999,
+        borderRadius: BorderRadius.circle,
         opacity: 0.15,
         ...Platform.select({
             web: { filter: 'blur(40px)' },
@@ -1250,7 +1287,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         textAlign: 'center',
         ...Platform.select({
             default: {
-                textShadowColor: 'rgba(16, 185, 129, 0.4)',
+                textShadowColor: Colors.primaryAlpha40,
                 textShadowOffset: { width: 0, height: 0 },
                 textShadowRadius: 8,
             },
@@ -1538,7 +1575,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         borderRadius: BorderRadius.pill,
         marginBottom: Spacing.lg,
         borderWidth: 3,
-        borderColor: 'rgba(255,255,255,0.15)',
+        borderColor: Colors.whiteAlpha15,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 8,
@@ -1562,7 +1599,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         gap: Spacing.sm,
         paddingHorizontal: Spacing.xl,
         paddingVertical: Spacing.md,
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: Colors.whiteAlpha06,
         borderRadius: BorderRadius.xxl,
         borderWidth: 1,
         ...Shadows.sm,

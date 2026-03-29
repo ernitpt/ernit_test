@@ -125,19 +125,24 @@ class ReactionService {
 
     /**
      * Remove a user's reaction from a post
+     * Uses a deterministic doc ID and reads inside the transaction to avoid TOCTOU races.
      */
     async removeReaction(postId: string, userId: string): Promise<void> {
         try {
-            const reaction = await this.getUserReaction(postId, userId);
-            if (!reaction) return;
-
             const postRef = doc(db, 'feedPosts', postId);
-            const reactionRef = doc(db, 'feedPosts', postId, 'reactions', reaction.id);
+            // Deterministic ID matches the pattern used in addReaction
+            const reactionDocId = `${postId}_${userId}`;
+            const reactionRef = doc(db, 'feedPosts', postId, 'reactions', reactionDocId);
 
             await runTransaction(db, async (transaction) => {
+                const reactionSnap = await transaction.get(reactionRef);
+                // Already deleted by a concurrent call — nothing to do
+                if (!reactionSnap.exists()) return;
+
+                const reactionType = reactionSnap.data().type as ReactionType;
                 transaction.delete(reactionRef);
                 transaction.update(postRef, {
-                    [`reactionCounts.${reaction.type}`]: increment(-1),
+                    [`reactionCounts.${reactionType}`]: increment(-1),
                 });
             });
 

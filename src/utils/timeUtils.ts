@@ -1,9 +1,10 @@
 /**
  * Returns a human-readable "time ago" string from a Date.
  */
+import { DateHelper } from './DateHelper';
+
 export const getTimeAgo = (date: Date): string => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = Math.max(0, DateHelper.now().getTime() - date.getTime());
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);

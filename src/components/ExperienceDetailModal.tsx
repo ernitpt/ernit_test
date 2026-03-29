@@ -18,6 +18,7 @@ import { WebView } from 'react-native-webview';
 import Button from './Button';
 import { Experience, PartnerUser } from '../types';
 import { partnerService } from '../services/PartnerService';
+import { logger } from '../utils/logger';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { vh } from '../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,7 +58,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
         let cancelled = false;
         partnerService.getPartnerById(experience.partnerId)
             .then(p => { if (!cancelled) setPartner(p); })
-            .catch(() => {});
+            .catch(e => { logger.warn('Failed to load partner data:', e); });
         return () => { cancelled = true; };
     }, [experience?.partnerId]);
 

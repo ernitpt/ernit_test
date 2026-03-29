@@ -69,6 +69,21 @@ class AnalyticsService {
     this.trackEvent('button_click', 'engagement', { buttonName, ...extra }, screenName);
   }
 
+  /**
+   * Clean up the interval timer and AppState listener.
+   * Call this when the app is permanently closing to prevent resource leaks.
+   */
+  destroy() {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+  }
+
   /** Flush any remaining events (call on app background / unmount) */
   async flush(): Promise<void> {
     if (this.buffer.length === 0) return;

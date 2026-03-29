@@ -44,9 +44,7 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 // Helper Functions and Components (moved outside parent for performance)
 // ------------------------------------------------------------------
 
-// Module-level cache to avoid redundant Firestore reads when multiple GiftItems
-// share the same experienceId (e.g. bulk purchases) or when the list re-renders.
-const experienceCache: Record<string, Experience> = {};
+// Note: experience caching is handled by ExperienceService's built-in TTL cache.
 
 const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
   if (!date) return 'N/A';
@@ -67,6 +65,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   const [experience, setExperience] = useState<Experience | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     const fetchClaimerName = async () => {
       if (item.status !== 'claimed') return;
       setLoadingName(true);
@@ -78,17 +77,18 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
           const goalData = snap.docs[0].data();
           if (goalData.userId) {
             const name = await userService.getUserName(goalData.userId);
-            setClaimedByName(name);
+            if (mounted) setClaimedByName(name);
           }
         }
       } catch (err: unknown) {
         logger.error(`? Error fetching claimer for gift ${item.id}:`, err);
       } finally {
-        setLoadingName(false);
+        if (mounted) setLoadingName(false);
       }
     };
 
     fetchClaimerName();
+    return () => { mounted = false; };
   }, [item.status, item.id]);
 
   useEffect(() => {
@@ -96,15 +96,11 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       // Category-only gift - no experience to fetch
       return;
     }
+    let mounted = true;
     const fetchExperience = async () => {
       try {
-        if (experienceCache[item.experienceId]) {
-          setExperience(experienceCache[item.experienceId]);
-          return;
-        }
         const exp = await experienceService.getExperienceById(item.experienceId);
-        if (exp) {
-          experienceCache[item.experienceId] = exp;
+        if (mounted && exp) {
           setExperience(exp);
         }
       } catch (error: unknown) {
@@ -112,6 +108,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       }
     };
     fetchExperience();
+    return () => { mounted = false; };
   }, [item.experienceId]);
 
   const handlePress = useCallback(() => {
@@ -187,7 +184,7 @@ const PurchasedGiftsScreen = () => {
     setLoading(true);
     setError(false);
     try {
-      const userGifts = await experienceGiftService.getExperienceGiftsByUser(userId);
+      const { gifts: userGifts } = await experienceGiftService.getExperienceGiftsByUser(userId);
       setGifts(userGifts);
       setError(false);
     } catch (error: unknown) {

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,8 @@ import {
   ViewStyle,
   Dimensions,
   ScrollView,
+  Platform,
+  BackHandler,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
@@ -61,6 +63,19 @@ export const BaseModal = React.memo<BaseModalProps>(({
   const isBottom = variant === 'bottom';
   const insets = useSafeAreaInsets();
 
+  // Android hardware back button for the center variant.
+  // The bottom sheet variant relies on gesture-based dismissal; the center dialog
+  // has no swipe affordance so needs explicit BackHandler support.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!visible || isBottom) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [visible, isBottom, onClose]);
+
   return (
     <Modal
       visible={visible}
@@ -106,6 +121,8 @@ export const BaseModal = React.memo<BaseModalProps>(({
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
               contentContainerStyle={isBottom ? { paddingBottom: insets.bottom } : undefined}
             >
               <View style={!noPadding && styles.content}>

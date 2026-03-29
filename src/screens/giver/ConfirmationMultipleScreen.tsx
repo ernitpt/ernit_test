@@ -179,7 +179,12 @@ const ConfirmationMultipleScreen = () => {
     }
   }, [personalizedMessages]);
 
-  const handleCopyCode = useCallback(async (code: string) => {
+  const handleCopyCode = useCallback(async (code: string | undefined) => {
+    if (!code) {
+      logger.warn('handleCopyCode: claimCode is undefined, skipping clipboard write');
+      showError('Gift code is not available yet.');
+      return;
+    }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Clipboard.setStringAsync(code);
@@ -188,9 +193,14 @@ const ConfirmationMultipleScreen = () => {
       logger.warn('Clipboard access denied:', error);
       showError('Could not copy to clipboard');
     }
-  }, []);
+  }, [showError]);
 
-  const handleShareCode = useCallback(async (code: string) => {
+  const handleShareCode = useCallback(async (code: string | undefined) => {
+    if (!code) {
+      logger.warn('handleShareCode: claimCode is undefined, skipping share');
+      showError('Gift code is not available yet.');
+      return;
+    }
     try {
       const shareOptions = {
         title: 'Gift Code',
@@ -207,7 +217,7 @@ Earn it. Unlock it. Enjoy it 🚀
     } catch (error: unknown) {
       showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
     }
-  }, []);
+  }, [showError]);
 
   const handleBackToHome = useCallback(() => {
     navigation.reset({
@@ -229,6 +239,40 @@ Earn it. Unlock it. Enjoy it 🚀
     );
   }
 
+  const handleRetry = useCallback(async () => {
+    let mounted = true;
+    setLoadError(false);
+    setLoading(true);
+    try {
+      if (!experienceGifts || !Array.isArray(experienceGifts)) return;
+      const promises = experienceGifts.map(async (gift) => {
+        const experience = await experienceService.getExperienceById(gift.experienceId);
+        return { gift, experience };
+      });
+      const results = await Promise.all(promises);
+      if (!mounted) return;
+      setGiftsWithExperiences(results);
+      const initialMessages: Record<string, string> = {};
+      const initialSentStatus: Record<string, boolean> = {};
+      results.forEach(({ gift }) => {
+        if (gift.id) {
+          initialMessages[gift.id] = gift.personalizedMessage || '';
+          initialSentStatus[gift.id] = !!gift.personalizedMessage;
+        }
+      });
+      setPersonalizedMessages(initialMessages);
+      setMessageSentStatus(initialSentStatus);
+    } catch (error: unknown) {
+      if (!mounted) return;
+      logger.error('Error fetching experiences on retry:', error);
+      setLoadError(true);
+      showError('Could not load experience details.');
+    } finally {
+      if (mounted) setLoading(false);
+    }
+    return () => { mounted = false; };
+  }, [experienceGifts, showError]);
+
   if (loadError && giftsWithExperiences.length === 0) {
     return (
       <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
@@ -242,38 +286,7 @@ Earn it. Unlock it. Enjoy it 🚀
           </Text>
           <TouchableOpacity
             style={{ backgroundColor: colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
-            onPress={() => {
-              setLoadError(false);
-              setLoading(true);
-              const fetchExperiences = async () => {
-                try {
-                  if (!experienceGifts || !Array.isArray(experienceGifts)) return;
-                  const promises = experienceGifts.map(async (gift) => {
-                    const experience = await experienceService.getExperienceById(gift.experienceId);
-                    return { gift, experience };
-                  });
-                  const results = await Promise.all(promises);
-                  setGiftsWithExperiences(results);
-                  const initialMessages: Record<string, string> = {};
-                  const initialSentStatus: Record<string, boolean> = {};
-                  results.forEach(({ gift }) => {
-                    if (gift.id) {
-                      initialMessages[gift.id] = gift.personalizedMessage || '';
-                      initialSentStatus[gift.id] = !!gift.personalizedMessage;
-                    }
-                  });
-                  setPersonalizedMessages(initialMessages);
-                  setMessageSentStatus(initialSentStatus);
-                } catch (error: unknown) {
-                  logger.error("Error fetching experiences:", error);
-                  setLoadError(true);
-                  showError("Could not load experience details.");
-                } finally {
-                  setLoading(false);
-                }
-              };
-              fetchExperiences();
-            }}
+            onPress={handleRetry}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Retry loading experiences"

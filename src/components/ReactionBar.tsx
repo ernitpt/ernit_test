@@ -48,6 +48,7 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
                         ]}
                         onPress={() => handleReact(reaction.type)}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityLabel={`React with ${reaction.type}`}
                         accessibilityHint="Double tap to react"
                     >

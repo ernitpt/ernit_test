@@ -70,6 +70,11 @@ const ConfirmationScreen = () => {
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
   const empowerContext = state.empowerContext;
   const isEmpower = Boolean(empowerContext && empowerContext.userId !== state.user?.id);
+  // Extract primitives to avoid object-identity re-renders in useEffect deps
+  const empowerGoalId = empowerContext?.goalId;
+  const empowerUserId = empowerContext?.userId;
+  const empowerUserName = empowerContext?.userName;
+  const empowerIsMystery = empowerContext?.isMystery;
   const isTogether = routeParams?.challengeType === 'shared';
   const isCategory = routeParams?.isCategory === true;
 
@@ -88,15 +93,19 @@ const ConfirmationScreen = () => {
   // Redirect if data is missing (e.g., after page refresh or SCA redirect)
   useEffect(() => {
     if (!hasValidData) {
+      let mounted = true;
       // Try to recover from SCA redirect — gift ID may be saved in AsyncStorage
       const tryRecoverSCA = async () => {
         try {
           const pendingGiftId = await AsyncStorage.getItem('pending_sca_gift');
+          if (!mounted) return;
           if (pendingGiftId) {
             const giftDoc = await getDoc(doc(db, 'experienceGifts', pendingGiftId));
+            if (!mounted) return;
             if (giftDoc.exists()) {
               // Gift exists — clear key and recover
               await AsyncStorage.removeItem('pending_sca_gift');
+              if (!mounted) return;
               const recoveredGift = { id: giftDoc.id, ...giftDoc.data() } as ExperienceGift;
               setExperienceGiftState(recoveredGift);
               return; // Don't redirect — we recovered the gift
@@ -105,19 +114,22 @@ const ConfirmationScreen = () => {
             await AsyncStorage.removeItem('pending_sca_gift');
           }
         } catch (error: unknown) {
+          if (!mounted) return;
           logger.warn('SCA recovery failed:', error);
         }
+        if (!mounted) return;
         // No recovery possible — redirect
         logger.warn('Missing/invalid experienceGift on ConfirmationScreen, redirecting to Home');
         navigation.reset({ index: 0, routes: [{ name: 'CategorySelection' }] });
       };
       tryRecoverSCA();
+      return () => { mounted = false; };
     }
   }, [hasValidData, navigation]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => confettiRef.current?.start(), 300);
+    const confettiTimer = setTimeout(() => confettiRef.current?.start(), 300);
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -131,6 +143,7 @@ const ConfirmationScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
+    return () => clearTimeout(confettiTimer);
   }, []);
 
   const [experience, setExperience] = useState<Experience | null>(null);
@@ -148,11 +161,14 @@ const ConfirmationScreen = () => {
       // No experience to fetch for category-only Together
       return;
     }
+    let mounted = true;
     const fetchExperience = async () => {
       try {
         const exp = await experienceService.getExperienceById(experienceGift.experienceId);
+        if (!mounted) return;
         setExperience(exp);
       } catch (error: unknown) {
+        if (!mounted) return;
         logger.error("Error fetching experience:", error);
         await logErrorToFirestore(error, {
           screenName: 'ConfirmationScreen',
@@ -160,27 +176,30 @@ const ConfirmationScreen = () => {
           userId: state.user?.id || 'unknown',
           additionalData: { experienceId: experienceGift.experienceId },
         });
+        if (!mounted) return;
         setLoadError(true);
         showError("Could not load experience details.");
       }
     };
     fetchExperience();
+    return () => { mounted = false; };
   }, [experienceGift?.experienceId]);
 
   // Auto-attach gift to goal (self-purchase) OR notify goal owner (empower)
+  // Use primitive values extracted from empowerContext to avoid object-identity churn in deps
   useEffect(() => {
     if (!goalId || !experienceGift?.id || !state.user?.id) return;
 
-    if (isEmpower && empowerContext) {
+    if (isEmpower && empowerUserId) {
       // Empower flow: friend bought a gift for someone else's goal
       // Can't attach directly (Firestore rules), so notify the goal owner
       const notifyOwner = async () => {
         try {
           const giverName = state.user?.displayName || state.user?.profile?.name || 'A friend';
-          const isMystery = empowerContext.isMystery === true;
+          const isMystery = empowerIsMystery === true;
 
           await notificationService.createNotification(
-            empowerContext.userId,
+            empowerUserId,
             'experience_empowered',
             isMystery
               ? `🎁 ${giverName} gifted you a mystery experience!`
@@ -198,14 +217,14 @@ const ConfirmationScreen = () => {
           );
           // Mark goal as having a pending gift to prevent duplicate purchases
           await goalService.markEmpowerPending(goalId);
-          logger.log('Empower notification sent to goal owner', empowerContext.userId);
+          logger.log('Empower notification sent to goal owner', empowerUserId);
         } catch (error: unknown) {
           logger.error('Failed to send empower notification:', error);
           await logErrorToFirestore(error, {
             screenName: 'ConfirmationScreen',
             feature: 'SendEmpowerNotification',
             userId: state.user?.id || 'unknown',
-            additionalData: { goalId, recipientId: empowerContext?.userId },
+            additionalData: { goalId, recipientId: empowerUserId },
           });
         }
       };
@@ -230,7 +249,8 @@ const ConfirmationScreen = () => {
       };
       attach();
     }
-  }, [goalId, experienceGift?.id, state.user?.id, isEmpower, empowerContext, dispatch]);
+  // Use primitive values (not empowerContext object) to prevent re-firing on every render
+  }, [goalId, experienceGift?.id, state.user?.id, isEmpower, empowerUserId, empowerIsMystery, dispatch]);
 
   // Cleanup copy timeout on unmount
   useEffect(() => {
@@ -509,7 +529,7 @@ Earn it. Unlock it. Enjoy it 🚀
         ) : null}
 
         {/* Claim Code Section (gift to others only, not empower — or Together) */}
-        {(!goalId && !isEmpower || isTogether) && <View style={styles.codeSection}>
+        {((!goalId && !isEmpower) || isTogether) && <View style={styles.codeSection}>
           <View style={styles.codeSectionHeader}>
             <Text style={styles.codeSectionTitle}>Gift Code</Text>
             <Text style={styles.codeSectionSubtitle}>
@@ -551,7 +571,7 @@ Earn it. Unlock it. Enjoy it 🚀
         </View>}
 
         {/* How It Works (gift to others only, not empower — or Together) */}
-        {(!goalId && !isEmpower || isTogether) && <View style={styles.howItWorksSection}>
+        {((!goalId && !isEmpower) || isTogether) && <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>How It Works</Text>
 
           <View style={styles.stepsContainer}>

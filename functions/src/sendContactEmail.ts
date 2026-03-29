@@ -58,29 +58,36 @@ export const sendContactEmail = onCall(
         }
 
         // Rate limit: max 5 emails per hour per user
+        // Atomic transaction prevents TOCTOU race where concurrent requests both
+        // pass the count check before either has written the updated counter.
         const db = admin.firestore();
         const rateLimitRef = db.collection('rateLimits').doc(`contact_${request.auth.uid}`);
-        const rateLimitDoc = await rateLimitRef.get();
-        const now = Date.now();
         const ONE_HOUR = 3600000;
+        const MAX_EMAILS = 5;
 
-        if (rateLimitDoc.exists) {
-            const rateLimitData = rateLimitDoc.data();
-            const windowStart = rateLimitData?.windowStart || 0;
-            const count = rateLimitData?.count || 0;
+        try {
+            await db.runTransaction(async (transaction) => {
+                const snap = await transaction.get(rateLimitRef);
+                const data = snap.data() || { count: 0, windowStart: Date.now() };
+                const windowExpired = Date.now() - (data.windowStart || 0) >= ONE_HOUR;
+                const currentCount = windowExpired ? 0 : (data.count || 0);
 
-            if (now - windowStart < ONE_HOUR && count >= 5) {
+                if (currentCount >= MAX_EMAILS) {
+                    throw new Error('RATE_LIMIT_EXCEEDED');
+                }
+
+                transaction.set(rateLimitRef, {
+                    count: windowExpired ? 1 : (currentCount + 1),
+                    windowStart: windowExpired ? Date.now() : data.windowStart,
+                    userId: request.auth!.uid,
+                    updatedAt: new Date().toISOString(),
+                }, { merge: !windowExpired });
+            });
+        } catch (rateLimitError: unknown) {
+            if ((rateLimitError as Error).message === 'RATE_LIMIT_EXCEEDED') {
                 throw new HttpsError('resource-exhausted', 'Too many messages sent. Please try again later.');
             }
-
-            if (now - windowStart >= ONE_HOUR) {
-                // Reset window
-                await rateLimitRef.set({ windowStart: now, count: 1 });
-            } else {
-                await rateLimitRef.update({ count: count + 1 });
-            }
-        } else {
-            await rateLimitRef.set({ windowStart: now, count: 1 });
+            throw rateLimitError;
         }
 
         const data = request.data as ContactSubmission;
@@ -194,7 +201,7 @@ export const sendContactEmail = onCall(
                 from: `Ernit App <redirect@ernit.app>`, // Send from redirect so it arrives as unread
                 to: recipientEmail,
                 replyTo: verifiedEmail,
-                subject: `[${type.toUpperCase()}] ${escapeHtml(subject)}`,
+                subject: `[${type.toUpperCase()}] ${subject.replace(/<[^>]*>/g, '').slice(0, 200)}`,
                 html: emailHtml,
             };
 

@@ -117,7 +117,7 @@ export const ExperienceCardSkeleton: React.FC = memo(() => {
         <View style={styles.experienceCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={175} height={100} borderRadius={12} style={{ marginBottom: 0 }} />
             <View style={{ padding: 10 }}>
-                <SkeletonBox width="80%" height={15} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="80%" height={15} style={{ marginBottom: Spacing.tinyGap }} />
                 <SkeletonBox width="60%" height={13} style={{ marginBottom: Spacing.sm }} />
                 <SkeletonBox width="40%" height={14} />
             </View>
@@ -150,8 +150,8 @@ export const NotificationSkeleton: React.FC = memo(() => {
         <View style={styles.notificationSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
             <View style={styles.notificationContent}>
-                <SkeletonBox width="90%" height={14} style={{ marginBottom: 6 }} />
-                <SkeletonBox width="60%" height={12} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="90%" height={14} style={{ marginBottom: Spacing.tinyGap }} />
+                <SkeletonBox width="60%" height={12} style={{ marginBottom: Spacing.tinyGap }} />
                 <SkeletonBox width="30%" height={10} />
             </View>
         </View>
@@ -167,7 +167,7 @@ export const CommentSkeleton: React.FC = memo(() => {
         <View style={styles.commentSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
             <View style={styles.commentSkeletonContent}>
-                <SkeletonBox width="40%" height={14} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="40%" height={14} style={{ marginBottom: Spacing.tinyGap }} />
                 <SkeletonBox width="90%" height={12} style={{ marginBottom: Spacing.xs }} />
                 <SkeletonBox width="60%" height={12} />
             </View>
@@ -203,7 +203,7 @@ export const GiftCardSkeleton: React.FC = memo(() => {
                 <SkeletonBox width={70} height={24} borderRadius={8} />
             </View>
             <SkeletonBox width="65%" height={14} style={{ marginTop: Spacing.sm }} />
-            <SkeletonBox width="40%" height={14} style={{ marginTop: 6 }} />
+            <SkeletonBox width="40%" height={14} style={{ marginTop: Spacing.tinyGap }} />
         </View>
     );
 });
@@ -217,7 +217,7 @@ export const CartItemSkeleton: React.FC = memo(() => {
         <View style={styles.cartItemSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={120} height={120} borderRadius={0} />
             <View style={styles.cartItemSkeletonContent}>
-                <SkeletonBox width="80%" height={16} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="80%" height={16} style={{ marginBottom: Spacing.tinyGap }} />
                 <SkeletonBox width="50%" height={13} />
                 <View style={styles.cartItemSkeletonFooter}>
                     <SkeletonBox width={90} height={32} borderRadius={8} />
@@ -278,7 +278,7 @@ export const SessionCardSkeleton: React.FC = () => {
         <View style={styles.sessionCardSkeleton} accessibilityLabel="Loading">
             <SkeletonBox width={40} height={40} borderRadius={20} />
             <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                <SkeletonBox width="50%" height={16} style={{ marginBottom: 6 }} />
+                <SkeletonBox width="50%" height={16} style={{ marginBottom: Spacing.tinyGap }} />
                 <SkeletonBox width="70%" height={12} />
             </View>
             <SkeletonBox width={24} height={24} borderRadius={12} />

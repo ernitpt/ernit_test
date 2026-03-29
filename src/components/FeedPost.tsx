@@ -58,10 +58,14 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [goalHasGift, setGoalHasGift] = useState(false);
 
     // Check goal state: gift status + motivate visibility
+    // H11a: isMounted guard — prevents setState after unmount
     useEffect(() => {
+        let mounted = true;
+
         const checkGoal = async () => {
             try {
                 const goal = await goalService.getGoalById(post.goalId);
+                if (!mounted) return;
                 if (!goal) {
                     setCanMotivate(false);
                     setGoalHasGift(false);
@@ -98,13 +102,16 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 const alreadySent = await motivationService.hasUserSentMotivation(
                     post.goalId, state.user?.id ?? "", targetSession
                 );
+                if (!mounted) return;
                 setCanMotivate(!alreadySent);
             } catch (error: unknown) {
+                if (!mounted) return;
                 logger.error('Error checking goal:', error);
                 setCanMotivate(false);
             }
         };
         checkGoal();
+        return () => { mounted = false; };
     }, [post.goalId, post.userId, post.type, post.sessionNumber, state.user?.id]);
 
     // Animated value for highlight effect
@@ -197,18 +204,22 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
         if (userReaction === type) {
             setUserReaction(null);
-            setReactionCounts({
-                ...reactionCounts,
-                [type]: Math.max(0, reactionCounts[type] - 1),
-            });
+            // H11b: Functional update avoids stale closure — concurrent taps read latest state
+            setReactionCounts(prev => ({
+                ...prev,
+                [type]: Math.max(0, (prev[type] || 0) - 1),
+            }));
         } else {
             setUserReaction(type);
-            const newCounts = { ...reactionCounts };
-            if (previousReaction) {
-                newCounts[previousReaction] = Math.max(0, newCounts[previousReaction] - 1);
-            }
-            newCounts[type] = newCounts[type] + 1;
-            setReactionCounts(newCounts);
+            // H11b: Functional update avoids stale closure — concurrent taps read latest state
+            setReactionCounts(prev => {
+                const next = { ...prev };
+                if (previousReaction) {
+                    next[previousReaction] = Math.max(0, (next[previousReaction] || 0) - 1);
+                }
+                next[type] = (next[type] || 0) + 1;
+                return next;
+            });
         }
 
         try {
@@ -232,12 +243,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             setReactionCounts(previousCounts);
         }
     };
-    const setEmpowerContext = () => {
+    const setEmpowerContext = useCallback(() => {
         dispatch({
             type: 'SET_EMPOWER_CONTEXT',
             payload: { goalId: post.goalId, userId: post.userId, userName: post.userName },
         });
-    };
+    }, [dispatch, post.goalId, post.userId, post.userName]);
 
     const handleEmpower = useCallback(() => {
         if (goalHasGift) return;
@@ -290,20 +301,20 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     // Free goal without attached gift — they completed a challenge, not earned a reward
                     return {
                         text: 'completed their challenge!',
-                        color: colors.success,
+                        color: colors.successText,
                         typeLabel: 'Completed!',
                     };
                 }
                 if (post.experienceTitle) {
                     return {
                         text: (<>completed their goal and earned:</>),
-                        color: colors.success,
+                        color: colors.successText,
                         typeLabel: 'Completed!',
                     };
                 }
                 return {
                     text: 'completed their goal!',
-                    color: colors.success,
+                    color: colors.successText,
                     typeLabel: 'Completed!',
                 };
             default:
@@ -344,15 +355,34 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     // Create web-compatible box shadow
     const shadowColor = isHighlighted ? '139, 92, 246' : '0, 0, 0';
 
+    // Static shadow offset extracted to avoid new object on every render (P3-16)
+    const shadowOffset = useMemo(() => ({ width: 0, height: 2 }), []);
+
+    // borderLeft style derived from typeInfo.color — memoised so React.memo is not defeated (P3-16)
+    const borderLeftStyle = useMemo(() => ({
+        borderLeftWidth: 3,
+        borderLeftColor: typeInfo.color,
+    }), [typeInfo.color]);
+
     return (
-        <Animated.View style={[
+        <Animated.View
+            accessibilityRole="article"
+            accessibilityLabel={`${post.userName} - ${
+                post.type === 'session_progress' || post.type === 'goal_progress'
+                    ? 'logged a session'
+                    : post.type === 'goal_completed'
+                    ? 'completed a goal'
+                    : post.type === 'goal_started'
+                    ? 'set a new goal'
+                    : 'made progress'
+            } - ${timeAgo}`}
+            style={[
             styles.container,
+            borderLeftStyle,
             {
-                borderLeftWidth: 3,
-                borderLeftColor: typeInfo.color,
                 // iOS shadow
                 shadowColor: isHighlighted ? colors.secondary : colors.textPrimary,
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset,
                 shadowRadius: animatedShadowRadius,
                 shadowOpacity: animatedShadowOpacity,
                 // Android elevation

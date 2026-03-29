@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -60,6 +60,16 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
     const [hintText, setHintText] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [showExamples, setShowExamples] = useState(false);
+
+    // Reset all state when the modal opens so stale content never persists
+    useEffect(() => {
+        if (visible) {
+            setMode('text');
+            setHintText('');
+            setSubmitting(false);
+            setShowExamples(false);
+        }
+    }, [visible]);
 
     const media = useMediaComposer(visible);
     const slideAnim = useModalAnimation(visible);

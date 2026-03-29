@@ -13,15 +13,19 @@ export const firebaseConfig = {
   measurementId: Constants.expoConfig?.extra?.firebaseMeasurementId || process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Validate that all required Firebase config values are present
+// Validate that all required Firebase config values are present.
+// Warns (does not throw) so a temporarily missing env var during development does not crash the app at startup.
 export function validateFirebaseConfig(): void {
-  const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
-  const missing = requiredKeys.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
-
-  if (missing.length > 0) {
-    throw new Error(`Firebase config missing required keys: ${missing.join(', ')}`);
+  const requiredKeys: (keyof typeof firebaseConfig)[] = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+  for (const key of requiredKeys) {
+    if (!firebaseConfig[key]) {
+      console.error(`[Firebase] Missing required config key: ${key}. Check EXPO_PUBLIC_* environment variables.`);
+    }
   }
 }
+
+// Run validation at module load time so missing keys are surfaced immediately on startup.
+validateFirebaseConfig();
 
 // Debug log to help troubleshoot Vercel deployment
 logger.log(`🔧 firebaseConfig: __DEV__=${typeof __DEV__ !== 'undefined' ? __DEV__ : 'undefined'}, EXPO_PUBLIC_APP_ENV=${process.env.EXPO_PUBLIC_APP_ENV}, isDevelopment=${!isProduction}`);

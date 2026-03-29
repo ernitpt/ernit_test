@@ -42,8 +42,11 @@ interface TimerProviderProps {
 export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     const [timers, setTimers] = useState<TimersState>({});
     const hasLoaded = useRef(false);
-    const mountedRef = useRef(true);
-    useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+    const mountedRef = useRef(false);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
 
     // Load timers from AsyncStorage on mount
     useEffect(() => {
@@ -120,23 +123,24 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
                 const parsed = JSON.parse(stored);
                 // Recalculate elapsed time for running timers
                 const MAX_SESSION_SECONDS = 8 * 3600; // 8 hours — stale sessions are capped
-                const restored: TimersState = parsed;
-                Object.keys(restored).forEach(goalId => {
-                    if (restored[goalId].isRunning) {
-                        const elapsed = Math.floor((Date.now() - restored[goalId].startTime) / 1000);
-                        if (elapsed > MAX_SESSION_SECONDS) {
-                            restored[goalId].isRunning = false;
-                            restored[goalId].elapsed = MAX_SESSION_SECONDS;
-                        } else {
-                            restored[goalId].elapsed = elapsed;
-                        }
-                    }
-                });
-                // Prune stale stopped timers older than 24 hours
+                // Build a new object instead of mutating parsed JSON directly
                 const STALE_THRESHOLD = 24 * 3600 * 1000;
-                Object.entries(restored).forEach(([goalId, timer]) => {
-                    if (!timer.isRunning && (Date.now() - timer.startTime) > STALE_THRESHOLD) {
-                        delete restored[goalId];
+                const now = Date.now();
+                const restored: TimersState = {};
+                Object.keys(parsed as TimersState).forEach(goalId => {
+                    const timer: TimerState = parsed[goalId];
+                    if (timer.isRunning) {
+                        const elapsed = Math.floor((now - timer.startTime) / 1000);
+                        if (elapsed > MAX_SESSION_SECONDS) {
+                            restored[goalId] = { ...timer, isRunning: false, elapsed: MAX_SESSION_SECONDS };
+                        } else {
+                            restored[goalId] = { ...timer, elapsed };
+                        }
+                    } else {
+                        // Prune stale stopped timers older than 24 hours
+                        if ((now - timer.startTime) <= STALE_THRESHOLD) {
+                            restored[goalId] = { ...timer };
+                        }
                     }
                 });
                 if (mountedRef.current) {
@@ -151,13 +155,13 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
         }
     };
 
-    const saveTimers = async () => {
+    const saveTimers = useCallback(async () => {
         try {
             await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timersRef.current));
         } catch (error: unknown) {
             logger.error('Error saving timer state:', error);
         }
-    };
+    }, []); // timersRef is a ref — always stable, no stale closure risk
 
     const getTimerState = useCallback((goalId: string): TimerState | null => {
         return timers[goalId] || null;

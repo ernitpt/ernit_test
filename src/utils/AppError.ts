@@ -56,6 +56,18 @@ export function getUserMessage(error: unknown, fallback = 'Something went wrong.
   if (error instanceof AppError && error.isUserFacing) {
     return error.message;
   }
+  // Handle Firebase Functions errors
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code: string }).code;
+    if (code === 'functions/resource-exhausted') return 'Rate limit reached. Please try again later.';
+    if (code === 'functions/unavailable') return 'Server temporarily unavailable. Please try again.';
+    if (code === 'functions/unauthenticated') return 'Please sign in to continue.';
+    if (code === 'functions/permission-denied') return 'You don\'t have permission to do that.';
+    if (code === 'functions/not-found') return 'The requested resource was not found.';
+    if ('message' in error && typeof (error as any).message === 'string') {
+      return (error as any).message;
+    }
+  }
   if (typeof error === 'string') {
     return error;
   }

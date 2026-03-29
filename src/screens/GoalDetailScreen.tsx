@@ -1,6 +1,7 @@
 // screens/GoalDetailScreen.tsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,23 +12,25 @@ import { GoalCardSkeleton } from '../components/SkeletonLoader';
 import { useApp } from '../context/AppContext';
 import MainScreen from './MainScreen';
 import { goalService } from '../services/GoalService';
-import { normalizeGoal } from '../utils/GoalHelpers';
+import { normalizeGoal, toDateSafe } from '../utils/GoalHelpers';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import Button from '../components/Button';
+import { logger } from '../utils/logger';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const GoalDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
   const { state } = useApp();
-  const { goalId } = route.params as { goalId: string };
+  const { goalId } = (route.params as { goalId?: string }) ?? {};
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [goal, setGoal] = useState<Goal | null>(null);
@@ -52,20 +55,25 @@ const GoalDetailScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       if (!goalId) return;
+      let mounted = true;
       setLoadError(false);
       const fetchGoal = async () => {
         try {
           const g = await goalService.getGoalById(goalId);
+          if (!mounted) return;
           if (g) {
             setGoal(normalizeGoal(g));
           } else {
             setLoadError(true);
           }
-        } catch {
+        } catch (e) {
+          if (!mounted) return;
+          logger.error('GoalDetailScreen error:', e);
           setLoadError(true);
         }
       };
       fetchGoal();
+      return () => { mounted = false; };
     }, [goalId, retryKey])
   );
 
@@ -82,9 +90,10 @@ const GoalDetailScreen: React.FC = () => {
 
   const weekWindow = useMemo(() => {
     if (!goal?.weekStartAt) return null;
-    const start = new Date(goal.weekStartAt);
+    const start = toDateSafe(goal.weekStartAt);
+    if (isNaN(start.getTime())) return null;
     const end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    end.setDate(end.getDate() + 6);
     return { start, end };
   }, [goal?.weekStartAt]);
 
@@ -98,7 +107,12 @@ const GoalDetailScreen: React.FC = () => {
           {DAY_LETTERS.map((d, i) => {
             const isToday = i === todayIdx;
             return (
-              <View key={d + i} style={{ width: 24, alignItems: 'center' }}>
+              <View
+                key={d + i}
+                style={{ width: 24, alignItems: 'center' }}
+                accessibilityRole="text"
+                accessibilityLabel={isToday ? `${DAY_NAMES[i]}, today` : DAY_NAMES[i]}
+              >
                 <Text style={[styles.dayLetter, isToday && styles.dayLetterToday]}>{d}</Text>
               </View>
             );
@@ -137,6 +151,12 @@ const GoalDetailScreen: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
+    <MotiView
+      from={{ opacity: 0, translateY: 8 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 250 }}
+      style={{ flex: 1 }}
+    >
     <MainScreen activeRoute="Goals">
       <StatusBar style="auto" />
       <View style={styles.header}>
@@ -161,7 +181,12 @@ const GoalDetailScreen: React.FC = () => {
                 {goal.weeklyCount}/{goal.sessionsPerWeek}
               </Text>
             </View>
-            <View style={styles.progressBg}>
+            <View
+              style={styles.progressBg}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(weeklyPct) }}
+              accessibilityLabel={`${Math.round(weeklyPct)}% complete`}
+            >
               <View style={[styles.progressFill, { width: `${weeklyPct}%` }]} />
             </View>
             {renderCalendar()}
@@ -175,7 +200,12 @@ const GoalDetailScreen: React.FC = () => {
                 {goal.currentCount}/{goal.targetCount}
               </Text>
             </View>
-            <View style={styles.progressBg}>
+            <View
+              style={styles.progressBg}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(overallPct) }}
+              accessibilityLabel={`${Math.round(overallPct)}% complete`}
+            >
               <View style={[styles.progressFillAlt, { width: `${overallPct}%` }]} />
             </View>
           </View>
@@ -189,6 +219,7 @@ const GoalDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
     </MainScreen>
+    </MotiView>
     </ErrorBoundary>
   );
 };
