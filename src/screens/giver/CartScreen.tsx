@@ -67,6 +67,35 @@ export default function CartScreen() {
   // recreating loadItems on every render and causing an infinite useEffect loop.
   const cartKey = currentCart.map(i => i.experienceId).sort().join(',');
 
+  // Declared before any useEffect that references it to avoid TDZ crash
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    // Snapshot cart at call time so the callback body doesn't close over a
+    // stale reference if the cart changes mid-fetch.
+    const cart = state.user?.cart || state.guestCart || [];
+    try {
+      const ids = cart.map(item => item.experienceId);
+
+      const experiences = await Promise.all(
+        cart.map(item => experienceService.getExperienceById(item.experienceId))
+      );
+
+      const list: Experience[] = [];
+      cart.forEach((item, i) => {
+        if (experiences[i]) list.push(experiences[i]!);
+      });
+
+      setCartExperiences(list);
+      loadedExperienceIds.current = ids;
+    } catch (error: unknown) {
+      logger.error('Error loading cart items:', error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [cartKey]); // stable string dep — avoids infinite loop from `|| []` new-array-reference
+
   useEffect(() => {
     loadItems();
   }, [loadItems]); // Use loadItems as dep so it re-runs with latest version
@@ -112,34 +141,6 @@ export default function CartScreen() {
       }
     }
   }, [state.guestCart, state.user]);
-
-  const loadItems = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    // Snapshot cart at call time so the callback body doesn't close over a
-    // stale reference if the cart changes mid-fetch.
-    const cart = state.user?.cart || state.guestCart || [];
-    try {
-      const ids = cart.map(item => item.experienceId);
-
-      const experiences = await Promise.all(
-        cart.map(item => experienceService.getExperienceById(item.experienceId))
-      );
-
-      const list: Experience[] = [];
-      cart.forEach((item, i) => {
-        if (experiences[i]) list.push(experiences[i]!);
-      });
-
-      setCartExperiences(list);
-      loadedExperienceIds.current = ids;
-    } catch (error: unknown) {
-      logger.error('Error loading cart items:', error);
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [cartKey]); // stable string dep — avoids infinite loop from `|| []` new-array-reference
 
   const updateQuantity = async (experienceId: string, newQty: number) => {
     if (newQty < 1) {

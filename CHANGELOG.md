@@ -388,6 +388,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - regenerate _Test Cloud Function files from production source with sandbox Stripe key and test CORS origins
 - sync 5 _Test scheduled function files to match production logic (pagination, logger, transactions)
 - sync all 15 _Test Cloud Functions with production — full logic parity, getFirestore(ernitclone2) db, sandbox Stripe keys, add onUserDeleted_Test
+- redesign color palette — forest green + cream editorial direction
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -970,6 +971,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - P3/P4 audit sweep — GoalDetailScreen/GoalsScreen Moti entry + useMemo performance, FeedPost memo + accessibilityLabel, CommentSection/BookingCalendar useCallback, BackHandler for 3 modals, AuthScreen inline email validation, CouponEntryScreen shared TextInput, FriendProfile/UserProfile Moti buttons, textMuted/success/primary WCAG contrast tokens, Button accessibilityLabel, progress bar roles, ErrorRetry alert role, chargeDeferredGift recipientId fix, validateGiftTransition in deleteGoal/retryFailedCharges, events userId ownership rule, design token sweep across AchievementDetailScreen/SkeletonLoader/ChallengeLandingScreen/HeroPreviewScreen, AuthScreen Card glassmorphism variant, PROTECTED_ROUTES dead code removed, DeferredSetup ProtectedRoute added, GiverStackParamList phantom routes removed
 - type audit — align pendingEditRequest shape to GoalService runtime (requestedTargetCount/requestedSessionsPerWeek/requestedBy), add payment_cancelled and shared_partner_removed to Notification.type union, fix MotivationService dropping imageUrl/audioUrl/type/audioDuration on read, consolidate PartnerCoupon type (remove duplicate in CouponService), remove unsafe Record casts from GoalService now that types align
 - restore 14 _Test functions to Firebase — use DEPLOY_TEST_FUNCTIONS=true for future re-deploys
+- Android responsiveness — scale avatars, headings, and spacing for small screens
+- category screen experiences query, feed reactionCounts crash, onUserDeleted feedPosts collection name
+- CartScreen TDZ crash — move loadItems useCallback above useEffect references
 
 ### Added
 - Automatic changelog system with `npm run log` script
