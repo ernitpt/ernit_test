@@ -392,7 +392,6 @@ const CategorySelectionScreen = () => {
     try {
       const q = query(
         collection(db, 'experiences'),
-        where('status', '!=', 'draft'),
         limit(100)
       );
       const snapshot = await getDocs(q);

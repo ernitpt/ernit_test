@@ -47,8 +47,8 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
     const [comments, setComments] = useState<CommentType[]>([]);
-    const [reactionCounts, setReactionCounts] = useState(post.reactionCounts);
-    const [commentCount, setCommentCount] = useState(post.commentCount);
+    const [reactionCounts, setReactionCounts] = useState(post.reactionCounts ?? { muscle: 0, heart: 0, like: 0 });
+    const [commentCount, setCommentCount] = useState(post.commentCount ?? 0);
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [showReactionModal, setShowReactionModal] = useState(false);
     const [showMotivationModal, setShowMotivationModal] = useState(false);

@@ -231,7 +231,7 @@ export const onUserDeleted_Test = functionsV1.auth.user().onDelete(async (user: 
 
         while (!feedDone) {
             let feedQuery = db
-                .collection("feed")
+                .collection("feedPosts")
                 .where("userId", "==", uid)
                 .limit(QUERY_LIMIT);
 
