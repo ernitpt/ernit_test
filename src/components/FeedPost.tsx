@@ -366,7 +366,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
 
     return (
         <Animated.View
-            accessibilityRole="article"
             accessibilityLabel={`${post.userName} - ${
                 post.type === 'session_progress' || post.type === 'goal_progress'
                     ? 'logged a session'

@@ -974,6 +974,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Android responsiveness — scale avatars, headings, and spacing for small screens
 - category screen experiences query, feed reactionCounts crash, onUserDeleted feedPosts collection name
 - CartScreen TDZ crash — move loadItems useCallback above useEffect references
+- remove invalid accessibilityRole article on Android (RCTView crash)
 
 ### Added
 - Automatic changelog system with `npm run log` script
