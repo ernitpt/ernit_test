@@ -36,8 +36,10 @@ export const dbProd = getFirestore(firebaseApp);
 // guard below prevents any test functions from being registered or called).
 export const db = getFirestore(firebaseApp, 'ernitclone2');
 
-// Test functions — only registered as Cloud Function exports in the local emulator
-if (process.env.FUNCTIONS_EMULATOR === 'true') {
+// Test functions — registered in the local emulator OR when explicitly deploying to the test env.
+// To deploy to Firebase for real-device Android testing:
+//   DEPLOY_TEST_FUNCTIONS=true firebase deploy --only functions:stripeWebhook_Test,...
+if (process.env.FUNCTIONS_EMULATOR === 'true' || process.env.DEPLOY_TEST_FUNCTIONS === 'true') {
     const { stripeCreatePaymentIntent_Test } = require("./stripeCreatePaymentIntent_Test");
     const { getGiftsByPaymentIntent_Test } = require("./getGiftsByPaymentIntent_Test");
     const { stripeWebhook_Test } = require("./stripeWebhook_Test");
@@ -52,6 +54,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
     const { createDeferredGift_Test } = require("./createDeferredGift_Test");
     const { chargeDeferredGift_Test } = require("./triggers/chargeDeferredGift_Test");
     const { deleteGoal_Test } = require("./deleteGoal_Test");
+    const { onUserDeleted_Test } = require("./triggers/onUserDeleted_Test");
 
     exports.stripeCreatePaymentIntent_Test = stripeCreatePaymentIntent_Test;
     exports.getGiftsByPaymentIntent_Test = getGiftsByPaymentIntent_Test;
@@ -67,6 +70,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
     exports.createDeferredGift_Test = createDeferredGift_Test;
     exports.chargeDeferredGift_Test = chargeDeferredGift_Test;
     exports.deleteGoal_Test = deleteGoal_Test;
+    exports.onUserDeleted_Test = onUserDeleted_Test;
 }
 
 // Export all production functions

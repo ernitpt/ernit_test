@@ -1,12 +1,15 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { db } from './index';
+import { Firestore, getFirestore } from "firebase-admin/firestore";
 import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
 import { buildGiftEmailHtml } from "./utils/giftEmailTemplate";
 import crypto from 'crypto';
 
-// ========== CREATE FREE GIFT (TEST — ernitclone2) ==========
+// ========== CREATE FREE GIFT (TEST) ==========
 // Creates an ExperienceGift with payment: 'free' — no Stripe charge.
+// The giver sends a challenge gift without paying. They (or anyone)
+// can attach a paid experience later via the empower flow.
 export const createFreeGift_Test = onRequest(
     {
         region: "europe-west1",
@@ -64,20 +67,22 @@ export const createFreeGift_Test = onRequest(
         // ✅ Validate input
         const {
             experienceId,
+            preferredRewardCategory,
             challengeType,
             revealMode,
             recipientEmail,
             giverName,
             personalizedMessage,
+            // Together mode fields (optional)
             goalName,
             duration,
             frequency,
             sessionTime,
+            goalType,
             sameExperienceForBoth,
+            // Idempotency key (optional) — client supplies a UUID to prevent duplicate gifts on retry
+            idempotencyKey,
         } = req.body;
-
-        const preferredRewardCategory = req.body.preferredRewardCategory;
-        const goalType = req.body.goalType;
 
         // Sanitize string inputs — strip HTML/script tags, limit length
         const sanitize = (s: unknown, maxLen = 500): string => {
@@ -85,9 +90,11 @@ export const createFreeGift_Test = onRequest(
             return s.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
         };
 
-        // experienceId required unless category-only Together challenge
-        if (!preferredRewardCategory && (!experienceId || typeof experienceId !== 'string' || experienceId.length > 128)) {
-            res.status(400).json({ error: 'Invalid experienceId' });
+        const hasExperience = experienceId && typeof experienceId === 'string' && experienceId.length <= 128;
+        const hasCategory = preferredRewardCategory && typeof preferredRewardCategory === 'string' && preferredRewardCategory.length <= 64;
+
+        if (!hasExperience && !hasCategory) {
+            res.status(400).json({ error: 'Either experienceId or preferredRewardCategory is required.' });
             return;
         }
 
@@ -96,38 +103,99 @@ export const createFreeGift_Test = onRequest(
             return;
         }
 
-        // revealMode required only when a specific experience is chosen
-        if (experienceId && (!revealMode || !['revealed', 'secret'].includes(revealMode))) {
-            res.status(400).json({ error: 'revealMode must be "revealed" or "secret"' });
-            return;
-        }
+        const sanitizedRevealMode = revealMode && ['revealed', 'secret'].includes(revealMode) ? revealMode : 'secret';
 
         const safeGiverName = sanitize(giverName, 100);
         const safePersonalizedMessage = sanitize(personalizedMessage, 1000);
         const safeGoalName = sanitize(goalName, 200);
 
+        const db = getFirestore('ernitclone2');
+
+        // ✅ IDEMPOTENCY: If the client provides a key, check for a prior completed
+        // invocation before doing any Stripe or Firestore writes.  This prevents
+        // duplicate gifts when a network drop causes the client to retry.
+        if (idempotencyKey !== undefined) {
+            if (typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0 || idempotencyKey.length > 128) {
+                res.status(400).json({ error: 'idempotencyKey must be a non-empty string of at most 128 characters' });
+                return;
+            }
+
+            const idemRef = db.collection('idempotencyKeys').doc(`createFreeGift_${idempotencyKey}`);
+
+            // Use a transaction to atomically check-and-reserve the key so two
+            // concurrent requests with the same key cannot both slip through.
+            let alreadyCompleted = false;
+            await db.runTransaction(async (txn: admin.firestore.Transaction) => {
+                const snap = await txn.get(idemRef);
+                if (snap.exists) {
+                    alreadyCompleted = true;
+                    return; // read-only — transaction commits cleanly
+                }
+                // Reserve the key immediately (mark as 'in_progress') so any
+                // concurrent request that reads it sees the doc and waits/aborts.
+                txn.set(idemRef, {
+                    uid: userId,
+                    functionName: 'createFreeGift',
+                    status: 'in_progress',
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            });
+
+            if (alreadyCompleted) {
+                logger.info(`[createFreeGift_Test] Idempotency key already used: ${idempotencyKey}`);
+                res.status(200).json({ success: true, duplicate: true });
+                return;
+            }
+        }
+
         // ✅ RATE LIMITING: Max 10 free gift creations per hour per user
+        // Atomic transaction prevents TOCTOU race where concurrent requests both
+        // pass the count check before either has written the updated counter.
         const RATE_LIMIT = 10;
         const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
         const rateLimitRef = db.collection('rateLimits').doc(`createFreeGift_${userId}`);
-        const rateLimitSnap = await rateLimitRef.get();
-        const now = Date.now();
 
-        if (rateLimitSnap.exists) {
-            const requests = (rateLimitSnap.data()?.requests || []).filter((t: number) => now - t < RATE_WINDOW_MS);
-            if (requests.length >= RATE_LIMIT) {
-                console.warn(`⚠️ [TEST] createFreeGift rate limit exceeded for user ${userId}`);
+        try {
+            await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
+                const snap = await transaction.get(rateLimitRef);
+                const data = snap.data() || { count: 0, windowStart: Date.now() };
+                const windowExpired = Date.now() - (data.windowStart || 0) > RATE_WINDOW_MS;
+                const currentCount = windowExpired ? 0 : (data.count || 0);
+
+                if (currentCount >= RATE_LIMIT) {
+                    throw new Error('RATE_LIMIT_EXCEEDED');
+                }
+
+                transaction.set(rateLimitRef, {
+                    count: windowExpired ? 1 : (currentCount + 1),
+                    windowStart: windowExpired ? Date.now() : data.windowStart,
+                    userId,
+                    updatedAt: new Date().toISOString(),
+                }, { merge: !windowExpired });
+            });
+        } catch (rateLimitError: unknown) {
+            if ((rateLimitError as Error).message === 'RATE_LIMIT_EXCEEDED') {
+                logger.warn(`⚠️ createFreeGift rate limit exceeded for user ${userId}`);
                 res.status(429).json({ error: 'Too many gift creation requests. Please try again later.' });
                 return;
             }
-            await rateLimitRef.set({ requests: [...requests, now], lastRequest: now });
-        } else {
-            await rateLimitRef.set({ requests: [now], lastRequest: now });
+            throw rateLimitError;
         }
 
         try {
+            // Fetch the experience to snapshot its data (only when experienceId is provided)
+            let experienceData: admin.firestore.DocumentData | null = null;
+            if (hasExperience) {
+                const experienceDoc = await db.collection('experiences').doc(experienceId).get();
+                if (!experienceDoc.exists) {
+                    res.status(404).json({ error: 'Experience not found' });
+                    return;
+                }
+                experienceData = experienceDoc.data()!;
+            }
+
             // Generate unique claim code
-            const claimCode = await generateUniqueClaimCode();
+            const claimCode = await generateUniqueClaimCode(db);
 
             // Set expiration date (365 days)
             const expiresAt = new Date();
@@ -135,68 +203,91 @@ export const createFreeGift_Test = onRequest(
 
             const giftId = db.collection("experienceGifts").doc().id;
 
-            let newGift: Record<string, any>;
-
-            if (experienceId) {
-                // Standard path: specific experience selected
-                const experienceDoc = await db.collection('experiences').doc(experienceId).get();
-                if (!experienceDoc.exists) {
-                    res.status(404).json({ error: 'Experience not found' });
+            // C11b: Explicit type annotation so TypeScript enforces that numeric
+            // fields (price) cannot be silently assigned string values.
+            let experiencePrice = 0;
+            if (experienceData) {
+                experiencePrice = Number(experienceData.price || 0);
+                if (typeof experiencePrice !== 'number' || isNaN(experiencePrice)) {
+                    res.status(400).json({ error: 'Invalid amount: experience price is not a valid number' });
                     return;
                 }
-                const experienceData = experienceDoc.data()!;
-
-                newGift = {
-                    id: giftId,
-                    giverId: userId,
-                    giverName: safeGiverName,
-                    experienceId,
-                    personalizedMessage: safePersonalizedMessage,
-                    partnerId: experienceData.partnerId || "",
-                    deliveryDate: admin.firestore.Timestamp.now(),
-                    status: "pending",
-                    payment: "free",
-                    claimCode,
-                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    challengeType,
-                    revealMode: revealMode || 'secret',
-                    isMystery: revealMode === 'secret',
-                    pledgedExperience: {
-                        experienceId,
-                        title: experienceData.title || "",
-                        subtitle: experienceData.subtitle || "",
-                        description: experienceData.description || "",
-                        category: experienceData.category || "",
-                        price: experienceData.price || 0,
-                        coverImageUrl: experienceData.coverImageUrl || "",
-                        imageUrl: experienceData.imageUrl || [],
-                        partnerId: experienceData.partnerId || "",
-                        location: experienceData.location || "",
-                    },
-                };
-            } else {
-                // Category-only path: no specific experience, discovery engine will match later
-                newGift = {
-                    id: giftId,
-                    giverId: userId,
-                    giverName: safeGiverName,
-                    personalizedMessage: safePersonalizedMessage,
-                    deliveryDate: admin.firestore.Timestamp.now(),
-                    status: "pending",
-                    payment: "free",
-                    claimCode,
-                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    challengeType,
-                    preferredRewardCategory: preferredRewardCategory || "",
-                    goalType: goalType || "custom",
-                    isCategoryOnly: true,
-                };
             }
 
+            const newGift: {
+                id: string;
+                giverId: string;
+                giverName: string;
+                experienceId: string | null;
+                preferredRewardCategory: string | null;
+                personalizedMessage: string;
+                partnerId: string;
+                deliveryDate: admin.firestore.Timestamp;
+                status: string;
+                payment: string;
+                claimCode: string;
+                expiresAt: admin.firestore.Timestamp;
+                createdAt: admin.firestore.FieldValue;
+                updatedAt: admin.firestore.FieldValue;
+                challengeType: string;
+                revealMode: string;
+                isMystery: boolean;
+                pledgedExperience: {
+                    experienceId: string;
+                    title: string;
+                    subtitle: string;
+                    description: string;
+                    category: string;
+                    price: number;
+                    coverImageUrl: string;
+                    imageUrl: string[];
+                    partnerId: string;
+                    location: string;
+                } | null;
+                togetherData?: {
+                    goalName: string;
+                    duration: string;
+                    frequency: string;
+                    sessionTime: string;
+                    goalType: string;
+                    sameExperienceForBoth: boolean;
+                    giverGoalId?: string;
+                };
+            } = {
+                id: giftId,
+                giverId: userId,
+                giverName: safeGiverName,
+                experienceId: hasExperience ? experienceId : null,
+                preferredRewardCategory: hasCategory ? sanitize(preferredRewardCategory, 64) : null,
+                personalizedMessage: safePersonalizedMessage,
+                partnerId: experienceData?.partnerId || "",
+                deliveryDate: admin.firestore.Timestamp.now(),
+                status: "pending",
+                payment: "free",
+                claimCode,
+                expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                // Gift flow metadata
+                challengeType,
+                revealMode: sanitizedRevealMode,
+                isMystery: sanitizedRevealMode === 'secret',
+                // Snapshot of the experience for display (null for category-only path)
+                pledgedExperience: experienceData ? {
+                    experienceId,
+                    title: experienceData.title || "",
+                    subtitle: experienceData.subtitle || "",
+                    description: experienceData.description || "",
+                    category: experienceData.category || "",
+                    price: experiencePrice,
+                    coverImageUrl: experienceData.coverImageUrl || "",
+                    imageUrl: experienceData.imageUrl || [],
+                    partnerId: experienceData.partnerId || "",
+                    location: experienceData.location || "",
+                } : null,
+            };
+
+            // Together mode: include giver's goal data so recipient can see it
             if (challengeType === 'shared') {
                 newGift.togetherData = {
                     goalName: safeGoalName,
@@ -230,7 +321,7 @@ export const createFreeGift_Test = onRequest(
                 // Embed giverGoalId into the gift before writing
                 newGift.togetherData.giverGoalId = giverGoalRef.id;
 
-                const giverGoalData: Record<string, any> = {
+                const giverGoalData = {
                     userId,
                     experienceGiftId: giftId,
                     name: td.goalName || `${weeks}-week challenge`,
@@ -255,7 +346,6 @@ export const createFreeGift_Test = onRequest(
                     isWeekCompleted: false,
                     isActive: true,
                     isRevealed: false,
-                    isFreeGoal: !experienceId,
                     startDate: admin.firestore.Timestamp.fromDate(now),
                     endDate: admin.firestore.Timestamp.fromDate(endDate),
                     plannedStartDate: admin.firestore.Timestamp.fromDate(now),
@@ -264,43 +354,46 @@ export const createFreeGift_Test = onRequest(
                     expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    experienceId: hasExperience ? experienceId : null,
                 };
-                if (experienceId) {
-                    giverGoalData.experienceId = experienceId;
-                }
-                if (preferredRewardCategory) {
-                    giverGoalData.preferredRewardCategory = preferredRewardCategory;
-                }
-                if (goalType) {
-                    giverGoalData.goalType = goalType;
-                }
 
                 const batch = db.batch();
                 batch.set(giftDocRef, newGift);
                 batch.set(giverGoalRef, { ...giverGoalData, experienceGiftId: giftDocRef.id });
                 await batch.commit();
 
-                console.log(`✅ [TEST] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
+                logger.info(`✅ [TEST] Created giver goal ${giverGoalRef.id} for shared gift ${giftId}`);
             } else {
                 await db.doc(`experienceGifts/${giftId}`).set(newGift);
             }
 
-            console.log(`✅ [TEST] Created free gift ${giftId} with claimCode ${claimCode}`);
+            logger.info(`✅ [TEST] Created free gift ${giftId} with claimCode ${claimCode}`);
 
-            // Optionally send email
+            // Mark idempotency key as completed now that the gift is durably written.
+            if (idempotencyKey !== undefined) {
+                const idemRef = db.collection('idempotencyKeys').doc(`createFreeGift_${idempotencyKey}`);
+                await idemRef.set({
+                    uid: userId,
+                    functionName: 'createFreeGift',
+                    status: 'completed',
+                    giftId,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            }
+
+            // Optionally send email to recipient
             if (recipientEmail && typeof recipientEmail === 'string' && recipientEmail.includes('@')) {
                 try {
-                    const claimUrl = `https://ernit981723498127658912765187923546.vercel.app/recipient/redeem/${claimCode}`;
-                    const experienceTitle = experienceId
-                        ? (newGift.pledgedExperience?.title || 'a special experience')
-                        : `a ${preferredRewardCategory || ''} challenge`;
+                    const claimUrl = `https://ernit.app/recipient/redeem/${claimCode}`;
                     await sendEmail(
                         recipientEmail,
                         `${safeGiverName || 'Someone'} sent you an Ernit challenge!`,
-                        buildGiftEmailHtml(safeGiverName || 'Someone', experienceTitle, claimUrl, revealMode || 'secret')
+                        buildGiftEmailHtml(safeGiverName || 'Someone', experienceData?.title ?? '', claimUrl, sanitizedRevealMode)
                     );
+                    logger.info(`✅ Gift email sent to ${recipientEmail}`);
                 } catch (emailErr: unknown) {
-                    console.error(`⚠️ Failed to send gift email:`, emailErr);
+                    // Don't fail the whole request if email fails
+                    logger.error(`⚠️ Failed to send gift email:`, emailErr);
                 }
             }
 
@@ -308,16 +401,17 @@ export const createFreeGift_Test = onRequest(
                 success: true,
                 gift: newGift,
                 claimCode,
-                claimUrl: `https://ernit981723498127658912765187923546.vercel.app/recipient/redeem/${claimCode}`,
+                claimUrl: `https://ernit.app/recipient/redeem/${claimCode}`,
             });
         } catch (err: unknown) {
-            console.error("❌ Error creating free gift:", err);
+            logger.error("❌ Error creating free gift:", err);
             res.status(500).json({ error: "Failed to create gift" });
         }
     }
 );
 
 
+// ========== HELPER: GENERATE CLAIM CODE ==========
 function generateClaimCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -329,7 +423,7 @@ function generateClaimCode(): string {
     return code;
 }
 
-async function generateUniqueClaimCode(): Promise<string> {
+async function generateUniqueClaimCode(db: Firestore): Promise<string> {
     const maxAttempts = 10;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const code = generateClaimCode();
@@ -339,7 +433,7 @@ async function generateUniqueClaimCode(): Promise<string> {
             .limit(1)
             .get();
         if (existing.empty) return code;
-        console.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
+        logger.warn(`⚠️ Claim code collision (attempt ${attempt + 1})`);
     }
     throw new Error('Failed to generate unique claim code after 10 attempts');
 }

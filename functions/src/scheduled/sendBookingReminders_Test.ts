@@ -1,5 +1,7 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 /**
  * Cloud Function: sendBookingReminders_Test
@@ -52,8 +54,9 @@ export const sendBookingReminders_Test = functions.onSchedule(
     },
     async () => {
         try {
-            console.log("🔔 [TEST] Starting booking reminders check...");
+            logger.info("🔔 [TEST] Starting booking reminders check...");
 
+            // Get test db from shared index (ernitclone2 database)
             const db = require("../index").db;
             const now = new Date();
 
@@ -68,16 +71,16 @@ export const sendBookingReminders_Test = functions.onSchedule(
                 .where("completedAt", ">=", thirtyDaysAgo)
                 .get();
 
-            console.log(`📊 [TEST] Found ${goalsSnap.size} recently completed goals`);
+            logger.info(`📊 [TEST] Found ${goalsSnap.size} recently completed goals`);
 
             // Pre-fetch all unique experienceGift docs to avoid N+1 sequential reads
             const giftIds = new Set<string>();
-            goalsSnap.docs.forEach((doc: any) => {
+            goalsSnap.docs.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
                 const giftId = doc.data().experienceGiftId;
-                if (giftId) giftIds.add(giftId);
+                if (giftId) giftIds.add(giftId as string);
             });
 
-            const giftDocs = new Map<string, any>();
+            const giftDocs = new Map<string, admin.firestore.DocumentSnapshot>();
             await Promise.all(
                 [...giftIds].map(async (id) => {
                     const snap = await db.collection("experienceGifts").doc(id).get();
@@ -87,12 +90,12 @@ export const sendBookingReminders_Test = functions.onSchedule(
 
             // Pre-fetch all unique experience docs referenced by the gift docs
             const experienceIds = new Set<string>();
-            giftDocs.forEach((snap: any) => {
+            giftDocs.forEach((snap) => {
                 const expId = snap.exists ? snap.data()?.experienceId : null;
-                if (expId) experienceIds.add(expId);
+                if (expId) experienceIds.add(expId as string);
             });
 
-            const experienceDocs = new Map<string, any>();
+            const experienceDocs = new Map<string, admin.firestore.DocumentSnapshot>();
             await Promise.all(
                 [...experienceIds].map(async (id) => {
                     const snap = await db.collection("experiences").doc(id).get();
@@ -100,7 +103,7 @@ export const sendBookingReminders_Test = functions.onSchedule(
                 })
             );
 
-            console.log(`📦 [TEST] Pre-fetched ${giftDocs.size} gift doc(s) and ${experienceDocs.size} experience doc(s)`);
+            logger.info(`📦 [TEST] Pre-fetched ${giftDocs.size} gift doc(s) and ${experienceDocs.size} experience doc(s)`);
 
             let notificationsSent = 0;
 
@@ -134,7 +137,7 @@ export const sendBookingReminders_Test = functions.onSchedule(
                 // Check if this reminder was already sent
                 const sentReminders: number[] = goal.bookingReminderDays || [];
                 if (sentReminders.includes(daysSinceCompletion)) {
-                    console.log(
+                    logger.info(
                         `⏭️ [TEST] Goal ${goalDoc.id}: Day-${daysSinceCompletion} reminder already sent`
                     );
                     continue;
@@ -156,7 +159,7 @@ export const sendBookingReminders_Test = functions.onSchedule(
                         }
                     }
                 } catch (expError: unknown) {
-                    console.error(
+                    logger.error(
                         `⚠️ [TEST] Could not resolve experience name for goal ${goalDoc.id}:`,
                         expError
                     );
@@ -172,7 +175,7 @@ export const sendBookingReminders_Test = functions.onSchedule(
                         await batch.commit();
                         batch = db.batch();
                         batchCount = 0;
-                        console.log("🔄 [TEST] Committed intermediate batch, starting new batch");
+                        logger.info("🔄 [TEST] Committed intermediate batch, starting new batch");
                     }
 
                     const notifRef = db.collection("notifications").doc();
@@ -198,11 +201,11 @@ export const sendBookingReminders_Test = functions.onSchedule(
 
                     batchCount += 2;
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [TEST] Staged day-${daysSinceCompletion} booking reminder to user ${goal.userId} for goal ${goalDoc.id}`
                     );
                 } catch (notifError: unknown) {
-                    console.error(
+                    logger.error(
                         `❌ [TEST] Failed to stage booking reminder for goal ${goalDoc.id}:`,
                         notifError
                     );
@@ -212,14 +215,14 @@ export const sendBookingReminders_Test = functions.onSchedule(
             // Commit any remaining batch operations
             if (batchCount > 0) {
                 await batch.commit();
-                console.log(`🔄 [TEST] Committed final batch (${batchCount} ops)`);
+                logger.info(`🔄 [TEST] Committed final batch (${batchCount} ops)`);
             }
 
-            console.log(
+            logger.info(
                 `✨ [TEST] Booking reminders check complete. Sent ${notificationsSent} notification(s).`
             );
         } catch (error: unknown) {
-            console.error("❌ [TEST] Error in sendBookingReminders_Test:", error);
+            logger.error("❌ [TEST] Error in sendBookingReminders:", error);
         }
     }
 );

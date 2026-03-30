@@ -1,185 +1,345 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import Stripe from "stripe";
 import * as admin from "firebase-admin";
-import { db } from './index';
-import { GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from './services/emailService.js';
+import { Transaction, DocumentReference, DocumentSnapshot, getFirestore } from "firebase-admin/firestore";
+import { sendEmail, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from "./services/emailService";
+import crypto from 'crypto';
 
 const STRIPE_SECRET = defineSecret("STRIPE_SECRET_KEY_SANDBOX");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET_TEST");
 
-// ========== STRIPE WEBHOOK HANDLER ==========
+// ========== STRIPE WEBHOOK HANDLER (TEST) ==========
 export const stripeWebhook_Test = onRequest(
-  {
-    region: "europe-west1",
-    secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
-  },
-  async (req, res) => {
-    console.log("🔔 Webhook received");
+    {
+        region: "europe-west1",
+        secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
+    },
+    async (req, res): Promise<void> => {
+        logger.info("🔔 [TEST] Webhook received");
 
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
+        if (req.method !== "POST") {
+            res.status(405).send("Method Not Allowed");
+            return;
+        }
+
+        const stripe = new Stripe(STRIPE_SECRET.value(), {
+            apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
+        });
+
+        const sig = req.headers["stripe-signature"];
+        if (!sig) {
+            logger.error("❌ No Stripe signature");
+            res.status(400).send("No signature");
+            return;
+        }
+
+        let event: Stripe.Event;
+
+        try {
+            // Verify webhook signature
+            event = stripe.webhooks.constructEvent(
+                req.rawBody,
+                sig,
+                STRIPE_WEBHOOK_SECRET.value()
+            );
+        } catch (err: unknown) {
+            logger.error("❌ Webhook signature verification failed:", (err as Error).message ?? String(err));
+            res.status(400).send('Webhook signature verification failed');
+            return;
+        }
+
+        logger.info("✅ [TEST] Webhook verified:", event.type);
+
+        const db = getFirestore('ernitclone2');
+
+        try {
+            // Handle payment_intent.succeeded event
+            if (event.type === "payment_intent.succeeded") {
+                const paymentIntent = event.data.object as Stripe.PaymentIntent;
+                logger.info("💰 [TEST] Payment succeeded:", paymentIntent.id);
+
+                try {
+                    await handleSuccessfulPayment(paymentIntent, db);
+                    res.status(200).json({ received: true });
+                } catch (err: unknown) {
+                    logger.error("❌ Error handling payment:", err);
+                    // T1-2: Return 500 so Stripe retries — gifts must be created
+                    res.status(500).json({ error: "Payment processing failed" });
+                }
+                return;
+            }
+
+            // Handle payment_intent.payment_failed event
+            if (event.type === "payment_intent.payment_failed") {
+                const paymentIntent = event.data.object as Stripe.PaymentIntent;
+                logger.info("❌ [TEST] Payment failed:", paymentIntent.id);
+                const metadata = paymentIntent.metadata;
+                const giftId = metadata?.giftId;
+
+                // Idempotency guard: skip if the gift document already reflects the
+                // failure. Stripe may retry the webhook multiple times; without this
+                // check, each retry would write a duplicate failure notification.
+                if (giftId) {
+                    const giftSnap = await db.collection('experienceGifts').doc(giftId).get();
+                    if (!giftSnap.exists) {
+                        logger.warn(`stripeWebhook_Test: payment_failed — gift ${giftId} not found, skipping`);
+                    } else if (giftSnap.data()?.payment === 'failed') {
+                        logger.warn(`stripeWebhook_Test: payment_failed already processed for gift ${giftId}, skipping duplicate`);
+                        res.status(200).json({ received: true });
+                        return;
+                    }
+                }
+
+                if (metadata?.giverId) {
+                    try {
+                        await db.collection('notifications').add({
+                            userId: metadata.giverId,
+                            type: 'payment_failed',
+                            title: 'Payment Failed',
+                            message: 'Your payment method was declined. Please update your payment details.',
+                            data: { giftId: giftId || '' },
+                            read: false,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                        logger.info(`✅ [TEST] Payment failed notification sent to giver ${metadata.giverId}`);
+                    } catch (notifError: unknown) {
+                        logger.error("❌ [TEST] Failed to send payment failed notification:", notifError);
+                    }
+                }
+            }
+
+            res.status(200).json({ received: true });
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.error('[stripeWebhook_Test] Handler error:', errorMessage);
+
+            // Write failure to Firestore for alerting.
+            // Use FieldValue.increment(1) with merge: true instead of a manual
+            // read-increment-write to avoid a TOCTOU race where two concurrent
+            // Stripe retries both read the same counter value and write the same
+            // incremented result (both ending up at attempts: 1 instead of 2).
+            try {
+                const eventId = event?.id || 'unknown';
+                const failureRef = db.collection('webhookFailures').doc(eventId);
+
+                await failureRef.set({
+                    eventId,
+                    eventType: event?.type || 'unknown',
+                    errorMessage,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    attempts: admin.firestore.FieldValue.increment(1),
+                    resolved: false,
+                }, { merge: true });
+            } catch (firestoreErr: unknown) {
+                logger.error('[stripeWebhook_Test] Failed to write to webhookFailures:', firestoreErr);
+            }
+
+            res.status(500).send('Webhook handler failed'); return;
+        }
     }
-
-    const stripe = new Stripe(STRIPE_SECRET.value(), {
-      apiVersion: "2024-06-20" as any,
-    });
-
-    const sig = req.headers["stripe-signature"];
-    if (!sig) {
-      console.error("❌ No Stripe signature");
-      res.status(400).send("No signature");
-      return;
-    }
-
-    let event: Stripe.Event;
-
-    try {
-      // Verify webhook signature
-      event = stripe.webhooks.constructEvent(
-        req.rawBody,
-        sig,
-        STRIPE_WEBHOOK_SECRET.value()
-      );
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error("❌ Webhook signature verification failed:", errMsg);
-      res.status(400).send(`Webhook Error: ${errMsg}`);
-      return;
-    }
-
-    console.log("✅ Webhook verified:", event.type);
-
-    // Handle payment_intent.succeeded event
-    if (event.type === "payment_intent.succeeded") {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log("💰 Payment succeeded:", paymentIntent.id);
-
-      try {
-        await handleSuccessfulPayment(paymentIntent);
-        res.status(200).json({ received: true });
-      } catch (err: unknown) {
-        console.error("❌ Error handling payment:", err);
-        // T1-2: Return 500 so Stripe retries — gifts must be created
-        res.status(500).json({ error: "Payment processing failed" });
-      }
-      return;
-    }
-
-    // Handle payment_intent.payment_failed event
-    if (event.type === "payment_intent.payment_failed") {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log("❌ Payment failed:", paymentIntent.id);
-      // You could add logic here to notify the user or clean up
-    }
-
-    res.status(200).json({ received: true });
-  }
 );
 
 // ========== HELPER: HANDLE SUCCESSFUL PAYMENT ==========
-async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
-  const metadata = paymentIntent.metadata;
-  const paymentIntentId = paymentIntent.id;
+async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent, db: FirebaseFirestore.Firestore) {
+    const metadata = paymentIntent.metadata;
+    const paymentIntentId = paymentIntent.id;
 
-  console.log("📦 [TEST] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
+    logger.info("📦 [TEST] Processing payment with FULL metadata:", JSON.stringify(metadata, null, 2));
 
-  // ✅ STANDARD GIFT PURCHASE FLOW
-  console.log("🧪 typeof cart metadata:", typeof metadata.cart);
-  console.log("🧪 raw cart metadata:", metadata.cart);
-  console.log("🧪 giverId metadata:", metadata.giverId);
-  console.log("🧪 JSON.parse(metadata.cart)", JSON.parse(metadata.cart))
-
-
-  if (!metadata.giverId || !metadata.cart) {
-    console.error("❌ Missing required metadata (giverId or cart)");
-    throw new Error("Missing required metadata");
-  }
-
-  // Parse cart
-  let cart: Array<{ experienceId: string; quantity: number }> = [];
-  try {
-    cart = JSON.parse(metadata.cart);
-  } catch (err: unknown) {
-    console.error("❌ Cannot parse cart metadata:", err);
-    throw new Error("Invalid cart metadata");
-  }
-
-  if (!Array.isArray(cart) || cart.length === 0) {
-    throw new Error("Cart is empty or invalid");
-  }
-
-  // ✅ Use transaction for idempotency
-  const processedRef = db.collection("processedPayments").doc(paymentIntentId);
-
-  return await db.runTransaction(async (transaction) => {
-    const processedDoc = await transaction.get(processedRef);
-
-    if (processedDoc.exists) {
-      console.log("⚠️ Payment already processed - returning existing gifts");
-      const existingGiftIds = processedDoc.data()?.gifts || [];
-
-      // Fetch and return existing gifts
-      const existingGifts = await Promise.all(
-        existingGiftIds.map(async (giftId: string) => {
-          const giftDoc = await db.collection("experienceGifts").doc(giftId).get();
-          return giftDoc.data();
-        })
-      );
-
-      return existingGifts.filter(Boolean);
+    // ✅ DEFERRED CHARGE — handled by chargeDeferredGift trigger, not here
+    if (metadata?.type === 'deferred_charge') {
+        logger.info('Deferred charge payment succeeded, handled by trigger');
+        return;
     }
 
-    // --- Create multiple experience gifts using transaction (T1-3: atomic with processedPayments) ---
-    const createdGifts: any[] = [];
+    // ✅ STANDARD GIFT PURCHASE FLOW
+    if (!metadata.giverId || !metadata.cart) {
+        logger.error("❌ Missing required metadata (giverId or cart)");
+        throw new Error("Missing required metadata");
+    }
 
+    // Parse cart
+    let cart: Array<{ experienceId: string; quantity: number }> = [];
+    try {
+        cart = JSON.parse(metadata.cart);
+    } catch (err: unknown) {
+        logger.error("❌ Cannot parse cart metadata:", err);
+        throw new Error("Invalid cart metadata");
+    }
+
+    if (!Array.isArray(cart) || cart.length === 0) {
+        throw new Error("Cart is empty or invalid");
+    }
+
+    let totalQuantity = 0;
     for (const item of cart) {
-      const { experienceId, quantity } = item;
-
-      // We create N gifts for quantity
-      for (let i = 0; i < quantity; i++) {
-        const id = db.collection("experienceGifts").doc().id;
-        const claimCode = await generateUniqueClaimCode();
-
-        // ✅ Set expiration date (365 days from now)
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 365);
-
-        const newGift = {
-          id,
-          giverId: metadata.giverId,
-          giverName: metadata.giverName || "",
-          experienceId,
-          personalizedMessage: metadata.personalizedMessage || "",
-          partnerId: metadata.partnerId || "",
-          deliveryDate: admin.firestore.Timestamp.now(),
-          status: "pending",
-          payment: "paid",
-          paymentIntentId,
-          claimCode,
-          isMystery: metadata.isMystery === "true",
-          expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-          createdAt: admin.firestore.Timestamp.now(),
-          updatedAt: admin.firestore.Timestamp.now(),
-        };
-
-        transaction.set(db.collection("experienceGifts").doc(id), newGift);
-        createdGifts.push(newGift);
-      }
+        if (!item.experienceId || typeof item.experienceId !== 'string' || item.experienceId.length > 100) {
+            throw new Error("Invalid experienceId in cart");
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 50) {
+            throw new Error("Invalid quantity in cart");
+        }
+        totalQuantity += item.quantity;
+    }
+    if (totalQuantity > 100) {
+        throw new Error("Total cart quantity cannot exceed 100 gifts");
     }
 
-    // Mark as processed
-    transaction.set(processedRef, {
-      processed: true,
-      processedAt: admin.firestore.FieldValue.serverTimestamp(),
-      gifts: createdGifts.map(g => g.id),
+    // ✅ Use transaction for idempotency (TEST DATABASE)
+    const processedRef = db.collection("processedPayments").doc(paymentIntentId);
+
+    // Generate claim codes OUTSIDE the transaction so collision detection can
+    // perform Firestore reads (transactions do not allow arbitrary reads during
+    // execution on the server). Each code is guaranteed unique against the live
+    // experienceGifts collection before the transaction begins.
+    const totalClaimCodes = cart.reduce((sum: number, item: { experienceId: string; quantity: number }) => sum + item.quantity, 0);
+    const claimCodes: string[] = [];
+    for (let i = 0; i < totalClaimCodes; i++) {
+        claimCodes.push(await generateUniqueClaimCode(db));
+    }
+
+    return await db.runTransaction(async (transaction: Transaction) => {
+        const processedDoc = await transaction.get(processedRef);
+
+        if (processedDoc.exists) {
+            logger.info("⚠️ Payment already processed - verifying existing gifts");
+            const existingGiftIds = processedDoc.data()?.gifts || [];
+
+            // C10: Use transaction.get() with pre-built refs so reads participate
+            // in the transaction's read set and see a consistent snapshot.
+            const existingGiftRefs = existingGiftIds.map((giftId: string) =>
+                db.collection("experienceGifts").doc(giftId)
+            );
+            const existingGiftSnaps = await Promise.all(
+                existingGiftRefs.map((ref: DocumentReference) => transaction.get(ref))
+            );
+
+            const existingGifts = existingGiftSnaps.map((giftDoc: DocumentSnapshot) => {
+                if (!giftDoc.exists) {
+                    logger.warn(`⚠️ Cached gift ${giftDoc.id} no longer exists`);
+                    return null;
+                }
+                const giftData = giftDoc.data();
+                if (giftData?.status !== 'pending' && giftData?.status !== 'active' && giftData?.status !== 'claimed') {
+                    logger.warn(`⚠️ Cached gift ${giftDoc.id} has unexpected status: ${giftData?.status}`);
+                }
+                return giftData;
+            });
+
+            const validGifts = existingGifts.filter(Boolean);
+            if (validGifts.length === 0) {
+                logger.error(`❌ All cached gifts for ${paymentIntentId} are missing — this needs manual investigation`);
+            }
+            return validGifts;
+        }
+
+        let claimCodeIndex = 0;
+
+        // Pre-fetch experience documents outside the transaction so we can include
+        // a pledgedExperience snapshot on each gift without performing reads inside
+        // the transaction body (which would require those refs to be in the read set).
+        const uniqueExperienceIds = [...new Set(cart.map((item: { experienceId: string; quantity: number }) => item.experienceId))];
+        const experienceSnapshotMap: Record<string, admin.firestore.DocumentData | null> = {};
+        await Promise.all(
+            uniqueExperienceIds.map(async (expId: string) => {
+                try {
+                    const expSnap = await db.collection('experiences').doc(expId).get();
+                    experienceSnapshotMap[expId] = expSnap.exists ? expSnap.data()! : null;
+                } catch (expErr: unknown) {
+                    logger.warn(`⚠️ [TEST] Could not fetch experience ${expId} for snapshot:`, expErr);
+                    experienceSnapshotMap[expId] = null;
+                }
+            })
+        );
+
+        // --- Create multiple experience gifts using transaction ---
+        interface CreatedGift {
+            id: string;
+            giverId: string;
+            giverName: string;
+            experienceId: string;
+            pledgedExperience: {
+                id: string;
+                title: string;
+                price: number;
+                coverImageUrl: string;
+                category: string;
+            } | null;
+            personalizedMessage: string;
+            partnerId: string;
+            deliveryDate: admin.firestore.Timestamp;
+            status: string;
+            payment: string;
+            paymentIntentId: string;
+            claimCode: string;
+            isMystery: boolean;
+            expiresAt: admin.firestore.Timestamp;
+            createdAt: admin.firestore.Timestamp;
+            updatedAt: admin.firestore.Timestamp;
+        }
+        const createdGifts: CreatedGift[] = [];
+
+        for (const item of cart) {
+            const { experienceId, quantity } = item;
+
+            // Build pledgedExperience snapshot from the pre-fetched data
+            const expData = experienceSnapshotMap[experienceId] ?? null;
+            const pledgedExperience = expData ? {
+                id: experienceId,
+                title: expData.title ?? '',
+                price: expData.price ?? 0,
+                coverImageUrl: expData.coverImageUrl ?? '',
+                category: expData.category ?? '',
+            } : null;
+
+            // We create N gifts for quantity
+            for (let i = 0; i < quantity; i++) {
+                const id = db.collection("experienceGifts").doc().id;
+                const claimCode = claimCodes[claimCodeIndex++];
+
+                // ✅ Set expiration date (365 days from now)
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 365);
+
+                const newGift = {
+                    id,
+                    giverId: metadata.giverId,
+                    giverName: metadata.giverName || "",
+                    experienceId,
+                    pledgedExperience,
+                    personalizedMessage: metadata.personalizedMessage || "",
+                    partnerId: metadata.partnerId || "",
+                    deliveryDate: admin.firestore.Timestamp.now(),
+                    status: "pending",
+                    payment: "paid",
+                    paymentIntentId,
+                    claimCode,
+                    isMystery: metadata.isMystery === "true",
+                    challengeType: (metadata.challengeType === 'shared' ? 'shared' : 'solo') as 'solo' | 'shared',
+                    revealMode: (metadata.revealMode === 'secret' ? 'secret' : 'revealed') as 'revealed' | 'secret',
+                    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                    createdAt: admin.firestore.Timestamp.now(),
+                    updatedAt: admin.firestore.Timestamp.now(),
+                };
+
+                transaction.set(db.doc(`experienceGifts/${id}`), newGift);
+                createdGifts.push(newGift);
+            }
+        }
+
+        // Mark as processed
+        transaction.set(processedRef, {
+            processed: true,
+            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            gifts: createdGifts.map(g => g.id),
+        });
+
+        logger.info(`✅ [TEST] Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
+
+        return createdGifts;
     });
-
-    console.log(`✅ Created ${createdGifts.length} gifts for paymentIntent ${paymentIntentId}`);
-
-    return createdGifts;
-  });
 }
 
 
@@ -189,42 +349,43 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
  * 12 characters = ~3.2 quadrillion combinations
  */
 function generateClaimCode(): string {
-  const crypto = require('crypto');
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
 
-  // Generate 12 random characters
-  while (code.length < 12) {
-    const bytes = crypto.randomBytes(1);
-    const randomIndex = bytes[0] % chars.length;
-    code += chars[randomIndex];
-  }
+    // Generate 12 random characters
+    while (code.length < 12) {
+        const bytes = crypto.randomBytes(1);
+        // Rejection sampling to eliminate modulo bias
+        // 252 is the largest multiple of 36 that fits in a byte (7 * 36 = 252)
+        if (bytes[0] >= 252) continue;
+        code += chars[bytes[0] % chars.length];
+    }
 
-  return code;
+    return code;
 }
 
 /**
  * Generate unique claim code with collision detection
  */
-async function generateUniqueClaimCode(): Promise<string> {
-  const maxAttempts = 10;
+async function generateUniqueClaimCode(db: FirebaseFirestore.Firestore): Promise<string> {
+    const maxAttempts = 10;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const code = generateClaimCode();
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const code = generateClaimCode();
 
-    // Check for existing code
-    const existing = await db
-      .collection('experienceGifts')
-      .where('claimCode', '==', code)
-      .limit(1)
-      .get();
+        // Check for existing code (TEST DATABASE)
+        const existing = await db
+            .collection('experienceGifts')
+            .where('claimCode', '==', code)
+            .limit(1)
+            .get();
 
-    if (existing.empty) {
-      return code;
+        if (existing.empty) {
+            return code;
+        }
+
+        logger.warn(`⚠️ Claim code collision detected (attempt ${attempt + 1})`);
     }
 
-    console.warn(`⚠️ Claim code collision detected (attempt ${attempt + 1})`);
-  }
-
-  throw new Error('Failed to generate unique claim code after 10 attempts');
+    throw new Error('Failed to generate unique claim code after 10 attempts');
 }

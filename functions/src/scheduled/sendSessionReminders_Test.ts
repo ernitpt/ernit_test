@@ -1,5 +1,7 @@
 import * as functions from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 /**
  * Cloud Function: sendSessionReminders_Test
@@ -21,66 +23,135 @@ export const sendSessionReminders_Test = functions.onSchedule(
     },
     async (event) => {
         try {
-            console.log("🔔 [TEST] Starting session reminders check...");
+            logger.info("🔔 [TEST] Starting session reminders check...");
 
-            // Import db from index.ts (test database)
+            // Get test db from shared index (ernitclone2 database)
             const db = require("../index").db;
             const now = new Date();
 
-            // Get all users with reminders enabled
-            const usersSnap = await db
-                .collection("users")
-                .where("profile.reminderEnabled", "==", true)
-                .get();
+            // Paginated fetch of all users with reminders enabled
+            const PAGE_SIZE = 500;
+            const allUserDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+            let usersLastDoc: FirebaseFirestore.DocumentSnapshot | undefined;
 
-            console.log(`📊 [TEST] Found ${usersSnap.size} users with reminders enabled`);
+            while (true) {
+                let usersQuery = db
+                    .collection("users")
+                    .where("profile.reminderEnabled", "==", true)
+                    .orderBy(admin.firestore.FieldPath.documentId())
+                    .limit(PAGE_SIZE);
+
+                if (usersLastDoc) {
+                    usersQuery = usersQuery.startAfter(usersLastDoc);
+                }
+
+                const usersPage = await usersQuery.get();
+                if (usersPage.empty) break;
+
+                allUserDocs.push(...usersPage.docs);
+
+                if (usersPage.docs.length < PAGE_SIZE) break;
+                usersLastDoc = usersPage.docs[usersPage.docs.length - 1];
+            }
+
+            logger.info(`📊 [TEST] Found ${allUserDocs.length} users with reminders enabled`);
+
+            // Paginated prefetch of all active goals in a single pass, grouped by userId
+            // in memory to eliminate the N+1 pattern (one query per user in the loop).
+            const goalsByUser = new Map<string, FirebaseFirestore.DocumentData[]>();
+            let goalsLastDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+            let totalGoalsFetched = 0;
+
+            while (true) {
+                let goalsQuery = db
+                    .collection('goals')
+                    .where('isCompleted', '==', false)
+                    .orderBy(admin.firestore.FieldPath.documentId())
+                    .limit(PAGE_SIZE);
+
+                if (goalsLastDoc) {
+                    goalsQuery = goalsQuery.startAfter(goalsLastDoc);
+                }
+
+                const goalsPage = await goalsQuery.get();
+                if (goalsPage.empty) break;
+
+                goalsPage.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+                    const data = doc.data();
+                    const uid = data.userId as string;
+                    if (!goalsByUser.has(uid)) goalsByUser.set(uid, []);
+                    goalsByUser.get(uid)!.push({ id: doc.id, ...data });
+                });
+
+                totalGoalsFetched += goalsPage.docs.length;
+
+                if (goalsPage.docs.length < PAGE_SIZE) break;
+                goalsLastDoc = goalsPage.docs[goalsPage.docs.length - 1];
+            }
+
+            logger.info(`📊 [TEST] Prefetched ${totalGoalsFetched} active goals across all users`);
 
             let notificationsSent = 0;
 
-            for (const userDoc of usersSnap.docs) {
+            for (const userDoc of allUserDocs) {
                 const user = userDoc.data();
                 const userTimezone = user.profile?.timezone || "Europe/Lisbon";
                 const userReminderTime = user.profile?.reminderTime || "19:00";
 
-                // Get current hour in user's timezone
-                const currentHourInUserTz = parseInt(
-                    new Intl.DateTimeFormat('en-US', {
-                        timeZone: userTimezone,
-                        hour: 'numeric',
-                        hour12: false
-                    }).format(now)
-                );
+                // Get current hour in user's timezone.
+                // Wrap in try/catch: an invalid timezone string throws a RangeError
+                // in Intl.DateTimeFormat and would abort processing for all subsequent users.
+                let currentHourInUserTz: number;
+                try {
+                    currentHourInUserTz = parseInt(
+                        new Intl.DateTimeFormat('en-US', {
+                            timeZone: userTimezone,
+                            hour: 'numeric',
+                            hour12: false
+                        }).format(now)
+                    );
+                } catch (tzError: unknown) {
+                    logger.warn(
+                        `⚠️ [TEST] Invalid timezone "${userTimezone}" for user ${userDoc.id}, falling back to UTC`
+                    );
+                    currentHourInUserTz = now.getUTCHours();
+                }
                 const reminderHour = parseInt(userReminderTime.split(':')[0]);
 
                 // Check if current hour matches user's reminder hour
                 if (currentHourInUserTz !== reminderHour) {
-                    console.log(
+                    logger.info(
                         `⏭️ [TEST] User ${userDoc.id}: Not their reminder hour (current: ${currentHourInUserTz}, reminder: ${reminderHour})`
                     );
                     continue;
                 }
 
-                // Compute today's date in the user's own timezone for dedup key
+                // Compute today's date in the user's own timezone for dedup key.
+                // Guard against invalid timezone strings to avoid crashing the entire run.
                 const userTz = user.profile?.timezone || 'UTC';
-                const todayInUserTz = new Intl.DateTimeFormat('en-CA', { timeZone: userTz }).format(now);
+                let todayInUserTz: string;
+                try {
+                    todayInUserTz = new Intl.DateTimeFormat('en-CA', { timeZone: userTz }).format(now);
+                } catch (tzError2: unknown) {
+                    logger.warn(
+                        `⚠️ [TEST] Invalid timezone "${userTz}" for user ${userDoc.id} (dedup key), falling back to UTC date`
+                    );
+                    todayInUserTz = now.toISOString().split('T')[0];
+                }
 
                 // Check if we already sent a reminder today
                 if (user.lastReminderSentDate === todayInUserTz) {
-                    console.log(
+                    logger.info(
                         `⏭️ [TEST] User ${userDoc.id}: Already sent reminder today`
                     );
                     continue;
                 }
 
-                // Get user's active goals
-                const goalsSnap = await db
-                    .collection("goals")
-                    .where("userId", "==", userDoc.id)
-                    .where("isCompleted", "==", false)
-                    .get();
+                // Get user's active goals from the prefetched in-memory map
+                const userGoals = goalsByUser.get(userDoc.id) ?? [];
 
-                if (goalsSnap.empty) {
-                    console.log(
+                if (userGoals.length === 0) {
+                    logger.info(
                         `⏭️ [TEST] User ${userDoc.id}: No active goals`
                     );
                     continue;
@@ -88,12 +159,18 @@ export const sendSessionReminders_Test = functions.onSchedule(
 
                 // Check if user needs a reminder
                 let needsReminder = false;
-                let mostBehindGoal: any = null;
+                interface BehindGoal {
+                    id: string;
+                    title: string;
+                    goalDescription: string;
+                    weeklyCount: number;
+                    sessionsPerWeek: number;
+                }
+                let mostBehindGoal: BehindGoal | null = null;
                 let lowestRatio = 1;
                 let mostBehindDaysLeft = 7;
 
-                for (const goalDoc of goalsSnap.docs) {
-                    const goal = goalDoc.data();
+                for (const goal of userGoals) {
                     const weeklyLogDates = goal.weeklyLogDates || [];
                     const weeklyCount = goal.weeklyCount || 0;
                     const sessionsPerWeek = goal.sessionsPerWeek || 3;
@@ -121,7 +198,7 @@ export const sendSessionReminders_Test = functions.onSchedule(
                         if (ratio < lowestRatio) {
                             lowestRatio = ratio;
                             mostBehindGoal = {
-                                id: goalDoc.id,
+                                id: goal.id,
                                 title: goal.title,
                                 goalDescription: goal.description || goal.title || 'your goal',
                                 weeklyCount,
@@ -133,14 +210,14 @@ export const sendSessionReminders_Test = functions.onSchedule(
                 }
 
                 if (!needsReminder) {
-                    console.log(
+                    logger.info(
                         `⏭️ [TEST] User ${userDoc.id}: All sessions done today and weekly targets met`
                     );
                     continue;
                 }
 
                 if (!mostBehindGoal) {
-                    console.log(
+                    logger.info(
                         `⚠️ [TEST] User ${userDoc.id}: Needs reminder but no goal found`
                     );
                     continue;
@@ -182,49 +259,72 @@ export const sendSessionReminders_Test = functions.onSchedule(
                     }
                 }
 
-                // Create notification + stamp dedup atomically
+                // Create notification + stamp dedup atomically inside a transaction.
+                // Re-read the user document inside the transaction to prevent a race
+                // where two concurrent scheduler invocations both pass the outer dedup
+                // check before either has written lastReminderSentDate.
                 try {
-                    const batch = db.batch();
-                    batch.set(db.collection("notifications").doc(), {
-                        userId: userDoc.id,
-                        type: "session_reminder",
-                        title,
-                        message,
-                        read: false,
-                        clearable: true,
-                        data: {
-                            goalId: mostBehindGoal.id,
-                            weeklyCount: mostBehindGoal.weeklyCount,
-                            sessionsPerWeek: mostBehindGoal.sessionsPerWeek,
-                            daysLeft: mostBehindDaysLeft,
-                            sessionsRemaining,
-                            sessionStreak: streak,
-                        },
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    const userRef = db.collection("users").doc(userDoc.id) as FirebaseFirestore.DocumentReference;
+                    const notifRef = db.collection("notifications").doc();
+                    let alreadySent = false;
+
+                    await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+                        const freshUserSnap = await tx.get(userRef);
+                        if (!freshUserSnap.exists) return;
+
+                        const freshUser = freshUserSnap.data()!;
+                        if (freshUser.lastReminderSentDate === todayInUserTz) {
+                            alreadySent = true;
+                            return;
+                        }
+
+                        tx.set(notifRef, {
+                            userId: userDoc.id,
+                            type: "session_reminder",
+                            title,
+                            message,
+                            read: false,
+                            clearable: true,
+                            data: {
+                                goalId: mostBehindGoal!.id,
+                                weeklyCount: mostBehindGoal!.weeklyCount,
+                                sessionsPerWeek: mostBehindGoal!.sessionsPerWeek,
+                                daysLeft: mostBehindDaysLeft,
+                                sessionsRemaining,
+                                sessionStreak: streak,
+                            },
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                        tx.update(userRef, {
+                            lastReminderSentDate: todayInUserTz,
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
                     });
-                    batch.update(db.collection("users").doc(userDoc.id), {
-                        lastReminderSentDate: todayInUserTz,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    });
-                    await batch.commit();
+
+                    if (alreadySent) {
+                        logger.info(
+                            `⏭️ [TEST] User ${userDoc.id}: Reminder already sent today (caught by transaction re-check)`
+                        );
+                        continue;
+                    }
 
                     notificationsSent++;
-                    console.log(
+                    logger.info(
                         `✅ [TEST] Sent reminder to user ${userDoc.id} for goal ${mostBehindGoal.id} (${mostBehindGoal.weeklyCount}/${mostBehindGoal.sessionsPerWeek})`
                     );
                 } catch (notifError: unknown) {
-                    console.error(
+                    logger.error(
                         `❌ [TEST] Failed to create notification for user ${userDoc.id}:`,
                         notifError
                     );
                 }
             }
 
-            console.log(
-                `✨ [TEST] Session reminders check complete. Sent ${notificationsSent} notification(s).`
+            logger.info(
+                `✨ [TEST] Session reminders check complete. Processed ${allUserDocs.length} users, ${totalGoalsFetched} goals. Sent ${notificationsSent} notification(s).`
             );
         } catch (error: unknown) {
-            console.error("❌ [TEST] Error in sendSessionReminders:", error);
+            logger.error("❌ [TEST] Error in sendSessionReminders:", error);
         }
     }
 );

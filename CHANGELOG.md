@@ -99,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remake FreeGoalCompletionScreen with full stats, hero share card, streak, and what's next CTA
 - unified AchievementDetailScreen handles both completion and review modes
 - add GDPR onUserDeleted Auth trigger for full user data cleanup on account deletion
+- add _Test Cloud Function variants targeting ernitclone2 sandbox database
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -383,6 +384,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - unify 3 completion screens into single AchievementDetailScreen with mode param
 - add cursor-based pagination (PAGE_SIZE=500) to all 4 scheduled Cloud Functions to prevent OOM/timeout at scale
 - fix React.memo defeats — memoize inline styles, Array.from, useCallback for handlers; add feed goal_progress filter and composite accessibilityLabel
+- rebuild _Test Cloud Function files from production sources with sandbox keys and ernitclone2 db
+- regenerate _Test Cloud Function files from production source with sandbox Stripe key and test CORS origins
+- sync 5 _Test scheduled function files to match production logic (pagination, logger, transactions)
+- sync all 15 _Test Cloud Functions with production — full logic parity, getFirestore(ernitclone2) db, sandbox Stripe keys, add onUserDeleted_Test
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -964,6 +969,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - design token violations — replace hardcoded rgba/borderRadius/spacing values with config tokens
 - P3/P4 audit sweep — GoalDetailScreen/GoalsScreen Moti entry + useMemo performance, FeedPost memo + accessibilityLabel, CommentSection/BookingCalendar useCallback, BackHandler for 3 modals, AuthScreen inline email validation, CouponEntryScreen shared TextInput, FriendProfile/UserProfile Moti buttons, textMuted/success/primary WCAG contrast tokens, Button accessibilityLabel, progress bar roles, ErrorRetry alert role, chargeDeferredGift recipientId fix, validateGiftTransition in deleteGoal/retryFailedCharges, events userId ownership rule, design token sweep across AchievementDetailScreen/SkeletonLoader/ChallengeLandingScreen/HeroPreviewScreen, AuthScreen Card glassmorphism variant, PROTECTED_ROUTES dead code removed, DeferredSetup ProtectedRoute added, GiverStackParamList phantom routes removed
 - type audit — align pendingEditRequest shape to GoalService runtime (requestedTargetCount/requestedSessionsPerWeek/requestedBy), add payment_cancelled and shared_partner_removed to Notification.type union, fix MotivationService dropping imageUrl/audioUrl/type/audioDuration on read, consolidate PartnerCoupon type (remove duplicate in CouponService), remove unsafe Record casts from GoalService now that types align
+- restore 14 _Test functions to Firebase — use DEPLOY_TEST_FUNCTIONS=true for future re-deploys
 
 ### Added
 - Automatic changelog system with `npm run log` script

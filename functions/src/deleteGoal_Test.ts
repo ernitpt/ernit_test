@@ -1,8 +1,16 @@
-// ========== DELETE GOAL (TEST — ernitclone2) ==========
+// ========== DELETE GOAL (TEST) ==========
 import { onRequest } from "firebase-functions/v2/https";
-import { FieldValue, DocumentData } from "firebase-admin/firestore";
-import { allowedOrigins } from "./cors";
-import { db } from './index';
+import { logger } from "firebase-functions/v2";
+import * as admin from "firebase-admin";
+import { FieldValue, DocumentData, getFirestore } from "firebase-admin/firestore";
+import { validateGiftTransition, GiftStatus } from "./utils/giftStateMachine";
+
+const testAllowedOrigins = [
+    "http://localhost:8081",
+    "http://localhost:3000",
+    "https://ernit-nine.vercel.app",
+    "https://ernit981723498127658912765187923546.vercel.app",
+];
 
 export const deleteGoal_Test = onRequest(
     {
@@ -14,7 +22,7 @@ export const deleteGoal_Test = onRequest(
     async (req, res) => {
         // CORS handling
         const origin = req.headers.origin || "";
-        if (allowedOrigins.includes(origin)) {
+        if (testAllowedOrigins.includes(origin)) {
             res.set("Access-Control-Allow-Origin", origin);
         }
         res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -27,7 +35,7 @@ export const deleteGoal_Test = onRequest(
             return;
         }
 
-        console.log("[deleteGoal_Test] Function called");
+        logger.info("[deleteGoal_Test] Function called");
 
         // SECURITY: Verify Firebase Auth token
         const authHeader = req.headers.authorization;
@@ -43,12 +51,12 @@ export const deleteGoal_Test = onRequest(
             const decodedToken = await getAuth().verifyIdToken(token);
             uid = decodedToken.uid;
         } catch (error: unknown) {
-            console.error('[deleteGoal_Test] Token verification failed:', error);
+            logger.error('[deleteGoal_Test] Token verification failed:', error);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
         }
 
-        console.log(`[deleteGoal_Test] Authenticated user: ${uid}`);
+        logger.info(`[deleteGoal_Test] Authenticated user: ${uid}`);
 
         // VALIDATION: goalId must be a non-empty string
         const { goalId } = req.body?.data || req.body || {};
@@ -57,13 +65,15 @@ export const deleteGoal_Test = onRequest(
             return;
         }
 
+        const db = getFirestore('ernitclone2');
+
         try {
             // Step 3: Read goal document
             const goalRef = db.collection('goals').doc(goalId);
             const goalSnap = await goalRef.get();
 
             if (!goalSnap.exists) {
-                console.log(`[deleteGoal_Test] Goal ${goalId} not found — returning success (idempotent)`);
+                logger.info(`[deleteGoal_Test] Goal ${goalId} not found — returning success (idempotent)`);
                 res.status(200).json({ success: true });
                 return;
             }
@@ -72,7 +82,7 @@ export const deleteGoal_Test = onRequest(
 
             // Step 4: Verify ownership
             if (goalData.userId !== uid) {
-                console.warn(`[deleteGoal_Test] Permission denied: user ${uid} does not own goal ${goalId}`);
+                logger.warn(`[deleteGoal_Test] Permission denied: user ${uid} does not own goal ${goalId}`);
                 res.status(403).json({ error: 'You do not have permission to delete this goal' });
                 return;
             }
@@ -84,122 +94,175 @@ export const deleteGoal_Test = onRequest(
             }
 
             let giftData: DocumentData | null = null;
+            let giftRef: FirebaseFirestore.DocumentReference | null = null;
 
-            // Step 6: Handle experienceGiftId
+            // Step 6: Handle experienceGiftId — read gift data for use in the transaction below.
+            // NOTE: The payment: 'processing' guard is re-checked atomically INSIDE the
+            // transaction (FIX 4) to eliminate the TOCTOU window between this read and the
+            // batch commit. The outer read here is only to obtain giftData for building
+            // notification messages; we do NOT gate on it for the processing check.
             if (goalData.experienceGiftId) {
-                console.log(`[deleteGoal_Test] Goal has experienceGiftId: ${goalData.experienceGiftId}`);
-                const giftRef = db.collection('experienceGifts').doc(goalData.experienceGiftId);
+                logger.info(`[deleteGoal_Test] Goal has experienceGiftId: ${goalData.experienceGiftId}`);
+                giftRef = db.collection('experienceGifts').doc(goalData.experienceGiftId);
                 const giftSnap = await giftRef.get();
 
                 if (giftSnap.exists) {
                     giftData = giftSnap.data()!;
-
-                    if (giftData.payment === 'processing') {
-                        res.status(409).json({ error: 'A payment is being processed for this goal. Please try again shortly.' });
-                        return;
-                    }
-
-                    if (giftData.payment === 'deferred') {
-                        console.log(`[deleteGoal_Test] Cancelling deferred gift ${goalData.experienceGiftId}`);
-                        await giftRef.update({
-                            status: 'cancelled',
-                            payment: 'cancelled',
-                            cancelledAt: FieldValue.serverTimestamp(),
-                            cancelReason: 'goal_removed',
-                        });
-
-                        if (giftData.giverId) {
-                            let userName = 'Someone';
-                            try {
-                                const userSnap = await db.collection('users').doc(goalData.userId).get();
-                                if (userSnap.exists) {
-                                    userName = userSnap.data()?.displayName || 'Someone';
-                                }
-                            } catch (userErr: unknown) {
-                                console.warn(`[deleteGoal_Test] Could not fetch user displayName:`, userErr);
-                            }
-
-                            await db.collection('notifications').add({
-                                userId: giftData.giverId,
-                                type: 'payment_cancelled',
-                                title: 'Goal Removed',
-                                message: `${userName} removed their goal "${goalData.title}". No charge will be made.`,
-                                data: { goalId, giftId: goalData.experienceGiftId },
-                                read: false,
-                                createdAt: FieldValue.serverTimestamp(),
-                            });
-                            console.log(`[deleteGoal_Test] Sent payment_cancelled notification to giver ${giftData.giverId}`);
-                        }
-                    }
-
-                    if (goalData.isFreeGoal && giftData.redeemedGoalId === goalId) {
-                        console.log(`[deleteGoal_Test] Restoring free gift ${goalData.experienceGiftId} to active`);
-                        await giftRef.update({
-                            isRedeemed: false,
-                            redeemedGoalId: null,
-                            status: 'active',
-                            updatedAt: FieldValue.serverTimestamp(),
-                        });
-                    }
                 }
             }
 
-            // Step 7: Handle shared goal (partnerGoalId)
+            // Step 7: Read partner goal data if present (reads only — writes go into transaction below)
+            let partnerGoalRef: FirebaseFirestore.DocumentReference | null = null;
+            let partnerGoalData: DocumentData | null = null;
             if (goalData.partnerGoalId) {
-                console.log(`[deleteGoal_Test] Goal has partnerGoalId: ${goalData.partnerGoalId}`);
-                const partnerGoalRef = db.collection('goals').doc(goalData.partnerGoalId);
+                logger.info(`[deleteGoal_Test] Goal has partnerGoalId: ${goalData.partnerGoalId}`);
+                partnerGoalRef = db.collection('goals').doc(goalData.partnerGoalId);
                 const partnerGoalSnap = await partnerGoalRef.get();
-
                 if (partnerGoalSnap.exists) {
-                    const partnerGoalData = partnerGoalSnap.data()!;
-
-                    const partnerUpdate: Record<string, any> = {
-                        partnerGoalId: FieldValue.delete(),
-                        updatedAt: FieldValue.serverTimestamp(),
-                    };
-
-                    const isFreePayment = goalData.isFreeGoal || (giftData && giftData.payment === 'free');
-                    if (isFreePayment) {
-                        partnerUpdate.isUnlocked = true;
-                        partnerUpdate.unlockedAt = FieldValue.serverTimestamp();
-                    }
-
-                    await partnerGoalRef.update(partnerUpdate);
-                    console.log(`[deleteGoal_Test] Updated partner goal ${goalData.partnerGoalId}`);
-
-                    let userName = 'Someone';
-                    try {
-                        const userSnap = await db.collection('users').doc(goalData.userId).get();
-                        if (userSnap.exists) {
-                            userName = userSnap.data()?.displayName || 'Someone';
-                        }
-                    } catch (userErr: unknown) {
-                        console.warn(`[deleteGoal_Test] Could not fetch user displayName for partner notification:`, userErr);
-                    }
-
-                    await db.collection('notifications').add({
-                        userId: partnerGoalData.userId,
-                        type: 'shared_partner_removed',
-                        title: 'Challenge Update',
-                        message: `${userName} removed their goal "${goalData.title}" from your shared challenge.`,
-                        data: { goalId, partnerGoalId: goalData.partnerGoalId },
-                        read: false,
-                        createdAt: FieldValue.serverTimestamp(),
-                    });
-                    console.log(`[deleteGoal_Test] Sent shared_partner_removed notification to user ${partnerGoalData.userId}`);
+                    partnerGoalData = partnerGoalSnap.data()!;
                 }
             }
 
-            // Step 8: Archive goal to deletedGoals
-            console.log(`[deleteGoal_Test] Archiving goal ${goalId} to deletedGoals`);
-            await db.collection('deletedGoals').doc(goalId).set({
-                ...goalData,
-                deletedAt: FieldValue.serverTimestamp(),
-                deletedBy: uid,
-                originalGoalId: goalId,
-            });
+            // Fetch displayName once for use in notifications below
+            let userName = 'Someone';
+            try {
+                const userSnap = await db.collection('users').doc(goalData.userId).get();
+                if (userSnap.exists) {
+                    userName = userSnap.data()?.displayName || 'Someone';
+                }
+            } catch (userErr: unknown) {
+                logger.warn(`[deleteGoal_Test] Could not fetch user displayName:`, userErr);
+            }
 
-            // Step 9: Delete subcollections
+            // ── Atomic transaction: gift update/restore + partner goal update +
+            //    notifications + goal archive + goal delete ─────────────────────
+            // Using a transaction (rather than a batch) so the payment: 'processing'
+            // guard is re-checked against the live document state atomically with
+            // all the writes, eliminating the TOCTOU window that exists when the
+            // check is a plain read before a batch.
+            try {
+                await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+                    // FIX 4: Re-read the gift document inside the transaction to get the
+                    // authoritative current state. If chargeDeferredGift set it to
+                    // 'processing' between our outer read and now, abort here.
+                    let freshGiftData: DocumentData | null = giftData;
+                    if (giftRef) {
+                        const freshGiftSnap = await tx.get(giftRef);
+                        if (freshGiftSnap.exists) {
+                            freshGiftData = freshGiftSnap.data()!;
+                            if (freshGiftData.payment === 'processing') {
+                                throw new Error('GIFT_PROCESSING');
+                            }
+                        } else {
+                            freshGiftData = null;
+                        }
+                    }
+
+                    // Gift cancellation or free-gift restore
+                    if (giftRef && freshGiftData) {
+                        if (freshGiftData.payment === 'deferred') {
+                            logger.info(`[deleteGoal_Test] Cancelling deferred gift ${goalData.experienceGiftId}`);
+                            validateGiftTransition(freshGiftData.status as GiftStatus, 'cancelled');
+                            tx.update(giftRef, {
+                                status: 'cancelled',
+                                payment: 'cancelled',
+                                cancelledAt: FieldValue.serverTimestamp(),
+                                cancelReason: 'goal_removed',
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+
+                            if (freshGiftData.giverId) {
+                                tx.set(db.collection('notifications').doc(), {
+                                    userId: freshGiftData.giverId,
+                                    type: 'payment_cancelled',
+                                    title: 'Goal Removed',
+                                    message: `${userName} removed their goal "${goalData.title}". No charge will be made.`,
+                                    data: { goalId, giftId: goalData.experienceGiftId },
+                                    read: false,
+                                    createdAt: FieldValue.serverTimestamp(),
+                                });
+                                logger.info(`[deleteGoal_Test] Queued payment_cancelled notification to giver ${freshGiftData.giverId}`);
+                            }
+                        } else if (goalData.isFreeGoal && freshGiftData.redeemedGoalId === goalId) {
+                            logger.info(`[deleteGoal_Test] Restoring free gift ${goalData.experienceGiftId} to active`);
+                            validateGiftTransition(freshGiftData.status as GiftStatus, 'active');
+                            tx.update(giftRef, {
+                                isRedeemed: false,
+                                redeemedGoalId: null,
+                                status: 'active',
+                                updatedAt: FieldValue.serverTimestamp(),
+                            });
+                        }
+                    }
+
+                    // Partner goal update and partner notification
+                    if (partnerGoalRef && partnerGoalData) {
+                        const partnerUpdate: Record<string, any> = {
+                            partnerGoalId: FieldValue.delete(),
+                            updatedAt: FieldValue.serverTimestamp(),
+                        };
+
+                        const isFreePayment = goalData.isFreeGoal || (freshGiftData && freshGiftData.payment === 'free');
+                        if (isFreePayment) {
+                            partnerUpdate.isUnlocked = true;
+                            partnerUpdate.unlockedAt = FieldValue.serverTimestamp();
+                        }
+
+                        tx.update(partnerGoalRef, partnerUpdate);
+                        logger.info(`[deleteGoal_Test] Queued update for partner goal ${goalData.partnerGoalId}`);
+
+                        tx.set(db.collection('notifications').doc(), {
+                            userId: partnerGoalData.userId,
+                            type: 'shared_partner_removed',
+                            title: 'Challenge Update',
+                            message: `${userName} removed their goal "${goalData.title}" from your shared challenge.`,
+                            data: { goalId, partnerGoalId: goalData.partnerGoalId },
+                            read: false,
+                            createdAt: FieldValue.serverTimestamp(),
+                        });
+                        logger.info(`[deleteGoal_Test] Queued shared_partner_removed notification to user ${partnerGoalData.userId}`);
+                    }
+
+                    // Step 8: Archive goal to deletedGoals
+                    logger.info(`[deleteGoal_Test] Archiving goal ${goalId} to deletedGoals`);
+                    tx.set(db.collection('deletedGoals').doc(goalId), {
+                        ...goalData,
+                        deletedAt: FieldValue.serverTimestamp(),
+                        deletedBy: uid,
+                        originalGoalId: goalId,
+                    });
+
+                    // Step 11 (moved into transaction): Delete goal document atomically with
+                    // the archive write and gift/partner updates above.
+                    tx.delete(goalRef);
+
+                    // Decrement the active goal counter only for goal types that actually
+                    // incremented it on creation (mirrors the logic in GoalService.ts):
+                    //   - createGoal skips the increment when isPaidGiftedGoal
+                    //     (experienceGiftId is set AND isFreeGoal is false).
+                    //   - createFreeGoal skips the increment when hasPaidCommitment
+                    //     (paymentCommitment is truthy).
+                    // Both those paths must also be skipped here to avoid double-decrement.
+                    const isPaidGiftedGoal = !!goalData.experienceGiftId && !goalData.isFreeGoal;
+                    const hasPaidCommitment = !!goalData.paymentCommitment;
+                    const wasCountedInLimit = !isPaidGiftedGoal && !hasPaidCommitment;
+                    if (wasCountedInLimit && goalData.userId) {
+                        const goalCountRef = db.collection('users').doc(goalData.userId).collection('meta').doc('goalCount');
+                        tx.set(goalCountRef, { active: FieldValue.increment(-1) }, { merge: true });
+                    }
+                });
+            } catch (txError: unknown) {
+                if ((txError as Error).message === 'GIFT_PROCESSING') {
+                    res.status(409).json({ error: 'A payment is being processed for this goal. Please try again shortly.' });
+                    return;
+                }
+                throw txError;
+            }
+
+            logger.info(`[deleteGoal_Test] Atomic transaction committed for goal ${goalId}`);
+
+            // Step 9: Delete subcollections (cannot go inside the batch above —
+            // subcollection docs are enumerated dynamically and may exceed batch limits)
             const subcollections = ['sessions', 'hints', 'motivations'];
             for (const subcollection of subcollections) {
                 try {
@@ -211,13 +274,13 @@ export const deleteGoal_Test = onRequest(
                             break;
                         }
                         const batch = db.batch();
-                        subSnap.docs.forEach((doc) => batch.delete(doc.ref));
+                        subSnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => batch.delete(doc.ref));
                         await batch.commit();
-                        console.log(`[deleteGoal_Test] Deleted ${subSnap.size} docs from ${subcollection}`);
+                        logger.info(`[deleteGoal_Test] Deleted ${subSnap.size} docs from ${subcollection}`);
                         if (subSnap.size < 500) hasMore = false;
                     }
                 } catch (subErr: unknown) {
-                    console.error(`[deleteGoal_Test] Error deleting subcollection ${subcollection}:`, subErr);
+                    logger.error(`[deleteGoal_Test] Error deleting subcollection ${subcollection}:`, subErr);
                 }
             }
 
@@ -234,23 +297,37 @@ export const deleteGoal_Test = onRequest(
                         break;
                     }
                     const batch = db.batch();
-                    feedSnap.docs.forEach((doc) => {
+                    feedSnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
                         batch.update(doc.ref, {
                             isDeleted: true,
                             deletedAt: FieldValue.serverTimestamp(),
                         });
                     });
                     await batch.commit();
-                    console.log(`[deleteGoal_Test] Soft-deleted ${feedSnap.size} feed posts`);
+                    logger.info(`[deleteGoal_Test] Soft-deleted ${feedSnap.size} feed posts`);
                     if (feedSnap.size < 500) hasMoreFeed = false;
                 }
             } catch (feedErr: unknown) {
-                console.error(`[deleteGoal_Test] Error soft-deleting feed posts:`, feedErr);
+                logger.error(`[deleteGoal_Test] Error soft-deleting feed posts:`, feedErr);
             }
 
-            // Step 11: Delete goal document
-            await goalRef.delete();
-            console.log(`[deleteGoal_Test] Goal ${goalId} deleted successfully`);
+            // Step 11b: Clean up notifications referencing this goal
+            try {
+                const notifQuery = await db.collection('notifications')
+                    .where('data.goalId', '==', goalId)
+                    .where('userId', '==', goalData.userId)
+                    .get();
+
+                if (!notifQuery.empty) {
+                    const notifBatch = db.batch();
+                    notifQuery.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => notifBatch.delete(doc.ref));
+                    await notifBatch.commit();
+                    logger.info(`[deleteGoal_Test] Deleted ${notifQuery.size} notifications for goal ${goalId}`);
+                }
+            } catch (cleanupError) {
+                // Non-fatal: log but don't fail the deletion
+                logger.error('[deleteGoal_Test] Failed to cleanup goal notifications:', cleanupError);
+            }
 
             // Step 12: Return result
             res.status(200).json({
@@ -259,7 +336,7 @@ export const deleteGoal_Test = onRequest(
                 archivedAt: new Date().toISOString(),
             });
         } catch (error: unknown) {
-            console.error(`[deleteGoal_Test] Unexpected error:`, error);
+            logger.error(`[deleteGoal_Test] Unexpected error:`, error);
             res.status(500).json({ error: 'Failed to delete goal' });
         }
     }
