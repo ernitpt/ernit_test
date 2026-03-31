@@ -5,6 +5,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
+import * as Crypto from 'expo-crypto';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
 import type { PartnerCoupon } from '../types';
@@ -19,7 +20,7 @@ function generateUniqueCode(): string {
   const bytes = new Uint8Array(1);
   let code = '';
   while (code.length < 12) {
-    crypto.getRandomValues(bytes);
+    Crypto.getRandomValues(bytes);
     if (bytes[0] >= 252) continue;
     code += chars[bytes[0] % 36];
   }

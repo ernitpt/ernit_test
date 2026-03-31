@@ -43,8 +43,10 @@ import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
+import { Card } from '../../components/Card';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock, Flame } from 'lucide-react-native';
+import { getFlameHex } from '../../utils/streakColor';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -614,26 +616,14 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 });
 
 // ─── Hint Item ───────────────────────────────────────────────────────────────
-// ─── Milestone Card ─────────────────────────────────────────────────────────
-const MilestoneCard = React.memo(({ emoji, label }: { emoji: string; label: string }) => {
+// ─── Week Divider ───────────────────────────────────────────────────────────
+const WeekDivider = React.memo(({ label }: { label: string }) => {
   const colors = useColors();
   return (
-    <View style={{
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.sm,
-      paddingVertical: Spacing.sm,
-      paddingHorizontal: Spacing.lg,
-      marginVertical: Spacing.sm,
-      backgroundColor: colors.backgroundLight,
-      borderRadius: BorderRadius.pill,
-      alignSelf: 'center',
-    }}>
-      <Text style={{ fontSize: Typography.heading3.fontSize, lineHeight: Typography.heading3.lineHeight }}>{emoji}</Text>
-      <Text style={{ ...Typography.captionBold, color: colors.textSecondary }}>
-        {label}
-      </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md, gap: Spacing.sm }}>
+      <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+      <Text style={{ ...Typography.caption, color: colors.textMuted }}>{label}</Text>
+      <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
     </View>
   );
 });
@@ -687,7 +677,7 @@ const StatPill = React.memo(({ icon, label, value }: StatPillProps) => {
   );
 });
 
-const SessionStatsBar = React.memo(({ sessions }: { sessions: SessionRecord[] }) => {
+const SessionStatsBar = React.memo(({ sessions, hideSessions = false }: { sessions: SessionRecord[]; hideSessions?: boolean }) => {
   const colors = useColors();
 
   const stats = useMemo(() => {
@@ -737,11 +727,13 @@ const SessionStatsBar = React.memo(({ sessions }: { sessions: SessionRecord[] })
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}
       >
-        <StatPill
-          icon={<Activity size={16} color={colors.primary} />}
-          value={String(sessions.length)}
-          label="Sessions"
-        />
+        {!hideSessions && (
+          <StatPill
+            icon={<Activity size={16} color={colors.primary} />}
+            value={String(sessions.length)}
+            label="Sessions"
+          />
+        )}
         {stats.avgDuration > 0 && (
           <StatPill
             icon={<Timer size={16} color={colors.secondary} />}
@@ -915,7 +907,6 @@ const JourneyScreen = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
-  const couponRequestedRef = useRef(false);
   const copyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const phoneTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const emailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -1135,21 +1126,33 @@ const JourneyScreen = () => {
           }
         }
 
+        let partnerData: PartnerUser | null = null;
         if (expId) {
           const exp = await experienceService.getExperienceById(expId);
           if (!mounted) return;
           setExperience(exp);
 
           if (exp?.partnerId) {
-            const partnerData = await partnerService.getPartnerById(exp.partnerId);
+            partnerData = await partnerService.getPartnerById(exp.partnerId);
             if (!mounted) return;
             setPartner(partnerData);
           }
         }
 
-        // Load existing coupon from goal
+        // Load existing coupon or auto-generate
         if (currentGoal.couponCode) {
           setCouponCode(currentGoal.couponCode);
+        } else if ((currentGoal.giftAttachedAt || currentGoal.experienceGiftId) && expId && partnerData?.id) {
+          // Auto-generate coupon for completed goals with a gift attached
+          setCouponLoading(true);
+          try {
+            const code = await generateCouponForGoal(currentGoal.id, currentGoal.userId, partnerData.id);
+            if (mounted) setCouponCode(code);
+          } catch (err: unknown) {
+            logger.warn('Auto coupon generation failed:', err);
+          } finally {
+            if (mounted) setCouponLoading(false);
+          }
         }
       } catch (err: unknown) {
         if (!mounted) return;
@@ -1161,31 +1164,6 @@ const JourneyScreen = () => {
     fetchCompletedGoalData();
     return () => { mounted = false; };
   }, [currentGoal?.isCompleted, currentGoal?.id]);
-
-  // ─── Coupon generation (reused from CompletionScreen) ─────────────────────
-  const generateCouponWithTransaction = useCallback(async () => {
-    if (!currentGoal || !experience) return;
-    const partnerId = experience?.partnerId;
-    if (!partnerId) return;
-
-    const code = await generateCouponForGoal(currentGoal.id, currentGoal.userId, partnerId);
-    setCouponCode(code);
-  }, [currentGoal, experience]);
-
-  const handleGenerateCoupon = useCallback(async () => {
-    if (couponRequestedRef.current) return; // Prevent duplicate requests
-    couponRequestedRef.current = true;
-    setCouponLoading(true);
-    try {
-      await generateCouponWithTransaction();
-    } catch (err: unknown) {
-      logger.error('Coupon generation failed:', err);
-      showError('Could not generate your coupon. Please try again.');
-      couponRequestedRef.current = false; // Allow retry on error
-    } finally {
-      setCouponLoading(false);
-    }
-  }, [generateCouponWithTransaction, showError]);
 
   const handleCopyCoupon = useCallback(async () => {
     if (!couponCode) return;
@@ -1338,7 +1316,7 @@ const JourneyScreen = () => {
 
 
   // ─── Sessions Tab Content ────────────────────────────────────────────────
-  const renderSessionsTab = () => {
+  const renderSessionsTab = (opts?: { hideSessions?: boolean }) => {
     if (sessionsLoading && sessions.length === 0) {
       return (
         <View style={{ padding: Spacing.xl, gap: Spacing.sm }}>
@@ -1375,14 +1353,14 @@ const JourneyScreen = () => {
       if (prevWeek !== null && s.weekNumber !== prevWeek && !seenWeeks.has(prevWeek)) {
         seenWeeks.add(prevWeek);
         items.push(
-          <MilestoneCard key={`week-${prevWeek}`} emoji="📅" label={`Week ${prevWeek} Complete!`} />
+          <WeekDivider key={`week-${prevWeek}`} label={`Week ${prevWeek} Complete`} />
         );
       }
       // Session count milestone
       if (SESSION_MILESTONES.has(s.sessionNumber) && !shownSessionMilestones.has(s.sessionNumber)) {
         shownSessionMilestones.add(s.sessionNumber);
         items.push(
-          <MilestoneCard key={`sess-${s.sessionNumber}`} emoji="🎯" label={`${s.sessionNumber} Sessions!`} />
+          <WeekDivider key={`sess-${s.sessionNumber}`} label={`${s.sessionNumber} Sessions`} />
         );
       }
       items.push(
@@ -1406,7 +1384,7 @@ const JourneyScreen = () => {
 
     return (
       <View style={{ paddingHorizontal: Spacing.md, alignSelf: 'center', width: '100%', maxWidth: 380 }}>
-        <SessionStatsBar sessions={sessions} />
+        <SessionStatsBar sessions={sessions} hideSessions={opts?.hideSessions} />
         {items}
       </View>
     );
@@ -1586,153 +1564,157 @@ const JourneyScreen = () => {
           </View>
         </View>
 
-        {/* ─── Completion Hero ──────────────────────────── */}
-        <View style={cStyles.heroContainer}>
-          <View style={cStyles.heroInner}>
-            <View style={cStyles.heroTopRow}>
-              <View style={cStyles.heroTrophyCircle}>
-                <Trophy size={28} color={colors.warning} strokeWidth={2.5} fill={colors.celebrationGold} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={cStyles.heroTitle}>Challenge Complete!</Text>
-                <Text style={cStyles.heroGoalTitle} numberOfLines={1}>
-                  {currentGoal.title || currentGoal.description || ''}
-                </Text>
-              </View>
+        {/* ─── 1. Completion Header Card ────────────────── */}
+        <Card variant="elevated" style={{ alignItems: 'center', marginBottom: Spacing.sectionGap }}>
+          <CheckCircle color={colors.primary} size={48} />
+          <Text style={[Typography.heading1, { color: colors.textPrimary, marginTop: Spacing.md, textAlign: 'center' }]}>
+            Goal Completed
+          </Text>
+          <Text style={[Typography.subheading, { color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center' }]}>
+            {currentGoal.title}
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <View style={cStyles.statChip}>
+              <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{totalSessions}</Text>
+              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Sessions</Text>
             </View>
-            <View style={cStyles.heroStatsRow}>
-              <View style={cStyles.heroStatPill}>
-                <Text style={cStyles.heroStatNumber}>{totalSessions}</Text>
-                <Text style={cStyles.heroStatLabel}>sessions</Text>
-              </View>
-              <View style={cStyles.heroStatPill}>
-                <Text style={cStyles.heroStatNumber}>{currentGoal.targetCount}</Text>
-                <Text style={cStyles.heroStatLabel}>weeks</Text>
-              </View>
-              {completedDate && (
-                <Text style={cStyles.heroDateText}>Completed {completedDate}</Text>
-              )}
+            <View style={cStyles.statChip}>
+              <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{currentGoal.targetCount || 0}</Text>
+              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Weeks</Text>
             </View>
+            {(currentGoal.completionStreak ?? 0) >= 1 && (() => {
+              const streakVal = currentGoal.completionStreak!;
+              const flameColor = getFlameHex(streakVal);
+              return (
+                <View style={[cStyles.statChip, { backgroundColor: colors.warningLight }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                    <Flame color={flameColor} size={18} fill={flameColor} />
+                    <Text style={[Typography.heading2, { color: flameColor }]}>{streakVal}</Text>
+                  </View>
+                  <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
+                </View>
+              );
+            })()}
           </View>
-        </View>
 
-        {/* ─── Experience Card ────────────────────────────── */}
-        {(hasPledgedExperience || hasGift) && (
-          <View style={cStyles.section}>
-            <Text style={cStyles.sectionTitle}>
-              <Gift size={15} color={colors.primary} />  Your Reward
+          {completedDate && (
+            <Text style={[Typography.caption, { color: colors.textMuted, marginTop: Spacing.md }]}>
+              Completed {completedDate}
             </Text>
+          )}
 
-            {/* Experience image + details */}
-            {currentGoal.pledgedExperience?.coverImageUrl && (
-              <Image
-                source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                style={[styles.experienceCover, { height: vh(180) }]}
-              />
-            )}
-
-            <View style={cStyles.experienceBody}>
-              <Text style={cStyles.experienceName}>
-                {currentGoal.pledgedExperience?.title || experience?.title || 'Experience'}
+          {/* ─── Reward (inline in hero card) ────────────── */}
+          {(hasPledgedExperience || hasGift) && (
+            <>
+              <View style={cStyles.rewardDivider} />
+              <Text style={[Typography.subheading, { color: colors.textPrimary, marginBottom: Spacing.sm, alignSelf: 'flex-start' }]}>
+                Your Reward
               </Text>
-              {(currentGoal.pledgedExperience?.subtitle || experience?.subtitle) ? (
-                <Text style={cStyles.experienceSubtitle}>{currentGoal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
-              ) : null}
+
+              <Card variant="outlined" noPadding style={{ alignSelf: 'stretch', overflow: 'hidden' }}>
+                {currentGoal.pledgedExperience?.coverImageUrl && (
+                  <Image
+                    source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
+                    style={{ width: '100%', height: vh(180), backgroundColor: colors.backgroundLight }}
+                  />
+                )}
+                <View style={{ padding: Spacing.md }}>
+                  <Text style={cStyles.experienceName}>
+                    {currentGoal.pledgedExperience?.title || experience?.title || 'Experience'}
+                  </Text>
+                  {(currentGoal.pledgedExperience?.subtitle || experience?.subtitle) ? (
+                    <Text style={cStyles.experienceSubtitle}>{currentGoal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
+                  ) : null}
+                </View>
+              </Card>
 
               {/* Coupon & partner contact */}
               {hasGift && (
-              <>
-                <View style={cStyles.rewardDivider} />
-                {/* Coupon */}
-                {couponCode ? (
-                  <View style={cStyles.couponCard}>
-                    <View style={cStyles.couponRow}>
-                      <Ticket size={18} color={colors.primary} />
-                      <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
-                    </View>
-                    <View style={cStyles.couponCodeBox}>
-                      <Text style={cStyles.couponCodeText}>{couponCode}</Text>
-                    </View>
-                    <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
-                      {isCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.primary} />}
-                      <Text style={[cStyles.copyText, isCopied && { color: colors.secondary }]}>
-                        {isCopied ? 'Copied!' : 'Copy Code'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Button
-                    variant="primary"
-                    onPress={handleGenerateCoupon}
-                    loading={couponLoading}
-                    disabled={couponLoading}
-                    title="Generate Redemption Code"
-                    icon={<Ticket size={16} color={colors.white} />}
-                    fullWidth
-                    style={cStyles.generateCouponBtn}
-                  />
-                )}
-
-                {/* Partner contact */}
-                {partner && (partner.phone || partner.contactEmail || partner.email) && (
-                  <View style={cStyles.contactCard}>
-                    <Text style={cStyles.contactTitle}>Partner Contact</Text>
-
-                    {partner.phone && (
-                      <View style={cStyles.contactRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
-                          <Text style={cStyles.contactValue}>{partner.phone}</Text>
-                        </View>
-                        <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
-                          {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
-                        </TouchableOpacity>
+                <View style={{ alignSelf: 'stretch', marginTop: Spacing.md }}>
+                  {/* Coupon — always shown, auto-generated */}
+                  {couponCode ? (
+                    <View style={cStyles.couponCard}>
+                      <View style={cStyles.couponRow}>
+                        <Ticket size={18} color={colors.primary} />
+                        <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
                       </View>
-                    )}
-
-                    {(partner.contactEmail || partner.email) && (
-                      <View style={cStyles.contactRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={cStyles.contactLabel}>Email</Text>
-                          <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
-                        </View>
-                        <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
-                          {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
-                        </TouchableOpacity>
+                      <View style={cStyles.couponCodeBox}>
+                        <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                       </View>
-                    )}
+                      <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
+                        {isCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.primary} />}
+                        <Text style={[cStyles.copyText, isCopied && { color: colors.secondary }]}>
+                          {isCopied ? 'Copied!' : 'Copy Code'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : couponLoading ? (
+                    <View style={{ padding: Spacing.sm, alignItems: 'center' }}>
+                      <Text style={[Typography.small, { color: colors.textMuted }]}>Generating your code...</Text>
+                    </View>
+                  ) : null}
 
-                    {/* Schedule buttons */}
-                    <View style={cStyles.scheduleRow}>
+                  {/* Partner contact */}
+                  {partner && (partner.phone || partner.contactEmail || partner.email) && (
+                    <View style={cStyles.contactCard}>
+                      <Text style={cStyles.contactTitle}>Partner Contact</Text>
+
                       {partner.phone && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onPress={handleBookWhatsApp}
-                          title="WhatsApp"
-                          icon={<MessageCircle size={16} color={colors.white} />}
-                          style={cStyles.whatsappBtn}
-                        />
+                        <View style={cStyles.contactRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
+                            <Text style={cStyles.contactValue}>{partner.phone}</Text>
+                          </View>
+                          <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                            {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
+                          </TouchableOpacity>
+                        </View>
                       )}
+
                       {(partner.contactEmail || partner.email) && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onPress={handleBookEmail}
-                          title="Email"
-                          icon={<Mail size={16} color={colors.white} />}
-                          style={cStyles.emailBtn}
-                        />
+                        <View style={cStyles.contactRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={cStyles.contactLabel}>Email</Text>
+                            <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
+                          </View>
+                          <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
+                            {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
+                          </TouchableOpacity>
+                        </View>
                       )}
+
+                      {/* Schedule buttons */}
+                      <View style={cStyles.scheduleRow}>
+                        {partner.phone && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onPress={handleBookWhatsApp}
+                            title="WhatsApp"
+                            icon={<MessageCircle size={16} color={colors.white} />}
+                            style={cStyles.whatsappBtn}
+                          />
+                        )}
+                        {(partner.contactEmail || partner.email) && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onPress={handleBookEmail}
+                            title="Email"
+                            icon={<Mail size={16} color={colors.white} />}
+                            style={cStyles.emailBtn}
+                          />
+                        )}
+                      </View>
                     </View>
-                  </View>
-                )}
-              </>
+                  )}
+                </View>
               )}
 
               {/* Buy CTA (within 2-week window) */}
               {showBuyCTA && (
-                <>
+                <View style={{ alignSelf: 'stretch' }}>
                   <View style={cStyles.rewardDivider} />
                   <Text style={cStyles.buyCTATitle}>You've earned this!</Text>
                   <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
@@ -1749,100 +1731,22 @@ const JourneyScreen = () => {
                     fullWidth
                     style={styles.buyButton}
                   />
-                </>
+                </View>
               )}
 
               {/* Expired */}
               {showExpired && (
-                <>
+                <View style={{ alignSelf: 'stretch' }}>
                   <View style={cStyles.rewardDivider} />
                   <Text style={cStyles.expiredText}>Purchase window has expired</Text>
-                </>
+                </View>
               )}
-            </View>
-          </View>
-        )}
-
-        {/* ─── Goal Retrospective ─────────────────────────── */}
-        {sessions.length > 0 && (() => {
-          const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
-          const longestSession = Math.max(...sessions.map(s => s.duration || 0));
-          const formatSecs = (secs: number) => {
-            const h = Math.floor(secs / 3600);
-            const m = Math.floor((secs % 3600) / 60);
-            if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-            return `${m}m`;
-          };
-          const startDate = currentGoal.createdAt
-            ? toJSDate(currentGoal.createdAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-            : null;
-          const endDate = currentGoal.completedAt
-            ? toJSDate(currentGoal.completedAt)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-            : null;
-
-          return (
-            <View style={[cStyles.section, { paddingBottom: 0 }]}>
-              <Text style={cStyles.sectionTitle}>Your Journey</Text>
-              <View style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                gap: Spacing.sm,
-                marginBottom: Spacing.md,
-              }}>
-                {[
-                  { label: 'Sessions', value: String(sessions.length), emoji: '🏃' },
-                  { label: 'Total Time', value: formatSecs(totalTime), emoji: '⏱️' },
-                  { label: 'Longest', value: formatSecs(longestSession), emoji: '🔝' },
-                  { label: 'Motivations', value: String(motivations.length), emoji: '💌' },
-                ].map(item => (
-                  <View key={item.label} style={{
-                    flex: 1,
-                    minWidth: 100,
-                    backgroundColor: colors.backgroundLight,
-                    borderRadius: BorderRadius.lg,
-                    padding: Spacing.md,
-                    alignItems: 'center',
-                    gap: Spacing.xs,
-                  }}>
-                    <Text style={{ fontSize: Typography.large.fontSize, lineHeight: Typography.large.lineHeight }}>{item.emoji}</Text>
-                    <Text style={{ ...Typography.heading3, color: colors.textPrimary }}>{item.value}</Text>
-                    <Text style={{ ...Typography.caption, color: colors.textSecondary }}>{item.label}</Text>
-                  </View>
-                ))}
-              </View>
-              {startDate && endDate && (
-                <Text style={{ ...Typography.caption, color: colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }}>
-                  {startDate} → {endDate}
-                </Text>
-              )}
-            </View>
-          );
-        })()}
-
-        {/* ─── Sessions History ───────────────────────────── */}
-        <View style={cStyles.section}>
-          <Text style={cStyles.sectionTitle}>
-            Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
-          </Text>
-          <View style={styles.tabContent}>
-            {renderSessionsTab()}
-          </View>
-        </View>
-
-        {/* ─── Hints History ─────────────────────────────── */}
-        {hasHints && (
-          <View style={cStyles.section}>
-            <Text style={cStyles.sectionTitle}>
-              Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
-            </Text>
-            <View style={styles.tabContent}>
-              {renderHintsTab()}
-            </View>
-          </View>
-        )}
+            </>
+          )}
+        </Card>
 
         {/* ─── Share Section ────────────────────────────── */}
-        <View style={[cStyles.section, { marginBottom: 0 }]}>
+        <View style={cStyles.section}>
           <Text style={cStyles.sectionTitle}>Share Your Achievement</Text>
           <View style={cStyles.shareFormatToggle}>
             <TouchableOpacity
@@ -1879,6 +1783,28 @@ const JourneyScreen = () => {
             style={cStyles.shareButton}
           />
         </View>
+
+        {/* ─── Sessions History ───────────────────────────── */}
+        <View style={cStyles.section}>
+          <Text style={cStyles.sectionTitle}>
+            Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
+          </Text>
+          <View style={styles.tabContent}>
+            {renderSessionsTab({ hideSessions: true })}
+          </View>
+        </View>
+
+        {/* ─── Hints History ─────────────────────────────── */}
+        {hasHints && (
+          <View style={cStyles.section}>
+            <Text style={cStyles.sectionTitle}>
+              Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
+            </Text>
+            <View style={styles.tabContent}>
+              {renderHintsTab()}
+            </View>
+          </View>
+        )}
       </>
     );
   };
@@ -2379,70 +2305,13 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
 // ─── Completed Goal Styles ──────────────────────────────────────────────────
 const createCStyles = (colors: typeof Colors) => StyleSheet.create({
-  heroContainer: {
-    marginBottom: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.black,
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  heroInner: {
-    padding: Spacing.lg,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
+  statChip: {
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  heroTrophyCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.xxl,
-    backgroundColor: colors.warningLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroTitle: {
-    ...Typography.heading3,
-    color: colors.textPrimary,
-  },
-  heroGoalTitle: {
-    ...Typography.small,
-    color: colors.textSecondary,
-    marginTop: Spacing.xxs,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  heroStatPill: {
-    backgroundColor: colors.primarySurface,
-    borderRadius: BorderRadius.sm,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  heroStatNumber: {
-    ...Typography.bodyBold,
-    color: colors.primary,
-  },
-  heroStatLabel: {
-    ...Typography.captionBold,
-    color: colors.textSecondary,
-  },
-  heroDateText: {
-    ...Typography.caption,
-    color: colors.textMuted,
-    marginLeft: 'auto',
+    backgroundColor: colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    minWidth: 80,
   },
   section: {
     marginBottom: Spacing.lg,
@@ -2455,15 +2324,6 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
   countBadge: {
     ...Typography.captionBold,
     color: colors.primary,
-  },
-  experienceBody: {
-    backgroundColor: colors.white,
-    padding: Spacing.md,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: colors.border,
   },
   experienceName: {
     ...Typography.subheading,
@@ -2528,20 +2388,6 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
   copyText: {
     ...Typography.smallBold,
     color: colors.primary,
-  },
-  generateCouponBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-  },
-  generateCouponText: {
-    color: colors.white,
-    ...Typography.smallBold,
   },
   contactCard: {
     backgroundColor: colors.white,

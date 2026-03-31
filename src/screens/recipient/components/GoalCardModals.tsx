@@ -133,7 +133,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   }, [visible]);
 
 
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // Weekly celebration tier config — use design tokens, no hardcoded hex
   const weekTier = useMemo(() => {
@@ -158,17 +158,18 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
         variant="center"
         noPadding={false}
         overlayAbove={
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <ConfettiCannon
-              ref={confettiRef}
-              autoStart={false}
-              count={Platform.OS === 'android' ? Math.floor(confettiCount * 0.6) : confettiCount}
-              origin={{ x: screenWidth / 2, y: -20 }}
-              explosionSpeed={weekTier ? 400 : 350}
-              fallSpeed={3000}
-              fadeOut
-              colors={confettiColors}
-            />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: screenHeight * 2 }}>
+              <ConfettiCannon
+                ref={confettiRef}
+                autoStart={false}
+                count={Platform.OS === 'android' ? Math.floor(confettiCount * 0.6) : confettiCount}
+                origin={{ x: screenWidth / 2, y: -20 }}
+                explosionSpeed={weekTier ? 400 : 350}
+                fallSpeed={3000}
+                colors={confettiColors}
+              />
+            </View>
           </View>
         }
       >

@@ -59,7 +59,8 @@ import { toJSDate } from '../../utils/GoalHelpers';
 import ErrorRetry from '../../components/ErrorRetry';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Gift, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import { Trophy, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import { getFlameHex } from '../../utils/streakColor';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
 
@@ -635,17 +636,18 @@ const AchievementDetailScreen = () => {
         }
 
         // Existing coupon - check goal first, then Firestore
+        const hasGift = Boolean(goal.experienceGiftId) || Boolean(goal.giftAttachedAt);
         if (goal.couponCode) {
           if (mounted) setCouponCode(goal.couponCode);
-        } else if (goal.experienceGiftId) {
+        } else if (hasGift) {
           const couponsRef = collection(db, 'partnerCoupons');
           const q = query(couponsRef, where('goalId', '==', goal.id), limit(1));
           const snapshot = await getDocs(q);
           if (!mounted) return;
           if (!snapshot.empty) {
             setCouponCode(snapshot.docs[0].data().code);
-          } else if (!goal.isFreeGoal && expId && goal.userId) {
-            // Completion mode: attempt to generate coupon for paid goals
+          } else if (expId && goal.userId) {
+            // Auto-generate coupon for completed goals with a reward attached
             try {
               const code = await generateCouponForGoal(goal.id, goal.userId, partner?.id || '');
               if (mounted) setCouponCode(code);
@@ -975,11 +977,11 @@ const AchievementDetailScreen = () => {
               {/* Tilted card pair */}
               <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 80, gap: -40 }}>
                 {/* Left card — goal emoji */}
-                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-6deg' }], shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30, elevation: 16 }}>
+                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-6deg' }], shadowColor: colors.black, shadowOpacity: 0.4, shadowRadius: 30, elevation: 16 }}>
                   <Text style={{ fontSize: 120 }}>{goalTypeEmoji}</Text>
                 </View>
                 {/* Right card — experience image or gift emoji */}
-                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '6deg' }], shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30, elevation: 16, overflow: 'hidden' }}>
+                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '6deg' }], shadowColor: colors.black, shadowOpacity: 0.4, shadowRadius: 30, elevation: 16, overflow: 'hidden' }}>
                   {experienceImage ? (
                     <Image source={{ uri: experienceImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
                   ) : (
@@ -1051,6 +1053,9 @@ const AchievementDetailScreen = () => {
               <Text style={[Typography.heading1, { color: colors.textPrimary, marginTop: Spacing.md, textAlign: 'center' }]}>
                 Goal Completed
               </Text>
+              <Text style={[Typography.subheading, { color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center' }]}>
+                {goal.title}
+              </Text>
 
               {isCompletion && (
                 <Text style={[Typography.subheading, { color: colors.primary, marginTop: Spacing.xs, textAlign: 'center' }]}>
@@ -1068,15 +1073,20 @@ const AchievementDetailScreen = () => {
                   <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{goal.targetCount || 0}</Text>
                   <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Weeks</Text>
                 </View>
-                {isCompletion && sessionStreak >= 3 && (
-                  <View style={[cStyles.statChip, { backgroundColor: colors.warningLight }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                      <Flame color={colors.warning} size={18} fill={colors.warning} />
-                      <Text style={[Typography.heading2, { color: colors.warning }]}>{sessionStreak}</Text>
+                {(() => {
+                  const streakVal = isCompletion ? sessionStreak : (goal.completionStreak ?? 0);
+                  if (streakVal < 1) return null;
+                  const flameColor = getFlameHex(streakVal);
+                  return (
+                    <View style={[cStyles.statChip, { backgroundColor: colors.warningLight }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                        <Flame color={flameColor} size={18} fill={flameColor} />
+                        <Text style={[Typography.heading2, { color: flameColor }]}>{streakVal}</Text>
+                      </View>
+                      <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
                     </View>
-                    <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
-                  </View>
-                )}
+                  );
+                })()}
               </View>
 
               {completedDate && (
@@ -1084,62 +1094,44 @@ const AchievementDetailScreen = () => {
                   Completed {completedDate}
                 </Text>
               )}
-            </Card>
 
-            {/* ─── 2. Achievement Info ─── */}
-            <View style={cStyles.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
-                <CheckCircle color={colors.secondary} size={20} />
-                <Text style={cStyles.sectionTitle}>Your Achievement</Text>
-              </View>
-              <Text style={{ ...Typography.large, color: colors.textPrimary, marginBottom: Spacing.xs }}>{goal.title}</Text>
-              {goal.description ? (
-                <Text style={{ ...Typography.small, color: colors.textSecondary, lineHeight: 20, marginBottom: Spacing.md }}>{goal.description}</Text>
-              ) : null}
-              <View style={{ backgroundColor: colors.warningLight, borderRadius: BorderRadius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm }}>
-                <Sparkles color={colors.celebrationGold} size={18} />
-                <Text style={{ ...Typography.heading1Bold, color: colors.warning }}>{totalSessions}</Text>
-                <Text style={{ ...Typography.smallBold, color: colors.warningDark }}>Sessions Completed</Text>
-              </View>
-            </View>
+              {/* ─── Reward (inline in hero card) ─── */}
+              {(hasReward || (goal.isFreeGoal && goal.pledgedExperience)) && (
+                <>
+                  <View style={cStyles.rewardDivider} />
+                  <Text style={[Typography.subheading, { color: colors.textPrimary, marginBottom: Spacing.sm, alignSelf: 'flex-start' }]}>
+                    Your Reward
+                  </Text>
 
-            {/* ─── 3. Experience/Reward ─── */}
-            {(hasReward || (goal.isFreeGoal && goal.pledgedExperience)) && (
-              <View style={cStyles.section}>
-                <Text style={cStyles.sectionTitle}>
-                  <Gift size={15} color={colors.primary} />  Your Reward
-                </Text>
-
-                {/* Experience image */}
-                {(goal.pledgedExperience?.coverImageUrl || experienceImage) && (
-                  <Image
-                    source={{ uri: experienceImage || goal.pledgedExperience?.coverImageUrl }}
-                    style={{ width: '100%', height: vh(180), borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, backgroundColor: colors.backgroundLight }}
-                  />
-                )}
-
-                <View style={cStyles.experienceBody}>
-                  {isLoading ? (
-                    <ExperienceCardSkeleton />
-                  ) : (
-                    <>
-                      <Text style={cStyles.experienceName}>
-                        {goal.pledgedExperience?.title || experience?.title || 'Experience'}
-                      </Text>
-                      {(goal.pledgedExperience?.subtitle || experience?.subtitle) ? (
-                        <Text style={cStyles.experienceSubtitle}>{goal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
-                      ) : null}
-                      {experience?.description ? (
-                        <Text style={{ ...Typography.small, color: colors.gray700, lineHeight: 20, marginTop: Spacing.sm }}>{experience.description}</Text>
-                      ) : null}
-                    </>
-                  )}
+                  <Card variant="outlined" noPadding style={{ alignSelf: 'stretch', overflow: 'hidden' }}>
+                    {(goal.pledgedExperience?.coverImageUrl || experienceImage) && (
+                      <Image
+                        source={{ uri: experienceImage || goal.pledgedExperience?.coverImageUrl }}
+                        style={{ width: '100%', height: vh(180), backgroundColor: colors.backgroundLight }}
+                      />
+                    )}
+                    <View style={{ padding: Spacing.md }}>
+                      {isLoading ? (
+                        <ExperienceCardSkeleton />
+                      ) : (
+                        <>
+                          <Text style={cStyles.experienceName}>
+                            {goal.pledgedExperience?.title || experience?.title || 'Experience'}
+                          </Text>
+                          {(goal.pledgedExperience?.subtitle || experience?.subtitle) ? (
+                            <Text style={cStyles.experienceSubtitle}>{goal.pledgedExperience?.subtitle || experience?.subtitle}</Text>
+                          ) : null}
+                          {experience?.description ? (
+                            <Text style={{ ...Typography.small, color: colors.gray700, lineHeight: 20, marginTop: Spacing.sm }}>{experience.description}</Text>
+                          ) : null}
+                        </>
+                      )}
+                    </View>
+                  </Card>
 
                   {/* Coupon & partner contact */}
                   {(goal.experienceGiftId || goal.giftAttachedAt) && (
-                    <>
-                      <View style={cStyles.rewardDivider} />
-
+                    <View style={{ alignSelf: 'stretch', marginTop: Spacing.md }}>
                       {/* Coupon */}
                       {couponCode ? (
                         <View style={cStyles.couponCard}>
@@ -1203,11 +1195,11 @@ const AchievementDetailScreen = () => {
                           </View>
                         </View>
                       )}
-                    </>
+                    </View>
                   )}
-                </View>
-              </View>
-            )}
+                </>
+              )}
+            </Card>
 
             {!isCompletion && (
               <>
@@ -1304,8 +1296,8 @@ const AchievementDetailScreen = () => {
               <View style={styles.ctaSection}>
                 {sessionStreak >= 3 && (
                   <View style={styles.streakBadge}>
-                    <Flame color={colors.warning} size={28} fill={colors.warning} />
-                    <Text style={styles.streakCount}>{sessionStreak}</Text>
+                    <Flame color={getFlameHex(sessionStreak)} size={28} fill={getFlameHex(sessionStreak)} />
+                    <Text style={[styles.streakCount, { color: getFlameHex(sessionStreak) }]}>{sessionStreak}</Text>
                     <Text style={styles.streakLabel}>session streak</Text>
                   </View>
                 )}
@@ -1377,15 +1369,6 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
   section: { marginBottom: Spacing.lg },
   sectionTitle: { ...Typography.subheading, color: colors.textPrimary, marginBottom: Spacing.sm },
   countBadge: { ...Typography.captionBold, color: colors.primary },
-  experienceBody: {
-    backgroundColor: colors.white,
-    padding: Spacing.md,
-    borderBottomLeftRadius: BorderRadius.lg,
-    borderBottomRightRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: colors.border,
-  },
   experienceName: { ...Typography.subheading, color: colors.textPrimary, marginBottom: Spacing.xs },
   experienceSubtitle: { ...Typography.small, color: colors.textSecondary },
   rewardDivider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.md },

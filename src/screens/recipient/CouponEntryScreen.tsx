@@ -405,7 +405,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   // ── ScrollView ──────────────────────────────────────────────
   scrollContent: {
     paddingTop: vh(45),
-    paddingBottom: 100,
+    paddingBottom: vh(80),
     flexGrow: 1,
     justifyContent: 'center',
   },
@@ -428,27 +428,27 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────
   headerWrapper: {
-    marginBottom: Spacing.huge,
+    marginBottom: vh(32),
     alignItems: 'center',
   },
   headingLine1: {
-    ...Typography.displayLarge,
+    ...Typography.heading1,
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   headingLine2: {
-    ...Typography.displayLarge,
+    ...Typography.heading1,
     color: colors.primary,
     textAlign: 'center',
-    marginTop: -28,
+    marginTop: vh(-20),
     marginBottom: Spacing.md,
   },
   subtitle: {
     ...Typography.heading3,
     color: colors.textSecondary,
     textAlign: 'center',
-    maxWidth: 300,
+    maxWidth: '85%',
   },
 
   // ── Input card ────────────────────────────────────────────
@@ -482,7 +482,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     padding: Spacing.xxl,
     width: '100%',
     maxWidth: 400,
-    marginTop: Spacing.huge,
+    marginTop: vh(28),
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
@@ -523,7 +523,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'right',
     marginBottom: Spacing.xl,
-    marginTop: -8,
+    marginTop: vh(-8),
   },
   continueButton: {
     backgroundColor: colors.primary,

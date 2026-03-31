@@ -885,6 +885,7 @@ const UserProfileScreen: React.FC = () => {
                 uri={userProfile?.profileImageUrl}
                 name={userProfile?.name || state.user?.displayName}
                 size="xl"
+                style={{ width: vh(110), height: vh(110), borderRadius: vh(55) }}
               />
               <MotiView
                 from={{ opacity: 0, scale: 0.85, translateY: -4 }}
@@ -1137,21 +1138,21 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
   profileImageContainer: { position: 'relative', marginBottom: Spacing.lg },
   profileImage: {
-    width: 110,
-    height: 110,
+    width: vh(110),
+    height: vh(110),
     borderRadius: BorderRadius.pill,
     borderWidth: 3,
     borderColor: colors.primaryBorder,
   },
   placeholderImage: {
-    width: 110,
-    height: 110,
+    width: vh(110),
+    height: vh(110),
     borderRadius: BorderRadius.pill,
     backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { ...Typography.displayLarge, color: colors.white },
+  placeholderText: { ...Typography.displayLarge, fontSize: vh(36), color: colors.white },
   editIconButton: {
     position: 'absolute',
     bottom: 0,
@@ -1460,7 +1461,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   modalContent: { flex: 1, padding: Spacing.xl },
   imageSection: { alignItems: 'center', marginBottom: Spacing.xxxl },
   imagePickerButton: { position: 'relative', marginBottom: Spacing.md },
-  editProfileImage: { width: 110, height: 110, borderRadius: BorderRadius.pill },
+  editProfileImage: { width: vh(110), height: vh(110), borderRadius: BorderRadius.pill },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,

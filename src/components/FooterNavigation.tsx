@@ -96,6 +96,7 @@ const NavButton = React.memo<{
         <View style={styles.iconWrapper}>
           {/* Soft circular glow behind icon */}
           <MotiView
+            from={{ opacity: 0, scale: 0.4 }}
             animate={{
               opacity: isActive ? 0.3 : 0,
               scale: isActive ? 1 : 0.4,
@@ -279,18 +280,22 @@ const createStyles = (colors: typeof Colors) =>
       position: 'absolute',
       ...Platform.select({
         web: {
+          // CSS blur for true soft glow on web
           width: 36,
           height: 36,
           borderRadius: 18,
           filter: 'blur(6px)',
         },
         android: {
-          // Match web dimensions; no blur available but opacity + size match web
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          // Single halo circle — larger than icon, low opacity set by MotiView animate.
+          // Two-circle approach creates visible concentric rings without blur; single
+          // larger circle at low opacity reads as a natural soft halo instead.
+          width: 48,
+          height: 48,
+          borderRadius: 24,
         },
         default: {
+          // iOS — RN shadow renders as soft native blur glow
           width: 36,
           height: 36,
           borderRadius: 18,

@@ -193,6 +193,7 @@ export interface GoalCore {
   createdAt: Date;
   updatedAt?: Date;
   completedAt?: Date | Timestamp;
+  completionStreak?: number;
   goalType?: 'gym' | 'yoga' | 'dance' | 'custom';
   paymentCommitment?: 'payOnCompletion' | 'paidUpfront' | null;
   venueId?: string;

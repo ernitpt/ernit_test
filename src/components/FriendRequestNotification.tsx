@@ -196,7 +196,7 @@ const createStyles = (colors: typeof Colors) =>
       justifyContent: 'center',
     },
     acceptButton: {
-      backgroundColor: colors.approveLight,
+      backgroundColor: colors.successLight,
       marginRight: Spacing.xxl,
     },
     acceptButtonText: {
@@ -205,7 +205,7 @@ const createStyles = (colors: typeof Colors) =>
       fontWeight: '600',
     },
     declineButton: {
-      backgroundColor: colors.declineLight,
+      backgroundColor: colors.errorLight,
       marginLeft: Spacing.xxl,
     },
     declineButtonText: {

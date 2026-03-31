@@ -375,6 +375,13 @@ export class GoalSessionService {
           longestSessionStreak: newLongest,
           lastSessionDate: streakDate,
         });
+
+        // Snapshot streak on the goal doc when the goal completes
+        if (g.isCompleted) {
+          const goalRef = doc(db, 'goals', goalId);
+          streakTx.update(goalRef, { completionStreak: newStreak });
+        }
+
         logger.log(`🔥 Streak updated for user ${g.userId}: ${newStreak} (longest: ${newLongest})`);
       });
     } catch (streakError: unknown) {

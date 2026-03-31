@@ -433,7 +433,7 @@ export default function CartScreen() {
               })}
             </ScrollView>
 
-            <View style={[styles.bottomContainer, { marginBottom: FOOTER_HEIGHT + insets.bottom }]}>
+            <View style={styles.bottomContainer}>
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalAmount}>€{total.toFixed(2)}</Text>
@@ -603,8 +603,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     padding: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
-    marginBottom: FOOTER_HEIGHT,
+    paddingBottom: Spacing.lg,
+    // No marginBottom — MainScreen.content already has paddingBottom: FOOTER_HEIGHT + safeInset
+    // to keep content clear of the absolutely-positioned footer.
   },
   totalContainer: {
     flexDirection: "row",

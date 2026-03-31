@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -443,7 +442,13 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             </View>
           </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Summary */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Your Gifts</Text>
@@ -625,6 +630,7 @@ const NativeCheckoutScreen: React.FC = () => {
           paymentIntentClientSecret: response.clientSecret,
           merchantDisplayName: 'Ernit',
           style: 'automatic',
+          returnURL: 'ernit://payment-success',
         });
 
         if (error) {
@@ -1072,7 +1078,8 @@ const WebCheckoutScreen: React.FC = () => {
             colorText: colors.textPrimary,
             colorDanger: colors.error,
             fontFamily: "system-ui, -apple-system, sans-serif",
-            spacingUnit: "4px",
+            fontSizeBase: "16px",
+            spacingUnit: "6px",
             borderRadius: "8px",
           },
         },
@@ -1135,7 +1142,20 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollView: { flex: 1, paddingHorizontal: Spacing.xl },
+  scrollView: { flex: 1 },
+  scrollContent: {
+    // Stretch content to fill scroll container width so Stripe iframe resolves
+    // a real pixel width. Without this, contentContainer width is content-fit on
+    // web, making PaymentElement render at near-zero width (looks "zoomed out").
+    flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    // On desktop web, constrain to a readable form width and centre it.
+    ...(Platform.OS === 'web' ? {
+      maxWidth: 560,
+      width: '100%',
+      alignSelf: 'center' as const,
+    } : {}),
+  },
 
   summaryCard: {
     backgroundColor: colors.white,
@@ -1202,7 +1222,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   paymentBox: {
     backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: colors.black,
@@ -1210,6 +1230,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
+    // Explicit full-width on web — Stripe's iframe sizes to its container.
+    // Without this, RNW may resolve the div to content-fit width → tiny form.
+    ...(Platform.OS === 'web' ? { width: '100%' } : {}),
   },
   securityNotice: {
     flexDirection: "row",
@@ -1226,7 +1249,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
 
   bottomBar: {
     position: "absolute",
-    bottom: FOOTER_HEIGHT,
+    bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: colors.white,

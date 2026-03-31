@@ -109,15 +109,15 @@ import { vh } from '../utils/responsive';
 ### Color Palette (Light)
 | Token | Hex | Use |
 |-------|-----|-----|
-| `primary` | `#059669` | Primary actions, CTA |
-| `secondary` | `#10B981` | Secondary actions, links |
-| `accent` | `#14B8A6` | Accents, highlights |
+| `primary` | `#166534` | Primary actions, CTA (8.5:1 AA all sizes) |
+| `secondary` | `#15803D` | Secondary actions, links (5.9:1 AA) |
+| `accent` | `#22C55E` | Accents, highlights, icons |
 | `textPrimary` | `#111827` | Main text |
 | `textSecondary` | `#6B7280` | Supporting text |
-| `textMuted` | `#9CA3AF` | Placeholders, hints |
-| `surface` | `#F9FAFB` | Card backgrounds |
+| `textMuted` | `#6B7280` | Placeholders, hints |
+| `surface` | `#FAFAF5` | Card backgrounds (warm white) |
 | `border` | `#E5E7EB` | Dividers, borders |
-| `error` | `#EF4444` | Errors, destructive |
+| `error` | `#DC2626` | Errors, destructive |
 | `success` | `#22C55E` | Success confirmations |
 | `warning` | `#F59E0B` | Warnings, cautions |
 

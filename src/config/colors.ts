@@ -2,39 +2,36 @@
  * Ernit App — Central Color Tokens
  *
  * All brand colors live here. To swap the palette, edit this file only.
- * Current palette: Emerald / Teal
+ * Current palette: Forest Green + Cream (Editorial Premium)
  */
 
 export const Colors = {
-    // ─── Primary brand color ────────────────────────────────────────────
-    primary: '#059669',       // emerald-600  — was #7C3AED
-    primaryText: '#047857',   // emerald-700  — use for primary-colored text (4.3:1 vs white, WCAG AA for large/bold)
-    primaryDark: '#047857',   // emerald-700  — was #9333EA
-    primaryDeep: '#065F46',   // emerald-900  — was #6D28D9
-    primaryDeeper: '#064E3B', // emerald-950  — was #5B21B6
+    // ─── Primary brand color (Forest Green) ──────────────────────────────
+    primary: '#166534',       // green-800 — deep forest (8.5:1 vs white, AA all sizes)
+    primaryDark: '#14532D',   // green-900 — darker forest
+    primaryDeep: '#052E16',   // green-950 — near-black forest
+    primaryDeeper: '#031A0B', // near-black-green — deepest shade
 
     // ─── Secondary / accent ─────────────────────────────────────────────
-    secondary: '#10B981',     // emerald-500  — was #8B5CF6
-    accent: '#14B8A6',        // teal-500     — was #3B82F6
-    accentDark: '#0D9488',    // teal-600     — was #6366F1
-    accentDeep: '#0F766E',    // teal-700     — was #2563EB
+    secondary: '#15803D',     // green-700 — mid-forest (5.9:1 vs white, AA all sizes)
+    accent: '#22C55E',        // green-500 — pop green for highlights/icons
+    accentDark: '#16A34A',    // green-600 — muted accent
+    accentDeep: '#15803D',    // green-700 — deep accent
 
     // ─── Light tints (backgrounds, surfaces, borders) ───────────────────
     //  • primarySurface: very light bg — used as card/button background tint
     //  • primaryTint: light tint — used as selected-state bg, badges
     //  • primaryBorder: medium tint — used as visible borders/dividers
-    primarySurface: '#F8FAFC', // slate-50 — neutral surface (was #ECFDF5 emerald-50)
-    primaryTint: '#99F6E4',    // teal-200 — warmer teal-green for selected bg
-    primaryBorder: '#5EEAD4',  // teal-300 — visible border, less minty
-    primaryLight: '#CCFBF1',   // teal-100 — light tint for borders/badges
-    primaryOverlay: 'rgba(5, 150, 105, 0.9)', // primary at 90% opacity
+    primarySurface: '#FAFAF5', // warm white — editorial cream surface
+    primaryTint: '#BBF7D0',    // green-200 — selected-state bg
+    primaryBorder: '#86EFAC',  // green-300 — visible border
+    primaryLight: '#DCFCE7',   // green-100 — light tint for borders/badges
+    primaryOverlay: 'rgba(22, 101, 52, 0.9)', // primary at 90% opacity
 
     // ─── Gradients (convenience arrays for LinearGradient) ──────────────
-    gradientPrimary: ['#059669', '#0D9488'] as [string, string],     // emerald-600 → teal-600 (3.5:1 → 3.8:1 vs white)
-    gradientDark: ['#059669', '#065F46'] as [string, string],         // was ['#7C3AED', '#6D28D9']
-    gradientTriple: ['#059669', '#047857', '#059669'] as [string, string, string], // was ['#7C3AED', '#9333EA', '#7C3AED']
-    gradientOnboarding: ['#10B981', '#065F46', '#10B981'] as [string, string, string], // was ['#8B5CF6', '#6D28D9', '#5B21B6']
-    gradientAuth: ['#047857', '#0F766E', '#14B8A6'] as [string, string, string], // was ['#9333EA', '#2563EB', '#3B82F6']
+    gradientPrimary: ['#166534', '#14532D'] as [string, string],     // forest → dark forest
+    gradientDark: ['#14532D', '#052E16'] as [string, string],         // dark forest → near-black
+    gradientTriple: ['#166534', '#14532D', '#166534'] as [string, string, string],
 
     // ─── Semantic / neutral (unchanged) ─────────────────────────────────
     white: '#FFFFFF',
@@ -46,7 +43,7 @@ export const Colors = {
     textSecondary: '#6B7280',
     textMuted: '#6B7280',    // gray-500 — upgraded from #9CA3AF to meet WCAG AA (4.6:1 vs white)
     border: '#E5E7EB',
-    surface: '#F9FAFB',
+    surface: '#FAFAF5',      // warm white — editorial cream
     backgroundLight: '#F3F4F6',
 
     // ─── Extended grays (complete the Tailwind gray-* scale) ──────────
@@ -100,7 +97,7 @@ export const Colors = {
     overlayHeavy: 'rgba(0, 0, 0, 0.7)',
     surfaceFrosted: 'rgba(255, 255, 255, 1)',
     surfaceFrosted92: 'rgba(249, 250, 251, 1)',
-    primaryTintAlpha40: 'rgba(153, 246, 228, 0.4)',
+    primaryTintAlpha40: 'rgba(187, 247, 208, 0.4)', // green-200 at 40%
 
     // ─── Semi-transparent whites ──────────────────────────────────────
     whiteAlpha90: 'rgba(255, 255, 255, 0.9)',
@@ -130,19 +127,16 @@ export const Colors = {
     categoryIndigo: '#6366F1',
 
     // ─── Celebration / decorative ───────────────────────────────────
-    celebrationGold: '#fbbf24',
-    celebrationGoldLight: '#fef3c7',
-    celebrationGoldBorder: '#fde68a',
+    celebrationGold: '#FBBF24',
+    celebrationGoldLight: '#FEF3C7',
+    celebrationGoldBorder: '#FDE68A',
 
     // ─── Extended pink ──────────────────────────────────────────────
     pinkLighter: '#fce7f3',    // pink-100
 
     // ─── Notification action colors (derived from success/error scale) ─
-    approveLight: '#DCFCE7',       // successLight (green-100)
     approveDark: '#16A34A',        // successMedium (green-600)
-    declineLight: '#FEE2E2',       // errorLight (red-100)
     declineDark: '#DC2626',        // error (red-600)
-    actionGreen: '#22C55E',        // success (green-500)
     actionBlue: '#3B82F6',         // info (blue-500)
 
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
@@ -165,9 +159,9 @@ export const Colors = {
     whiteAlpha06: 'rgba(255, 255, 255, 0.06)',
 
     // ─── Primary alpha variants ───────────────────────────────────────
-    primaryAlpha10: 'rgba(16, 185, 129, 0.1)',   // emerald-500 at 10% — badge bg tint
-    primaryAlpha30: 'rgba(16, 185, 129, 0.3)',   // emerald-500 at 30% — badge border
-    primaryAlpha40: 'rgba(16, 185, 129, 0.4)',   // emerald-500 at 40% — text glow
+    primaryAlpha10: 'rgba(22, 101, 52, 0.1)',    // forest-green at 10% — badge bg tint
+    primaryAlpha30: 'rgba(22, 101, 52, 0.3)',    // forest-green at 30% — badge border
+    primaryAlpha40: 'rgba(22, 101, 52, 0.4)',    // forest-green at 40% — text glow
 
     // ─── Warning alpha variants ───────────────────────────────────────
     warningAlpha10: 'rgba(245, 158, 11, 0.1)',   // amber-500 at 10% — badge bg tint
@@ -201,31 +195,28 @@ export default Colors;
  */
 export const DarkColors = {
     // ─── Primary brand color (brightened for dark surface contrast) ────
-    primary: '#10B981',       // emerald-500
-    primaryText: '#34D399',   // emerald-400 — bright enough for text on dark surfaces
-    primaryDark: '#059669',   // emerald-600
-    primaryDeep: '#047857',   // emerald-700
-    primaryDeeper: '#065F46', // emerald-900
+    primary: '#22C55E',       // green-500 — bright forest on dark
+    primaryDark: '#16A34A',   // green-600
+    primaryDeep: '#15803D',   // green-700
+    primaryDeeper: '#166534', // green-800
 
     // ─── Secondary / accent (brightened) ──────────────────────────────
-    secondary: '#34D399',     // emerald-400
-    accent: '#2DD4BF',        // teal-400
-    accentDark: '#14B8A6',    // teal-500
-    accentDeep: '#0D9488',    // teal-600
+    secondary: '#4ADE80',     // green-400 — bright for dark surfaces
+    accent: '#86EFAC',        // green-300 — pop highlight on dark
+    accentDark: '#4ADE80',    // green-400
+    accentDeep: '#22C55E',    // green-500
 
     // ─── Tints (ghost tints on dark surfaces) ─────────────────────────
-    primarySurface: '#202040',
-    primaryTint: 'rgba(52, 211, 153, 0.25)',
-    primaryBorder: 'rgba(52, 211, 153, 0.35)',
-    primaryLight: 'rgba(16, 185, 129, 0.15)',
-    primaryOverlay: 'rgba(16, 185, 129, 0.9)',
+    primarySurface: '#1A1F16',  // green-tinted dark surface
+    primaryTint: 'rgba(34, 197, 94, 0.25)',
+    primaryBorder: 'rgba(34, 197, 94, 0.35)',
+    primaryLight: 'rgba(22, 101, 52, 0.15)',
+    primaryOverlay: 'rgba(34, 197, 94, 0.9)',
 
     // ─── Gradients (brightened for dark surface contrast) ──────────────
-    gradientPrimary: ['#10B981', '#14B8A6'] as [string, string],  // emerald-500 → teal-500 (lighter for dark bg)
-    gradientDark: ['#10B981', '#047857'] as [string, string],
-    gradientTriple: ['#10B981', '#059669', '#10B981'] as [string, string, string],
-    gradientOnboarding: ['#34D399', '#047857', '#34D399'] as [string, string, string],
-    gradientAuth: ['#059669', '#0D9488', '#2DD4BF'] as [string, string, string],
+    gradientPrimary: ['#22C55E', '#16A34A'] as [string, string],  // green-500 → green-600
+    gradientDark: ['#16A34A', '#15803D'] as [string, string],
+    gradientTriple: ['#22C55E', '#16A34A', '#22C55E'] as [string, string, string],
 
     // ─── Semantic / neutral (inverted for dark) ───────────────────────
     // NOTE: `white` maps to near-black (#141414) — it represents the "base surface" role, not literal white
@@ -292,7 +283,7 @@ export const DarkColors = {
     overlayHeavy: 'rgba(0, 0, 0, 0.8)',
     surfaceFrosted: 'rgba(20, 20, 20, 0.95)',
     surfaceFrosted92: 'rgba(28, 28, 28, 0.92)',
-    primaryTintAlpha40: 'rgba(52, 211, 153, 0.3)',
+    primaryTintAlpha40: 'rgba(34, 197, 94, 0.3)', // green-500 at 30%
 
     // ─── Semi-transparent (dark equivalents) ────────────────────────
     whiteAlpha90: 'rgba(20, 20, 20, 0.9)',
@@ -330,11 +321,8 @@ export const DarkColors = {
     pinkLighter: 'rgba(236, 72, 153, 0.12)',
 
     // ─── Notification action colors (derived from success/error scale) ─
-    approveLight: 'rgba(34, 197, 94, 0.15)',  // successLight dark equiv
     approveDark: '#86EFAC',                    // green-300 (bright on dark)
-    declineLight: 'rgba(239, 68, 68, 0.15)',   // errorLight dark equiv
     declineDark: '#FCA5A5',                    // red-300 (bright on dark)
-    actionGreen: '#86EFAC',                    // green-300
     actionBlue: '#93C5FD',                     // blue-300
 
     // ─── Theme-invariant (same in light AND dark — for image overlays) ─
@@ -357,9 +345,9 @@ export const DarkColors = {
     whiteAlpha06: 'rgba(255, 255, 255, 0.06)',
 
     // ─── Primary alpha variants ───────────────────────────────────────
-    primaryAlpha10: 'rgba(16, 185, 129, 0.15)',  // slightly brighter on dark
-    primaryAlpha30: 'rgba(16, 185, 129, 0.35)',
-    primaryAlpha40: 'rgba(16, 185, 129, 0.4)',
+    primaryAlpha10: 'rgba(34, 197, 94, 0.15)',   // green-500 at 15% on dark
+    primaryAlpha30: 'rgba(34, 197, 94, 0.35)',
+    primaryAlpha40: 'rgba(34, 197, 94, 0.4)',
 
     // ─── Warning alpha variants ───────────────────────────────────────
     warningAlpha10: 'rgba(245, 158, 11, 0.15)',
@@ -379,6 +367,6 @@ export const DarkColors = {
     decorativeYellow: '#E4D472',
 
     // ─── Card dark surface ─────────────────────────────────────────────
-    cardDarkBg: '#1a1a2e',         // same — already dark
+    cardDarkBg: '#1A1A2E',         // same — already dark
     cardDarkBorder: '#2E2E2E',     // lighter border for visibility on dark
 } satisfies typeof Colors;

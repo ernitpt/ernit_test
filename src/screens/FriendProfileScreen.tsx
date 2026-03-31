@@ -830,11 +830,12 @@ const FriendProfileScreen: React.FC = () => {
         </View>
 
         {/* Hero Section */}
-        <View style={styles.heroSection}>
+        <View style={[styles.heroSection, { paddingTop: insets.top + Spacing.lg }]}>
           <Avatar
             uri={userProfile?.profileImageUrl}
             name={userProfile?.name || userName || undefined}
             size="xl"
+            style={{ width: vh(100), height: vh(100), borderRadius: vh(50) }}
           />
 
           <Text style={styles.userName}>{userName}</Text>
@@ -979,13 +980,13 @@ const FriendProfileScreen: React.FC = () => {
           onMomentumScrollEnd={() => { isTabPress.current = false; }}
           style={{ flex: 1 }}
         >
-          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+          <View style={{ width: screenWidth, paddingBottom: 80 + insets.bottom }}>
             {renderTabContent('goals')}
           </View>
-          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+          <View style={{ width: screenWidth, paddingBottom: 80 + insets.bottom }}>
             {renderTabContent('achievements')}
           </View>
-          <View style={{ width: screenWidth, paddingBottom: 80 }}>
+          <View style={{ width: screenWidth, paddingBottom: 80 + insets.bottom }}>
             {renderTabContent('wishlist')}
           </View>
         </ScrollView>
@@ -1077,7 +1078,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
   // HERO
   heroSection: {
     backgroundColor: colors.white,
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingTop: Spacing.lg, // base; overridden inline with insets.top + Spacing.lg
     paddingBottom: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
     alignItems: 'center',
@@ -1085,21 +1086,21 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
     borderBottomRightRadius: BorderRadius.xxl,
   },
   profileImage: {
-    width: 100,
-    height: 100,
+    width: vh(100),
+    height: vh(100),
     borderRadius: BorderRadius.pill,
     borderWidth: 4,
     borderColor: colors.backgroundLight,
   },
   placeholderImage: {
-    width: 100,
-    height: 100,
+    width: vh(100),
+    height: vh(100),
     borderRadius: BorderRadius.pill,
     backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { ...Typography.display, fontSize: Typography.displayLarge.fontSize, color: colors.white },
+  placeholderText: { ...Typography.display, fontSize: vh(36), color: colors.white },
   userName: {
     ...Typography.heading1,
     color: colors.textPrimary,
@@ -1115,7 +1116,7 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
   },
 
   // STATS
-  statsRow: { flexDirection: 'row', gap: 32, marginBottom: Spacing.xl },
+  statsRow: { flexDirection: 'row', gap: Spacing.xxxl, marginBottom: Spacing.xl },
   statItem: { alignItems: 'center' },
   statNumber: { ...Typography.heading1, color: colors.secondary, marginBottom: Spacing.xs },
   statLabel: { ...Typography.caption, fontWeight: '500', color: colors.textSecondary },
@@ -1431,7 +1432,7 @@ const createHistoryModalStyles = (colors: typeof Colors) => StyleSheet.create({
     fontWeight: '300',
   },
   scrollView: {
-    maxHeight: 500,
+    maxHeight: vh(450),
     padding: Spacing.xl,
   },
   hintItem: {

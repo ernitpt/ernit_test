@@ -45,7 +45,9 @@ service firebase.storage {
     // Path: sessions/{userId}/{goalId}/...
     // Photos/videos captured during goal sessions
     match /sessions/{userId}/{goalId}/{fileName} {
-      allow read: if request.auth != null;
+      // SECURITY FIX: Scoped read to the uploading user only (uid segment in path).
+      // Previously any authenticated user could read any session media file.
+      allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size < 15 * 1024 * 1024
@@ -68,7 +70,9 @@ service firebase.storage {
     // Path: partners/{userId}/...
     // Write scoped to owning partner UID with content-type restriction
     match /partners/{userId}/{allPaths=**} {
-      allow read: if true;
+      // SECURITY FIX: Partner files require authentication to read.
+      // Previously publicly readable without any auth check.
+      allow read: if request.auth != null;
       allow write: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size < 10 * 1024 * 1024
@@ -77,7 +81,9 @@ service firebase.storage {
     
     // ========== USERS FOLDER (legacy/backup) ==========
     match /users/{userId}/{allPaths=**} {
-      allow read: if true;
+      // SECURITY FIX: Legacy users/ path now requires authentication to read.
+      // Previously publicly readable (allow read: if true).
+      allow read: if request.auth != null;
       allow write: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024

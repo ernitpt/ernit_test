@@ -295,7 +295,9 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         left: -1000,
         right: -1000,
         bottom: -1000,
-        zIndex: 1,
+        // No zIndex — natural tree order places ReactionPicker (rendered last) on top.
+        // Setting zIndex: 1 here would put the backdrop ABOVE the picker on Android,
+        // intercepting all taps and silently swallowing reactions.
     },
     reactionsRow: {
         flexDirection: 'row',

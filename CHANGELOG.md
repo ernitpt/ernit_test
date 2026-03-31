@@ -389,6 +389,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sync 5 _Test scheduled function files to match production logic (pagination, logger, transactions)
 - sync all 15 _Test Cloud Functions with production — full logic parity, getFirestore(ernitclone2) db, sandbox Stripe keys, add onUserDeleted_Test
 - redesign color palette — forest green + cream editorial direction
+- merge reward section into hero card on AchievementDetailScreen, remove gift emoji, auto-generate coupon for all completed goals with rewards
+- merge reward section into hero card on JourneyScreen, remove gift emoji, auto-generate coupon code on load
+- wrap reward experience in outlined Card on JourneyScreen and AchievementDetailScreen
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -975,6 +978,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - category screen experiences query, feed reactionCounts crash, onUserDeleted feedPosts collection name
 - CartScreen TDZ crash — move loadItems useCallback above useEffect references
 - remove invalid accessibilityRole article on Android (RCTView crash)
+- cart bottom panel sits on footer, feed reactions backdrop zIndex removed, footer glow animation restored with from prop, Android glow uses two-layer bloom circles
+- add returnURL to PaymentSheet init — enables MB Way and other redirect payment methods on Android/iOS
+- web checkout PaymentElement renders full-width (scrollContent flexGrow + maxWidth 560), Android footer glow reverted to single soft halo circle
+- use expo-crypto instead of global crypto in CouponService — fixes Hermes ReferenceError
 
 ### Added
 - Automatic changelog system with `npm run log` script

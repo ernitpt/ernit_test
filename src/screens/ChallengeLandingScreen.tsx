@@ -37,7 +37,7 @@ import { logger } from '../utils/logger';
 import ErrorRetry from '../components/ErrorRetry';
 
 // ─── Constants ────────────────────────────────────────────────────
-const WORD_SLOT_HEIGHT = vh(58);
+const WORD_SLOT_HEIGHT = Math.max(vh(58), 44);
 const CONTENT_FADE_MS = 250;
 const CARDS_PADDING = 16;
 
@@ -607,7 +607,7 @@ export default function ChallengeLandingScreen() {
                     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}
                 >
                     {/* Hero Section — stacked gradients for smooth cross-fade */}
-                    <View style={[styles.hero, { paddingTop: insets.top + vh(80) }]}>
+                    <View style={[styles.hero, { paddingTop: insets.top + vh(Platform.OS === 'ios' ? 80 : 56) }]}>
                         <LinearGradient
                             colors={[...SELF_CONFIG.gradient]}
                             start={{ x: 0, y: 0 }}
@@ -637,7 +637,7 @@ export default function ChallengeLandingScreen() {
                         )}
 
                         <TouchableOpacity
-                            style={[styles.loginButton, { top: Math.max(insets.top, 16) + 8 }]}
+                            style={[styles.loginButton, { top: Math.max(insets.top, 16) + 14 }]}
                             onPress={() => isLoggedIn
                                 ? navigation.navigate('Goals')
                                 : navigation.navigate('Auth', { mode: 'signin' })
@@ -1380,7 +1380,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         alignItems: 'center',
         paddingHorizontal: Spacing.xxxl,
         marginBottom: Spacing.xxs,
-        minHeight: 86,
+        minHeight: vh(86),
     },
     statText: {
         ...Typography.subheading,
@@ -1567,7 +1567,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
     },
     founderCard: {
         alignItems: 'center',
-        width: 200,
+        width: Math.min(200, (screenW - Spacing.xxxl * 3) / 2),
     },
     founderPhoto: {
         width: 96,

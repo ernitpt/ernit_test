@@ -28,7 +28,13 @@
       "Bash(pip install:*)",
       "Bash(python3 -c \":*)",
       "Bash(curl -L -o \"D:/ErnitAppWeb_Test/team-deck.pptx\" \"https://docs.google.com/presentation/d/1wtYXsLIBiN8IdYT3Yz9COTCdOhPfjm5s/export/pptx\")",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(eas build:list --platform android --limit 2 --non-interactive)",
+      "Bash(eas submit:list --platform android --limit 3 --non-interactive)",
+      "Bash(eas submit:*)",
+      "Bash(powershell.exe -Command \"Remove-Item ''D:\\\\ErnitAppWeb_Test\\\\.git\\\\index.lock'' -Force\")",
+      "Bash(powershell.exe -Command \"Remove-Item -Path ''D:/ErnitAppWeb_Test/.git/index.lock'' -Force -ErrorAction SilentlyContinue; Test-Path ''D:/ErnitAppWeb_Test/.git/index.lock''\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''D:/ErnitAppWeb_Test/.git/*.lock'' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_FullName; Remove-Item $_FullName -Force }\")"
     ]
   },
   "disabledMcpjsonServers": [

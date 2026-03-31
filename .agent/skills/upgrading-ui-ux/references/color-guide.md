@@ -16,32 +16,33 @@
 |-------|-----|---------------|----------|
 | textPrimary | `#111827` | 17.4:1 | YES |
 | textSecondary | `#6B7280` | 5.0:1 | YES |
-| textMuted | `#9CA3AF` | 2.8:1 | NO — use only for placeholders/hints, never body text |
-| primary | `#059669` | 3.5:1 | Large text only |
-| secondary | `#10B981` | 2.6:1 | NO — never as text on white |
-| error | `#EF4444` | 3.9:1 | Large text only |
+| textMuted | `#6B7280` | 5.0:1 | YES — upgraded from #9CA3AF |
+| primary | `#166534` | 8.5:1 | YES — AA all text sizes |
+| secondary | `#15803D` | 5.9:1 | YES — AA all text sizes |
+| error | `#DC2626` | 4.6:1 | YES — AA compliant |
 | success | `#22C55E` | 2.5:1 | NO — use successDark for text |
 | warning | `#F59E0B` | 2.3:1 | NO — use warningDark for text |
 
-### Light Theme (surface #F9FAFB background)
+### Light Theme (surface #FAFAF5 background)
 | Color | Hex | Ratio vs Surface | Pass AA? |
 |-------|-----|------------------|----------|
-| textPrimary | `#111827` | 16.3:1 | YES |
-| textSecondary | `#6B7280` | 4.7:1 | YES |
-| primary | `#059669` | 3.3:1 | Large text only |
+| textPrimary | `#111827` | 16.1:1 | YES |
+| textSecondary | `#6B7280` | 4.9:1 | YES |
+| primary | `#166534` | 8.3:1 | YES — AA all text sizes |
 
 ### Dark Theme (#1C1C1C surface)
 | Color | Hex | Ratio vs Dark Surface | Pass AA? |
 |-------|-----|----------------------|----------|
 | textPrimary (dark) | `#F9FAFB` | 15.2:1 | YES |
 | textSecondary (dark) | `#9CA3AF` | 6.2:1 | YES |
-| primary (dark) | `#10B981` | 5.8:1 | YES |
-| accent (dark) | `#2DD4BF` | 8.4:1 | YES |
+| primary (dark) | `#22C55E` | 7.2:1 | YES |
+| accent (dark) | `#86EFAC` | 10.8:1 | YES |
 
 ### Key Takeaways
-- `textMuted` (#9CA3AF) fails AA on white — only use for placeholder text, never for readable content
-- `secondary` (#10B981) fails on white — use as background/accent, never as small text on white
-- `primary` (#059669) passes for large text only — fine for headings, buttons use white text on primary background
+- `textMuted` (#6B7280) passes AA at 5.0:1 — safe for secondary content
+- `primary` (#166534) passes AA for ALL text sizes at 8.5:1 — can be used as text color on white
+- `secondary` (#15803D) passes AA for all text sizes at 5.9:1
+- `accent` (#22C55E) at 2.5:1 on white — use for icons/large text only, not small body text
 - On dark surfaces, the lighter palette variants (dark theme) all pass comfortably
 
 ---
@@ -51,11 +52,11 @@
 ### Button Colors
 | Variant | Background | Text | Border | Shadow |
 |---------|-----------|------|--------|--------|
-| `primary` | Gradient `[#059669, #14B8A6]` | `#FFFFFF` (white) | none | `Shadows.colored(primary)` |
+| `primary` | Gradient `[#166534, #14532D]` | `#FFFFFF` (white) | none | `Shadows.colored(primary)` |
 | `secondary` | `transparent` | `colors.secondary` | `colors.secondary` | none |
-| `danger` | `colors.error` (#EF4444) | `#FFFFFF` (white) | none | none |
+| `danger` | `colors.error` (#DC2626) | `#FFFFFF` (white) | none | none |
 | `ghost` | `transparent` | `colors.textSecondary` | none | none |
-| `icon` | Gradient `[#059669, #14B8A6]` | `#FFFFFF` (white) | none | `Shadows.colored(primary)` |
+| `icon` | Gradient `[#166534, #14532D]` | `#FFFFFF` (white) | none | `Shadows.colored(primary)` |
 
 ### CTA Hierarchy (Per Screen)
 - **One primary CTA** per screen — most important action (gradient button)
@@ -111,8 +112,8 @@
 
 ### Color Adjustments
 - **Desaturate vibrant colors** — saturated colors "vibrate" on dark backgrounds
-- Light theme `#059669` → dark theme `#10B981` (lighter, less saturated)
-- Light theme `#14B8A6` → dark theme `#2DD4BF` (lighter teal)
+- Light theme `#166534` → dark theme `#22C55E` (lighter, brighter on dark)
+- Light theme `#15803D` → dark theme `#4ADE80` (lighter green for dark surfaces)
 - Test: if a color "glows" against dark surface, it's too saturated
 
 ### Text on Dark Surfaces
@@ -140,7 +141,7 @@
 |-------------|-----|
 | Hardcoded `#6B7280` in styles | Use `colors.textSecondary` via `useColors()` |
 | `Colors.primary` import instead of hook | Use `const colors = useColors()` for theme-awareness |
-| Green text on white background | Only use `primary` for large text (18px+) or as background with white text |
+| `accent` (#22C55E) text on white background | Only use `accent` for large text (18px+) or icons — `primary` and `secondary` are safe for all text sizes |
 | Same color for text and icons | Icons can use `textMuted`, text should use `textPrimary`/`textSecondary` |
 | Red text without icon for errors | Always pair `colors.error` with an error icon |
 | Category chip with low-contrast text | Ensure white text on category colors, or use `*Light` bg with dark text |

@@ -275,7 +275,7 @@ class PushNotificationService {
                 name: 'Ernit Notifications',
                 importance: Notifications.AndroidImportance.HIGH,
                 vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#00C896',
+                lightColor: '#15803D', // Colors.secondary — forest green
                 sound: 'default',
             });
         }
